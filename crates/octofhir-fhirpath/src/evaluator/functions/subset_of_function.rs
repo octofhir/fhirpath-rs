@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// SubsetOf function evaluator
 pub struct SubsetOfFunctionEvaluator {
@@ -23,7 +23,9 @@ impl SubsetOfFunctionEvaluator {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "subsetOf".to_string(),
-                description: "Returns true if the input collection is a subset of the other collection.".to_string(),
+                description:
+                    "Returns true if the input collection is a subset of the other collection."
+                        .to_string(),
                 signature: FunctionSignature {
                     input_type: "Collection".to_string(),
                     parameters: vec![FunctionParameter {
@@ -83,7 +85,9 @@ impl PureFunctionEvaluator for SubsetOfFunctionEvaluator {
 
         // Check if every item in input exists in other
         let is_subset = input.iter().all(|input_item| {
-            other.iter().any(|other_item| values_equal(input_item, other_item))
+            other
+                .iter()
+                .any(|other_item| values_equal(input_item, other_item))
         });
 
         Ok(EvaluationResult {

@@ -26,6 +26,12 @@ pub struct AndOperatorEvaluator {
     metadata: OperatorMetadata,
 }
 
+impl Default for AndOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AndOperatorEvaluator {
     /// Create a new AND operator evaluator
     pub fn new() -> Self {
@@ -66,7 +72,7 @@ impl AndOperatorEvaluator {
 impl OperationEvaluator for AndOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -132,7 +138,7 @@ mod tests {
         let evaluator = AndOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -154,7 +160,7 @@ mod tests {
         let evaluator = AndOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -176,7 +182,7 @@ mod tests {
         let evaluator = AndOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -198,7 +204,7 @@ mod tests {
         let evaluator = AndOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

@@ -6,12 +6,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
-};use crate::evaluator::terminologies_variable::{
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
+};
+use crate::evaluator::terminologies_variable::{
     extract_terminology_provider_from_terminologies_variable, is_terminologies_variable,
 };
 use crate::evaluator::{EvaluationContext, EvaluationResult};
@@ -218,7 +218,7 @@ impl ProviderPureFunctionEvaluator for ExpandFunctionEvaluator {
             }
             Err(e) => Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0059,
-                format!("Value set expansion failed: {}", e),
+                format!("Value set expansion failed: {e}"),
             )),
         }
     }

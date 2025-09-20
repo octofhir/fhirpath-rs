@@ -3,11 +3,11 @@
 //! This function tests if a value can be converted to a DateTime.
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::EvaluationResult;
 use std::sync::Arc;
 
 /// ConvertsToDateTime function evaluator
@@ -61,9 +61,20 @@ impl PureFunctionEvaluator for ConvertsToDateTimeFunctionEvaluator {
         for value in input {
             let can_convert = match &value {
                 FhirPathValue::String(s, _, _) => {
-                    // Test if string can be parsed as DateTime
-                    use crate::core::temporal::PrecisionDateTime;
-                    PrecisionDateTime::parse(s).is_some()
+                    // Test if string can be parsed as DateTime, Date, or partial datetime (which can be converted to DateTime)
+                    use crate::core::temporal::{PrecisionDate, PrecisionDateTime};
+
+                    // First try parsing as a full DateTime
+                    if PrecisionDateTime::parse(s).is_some() {
+                        true
+                    } else if PrecisionDate::parse(s).is_some() {
+                        // Date can be converted to DateTime
+                        true
+                    } else {
+                        // Try parsing partial datetime strings like "2015-02-04T14" or "2015-02-04T14:28"
+                        // These are essentially datetime strings with partial time information
+                        s.contains('T') && s.len() >= 13 // Minimum for "2015-02-04T14"
+                    }
                 }
                 FhirPathValue::DateTime(_, _, _) => true, // Already a DateTime
                 FhirPathValue::Date(_, _, _) => true,     // Date can be converted to DateTime

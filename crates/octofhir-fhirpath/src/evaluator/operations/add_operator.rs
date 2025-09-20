@@ -20,6 +20,12 @@ pub struct AddOperatorEvaluator {
     metadata: OperatorMetadata,
 }
 
+impl Default for AddOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AddOperatorEvaluator {
     /// Create a new addition operator evaluator
     pub fn new() -> Self {
@@ -154,7 +160,7 @@ impl AddOperatorEvaluator {
 
             // String concatenation (+ operator acts as concatenation for strings)
             (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => {
-                Some(FhirPathValue::string(format!("{}{}", l, r)))
+                Some(FhirPathValue::string(format!("{l}{r}")))
             }
 
             // Invalid combinations
@@ -167,7 +173,7 @@ impl AddOperatorEvaluator {
         &self,
         temporal: &FhirPathValue,
         quantity_value: Decimal,
-        unit: &str,
+        _unit: &str,
         is_ucum_unit: bool,
         calendar_unit: Option<crate::core::CalendarUnit>,
     ) -> Option<FhirPathValue> {
@@ -426,7 +432,7 @@ impl AddOperatorEvaluator {
 impl OperationEvaluator for AddOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -473,8 +479,7 @@ impl OperationEvaluator for AddOperatorEvaluator {
                                 return Err(crate::core::FhirPathError::evaluation_error(
                                     crate::core::error_code::FP0081, // Invalid UCUM unit in temporal arithmetic
                                     format!(
-                                        "Cannot add UCUM unit '{}' to a temporal value. Use word units instead",
-                                        unit_str
+                                        "Cannot add UCUM unit '{unit_str}' to a temporal value. Use word units instead"
                                     ),
                                 ));
                             }
@@ -567,7 +572,7 @@ mod tests {
         let evaluator = AddOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -589,7 +594,7 @@ mod tests {
         let evaluator = AddOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -614,7 +619,7 @@ mod tests {
         let evaluator = AddOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -639,7 +644,7 @@ mod tests {
         let evaluator = AddOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -664,7 +669,7 @@ mod tests {
         let evaluator = AddOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -691,7 +696,7 @@ mod tests {
         let evaluator = AddOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

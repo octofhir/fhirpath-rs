@@ -7,10 +7,11 @@ use std::sync::Arc;
 
 use crate::core::temporal::PrecisionDateTime;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Now function evaluator
 pub struct NowFunctionEvaluator {
@@ -48,7 +49,7 @@ impl NowFunctionEvaluator {
 impl PureFunctionEvaluator for NowFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        _input: Vec<FhirPathValue>,
         _args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if !_args.is_empty() {

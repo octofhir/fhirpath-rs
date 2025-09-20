@@ -9,11 +9,10 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
-use octofhir_fhir_model::TerminologyProvider;
 
 /// MemberOf function evaluator
 pub struct MemberOfFunctionEvaluator {
@@ -222,7 +221,7 @@ impl LazyFunctionEvaluator for MemberOfFunctionEvaluator {
                 Err(e) => {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0059,
-                        format!("Value set membership test failed: {}", e),
+                        format!("Value set membership test failed: {e}"),
                     ));
                 }
             }

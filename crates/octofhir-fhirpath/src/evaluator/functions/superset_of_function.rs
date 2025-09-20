@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// SupersetOf function evaluator
 pub struct SupersetOfFunctionEvaluator {
@@ -23,7 +23,9 @@ impl SupersetOfFunctionEvaluator {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "supersetOf".to_string(),
-                description: "Returns true if the input collection is a superset of the other collection.".to_string(),
+                description:
+                    "Returns true if the input collection is a superset of the other collection."
+                        .to_string(),
                 signature: FunctionSignature {
                     input_type: "Collection".to_string(),
                     parameters: vec![FunctionParameter {
@@ -76,7 +78,9 @@ impl PureFunctionEvaluator for SupersetOfFunctionEvaluator {
 
         // Check if every item in other exists in input
         let is_superset = other.iter().all(|other_item| {
-            input.iter().any(|input_item| values_equal(input_item, other_item))
+            input
+                .iter()
+                .any(|input_item| values_equal(input_item, other_item))
         });
 
         Ok(EvaluationResult {

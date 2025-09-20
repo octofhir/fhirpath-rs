@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
 };
 use crate::evaluator::{EvaluationContext, EvaluationResult};
@@ -51,11 +51,7 @@ impl ResolveFunctionEvaluator {
             FhirPathValue::Resource(resource_json, _, _) => {
                 // Check if this is a Reference resource type
                 if let Some(reference_value) = resource_json.get("reference") {
-                    if let Some(ref_str) = reference_value.as_str() {
-                        Some(ref_str.to_string())
-                    } else {
-                        None
-                    }
+                    reference_value.as_str().map(|ref_str| ref_str.to_string())
                 } else {
                     None
                 }
@@ -72,19 +68,25 @@ impl ResolveFunctionEvaluator {
         reference: &str,
         context: &EvaluationContext,
     ) -> Option<FhirPathValue> {
-        // Get the root resource from context
-        let root_collection = context.input_collection();
+        // Get the root resource from the $this variable (the original Bundle)
+        // instead of the current input collection (which contains the individual references)
+        if let Some(root_resource) = context.get_variable("this") {
+            // Create a single-item collection containing the root resource
+            let root_collection = crate::core::Collection::from(vec![root_resource]);
 
-        // Handle different reference types
-        if reference.starts_with('#') {
-            // Internal contained resource reference
-            self.resolve_contained_reference(&reference[1..], root_collection)
-        } else if reference.contains('/') {
-            // Relative reference (Resource/id)
-            self.resolve_bundle_reference(reference, root_collection)
+            // Handle different reference types
+            if let Some(stripped) = reference.strip_prefix('#') {
+                // Internal contained resource reference
+                self.resolve_contained_reference(stripped, &root_collection)
+            } else if reference.contains('/') {
+                // Relative reference (Resource/id)
+                self.resolve_bundle_reference(reference, &root_collection)
+            } else {
+                // Simple id reference - check contained resources
+                self.resolve_contained_reference(reference, &root_collection)
+            }
         } else {
-            // Simple id reference - check contained resources
-            self.resolve_contained_reference(reference, root_collection)
+            None
         }
     }
 

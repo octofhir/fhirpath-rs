@@ -19,6 +19,12 @@ pub struct NotEquivalentOperatorEvaluator {
     equivalent_evaluator: EquivalentOperatorEvaluator,
 }
 
+impl Default for NotEquivalentOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NotEquivalentOperatorEvaluator {
     /// Create a new not equivalent operator evaluator
     pub fn new() -> Self {
@@ -104,7 +110,7 @@ mod tests {
         let evaluator = NotEquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -126,7 +132,7 @@ mod tests {
         let evaluator = NotEquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -148,7 +154,7 @@ mod tests {
         let evaluator = NotEquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -170,7 +176,7 @@ mod tests {
         let evaluator = NotEquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -192,7 +198,7 @@ mod tests {
         let evaluator = NotEquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -214,7 +220,7 @@ mod tests {
         let evaluator = NotEquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

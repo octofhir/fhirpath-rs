@@ -1,12 +1,12 @@
 //! ToDate function implementation (stub)
 //! TODO: Complete implementation
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+};
 use std::sync::Arc;
 
 pub struct ToDateFunctionEvaluator {
@@ -65,7 +65,7 @@ impl PureFunctionEvaluator for ToDateFunctionEvaluator {
                 let date = precision_datetime.date();
                 Some(FhirPathValue::date(date))
             }
-            FhirPathValue::Date(precision_date, _, _) => {
+            FhirPathValue::Date(_precision_date, _, _) => {
                 // Date is already a date, return as-is
                 Some(input[0].clone())
             }

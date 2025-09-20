@@ -19,6 +19,12 @@ pub struct ContainsOperatorEvaluator {
     equals_evaluator: EqualsOperatorEvaluator,
 }
 
+impl Default for ContainsOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ContainsOperatorEvaluator {
     /// Create a new contains operator evaluator
     pub fn new() -> Self {
@@ -65,7 +71,7 @@ impl ContainsOperatorEvaluator {
 impl OperationEvaluator for ContainsOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -162,7 +168,7 @@ mod tests {
         let evaluator = ContainsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -188,7 +194,7 @@ mod tests {
         let evaluator = ContainsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -214,7 +220,7 @@ mod tests {
         let evaluator = ContainsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -240,7 +246,7 @@ mod tests {
         let evaluator = ContainsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -262,7 +268,7 @@ mod tests {
         let evaluator = ContainsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -284,7 +290,7 @@ mod tests {
         let evaluator = ContainsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -306,7 +312,7 @@ mod tests {
         let evaluator = ContainsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

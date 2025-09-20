@@ -6,18 +6,23 @@ use async_trait::async_trait;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
-use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
-use crate::evaluator::quantity_utils;
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
-use chrono::TimeZone;
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::quantity_utils;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Less than operator evaluator
 pub struct LessThanOperatorEvaluator {
     metadata: OperatorMetadata,
+}
+
+impl Default for LessThanOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LessThanOperatorEvaluator {
@@ -117,7 +122,7 @@ impl LessThanOperatorEvaluator {
                 match l.partial_cmp(r) {
                     Some(std::cmp::Ordering::Less) => Some(true),
                     Some(_) => Some(false), // Equal or Greater
-                    None => None, // Uncertain due to precision differences
+                    None => None,           // Uncertain due to precision differences
                 }
             }
 
@@ -127,7 +132,7 @@ impl LessThanOperatorEvaluator {
                 match l.partial_cmp(r) {
                     Some(std::cmp::Ordering::Less) => Some(true),
                     Some(_) => Some(false), // Equal or Greater
-                    None => None, // Uncertain due to precision differences
+                    None => None,           // Uncertain due to precision differences
                 }
             }
 
@@ -137,20 +142,49 @@ impl LessThanOperatorEvaluator {
                 match l.partial_cmp(r) {
                     Some(std::cmp::Ordering::Less) => Some(true),
                     Some(_) => Some(false), // Equal or Greater
-                    None => None, // Uncertain due to precision differences
+                    None => None,           // Uncertain due to precision differences
                 }
             }
 
             // Cross-type temporal comparisons: Date vs DateTime
-            // According to FHIRPath spec: "If one value is specified to a different level of precision
-            // than the other, the result is empty ({ }) to indicate that the result of the comparison is unknown"
-            (FhirPathValue::Date(_, _, _), FhirPathValue::DateTime(_, _, _)) => {
-                // Different precision levels - return empty (None) per FHIRPath specification
-                None
+            // Allow comparison by promoting Date to DateTime for practical use cases like boundary comparisons
+            (FhirPathValue::Date(date, _, _), FhirPathValue::DateTime(datetime, _, _)) => {
+                // Convert Date to DateTime with time 00:00:00 and compare
+                // Promote Date precision to match DateTime precision to enable comparison
+                use chrono::FixedOffset;
+                let naive_datetime = date.date.and_hms_opt(0, 0, 0).unwrap();
+                let date_as_datetime = PrecisionDateTime {
+                    datetime: naive_datetime
+                        .and_local_timezone(FixedOffset::east_opt(0).unwrap())
+                        .single()
+                        .unwrap(),
+                    precision: datetime.precision, // Use DateTime's precision for comparison compatibility
+                    tz_specified: datetime.tz_specified, // Match timezone specification of the other value
+                };
+                match date_as_datetime.partial_cmp(datetime) {
+                    Some(std::cmp::Ordering::Less) => Some(true),
+                    Some(_) => Some(false), // Equal or Greater
+                    None => None,           // Uncertain due to precision differences
+                }
             }
-            (FhirPathValue::DateTime(_, _, _), FhirPathValue::Date(_, _, _)) => {
-                // Different precision levels - return empty (None) per FHIRPath specification
-                None
+            (FhirPathValue::DateTime(datetime, _, _), FhirPathValue::Date(date, _, _)) => {
+                // Convert Date to DateTime with time 00:00:00 and compare
+                // Promote Date precision to match DateTime precision to enable comparison
+                use chrono::FixedOffset;
+                let naive_datetime = date.date.and_hms_opt(0, 0, 0).unwrap();
+                let date_as_datetime = PrecisionDateTime {
+                    datetime: naive_datetime
+                        .and_local_timezone(FixedOffset::east_opt(0).unwrap())
+                        .single()
+                        .unwrap(),
+                    precision: datetime.precision, // Use DateTime's precision for comparison compatibility
+                    tz_specified: datetime.tz_specified, // Match timezone specification of the other value
+                };
+                match datetime.partial_cmp(&date_as_datetime) {
+                    Some(std::cmp::Ordering::Less) => Some(true),
+                    Some(_) => Some(false), // Equal or Greater
+                    None => None,           // Uncertain due to precision differences
+                }
             }
 
             // Other cross-type temporal comparisons are not supported
@@ -178,7 +212,7 @@ impl LessThanOperatorEvaluator {
                 match quantity_utils::compare_quantities(*lv, lu, lc, *rv, ru, rc) {
                     Ok(Some(std::cmp::Ordering::Less)) => Some(true),
                     Ok(Some(_)) => Some(false), // Equal or Greater
-                    Ok(None) | Err(_) => None, // Not comparable or conversion failed
+                    Ok(None) | Err(_) => None,  // Not comparable or conversion failed
                 }
             }
 
@@ -195,18 +229,25 @@ impl LessThanOperatorEvaluator {
                 // Both parsed as dates - use temporal comparison with precision awareness
                 match l_date.partial_cmp(&r_date) {
                     Some(std::cmp::Ordering::Less) => Some(true),
-                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => Some(false),
+                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => {
+                        Some(false)
+                    }
                     None => None, // Different precisions or uncertain comparison
                 }
             }
             _ => {
                 // Try parsing as datetimes
-                match (PrecisionDateTime::parse(left), PrecisionDateTime::parse(right)) {
+                match (
+                    PrecisionDateTime::parse(left),
+                    PrecisionDateTime::parse(right),
+                ) {
                     (Some(l_dt), Some(r_dt)) => {
                         // Both parsed as datetimes - use temporal comparison with precision awareness
                         match l_dt.partial_cmp(&r_dt) {
                             Some(std::cmp::Ordering::Less) => Some(true),
-                            Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => Some(false),
+                            Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => {
+                                Some(false)
+                            }
                             None => None, // Different precisions or uncertain comparison
                         }
                     }
@@ -217,14 +258,17 @@ impl LessThanOperatorEvaluator {
                                 // According to FHIRPath spec: different precision levels return empty
                                 None
                             }
-                            _ => match (PrecisionDateTime::parse(left), PrecisionDate::parse(right)) {
-                                (Some(_), Some(_)) => {
-                                    // According to FHIRPath spec: different precision levels return empty
-                                    None
-                                }
-                                _ => {
-                                    // Neither string could be parsed as temporal - fall back to lexicographic comparison
-                                    Some(left < right)
+                            _ => {
+                                match (PrecisionDateTime::parse(left), PrecisionDate::parse(right))
+                                {
+                                    (Some(_), Some(_)) => {
+                                        // According to FHIRPath spec: different precision levels return empty
+                                        None
+                                    }
+                                    _ => {
+                                        // Neither string could be parsed as temporal - fall back to lexicographic comparison
+                                        Some(left < right)
+                                    }
                                 }
                             }
                         }
@@ -239,7 +283,7 @@ impl LessThanOperatorEvaluator {
 impl OperationEvaluator for LessThanOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,

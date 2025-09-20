@@ -14,8 +14,8 @@
 //! should provide some appropriate configuration framework to allow these constants
 //! to be provided to the evaluation engine at run-time.
 
-use std::collections::HashMap;
 use crate::core::FhirPathValue;
+use std::collections::HashMap;
 
 /// Configuration for FHIRPath environment variables
 ///
@@ -40,15 +40,24 @@ impl EnvironmentVariables {
     pub fn new() -> Self {
         let mut custom_variables = HashMap::new();
         // Add UCUM as a custom variable since it doesn't fit the standard pattern
-        custom_variables.insert("%ucum".to_string(), FhirPathValue::string("http://unitsofmeasure.org".to_string()));
+        custom_variables.insert(
+            "%ucum".to_string(),
+            FhirPathValue::string("http://unitsofmeasure.org".to_string()),
+        );
 
         let mut value_sets = HashMap::new();
         // Add commonly used HL7 value sets
-        value_sets.insert("administrative-gender".to_string(), "http://hl7.org/fhir/ValueSet/administrative-gender".to_string());
+        value_sets.insert(
+            "administrative-gender".to_string(),
+            "http://hl7.org/fhir/ValueSet/administrative-gender".to_string(),
+        );
 
         let mut extensions = HashMap::new();
         // Add commonly used HL7 extensions
-        extensions.insert("patient-birthTime".to_string(), "http://hl7.org/fhir/StructureDefinition/patient-birthTime".to_string());
+        extensions.insert(
+            "patient-birthTime".to_string(),
+            "http://hl7.org/fhir/StructureDefinition/patient-birthTime".to_string(),
+        );
 
         Self {
             sct_url: Some("http://snomed.info/sct".to_string()),
@@ -117,15 +126,25 @@ impl EnvironmentVariables {
     /// - Custom variables defined in custom_variables
     pub fn get_variable(&self, name: &str) -> Option<FhirPathValue> {
         match name {
-            "%sct" => self.sct_url.as_ref().map(|url| FhirPathValue::string(url.clone())),
-            "%loinc" => self.loinc_url.as_ref().map(|url| FhirPathValue::string(url.clone())),
+            "%sct" => self
+                .sct_url
+                .as_ref()
+                .map(|url| FhirPathValue::string(url.clone())),
+            "%loinc" => self
+                .loinc_url
+                .as_ref()
+                .map(|url| FhirPathValue::string(url.clone())),
             var_name if var_name.starts_with("%vs-") => {
                 let vs_name = &var_name[4..]; // Remove "%vs-" prefix
-                self.value_sets.get(vs_name).map(|url| FhirPathValue::string(url.clone()))
+                self.value_sets
+                    .get(vs_name)
+                    .map(|url| FhirPathValue::string(url.clone()))
             }
             var_name if var_name.starts_with("%ext-") => {
                 let ext_name = &var_name[5..]; // Remove "%ext-" prefix
-                self.extensions.get(ext_name).map(|url| FhirPathValue::string(url.clone()))
+                self.extensions
+                    .get(ext_name)
+                    .map(|url| FhirPathValue::string(url.clone()))
             }
             _ => self.custom_variables.get(name).cloned(),
         }
@@ -148,11 +167,11 @@ impl EnvironmentVariables {
         }
 
         for vs_name in self.value_sets.keys() {
-            vars.push(format!("%vs-{}", vs_name));
+            vars.push(format!("%vs-{vs_name}"));
         }
 
         for ext_name in self.extensions.keys() {
-            vars.push(format!("%ext-{}", ext_name));
+            vars.push(format!("%ext-{ext_name}"));
         }
 
         for custom_name in self.custom_variables.keys() {
@@ -268,8 +287,13 @@ mod tests {
             panic!("Expected string value for %loinc");
         }
 
-        if let Some(FhirPathValue::String(birthtime_url, _, _)) = env_vars.get_variable("%ext-patient-birthTime") {
-            assert_eq!(birthtime_url, "http://hl7.org/fhir/StructureDefinition/patient-birthTime");
+        if let Some(FhirPathValue::String(birthtime_url, _, _)) =
+            env_vars.get_variable("%ext-patient-birthTime")
+        {
+            assert_eq!(
+                birthtime_url,
+                "http://hl7.org/fhir/StructureDefinition/patient-birthTime"
+            );
         } else {
             panic!("Expected string value for %ext-patient-birthTime");
         }
@@ -277,14 +301,19 @@ mod tests {
 
     #[test]
     fn test_value_set_variables() {
-        let env_vars = EnvironmentVariables::new()
-            .with_value_set("observation-vitalsignresult", "http://hl7.org/fhir/ValueSet/observation-vitalsignresult");
+        let env_vars = EnvironmentVariables::new().with_value_set(
+            "observation-vitalsignresult",
+            "http://hl7.org/fhir/ValueSet/observation-vitalsignresult",
+        );
 
         let vs_var = env_vars.get_variable("%vs-observation-vitalsignresult");
         assert!(vs_var.is_some());
 
         if let Some(FhirPathValue::String(url, _, _)) = vs_var {
-            assert_eq!(url, "http://hl7.org/fhir/ValueSet/observation-vitalsignresult");
+            assert_eq!(
+                url,
+                "http://hl7.org/fhir/ValueSet/observation-vitalsignresult"
+            );
         } else {
             panic!("Expected string value for value set variable");
         }
@@ -292,14 +321,19 @@ mod tests {
 
     #[test]
     fn test_extension_variables() {
-        let env_vars = EnvironmentVariables::new()
-            .with_extension("patient-birthPlace", "http://hl7.org/fhir/StructureDefinition/patient-birthPlace");
+        let env_vars = EnvironmentVariables::new().with_extension(
+            "patient-birthPlace",
+            "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
+        );
 
         let ext_var = env_vars.get_variable("%ext-patient-birthPlace");
         assert!(ext_var.is_some());
 
         if let Some(FhirPathValue::String(url, _, _)) = ext_var {
-            assert_eq!(url, "http://hl7.org/fhir/StructureDefinition/patient-birthPlace");
+            assert_eq!(
+                url,
+                "http://hl7.org/fhir/StructureDefinition/patient-birthPlace"
+            );
         } else {
             panic!("Expected string value for extension variable");
         }
@@ -307,8 +341,10 @@ mod tests {
 
     #[test]
     fn test_custom_variables() {
-        let env_vars = EnvironmentVariables::new()
-            .with_custom_variable("%us-zip", FhirPathValue::string("[0-9]{5}(-[0-9]{4}){0,1}".to_string()));
+        let env_vars = EnvironmentVariables::new().with_custom_variable(
+            "%us-zip",
+            FhirPathValue::string("[0-9]{5}(-[0-9]{4}){0,1}".to_string()),
+        );
 
         let custom_var = env_vars.get_variable("%us-zip");
         assert!(custom_var.is_some());
@@ -332,7 +368,9 @@ mod tests {
 
         assert_eq!(
             env_vars.get_variable("%sct"),
-            Some(FhirPathValue::string("http://custom.snomed.org".to_string()))
+            Some(FhirPathValue::string(
+                "http://custom.snomed.org".to_string()
+            ))
         );
         assert_eq!(
             env_vars.get_variable("%loinc"),
@@ -340,11 +378,15 @@ mod tests {
         );
         assert_eq!(
             env_vars.get_variable("%vs-test-vs"),
-            Some(FhirPathValue::string("http://example.org/ValueSet/test".to_string()))
+            Some(FhirPathValue::string(
+                "http://example.org/ValueSet/test".to_string()
+            ))
         );
         assert_eq!(
             env_vars.get_variable("%ext-test-ext"),
-            Some(FhirPathValue::string("http://example.org/StructureDefinition/test".to_string()))
+            Some(FhirPathValue::string(
+                "http://example.org/StructureDefinition/test".to_string()
+            ))
         );
         assert_eq!(
             env_vars.get_variable("%test"),

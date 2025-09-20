@@ -6,11 +6,11 @@
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
-use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};
 use crate::evaluator::EvaluationResult;
+use crate::evaluator::function_registry::{
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// StartsWith function evaluator
 pub struct StartsWithFunctionEvaluator {
@@ -81,7 +81,7 @@ impl PureFunctionEvaluator for StartsWithFunctionEvaluator {
 
         for value in input {
             if let FhirPathValue::String(s, _, _) = &value {
-                let starts_with_result = s.starts_with(&prefix);
+                let starts_with_result = s.starts_with(prefix);
                 results.push(FhirPathValue::boolean(starts_with_result));
             } else {
                 return Err(FhirPathError::evaluation_error(

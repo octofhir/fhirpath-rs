@@ -10,8 +10,8 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
@@ -125,21 +125,47 @@ impl LazyFunctionEvaluator for AggregateFunctionEvaluator {
                 FhirPathValue::Collection(Collection::empty())
             };
 
-            let mut child_context = context.create_child_context(Collection::single(item.clone()));
-            child_context.set_variable("$this".to_string(), item.clone());
-            child_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
-            child_context.set_variable("$total".to_string(), total_value);
+            // Create single-element collection for this item (focus)
+            let single_item_collection = vec![item.clone()];
 
-            // Evaluate the aggregator expression in child context
-            let result = evaluator.evaluate(aggregator_expr, &child_context).await?;
+            // Create nested context for this iteration
+            let iteration_context = crate::evaluator::EvaluationContext::new(
+                crate::core::Collection::from(single_item_collection.clone()),
+                context.model_provider().clone(),
+                context.terminology_provider().cloned(),
+                context.validation_provider().cloned(),
+                context.trace_provider().cloned(),
+            )
+            .await;
+
+            iteration_context.set_variable("$this".to_string(), item.clone());
+            iteration_context
+                .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            iteration_context.set_variable("$total".to_string(), total_value);
+
+            // Evaluate the aggregator expression in iteration context
+            let result = evaluator
+                .evaluate(aggregator_expr, &iteration_context)
+                .await?;
 
             // Update total with the result - this becomes the new accumulator value
             total = result.value.iter().cloned().collect();
         }
 
-        Ok(EvaluationResult {
-            value: Collection::from(total),
-        })
+        // Return the final aggregated result as a single value
+        if total.len() == 1 {
+            Ok(EvaluationResult {
+                value: Collection::single(total[0].clone()),
+            })
+        } else if total.is_empty() {
+            Ok(EvaluationResult {
+                value: Collection::empty(),
+            })
+        } else {
+            Ok(EvaluationResult {
+                value: Collection::from(total),
+            })
+        }
     }
 
     fn metadata(&self) -> &FunctionMetadata {

@@ -16,6 +16,12 @@ pub struct ConcatenateOperatorEvaluator {
     metadata: OperatorMetadata,
 }
 
+impl Default for ConcatenateOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConcatenateOperatorEvaluator {
     /// Create a new concatenation operator evaluator
     pub fn new() -> Self {
@@ -30,6 +36,7 @@ impl ConcatenateOperatorEvaluator {
     }
 
     /// Perform concatenation on two FhirPathValues
+    #[allow(dead_code)]
     fn concatenate_values(
         &self,
         left: &FhirPathValue,
@@ -38,7 +45,7 @@ impl ConcatenateOperatorEvaluator {
         match (left, right) {
             // String concatenation
             (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => {
-                Some(FhirPathValue::string(format!("{}{}", l, r)))
+                Some(FhirPathValue::string(format!("{l}{r}")))
             }
 
             // Convert other types to string and concatenate
@@ -47,7 +54,7 @@ impl ConcatenateOperatorEvaluator {
                 let right_str = self.to_string_representation(right_val);
 
                 if let (Some(l), Some(r)) = (left_str, right_str) {
-                    Some(FhirPathValue::string(format!("{}{}", l, r)))
+                    Some(FhirPathValue::string(format!("{l}{r}")))
                 } else {
                     None
                 }
@@ -67,7 +74,7 @@ impl ConcatenateOperatorEvaluator {
             FhirPathValue::Time(time, _, _) => Some(time.to_string()),
             FhirPathValue::Quantity { value, unit, .. } => {
                 if let Some(unit_str) = unit {
-                    Some(format!("{} {}", value, unit_str))
+                    Some(format!("{value} {unit_str}"))
                 } else {
                     Some(value.to_string())
                 }
@@ -82,7 +89,7 @@ impl ConcatenateOperatorEvaluator {
 impl OperationEvaluator for ConcatenateOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -126,7 +133,7 @@ impl OperationEvaluator for ConcatenateOperatorEvaluator {
             ));
         };
 
-        let result = FhirPathValue::string(format!("{}{}", left_str, right_str));
+        let result = FhirPathValue::string(format!("{left_str}{right_str}"));
         Ok(EvaluationResult {
             value: Collection::single(result),
         })
@@ -197,7 +204,7 @@ mod tests {
         let evaluator = ConcatenateOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -222,7 +229,7 @@ mod tests {
         let evaluator = ConcatenateOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -247,7 +254,7 @@ mod tests {
         let evaluator = ConcatenateOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -272,7 +279,7 @@ mod tests {
         let evaluator = ConcatenateOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -297,7 +304,7 @@ mod tests {
         let evaluator = ConcatenateOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

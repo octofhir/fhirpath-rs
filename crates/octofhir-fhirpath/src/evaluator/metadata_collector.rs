@@ -304,7 +304,7 @@ impl MetadataCollector {
         F: FnOnce(&mut CacheStats),
     {
         if let Ok(mut stats) = self.cache_stats.lock() {
-            update_fn(&mut *stats);
+            update_fn(&mut stats);
         }
     }
 

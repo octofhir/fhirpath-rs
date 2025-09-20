@@ -6,10 +6,11 @@
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// toChars function evaluator
 pub struct ToCharsFunctionEvaluator {

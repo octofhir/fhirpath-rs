@@ -121,7 +121,7 @@ impl ReplSession {
 
                     match self.process_input(line).await {
                         Ok(Some(output)) => {
-                            println!("{}", output);
+                            println!("{output}");
                             self.interrupt_count = 0; // Reset interrupt count after successful command
                         }
                         Ok(None) => {
@@ -155,7 +155,7 @@ impl ReplSession {
                     break;
                 }
                 Err(e) => {
-                    println!("Error: {}", e);
+                    println!("Error: {e}");
                     break;
                 }
             }
@@ -164,7 +164,7 @@ impl ReplSession {
         // Save history before exit
         if let Some(history_path) = &self.config.history_file {
             if let Err(e) = self.editor.save_history(history_path) {
-                eprintln!("Warning: Failed to save history: {}", e);
+                eprintln!("Warning: Failed to save history: {e}");
             }
         }
 
@@ -344,13 +344,20 @@ impl ReplSession {
 
         // Create evaluation context using the engine's providers
         let model_provider = self.engine.get_model_provider();
-        let context = EvaluationContext::new(collection, model_provider, None, self.engine.get_validation_provider(), self.engine.get_trace_provider()).await;
+        let context = EvaluationContext::new(
+            collection,
+            model_provider,
+            None,
+            self.engine.get_validation_provider(),
+            self.engine.get_trace_provider(),
+        )
+        .await;
 
         let result = self
             .engine
             .evaluate(expression, &context)
             .await
-            .with_context(|| format!("Failed to evaluate expression: '{}'", expression))?;
+            .with_context(|| format!("Failed to evaluate expression: '{expression}'"))?;
 
         // Convert EvaluationResult to Vec<FhirPathValue>
         let values: Vec<FhirPathValue> = result.value.iter().cloned().collect();
@@ -388,10 +395,10 @@ impl ReplSession {
     /// Load resource from file
     fn load_resource_from_file(&mut self, path: &str) -> Result<()> {
         let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read file: {}", path))?;
+            .with_context(|| format!("Failed to read file: {path}"))?;
 
         let json_value: JsonValue = serde_json::from_str(&content)
-            .with_context(|| format!("Failed to parse JSON from file: {}", path))?;
+            .with_context(|| format!("Failed to parse JSON from file: {path}"))?;
 
         self.load_resource_from_json(json_value)
     }
@@ -426,8 +433,8 @@ impl ReplSession {
             || (value.len() > 1
                 && !value.starts_with('"')
                 && !value.starts_with('\'')
-                && !value.parse::<i64>().is_ok()
-                && !value.parse::<f64>().is_ok());
+                && value.parse::<i64>().is_err()
+                && value.parse::<f64>().is_err());
 
         if looks_like_expression {
             // Try to evaluate as FHIRPath expression
@@ -442,12 +449,12 @@ impl ReplSession {
                         // JSON string
                         let string_val = value[1..value.len() - 1].to_string();
                         let fhir_val = FhirPathValue::string(string_val.clone());
-                        Ok((fhir_val, format!("\"{}\"", string_val)))
+                        Ok((fhir_val, format!("\"{string_val}\"")))
                     } else if value.starts_with('\'') && value.ends_with('\'') {
                         // FHIRPath string
                         let string_val = value[1..value.len() - 1].to_string();
                         let fhir_val = FhirPathValue::string(string_val.clone());
-                        Ok((fhir_val, format!("'{}'", string_val)))
+                        Ok((fhir_val, format!("'{string_val}'")))
                     } else {
                         // Expression evaluation failed
                         return Err(anyhow::anyhow!(
@@ -468,7 +475,7 @@ impl ReplSession {
             } else {
                 // Treat as string literal
                 let fhir_val = FhirPathValue::string(value.to_string());
-                Ok((fhir_val, format!("'{}'", value)))
+                Ok((fhir_val, format!("'{value}'")))
             }
         }
     }
@@ -488,11 +495,18 @@ impl ReplSession {
         // For now, use simple evaluation without variables
         // TODO: Add variables support back
         use octofhir_fhirpath::Collection;
-        
+
         let input_value = FhirPathValue::resource(input_json.as_ref().clone());
         let collection = Collection::single(input_value);
         let model_provider = self.engine.get_model_provider();
-        let context = EvaluationContext::new(collection, model_provider, None, self.engine.get_validation_provider(), self.engine.get_trace_provider()).await;
+        let context = EvaluationContext::new(
+            collection,
+            model_provider,
+            None,
+            self.engine.get_validation_provider(),
+            self.engine.get_trace_provider(),
+        )
+        .await;
         let result = self
             .engine
             .evaluate(expression, &context)
@@ -526,13 +540,13 @@ impl ReplSession {
                     FhirPathValue::Resource(res, _, _) => res.resource_type().unwrap_or("Unknown"),
                     _ => "Unknown",
                 };
-                output.push(format!("%context = {} resource", resource_type));
+                output.push(format!("%context = {resource_type} resource"));
             }
 
             // Show variables
             for (name, value) in &self.variables {
                 let value_str = self.formatter.format_value(value, false);
-                output.push(format!("{} = {}", name, value_str));
+                output.push(format!("{name} = {value_str}"));
             }
 
             output.join("\n")
@@ -546,7 +560,7 @@ impl ReplSession {
                 FhirPathValue::Resource(res, _, _) => res.resource_type().unwrap_or("Unknown"),
                 _ => "Unknown",
             };
-            format!("Current resource: {}", resource_type)
+            format!("Current resource: {resource_type}")
         } else {
             "No resource loaded".to_string()
         }
@@ -555,7 +569,7 @@ impl ReplSession {
     /// Get type information for an expression
     async fn get_expression_type(&self, expression: &str) -> Result<String> {
         // Type analysis not available (StaticAnalyzer removed)
-        Ok(format!("Type analysis not available for '{}'", expression))
+        Ok(format!("Type analysis not available for '{expression}'"))
     }
 
     /// Explain expression evaluation steps
@@ -563,11 +577,10 @@ impl ReplSession {
         // Expression explanation not available (StaticAnalyzer removed)
         // Try to evaluate and show result
         if let Ok(result) = self.evaluate_expression(expression).await {
-            Ok(format!("Expression: {}\nResult: {}", expression, result))
+            Ok(format!("Expression: {expression}\nResult: {result}"))
         } else {
             Ok(format!(
-                "Expression explanation not available for '{}'",
-                expression
+                "Expression explanation not available for '{expression}'"
             ))
         }
     }
@@ -687,18 +700,16 @@ impl ReplSession {
                         } else {
                             "✗ Analysis completed with errors".to_string()
                         }
+                    } else if self.config.color_output {
+                        format!("⚠️  {}", "Analysis completed with warnings".bright_yellow())
                     } else {
-                        if self.config.color_output {
-                            format!("⚠️  {}", "Analysis completed with warnings".bright_yellow())
-                        } else {
-                            "⚠ Analysis completed with warnings".to_string()
-                        }
+                        "⚠ Analysis completed with warnings".to_string()
                     };
 
-                    Ok(format!("{}\n\n{}", summary, diagnostic_output))
+                    Ok(format!("{summary}\n\n{diagnostic_output}"))
                 }
             }
-            Err(e) => Ok(format!("Failed to format diagnostics: {}", e)),
+            Err(e) => Ok(format!("Failed to format diagnostics: {e}")),
         }
     }
 
@@ -709,15 +720,13 @@ impl ReplSession {
         if parse_result.has_errors() {
             // Use Ariadne diagnostics for syntax errors
             Ok(self.format_parser_diagnostics(expression, &parse_result.diagnostics))
+        } else if self.config.color_output {
+            Ok(format!(
+                "{} Expression syntax is valid",
+                "✅".bright_green()
+            ))
         } else {
-            if self.config.color_output {
-                Ok(format!(
-                    "{} Expression syntax is valid",
-                    "✅".bright_green()
-                ))
-            } else {
-                Ok("✓ Expression syntax is valid".to_string())
-            }
+            Ok("✓ Expression syntax is valid".to_string())
         }
     }
 
@@ -737,7 +746,7 @@ impl ReplSession {
                 if !help.examples.is_empty() {
                     output.push("Examples:".to_string());
                     for example in &help.examples {
-                        output.push(format!("  • {}", example));
+                        output.push(format!("  • {example}"));
                     }
                 }
 
@@ -745,13 +754,11 @@ impl ReplSession {
             } else if self.help_system.function_exists(func).await {
                 // Function exists in registry but no detailed help available
                 Ok(format!(
-                    "Function '{}' is available but detailed help is not yet implemented.\nThis function is registered in the system. Try using it in an expression to see how it works.",
-                    func
+                    "Function '{func}' is available but detailed help is not yet implemented.\nThis function is registered in the system. Try using it in an expression to see how it works."
                 ))
             } else {
                 Ok(format!(
-                    "No help available for function '{}'. Try ':help' for a list of available commands.",
-                    func
+                    "No help available for function '{func}'. Try ':help' for a list of available commands."
                 ))
             }
         } else {
@@ -918,6 +925,7 @@ Examples:
     // Multi-line expression support methods
 
     /// Check if a line needs multi-line continuation
+    #[allow(dead_code)]
     fn needs_multiline(&self, line: &str) -> bool {
         // Check for explicit continuation with backslash
         if line.ends_with('\\') {
@@ -956,6 +964,7 @@ Examples:
     }
 
     /// Check if a multi-line expression is complete
+    #[allow(dead_code)]
     fn is_expression_complete(&self, expression: &str) -> bool {
         // Remove explicit continuation markers
         let cleaned = expression.replace(" \\", "").replace("\\", "");
@@ -980,6 +989,7 @@ Examples:
     }
 
     /// Format an error with Ariadne diagnostics
+    #[allow(dead_code)]
     fn format_error_with_ariadne(&mut self, expression: &str, error: &anyhow::Error) -> String {
         // Check if we can parse the expression to get detailed diagnostics
         let parse_result = parse_with_analysis(expression);
@@ -989,11 +999,12 @@ Examples:
             self.format_parser_diagnostics(expression, &parse_result.diagnostics)
         } else {
             // Fallback to simple error formatting
-            self.formatter.format_error(&error)
+            self.formatter.format_error(error)
         }
     }
 
     /// Format analyzer diagnostics with Ariadne (unified with parser diagnostics)
+    #[allow(dead_code)]
     fn format_analyzer_diagnostics(
         &mut self,
         expression: &str,
@@ -1004,6 +1015,7 @@ Examples:
     }
 
     /// Format enhanced Ariadne diagnostics from PropertyValidator
+    #[allow(dead_code)]
     fn format_enhanced_ariadne_diagnostics(
         &mut self,
         expression: &str,
@@ -1087,21 +1099,22 @@ Examples:
 
                     // Add help text if available
                     if let Some(help) = &diagnostic.help {
-                        result.push_str(&format!("\n  {}", help));
+                        result.push_str(&format!("\n  {help}"));
                     }
 
                     // Add note if available
                     if let Some(note) = &diagnostic.note {
-                        result.push_str(&format!("\n  {}", note));
+                        result.push_str(&format!("\n  {note}"));
                     }
                 }
 
-                format!("Fallback diagnostic formatting ({}): {}", e, result)
+                format!("Fallback diagnostic formatting ({e}): {result}")
             }
         }
     }
 
     /// Calculate span from diagnostic message by finding tokens in expression (same as CLI)
+    #[allow(dead_code)]
     fn calculate_span_from_message(
         &self,
         message: &str,
@@ -1131,7 +1144,7 @@ Examples:
                 if let Some(name_end) = message[name_start..].find(end_marker) {
                     let property_name = &message[name_start..name_start + name_end];
                     // Find this property name in the expression (usually after a dot)
-                    if let Some(pos) = expression.find(&format!(".{}", property_name)) {
+                    if let Some(pos) = expression.find(&format!(".{property_name}")) {
                         return Some(pos + 1..pos + 1 + property_name.len());
                     }
                 }
@@ -1191,7 +1204,7 @@ Examples:
             &mut output,
         ) {
             Ok(_) => String::from_utf8(output)
-                .unwrap_or_else(|_| format!("Encoding error in diagnostics")),
+                .unwrap_or_else(|_| "Encoding error in diagnostics".to_string()),
             Err(_) => {
                 // Fallback to simple message
                 format!("Error: {}", diagnostics[0].message)

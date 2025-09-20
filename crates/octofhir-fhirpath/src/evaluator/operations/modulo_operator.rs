@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathError, FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
@@ -14,6 +14,12 @@ use crate::evaluator::{EvaluationContext, EvaluationResult};
 /// Modulo operator evaluator
 pub struct ModuloOperatorEvaluator {
     metadata: OperatorMetadata,
+}
+
+impl Default for ModuloOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ModuloOperatorEvaluator {
@@ -59,7 +65,7 @@ impl ModuloOperatorEvaluator {
 impl OperationEvaluator for ModuloOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -121,7 +127,7 @@ mod tests {
         let evaluator = ModuloOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -143,7 +149,7 @@ mod tests {
         let evaluator = ModuloOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

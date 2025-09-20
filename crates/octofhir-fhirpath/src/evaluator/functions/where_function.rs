@@ -8,9 +8,10 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Where function evaluator
 pub struct WhereFunctionEvaluator {
@@ -71,14 +72,12 @@ impl LazyFunctionEvaluator for WhereFunctionEvaluator {
         let mut filtered = Vec::new();
 
         for (index, item) in input.iter().enumerate() {
-            let mut child_context = context.create_child_context(Collection::single(item.clone()));
+            let child_context = context.create_child_context(Collection::single(item.clone()));
             child_context.set_variable("$this".to_string(), item.clone());
             child_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
 
             // Evaluate criteria expression with child context
-            let result = evaluator
-                .evaluate(criteria_expr, &child_context)
-                .await?;
+            let result = evaluator.evaluate(criteria_expr, &child_context).await?;
 
             // Check if result is truthy
             if is_truthy(&result.value) {

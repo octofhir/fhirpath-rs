@@ -6,7 +6,7 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathType, FhirPathValue, ModelProvider, Result, TypeSignature};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
@@ -15,6 +15,12 @@ use crate::evaluator::{EvaluationContext, EvaluationResult};
 /// "is" operator evaluator for type checking
 pub struct IsOperatorEvaluator {
     metadata: OperatorMetadata,
+}
+
+impl Default for IsOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl IsOperatorEvaluator {
@@ -94,7 +100,7 @@ impl IsOperatorEvaluator {
 impl OperationEvaluator for IsOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -139,7 +145,9 @@ impl OperationEvaluator for IsOperatorEvaluator {
         let value_type_info = value.type_info();
 
         // Enhanced type checking with namespace support and hierarchy
-        let is_of_type = self.check_type_compatibility(&value_type_info, type_name, context).await?;
+        let is_of_type = self
+            .check_type_compatibility(value_type_info, type_name, context)
+            .await?;
 
         Ok(EvaluationResult {
             value: Collection::single(FhirPathValue::boolean(is_of_type)),
@@ -154,6 +162,12 @@ impl OperationEvaluator for IsOperatorEvaluator {
 /// "as" operator evaluator for type casting
 pub struct AsOperatorEvaluator {
     metadata: OperatorMetadata,
+}
+
+impl Default for AsOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AsOperatorEvaluator {
@@ -233,7 +247,7 @@ impl AsOperatorEvaluator {
 impl OperationEvaluator for AsOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -275,7 +289,10 @@ impl OperationEvaluator for AsOperatorEvaluator {
         let value_type_info = value.type_info();
 
         // Enhanced type casting with proper type conversion
-        if self.check_type_compatibility(&value_type_info, type_name, context).await? {
+        if self
+            .check_type_compatibility(value_type_info, type_name, context)
+            .await?
+        {
             // Get target type info from ModelProvider
             let target_type_info = context
                 .model_provider()
@@ -284,7 +301,7 @@ impl OperationEvaluator for AsOperatorEvaluator {
                 .map_err(|e| {
                     crate::core::FhirPathError::evaluation_error(
                         crate::core::error_code::FP0054,
-                        format!("ModelProvider error getting type '{}': {}", type_name, e),
+                        format!("ModelProvider error getting type '{type_name}': {e}"),
                     )
                 })?
                 .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
@@ -364,7 +381,7 @@ mod tests {
         let evaluator = IsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -386,7 +403,7 @@ mod tests {
         let evaluator = IsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -408,7 +425,7 @@ mod tests {
         let evaluator = AsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -430,7 +447,7 @@ mod tests {
         let evaluator = AsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

@@ -89,10 +89,7 @@ impl PureFunctionEvaluator for DayOfFunctionEvaluator {
                 } else {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0055,
-                        format!(
-                            "Cannot parse '{}' as Date or DateTime for dayOf function",
-                            s
-                        ),
+                        format!("Cannot parse '{s}' as Date or DateTime for dayOf function"),
                     ));
                 }
             }

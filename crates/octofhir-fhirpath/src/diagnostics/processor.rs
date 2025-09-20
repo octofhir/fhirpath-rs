@@ -21,8 +21,10 @@ pub struct DiagnosticProcessor {
     /// Help system for providing contextual help
     help_system: HelpSystem,
     /// Suggestion engine for generating fixes
+    #[allow(dead_code)]
     suggestion_engine: SuggestionEngine,
     /// Relationship detector for linking related diagnostics
+    #[allow(dead_code)]
     relationship_detector: RelationshipDetector,
 }
 
@@ -283,6 +285,7 @@ impl DiagnosticProcessor {
     // }
 
     /// Process a single diagnostic into a rich diagnostic
+    #[allow(dead_code)]
     fn process_diagnostic(
         &self,
         diagnostic: &crate::diagnostics::Diagnostic,
@@ -317,6 +320,7 @@ impl DiagnosticProcessor {
     }
 
     /// Convert a Diagnostic to AriadneDiagnostic
+    #[allow(dead_code)]
     fn convert_to_ariadne_diagnostic(
         &self,
         diagnostic: &crate::diagnostics::Diagnostic,
@@ -348,6 +352,7 @@ impl DiagnosticProcessor {
     }
 
     /// Build diagnostic context
+    #[allow(dead_code)]
     fn build_context(&self, diagnostic: &AriadneDiagnostic, source: &str) -> DiagnosticContext {
         let source_snippet = self.extract_source_snippet(source, &diagnostic.span);
         let source_lines = self.extract_context_lines(source, &diagnostic.span, 2);
@@ -365,6 +370,7 @@ impl DiagnosticProcessor {
     }
 
     /// Extract source snippet for the error span
+    #[allow(dead_code)]
     fn extract_source_snippet(&self, source: &str, span: &Range<usize>) -> String {
         let start = span.start.min(source.len());
         let end = span.end.min(source.len());
@@ -372,6 +378,7 @@ impl DiagnosticProcessor {
     }
 
     /// Extract context lines around the error
+    #[allow(dead_code)]
     fn extract_context_lines(
         &self,
         source: &str,
@@ -414,6 +421,7 @@ impl DiagnosticProcessor {
     }
 
     /// Calculate highlights for a specific line
+    #[allow(dead_code)]
     fn calculate_line_highlights(
         &self,
         line: &str,
@@ -831,7 +839,8 @@ impl RelationshipDetector {
         Self
     }
 
-    fn link_related(&self, diagnostics: &mut Vec<ProcessedDiagnostic>) {
+    #[allow(dead_code)]
+    fn link_related(&self, diagnostics: &mut [ProcessedDiagnostic]) {
         // Find related diagnostics based on various criteria
         for i in 0..diagnostics.len() {
             let mut related = Vec::new();
@@ -855,6 +864,7 @@ impl RelationshipDetector {
         }
     }
 
+    #[allow(dead_code)]
     fn analyze_relationship(
         &self,
         primary: &ProcessedDiagnostic,
@@ -898,10 +908,12 @@ impl RelationshipDetector {
         None
     }
 
+    #[allow(dead_code)]
     fn spans_overlap(&self, span1: &Range<usize>, span2: &Range<usize>) -> bool {
         span1.start < span2.end && span2.start < span1.end
     }
 
+    #[allow(dead_code)]
     fn is_causal_relationship(&self, primary: &ErrorCode, secondary: &ErrorCode) -> bool {
         // Define some known causal relationships
         (*primary == FP0001 && *secondary == FP0055) ||  // Syntax error may cause property access error
@@ -912,7 +924,6 @@ impl RelationshipDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::error_code::*;
 
     #[test]
     fn test_diagnostic_processor_creation() {

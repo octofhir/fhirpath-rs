@@ -20,6 +20,12 @@ pub struct SubtractOperatorEvaluator {
     metadata: OperatorMetadata,
 }
 
+impl Default for SubtractOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SubtractOperatorEvaluator {
     /// Create a new subtraction operator evaluator
     pub fn new() -> Self {
@@ -206,8 +212,7 @@ impl SubtractOperatorEvaluator {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0081,
                 format!(
-                    "Cannot subtract UCUM unit '{}' from a temporal value. Use word units instead",
-                    unit
+                    "Cannot subtract UCUM unit '{unit}' from a temporal value. Use word units instead"
                 ),
             ));
         }
@@ -216,7 +221,7 @@ impl SubtractOperatorEvaluator {
         let calendar_unit = calendar_unit.ok_or_else(|| {
             FhirPathError::evaluation_error(
                 crate::core::error_code::FP0081,
-                format!("Unknown calendar unit: {}", unit),
+                format!("Unknown calendar unit: {unit}"),
             )
         })?;
 
@@ -297,9 +302,9 @@ impl SubtractOperatorEvaluator {
                 .add_to_datetime(precision_datetime)
                 .ok()
                 .map(FhirPathValue::datetime),
-            FhirPathValue::Time(precision_time, _, _) => {
+            FhirPathValue::Time(_precision_time, _, _) => {
                 // For time arithmetic, we need to handle time-only duration addition
-                self.add_duration_to_time(precision_time, &duration)
+                self.add_duration_to_time(_precision_time, &duration)
             }
             _ => None,
         }
@@ -350,7 +355,7 @@ impl SubtractOperatorEvaluator {
 impl OperationEvaluator for SubtractOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -460,7 +465,7 @@ mod tests {
         let evaluator = SubtractOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -482,7 +487,7 @@ mod tests {
         let evaluator = SubtractOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -507,7 +512,7 @@ mod tests {
         let evaluator = SubtractOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

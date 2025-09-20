@@ -8,10 +8,9 @@
 //! - %terminologies.lookup('http://loinc.org', '29463-7')
 //! - %terminologies.validateVS('http://example.org/ValueSet/example', 'code', 'system')
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::FhirPathValue;
 use crate::evaluator::EvaluationContext;
 use octofhir_fhir_model::TerminologyProvider;
 

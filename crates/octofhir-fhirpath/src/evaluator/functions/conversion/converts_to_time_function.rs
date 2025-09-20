@@ -3,11 +3,11 @@
 //! This function tests if a value can be converted to a Time.
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::EvaluationResult;
 use std::sync::Arc;
 
 /// ConvertsToTime function evaluator
@@ -66,7 +66,7 @@ impl PureFunctionEvaluator for ConvertsToTimeFunctionEvaluator {
                     PrecisionTime::parse(s).is_some()
                 }
                 FhirPathValue::Time(_, _, _) => true, // Already a Time
-                _ => false, // Other types cannot be converted to Time
+                _ => false,                           // Other types cannot be converted to Time
             };
 
             results.push(FhirPathValue::boolean(can_convert));

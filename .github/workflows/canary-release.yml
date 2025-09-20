@@ -7,126 +7,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Crates.io publishing job (only octofhir-fhirpath)
-  publish-crate:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Install Node.js and pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          # Use a more stable cache key that will match across commits
-          prefix-key: "canary-publish"
-          # Share cache with other jobs
-          shared-key: "publish-crate"
-          # Cache all target dirs, registry, and git repos
-          cache-targets: true
-          cache-on-failure: true
-
-      - name: Run quality assurance
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets --all-features
-          cargo test --workspace --all-features
-
-      - name: Configure git
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-
-      - name: Bump patch version
-        id: version
-        run: |
-          # Get current version before bumping
-          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "Current version: $CURRENT_VERSION"
-
-          # Calculate new patch version
-          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
-          MAJOR=${VERSION_PARTS[0]}
-          MINOR=${VERSION_PARTS[1]}
-          PATCH=${VERSION_PARTS[2]}
-          NEW_PATCH=$((PATCH + 1))
-          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
-
-          # Update version in workspace Cargo.toml
-          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-          
-          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
-          echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
-
-      - name: Build octofhir-fhirpath crate
-        run: cargo build --release --package octofhir-fhirpath
-
-      - name: Test publishing octofhir-fhirpath (dry run)
-        run: |
-          echo "🧪 Testing publishing octofhir-fhirpath with dry run..."
-          cd crates/octofhir-fhirpath
-          cargo publish --dry-run
-
-      - name: Publish octofhir-fhirpath to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          echo "🚀 Publishing octofhir-fhirpath to crates.io..."
-          echo "Version: ${{ steps.version.outputs.version }}"
-          echo "Current commit: $(git rev-parse HEAD)"
-          echo "Current branch: $(git branch --show-current)"
-
-          # Publish octofhir-fhirpath crate only (allow dirty since we modified version)
-          cd crates/octofhir-fhirpath
-          cargo publish --token $CARGO_REGISTRY_TOKEN --allow-dirty
-
-          echo "✅ Publishing successful!"
-
-      - name: Commit and push version bump
-        run: |
-          echo "📝 Committing version bump to ${{ steps.version.outputs.version }}"
-          git add -A
-          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} for canary release"
-
-          echo "📤 Pushing version bump to remote"
-          git push origin main
-
-      # Export version for CLI release job
-      - name: Export version for CLI release job
-        run: |
-          echo "${{ steps.version.outputs.version }}" > release-version.txt
-
-      - name: Upload version artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-version
-          path: release-version.txt
-
-  # CLI binary release job (matrix for multiple targets)
-  release-cli-binaries:
-    needs: publish-crate
+  # Step 1: Build binaries first
+  build-binaries:
     strategy:
       matrix:
         include:
@@ -151,24 +33,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download version artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: release-version
-
-      - name: Read release version
-        id: version
-        shell: bash
-        run: |
-          VERSION=$(cat release-version.txt)
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Using release version: ${VERSION}"
-
       - name: Install Node.js and pnpm
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -177,16 +46,14 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          components: rustfmt, clippy
           targets: ${{ matrix.target }}
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          # Use a stable cache key with target-specific suffix
           prefix-key: "canary-binary"
-          # Share cache across binary builds but separate from publish
           shared-key: "binary-${{ matrix.target }}"
-          # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true
 
@@ -196,6 +63,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config
 
+      - name: Run quality assurance
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --all-features
+          cargo test --workspace --all-features
 
       - name: Build fhirpath-cli binary
         run: |
@@ -220,26 +92,42 @@ jobs:
           name: binary-${{ matrix.postfix }}
           path: release-artifacts/*
 
-  # Create GitHub release with CLI binaries
-  create-release:
-    needs: [publish-crate, release-cli-binaries]
+  # Step 2: Create GitHub release with binaries
+  create-github-release:
+    needs: build-binaries
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release-id: ${{ steps.create-release.outputs.id }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-
-      - name: Download version artifact
-        uses: actions/download-artifact@v5
         with:
-          name: release-version
+          fetch-depth: 0
 
-      - name: Read release version
+      - name: Configure git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Bump patch version
         id: version
         run: |
-          VERSION=$(cat release-version.txt)
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Using release version: ${VERSION}"
+          # Get current version before bumping
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "Current version: $CURRENT_VERSION"
+
+          # Calculate new patch version
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR=${VERSION_PARTS[0]}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=${VERSION_PARTS[2]}
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+
+          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
 
       - name: Download all binary artifacts
         uses: actions/download-artifact@v5
@@ -248,13 +136,14 @@ jobs:
           merge-multiple: true
           path: release-artifacts
 
-      - name: Create release
+      - name: Create GitHub release
+        id: create-release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          name: Release ${{ steps.version.outputs.version }}
+          name: Canary Release ${{ steps.version.outputs.version }}
           body: |
-            🚀 **Release ${{ steps.version.outputs.version }}** - Automated build from main branch
+            🚀 **Canary Release ${{ steps.version.outputs.version }}** - Automated build from main branch
 
             **Commit:** ${{ github.sha }}
             **Version:** ${{ steps.version.outputs.version }}
@@ -273,10 +162,161 @@ jobs:
             - `octofhir-fhirpath-windows-x64.exe` - Windows x86_64
 
             ## Crates.io
-            The `octofhir-fhirpath` crate is published to crates.io with version `${{ steps.version.outputs.version }}`
-          prerelease: false
+            The `octofhir-fhirpath` crate will be published to crates.io with version `${{ steps.version.outputs.version }}`
+          prerelease: true
           generate_release_notes: false
           files: |
             release-artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Step 3: Try to publish to crates.io - if this fails, cleanup will run
+  publish-crate:
+    needs: create-github-release
+    runs-on: ubuntu-latest
+    outputs:
+      publish-success: ${{ steps.publish.outputs.success }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Node.js and pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "canary-publish"
+          shared-key: "publish-crate"
+          cache-targets: true
+          cache-on-failure: true
+
+      - name: Configure git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Update version for publishing
+        run: |
+          # Update version in workspace Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"${{ needs.create-github-release.outputs.version }}\"/" Cargo.toml
+
+      - name: Build octofhir-fhirpath crate
+        run: cargo build --release --package octofhir-fhirpath
+
+      - name: Test publishing octofhir-fhirpath (dry run)
+        run: |
+          echo "🧪 Testing publishing octofhir-fhirpath with dry run..."
+          cd crates/octofhir-fhirpath
+          cargo publish --dry-run
+
+      - name: Publish octofhir-fhirpath to crates.io
+        id: publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          echo "🚀 Publishing octofhir-fhirpath to crates.io..."
+          echo "Version: ${{ needs.create-github-release.outputs.version }}"
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Current branch: $(git branch --show-current)"
+
+          # Publish octofhir-fhirpath crate only (allow dirty since we modified version)
+          cd crates/octofhir-fhirpath
+
+          # Try to publish - capture exit code
+          if cargo publish --token $CARGO_REGISTRY_TOKEN --allow-dirty; then
+            echo "✅ Publishing successful!"
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Publishing failed!"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Commit and push version bump (only on success)
+        if: steps.publish.outputs.success == 'true'
+        run: |
+          echo "📝 Committing version bump to ${{ needs.create-github-release.outputs.version }}"
+          git add -A
+          git commit -m "chore: bump version to ${{ needs.create-github-release.outputs.version }} for canary release [ci skip]"
+
+          echo "📤 Pushing version bump to remote"
+          git push origin main
+
+  # Step 4: Cleanup on failure - remove GitHub release and binaries
+  cleanup-on-failure:
+    needs: [create-github-release, publish-crate]
+    runs-on: ubuntu-latest
+    if: always() && needs.publish-crate.result == 'failure'
+
+    steps:
+      - name: Delete GitHub release on publish failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('Publishing failed, cleaning up GitHub release...');
+
+            try {
+              // Delete the release
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: '${{ needs.create-github-release.outputs.release-id }}'
+              });
+              console.log('✅ Successfully deleted GitHub release');
+
+              // Delete the tag
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: 'tags/v${{ needs.create-github-release.outputs.version }}'
+              });
+              console.log('✅ Successfully deleted tag');
+
+            } catch (error) {
+              console.error('❌ Error during cleanup:', error);
+              core.setFailed(`Cleanup failed: ${error.message}`);
+            }
+
+  # Final status job
+  release-status:
+    needs: [create-github-release, publish-crate, cleanup-on-failure]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Report release status
+        run: |
+          if [[ "${{ needs.publish-crate.result }}" == "success" ]]; then
+            echo "🎉 Canary release ${{ needs.create-github-release.outputs.version }} completed successfully!"
+            echo "✅ GitHub release created with binaries"
+            echo "✅ Crate published to crates.io"
+            echo "✅ Version bump committed to repository"
+          else
+            echo "❌ Canary release ${{ needs.create-github-release.outputs.version }} failed"
+            if [[ "${{ needs.cleanup-on-failure.result }}" == "success" ]]; then
+              echo "✅ Cleanup completed - GitHub release and tag removed"
+            else
+              echo "⚠️  Cleanup may have failed - manual intervention might be needed"
+            fi
+          fi

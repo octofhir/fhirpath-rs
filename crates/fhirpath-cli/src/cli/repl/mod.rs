@@ -54,7 +54,7 @@ impl Default for ReplConfig {
             prompt: "fhirpath> ".to_string(),
             history_size: 1000,
             auto_save_history: true,
-            color_output: !std::env::var("NO_COLOR").is_ok(),
+            color_output: std::env::var("NO_COLOR").is_err(),
             show_types: false,
             history_file: None,
         }

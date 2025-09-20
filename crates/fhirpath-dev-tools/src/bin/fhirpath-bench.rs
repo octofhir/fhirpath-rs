@@ -230,7 +230,7 @@ async fn profile_expression(
     use_bundle: bool,
 ) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
-    use octofhir_fhirschema::{EmbeddedSchemaProvider, create_validation_provider_from_embedded};
+    use octofhir_fhirschema::EmbeddedSchemaProvider;
     use std::sync::Arc;
 
     // Create output directory if it doesn't exist
@@ -239,7 +239,7 @@ async fn profile_expression(
     println!("Setting up profiling environment...");
 
     // Initialize engine
-    let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
+    let registry = Arc::new(octofhir_fhirpath::create_function_registry());
     let model_provider = Arc::new(EmbeddedSchemaProvider::new(FhirVersion::R5))
         as Arc<dyn octofhir_fhir_model::ModelProvider>;
     let mut engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
@@ -262,9 +262,14 @@ async fn profile_expression(
         let collection = octofhir_fhirpath::Collection::single(
             octofhir_fhirpath::FhirPathValue::resource(data.clone()),
         );
-        let ctx =
-            octofhir_fhirpath::EvaluationContext::new(collection, model_provider.clone(), None, None, None)
-                .await;
+        let ctx = octofhir_fhirpath::EvaluationContext::new(
+            collection,
+            model_provider.clone(),
+            None,
+            None,
+            None,
+        )
+        .await;
         let _ = engine.evaluate(expression, &ctx).await;
     }
     let duration = start.elapsed();
@@ -328,7 +333,7 @@ fn list_expressions() {
 async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirpath::parse_expression;
-    use octofhir_fhirschema::{EmbeddedSchemaProvider, create_validation_provider_from_embedded};
+    use octofhir_fhirschema::EmbeddedSchemaProvider;
 
     use std::sync::Arc;
     use std::time::Instant;
@@ -340,7 +345,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     let mut results = Vec::new();
 
     // Setup for evaluation benchmarks
-    let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
+    let registry = Arc::new(octofhir_fhirpath::create_function_registry());
 
     // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
     println!("Initializing EmbeddedModelProvider R5...");

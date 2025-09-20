@@ -4,12 +4,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+};
 
 pub struct DescendantsFunctionEvaluator {
     metadata: FunctionMetadata,
@@ -44,7 +44,7 @@ impl DescendantsFunctionEvaluator {
         let mut descendants = Vec::new();
 
         match value {
-            FhirPathValue::Resource(json, type_info, primitive) => {
+            FhirPathValue::Resource(json, _type_info, _primitive) => {
                 // For JSON objects, recursively collect all nested values
                 self.collect_json_descendants(json, &mut descendants);
             }
@@ -56,7 +56,11 @@ impl DescendantsFunctionEvaluator {
         descendants
     }
 
-    fn collect_json_descendants(&self, json: &serde_json::Value, descendants: &mut Vec<FhirPathValue>) {
+    fn collect_json_descendants(
+        &self,
+        json: &serde_json::Value,
+        descendants: &mut Vec<FhirPathValue>,
+    ) {
         match json {
             serde_json::Value::Object(map) => {
                 for (_, value) in map {
@@ -91,7 +95,9 @@ impl DescendantsFunctionEvaluator {
                 if let Some(i) = n.as_i64() {
                     Ok(FhirPathValue::integer(i))
                 } else if let Some(f) = n.as_f64() {
-                    Ok(FhirPathValue::decimal(rust_decimal::Decimal::from_f64_retain(f).unwrap_or_default()))
+                    Ok(FhirPathValue::decimal(
+                        rust_decimal::Decimal::from_f64_retain(f).unwrap_or_default(),
+                    ))
                 } else {
                     Ok(FhirPathValue::string(n.to_string()))
                 }
@@ -106,7 +112,11 @@ impl DescendantsFunctionEvaluator {
                     name: Some("Element".to_string()),
                     is_empty: Some(false),
                 };
-                Ok(FhirPathValue::Resource(json.clone().into(), type_info, None))
+                Ok(FhirPathValue::Resource(
+                    json.clone().into(),
+                    type_info,
+                    None,
+                ))
             }
             serde_json::Value::Array(_) => {
                 // Arrays are handled recursively

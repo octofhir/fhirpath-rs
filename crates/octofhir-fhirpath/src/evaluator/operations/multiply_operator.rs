@@ -17,6 +17,12 @@ pub struct MultiplyOperatorEvaluator {
     metadata: OperatorMetadata,
 }
 
+impl Default for MultiplyOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MultiplyOperatorEvaluator {
     /// Create a new multiplication operator evaluator
     pub fn new() -> Self {
@@ -116,7 +122,7 @@ impl MultiplyOperatorEvaluator {
                     (None, None) => None,
                     (Some(l), None) => Some(l.clone()),
                     (None, Some(r)) => Some(r.clone()),
-                    (Some(l), Some(r)) => Some(format!("{}.{}", l, r)),
+                    (Some(l), Some(r)) => Some(format!("{l}.{r}")),
                 };
                 Some(FhirPathValue::quantity(*lv * *rv, combined_unit))
             }
@@ -131,7 +137,7 @@ impl MultiplyOperatorEvaluator {
 impl OperationEvaluator for MultiplyOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -232,7 +238,7 @@ mod tests {
         let evaluator = MultiplyOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -254,7 +260,7 @@ mod tests {
         let evaluator = MultiplyOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

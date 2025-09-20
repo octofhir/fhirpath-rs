@@ -7,12 +7,12 @@
 use regex::Regex;
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// MatchesFull function evaluator
 pub struct MatchesFullFunctionEvaluator {
@@ -113,13 +113,13 @@ impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
             pattern_str
         } else if pattern_str.starts_with('^') {
             // Only start anchored, add end anchor
-            format!("{}$", pattern_str)
+            format!("{pattern_str}$")
         } else if pattern_str.ends_with('$') {
             // Only end anchored, add start anchor
-            format!("^{}", pattern_str)
+            format!("^{pattern_str}")
         } else {
             // Not anchored, add both anchors
-            format!("^{}$", pattern_str)
+            format!("^{pattern_str}$")
         };
 
         // Compile the regex pattern
@@ -128,10 +128,7 @@ impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
             Err(e) => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
-                    format!(
-                        "Invalid regular expression pattern '{}': {}",
-                        full_pattern, e
-                    ),
+                    format!("Invalid regular expression pattern '{full_pattern}': {e}"),
                 ));
             }
         };

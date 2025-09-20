@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Unescape function evaluator
 pub struct UnescapeFunctionEvaluator {
@@ -83,8 +83,7 @@ impl UnescapeFunctionEvaluator {
                             FhirPathError::evaluation_error(
                                 crate::core::error_code::FP0059,
                                 format!(
-                                    "Invalid Unicode escape sequence: invalid hex digits '{}'",
-                                    hex
+                                    "Invalid Unicode escape sequence: invalid hex digits '{hex}'"
                                 ),
                             )
                         })?;
@@ -94,14 +93,14 @@ impl UnescapeFunctionEvaluator {
                         } else {
                             return Err(FhirPathError::evaluation_error(
                                 crate::core::error_code::FP0059,
-                                format!("Invalid Unicode code point: U+{:04X}", code_point),
+                                format!("Invalid Unicode code point: U+{code_point:04X}"),
                             ));
                         }
                     }
                     Some(other) => {
                         return Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0059,
-                            format!("Invalid escape sequence: \\{}", other),
+                            format!("Invalid escape sequence: \\{other}"),
                         ));
                     }
                     None => {
@@ -209,8 +208,7 @@ impl PureFunctionEvaluator for UnescapeFunctionEvaluator {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
                     format!(
-                        "Unsupported unescape format: {}. Supported formats: html, json, sql",
-                        format_str
+                        "Unsupported unescape format: {format_str}. Supported formats: html, json, sql"
                     ),
                 ));
             }

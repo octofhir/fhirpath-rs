@@ -7,11 +7,11 @@ use rust_decimal::prelude::ToPrimitive;
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::EvaluationResult;
 
 /// ToInteger function evaluator
 pub struct ToIntegerFunctionEvaluator {

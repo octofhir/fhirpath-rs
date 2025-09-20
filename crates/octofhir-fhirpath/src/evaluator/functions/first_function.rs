@@ -1,10 +1,11 @@
 //! First function implementation
 
 use crate::core::{FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 use std::sync::Arc;
 
 pub struct FirstFunctionEvaluator {

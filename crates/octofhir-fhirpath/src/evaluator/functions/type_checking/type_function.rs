@@ -5,13 +5,13 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
-use serde_json::{json, Value};
+};
+use serde_json::json;
 
 /// Type function evaluator
 pub struct TypeFunctionEvaluator {
@@ -46,17 +46,61 @@ impl TypeFunctionEvaluator {
 
     fn get_type_info(&self, value: &FhirPathValue) -> (String, String) {
         match value {
-            FhirPathValue::Boolean(_, _, _) => ("System".to_string(), "Boolean".to_string()),
-            FhirPathValue::Integer(_, _, _) => ("System".to_string(), "Integer".to_string()),
-            FhirPathValue::Decimal(_, _, _) => ("System".to_string(), "Decimal".to_string()),
-            FhirPathValue::String(_, _, _) => ("System".to_string(), "String".to_string()),
-            FhirPathValue::Date(_, _, _) => ("System".to_string(), "Date".to_string()),
-            FhirPathValue::DateTime(_, _, _) => ("System".to_string(), "DateTime".to_string()),
-            FhirPathValue::Time(_, _, _) => ("System".to_string(), "Time".to_string()),
+            FhirPathValue::Boolean(_, type_info, _) => {
+                // Check if this is a FHIR primitive or System primitive
+                if type_info.namespace.as_deref() == Some("FHIR") {
+                    ("FHIR".to_string(), "boolean".to_string())
+                } else {
+                    ("System".to_string(), "Boolean".to_string())
+                }
+            }
+            FhirPathValue::Integer(_, type_info, _) => {
+                if type_info.namespace.as_deref() == Some("FHIR") {
+                    ("FHIR".to_string(), "integer".to_string())
+                } else {
+                    ("System".to_string(), "Integer".to_string())
+                }
+            }
+            FhirPathValue::Decimal(_, type_info, _) => {
+                if type_info.namespace.as_deref() == Some("FHIR") {
+                    ("FHIR".to_string(), "decimal".to_string())
+                } else {
+                    ("System".to_string(), "Decimal".to_string())
+                }
+            }
+            FhirPathValue::String(_, type_info, _) => {
+                if type_info.namespace.as_deref() == Some("FHIR") {
+                    // Use the actual FHIR type name (could be string, uri, uuid, etc.)
+                    ("FHIR".to_string(), type_info.type_name.to_lowercase())
+                } else {
+                    ("System".to_string(), "String".to_string())
+                }
+            }
+            FhirPathValue::Date(_, type_info, _) => {
+                if type_info.namespace.as_deref() == Some("FHIR") {
+                    ("FHIR".to_string(), "date".to_string())
+                } else {
+                    ("System".to_string(), "Date".to_string())
+                }
+            }
+            FhirPathValue::DateTime(_, type_info, _) => {
+                if type_info.namespace.as_deref() == Some("FHIR") {
+                    ("FHIR".to_string(), "dateTime".to_string())
+                } else {
+                    ("System".to_string(), "DateTime".to_string())
+                }
+            }
+            FhirPathValue::Time(_, type_info, _) => {
+                if type_info.namespace.as_deref() == Some("FHIR") {
+                    ("FHIR".to_string(), "time".to_string())
+                } else {
+                    ("System".to_string(), "Time".to_string())
+                }
+            }
             FhirPathValue::Quantity { .. } => ("System".to_string(), "Quantity".to_string()),
             FhirPathValue::Resource(_, type_info, _) => {
                 ("FHIR".to_string(), type_info.type_name.clone())
-            },
+            }
             FhirPathValue::Collection(_) => ("System".to_string(), "Collection".to_string()),
             FhirPathValue::Empty => ("System".to_string(), "Empty".to_string()),
         }

@@ -69,7 +69,7 @@ pub trait OperationEvaluator: Send + Sync {
     /// - right: Right operand values (empty for unary operations)
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        _input: Vec<FhirPathValue>,
         context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,

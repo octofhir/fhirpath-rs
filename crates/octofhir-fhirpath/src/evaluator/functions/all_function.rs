@@ -9,9 +9,10 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// All function evaluator
 pub struct AllFunctionEvaluator {
@@ -85,7 +86,7 @@ impl LazyFunctionEvaluator for AllFunctionEvaluator {
             let single_item_collection = vec![item.clone()];
 
             // Create nested context for this iteration
-            let mut iteration_context = EvaluationContext::new(
+            let iteration_context = EvaluationContext::new(
                 crate::core::Collection::from(single_item_collection.clone()),
                 context.model_provider().clone(),
                 context.terminology_provider().cloned(),
@@ -95,8 +96,12 @@ impl LazyFunctionEvaluator for AllFunctionEvaluator {
             .await;
 
             iteration_context.set_variable("$this".to_string(), item.clone());
-            iteration_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
-            iteration_context.set_variable("$total".to_string(), FhirPathValue::integer(input.len() as i64));
+            iteration_context
+                .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            iteration_context.set_variable(
+                "$total".to_string(),
+                FhirPathValue::integer(input.len() as i64),
+            );
 
             // Evaluate criteria expression in the iteration context
             let result = evaluator
@@ -104,10 +109,10 @@ impl LazyFunctionEvaluator for AllFunctionEvaluator {
                 .await?;
 
             // Check if the result is truthy
-            // If the result is empty, propagate the empty result per FHIRPath specification
+            // If the result is empty, treat it as false per FHIRPath specification for all()
             if result.value.is_empty() {
                 return Ok(EvaluationResult {
-                    value: crate::core::Collection::empty(),
+                    value: crate::core::Collection::single(FhirPathValue::boolean(false)),
                 });
             }
 

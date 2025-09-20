@@ -9,11 +9,10 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
-use octofhir_fhir_model::TerminologyProvider;
 
 /// Translate function evaluator
 pub struct TranslateFunctionEvaluator {
@@ -35,14 +34,22 @@ impl TranslateFunctionEvaluator {
                             parameter_type: vec!["String".to_string()],
                             optional: false,
                             is_expression: true,
-                            description: "Target system URL or ConceptMap URL/resource for translation".to_string(),
+                            description: "ConceptMap URL/resource or target system URL for translation".to_string(),
+                            default_value: None,
+                        },
+                        FunctionParameter {
+                            name: "concept".to_string(),
+                            parameter_type: vec!["Coding".to_string(), "CodeableConcept".to_string()],
+                            optional: true,
+                            is_expression: true,
+                            description: "Concept to translate (optional for static function call)".to_string(),
                             default_value: None,
                         }
                     ],
                     return_type: "Parameters".to_string(),
                     polymorphic: false,
                     min_params: 1,
-                    max_params: Some(1),
+                    max_params: Some(2),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
                 null_propagation: NullPropagationStrategy::Focus,
@@ -57,10 +64,17 @@ impl TranslateFunctionEvaluator {
 
     /// Extract coding information from input
     fn extract_coding_info(input: &[FhirPathValue]) -> Result<(String, String)> {
+        if input.is_empty() {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0054,
+                "translate function requires at least one input value".to_string(),
+            ));
+        }
+
         if input.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                "translate function requires a single Coding input".to_string(),
+                "translate function requires a single input value".to_string(),
             ));
         }
 
@@ -88,9 +102,14 @@ impl TranslateFunctionEvaluator {
 
                 Ok((system.to_string(), code.to_string()))
             }
+            FhirPathValue::String(code, _, _) => {
+                // Just a code string without system - use empty string for system
+                Ok(("".to_string(), code.clone()))
+            }
             _ => Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0055,
-                "translate function can only be called on Coding resources".to_string(),
+                "translate function can only be called on Coding resources or code strings"
+                    .to_string(),
             )),
         }
     }
@@ -99,7 +118,7 @@ impl TranslateFunctionEvaluator {
     async fn get_target_parameter(
         arg: &ExpressionNode,
         context: &EvaluationContext,
-        evaluator: AsyncNodeEvaluator<'_>,
+        evaluator: &AsyncNodeEvaluator<'_>,
     ) -> Result<String> {
         let result = evaluator.evaluate(arg, context).await?;
         let values: Vec<FhirPathValue> = result.value.iter().cloned().collect();
@@ -144,141 +163,306 @@ impl LazyFunctionEvaluator for TranslateFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
-        if args.len() != 1 {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                "translate function requires exactly one argument (target)".to_string(),
-            ));
-        }
+        // Check if this is called on %terminologies variable
+        let is_on_terminologies = input.len() == 1
+            && crate::evaluator::terminologies_variable::is_terminologies_variable(&input[0]);
 
-        // Get terminology provider
-        let terminology_provider = context.terminology_provider().ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0051,
-                "translate function requires a terminology provider".to_string(),
-            )
-        })?;
+        if is_on_terminologies {
+            // When called on %terminologies, expect 2 arguments: (conceptMap, concept)
+            if args.len() != 2 {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0053,
+                    "translate function on %terminologies requires exactly two arguments (conceptMap, concept)".to_string(),
+                ));
+            }
 
-        // Extract coding information
-        let (system, code) = Self::extract_coding_info(&input)?;
+            // Get terminology provider from context
+            let terminology_provider = context.terminology_provider().ok_or_else(|| {
+                FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0051,
+                    "translate function requires a terminology provider".to_string(),
+                )
+            })?;
 
-        // Get target parameter
-        let target = Self::get_target_parameter(&args[0], context, evaluator).await?;
+            // Get concept map URL from first argument
+            let concept_map_url = Self::get_target_parameter(&args[0], context, &evaluator).await?;
 
-        // Perform translation
-        match terminology_provider
-            .translate_code(&code, &target, Some(&system))
-            .await
-        {
-            Ok(translation_result) => {
-                // Convert translation result to FHIR Parameters resource structure
-                let mut parameters = serde_json::Map::new();
-                parameters.insert(
-                    "resourceType".to_string(),
-                    serde_json::Value::String("Parameters".to_string()),
-                );
+            // Get concept from second argument
+            let concept_result = evaluator.evaluate(&args[1], context).await?;
+            let concept_values: Vec<FhirPathValue> = concept_result.value.iter().cloned().collect();
+            let (system, code) = Self::extract_coding_info(&concept_values)?;
 
-                let mut parameter_list = Vec::new();
+            // Perform translation
+            match terminology_provider
+                .translate_code(&code, &concept_map_url, Some(&system))
+                .await
+            {
+                Ok(translation_result) => {
+                    // Convert translation result to FHIR Parameters resource structure
+                    let mut parameters = serde_json::Map::new();
+                    parameters.insert(
+                        "resourceType".to_string(),
+                        serde_json::Value::String("Parameters".to_string()),
+                    );
 
-                // Add result parameter
-                let mut result_param = serde_json::Map::new();
-                result_param.insert(
-                    "name".to_string(),
-                    serde_json::Value::String("result".to_string()),
-                );
-                result_param.insert(
-                    "valueBoolean".to_string(),
-                    serde_json::Value::Bool(translation_result.success),
-                );
-                parameter_list.push(serde_json::Value::Object(result_param));
+                    let mut parameter_list = Vec::new();
 
-                // Add message parameter if available
-                if let Some(message) = translation_result.message {
-                    let mut message_param = serde_json::Map::new();
-                    message_param.insert(
+                    // Add result parameter
+                    let mut result_param = serde_json::Map::new();
+                    result_param.insert(
                         "name".to_string(),
-                        serde_json::Value::String("message".to_string()),
+                        serde_json::Value::String("result".to_string()),
                     );
-                    message_param.insert(
-                        "valueString".to_string(),
-                        serde_json::Value::String(message),
+                    result_param.insert(
+                        "valueBoolean".to_string(),
+                        serde_json::Value::Bool(translation_result.success),
                     );
-                    parameter_list.push(serde_json::Value::Object(message_param));
-                }
+                    parameter_list.push(serde_json::Value::Object(result_param));
 
-                // Add match parameters for each translation target
-                for target in translation_result.targets {
-                    let mut match_param = serde_json::Map::new();
-                    match_param.insert(
-                        "name".to_string(),
-                        serde_json::Value::String("match".to_string()),
-                    );
-
-                    let mut match_parts = Vec::new();
-
-                    let mut equivalence_part = serde_json::Map::new();
-                    equivalence_part.insert(
-                        "name".to_string(),
-                        serde_json::Value::String("equivalence".to_string()),
-                    );
-                    let equivalence_code = match target.equivalence {
-                        octofhir_fhir_model::terminology::EquivalenceLevel::Equivalent => {
-                            "equivalent"
-                        }
-                        octofhir_fhir_model::terminology::EquivalenceLevel::Related => "related",
-                        octofhir_fhir_model::terminology::EquivalenceLevel::Narrower => "narrower",
-                        octofhir_fhir_model::terminology::EquivalenceLevel::Broader => "broader",
-                    };
-                    equivalence_part.insert(
-                        "valueCode".to_string(),
-                        serde_json::Value::String(equivalence_code.to_string()),
-                    );
-                    match_parts.push(serde_json::Value::Object(equivalence_part));
-
-                    let mut concept_part = serde_json::Map::new();
-                    concept_part.insert(
-                        "name".to_string(),
-                        serde_json::Value::String("concept".to_string()),
-                    );
-
-                    let mut concept_value = serde_json::Map::new();
-                    concept_value
-                        .insert("code".to_string(), serde_json::Value::String(target.code));
-                    concept_value.insert(
-                        "system".to_string(),
-                        serde_json::Value::String(target.system),
-                    );
-                    if let Some(display) = target.display {
-                        concept_value
-                            .insert("display".to_string(), serde_json::Value::String(display));
+                    // Add message parameter if available
+                    if let Some(message) = translation_result.message {
+                        let mut message_param = serde_json::Map::new();
+                        message_param.insert(
+                            "name".to_string(),
+                            serde_json::Value::String("message".to_string()),
+                        );
+                        message_param.insert(
+                            "valueString".to_string(),
+                            serde_json::Value::String(message),
+                        );
+                        parameter_list.push(serde_json::Value::Object(message_param));
                     }
 
-                    concept_part.insert(
-                        "valueCoding".to_string(),
-                        serde_json::Value::Object(concept_value),
+                    // Add match parameters for each translation target
+                    for translation_target in translation_result.targets {
+                        let mut match_param = serde_json::Map::new();
+                        match_param.insert(
+                            "name".to_string(),
+                            serde_json::Value::String("match".to_string()),
+                        );
+
+                        let mut match_parts = Vec::new();
+
+                        let mut equivalence_part = serde_json::Map::new();
+                        equivalence_part.insert(
+                            "name".to_string(),
+                            serde_json::Value::String("equivalence".to_string()),
+                        );
+                        let equivalence_code = match translation_target.equivalence {
+                            octofhir_fhir_model::terminology::EquivalenceLevel::Equivalent => {
+                                "equivalent"
+                            }
+                            octofhir_fhir_model::terminology::EquivalenceLevel::Related => {
+                                "related"
+                            }
+                            octofhir_fhir_model::terminology::EquivalenceLevel::Narrower => {
+                                "narrower"
+                            }
+                            octofhir_fhir_model::terminology::EquivalenceLevel::Broader => {
+                                "broader"
+                            }
+                        };
+                        equivalence_part.insert(
+                            "valueCode".to_string(),
+                            serde_json::Value::String(equivalence_code.to_string()),
+                        );
+                        match_parts.push(serde_json::Value::Object(equivalence_part));
+
+                        let mut concept_part = serde_json::Map::new();
+                        concept_part.insert(
+                            "name".to_string(),
+                            serde_json::Value::String("concept".to_string()),
+                        );
+
+                        let mut concept_value = serde_json::Map::new();
+                        concept_value.insert(
+                            "code".to_string(),
+                            serde_json::Value::String(translation_target.code),
+                        );
+                        concept_value.insert(
+                            "system".to_string(),
+                            serde_json::Value::String(translation_target.system),
+                        );
+                        if let Some(display) = translation_target.display {
+                            concept_value
+                                .insert("display".to_string(), serde_json::Value::String(display));
+                        }
+
+                        concept_part.insert(
+                            "valueCoding".to_string(),
+                            serde_json::Value::Object(concept_value),
+                        );
+                        match_parts.push(serde_json::Value::Object(concept_part));
+
+                        match_param
+                            .insert("part".to_string(), serde_json::Value::Array(match_parts));
+                        parameter_list.push(serde_json::Value::Object(match_param));
+                    }
+
+                    parameters.insert(
+                        "parameter".to_string(),
+                        serde_json::Value::Array(parameter_list),
                     );
-                    match_parts.push(serde_json::Value::Object(concept_part));
 
-                    match_param.insert("part".to_string(), serde_json::Value::Array(match_parts));
-                    parameter_list.push(serde_json::Value::Object(match_param));
+                    let parameters_value =
+                        FhirPathValue::resource(serde_json::Value::Object(parameters));
+
+                    Ok(EvaluationResult {
+                        value: crate::core::Collection::from(vec![parameters_value]),
+                    })
                 }
-
-                parameters.insert(
-                    "parameter".to_string(),
-                    serde_json::Value::Array(parameter_list),
-                );
-
-                let parameters_value =
-                    FhirPathValue::resource(serde_json::Value::Object(parameters));
-
-                Ok(EvaluationResult {
-                    value: crate::core::Collection::from(vec![parameters_value]),
-                })
+                Err(e) => Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0059,
+                    format!("Concept translation failed: {e}"),
+                )),
             }
-            Err(e) => Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0059,
-                format!("Concept translation failed: {}", e),
-            )),
+        } else {
+            // Original behavior: called on a Coding resource with one argument (target)
+            if args.len() != 1 {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0053,
+                    "translate function requires exactly one argument (target)".to_string(),
+                ));
+            }
+
+            // Get terminology provider
+            let terminology_provider = context.terminology_provider().ok_or_else(|| {
+                FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0051,
+                    "translate function requires a terminology provider".to_string(),
+                )
+            })?;
+
+            // Extract coding information
+            let (system, code) = Self::extract_coding_info(&input)?;
+
+            // Get target parameter
+            let target = Self::get_target_parameter(&args[0], context, &evaluator).await?;
+
+            // Perform translation
+            match terminology_provider
+                .translate_code(&code, &target, Some(&system))
+                .await
+            {
+                Ok(translation_result) => {
+                    // Convert translation result to FHIR Parameters resource structure
+                    let mut parameters = serde_json::Map::new();
+                    parameters.insert(
+                        "resourceType".to_string(),
+                        serde_json::Value::String("Parameters".to_string()),
+                    );
+
+                    let mut parameter_list = Vec::new();
+
+                    // Add result parameter
+                    let mut result_param = serde_json::Map::new();
+                    result_param.insert(
+                        "name".to_string(),
+                        serde_json::Value::String("result".to_string()),
+                    );
+                    result_param.insert(
+                        "valueBoolean".to_string(),
+                        serde_json::Value::Bool(translation_result.success),
+                    );
+                    parameter_list.push(serde_json::Value::Object(result_param));
+
+                    // Add message parameter if available
+                    if let Some(message) = translation_result.message {
+                        let mut message_param = serde_json::Map::new();
+                        message_param.insert(
+                            "name".to_string(),
+                            serde_json::Value::String("message".to_string()),
+                        );
+                        message_param.insert(
+                            "valueString".to_string(),
+                            serde_json::Value::String(message),
+                        );
+                        parameter_list.push(serde_json::Value::Object(message_param));
+                    }
+
+                    // Add match parameters for each translation target
+                    for translation_target in translation_result.targets {
+                        let mut match_param = serde_json::Map::new();
+                        match_param.insert(
+                            "name".to_string(),
+                            serde_json::Value::String("match".to_string()),
+                        );
+
+                        let mut match_parts = Vec::new();
+
+                        let mut equivalence_part = serde_json::Map::new();
+                        equivalence_part.insert(
+                            "name".to_string(),
+                            serde_json::Value::String("equivalence".to_string()),
+                        );
+                        let equivalence_code = match translation_target.equivalence {
+                            octofhir_fhir_model::terminology::EquivalenceLevel::Equivalent => {
+                                "equivalent"
+                            }
+                            octofhir_fhir_model::terminology::EquivalenceLevel::Related => {
+                                "related"
+                            }
+                            octofhir_fhir_model::terminology::EquivalenceLevel::Narrower => {
+                                "narrower"
+                            }
+                            octofhir_fhir_model::terminology::EquivalenceLevel::Broader => {
+                                "broader"
+                            }
+                        };
+                        equivalence_part.insert(
+                            "valueCode".to_string(),
+                            serde_json::Value::String(equivalence_code.to_string()),
+                        );
+                        match_parts.push(serde_json::Value::Object(equivalence_part));
+
+                        let mut concept_part = serde_json::Map::new();
+                        concept_part.insert(
+                            "name".to_string(),
+                            serde_json::Value::String("concept".to_string()),
+                        );
+
+                        let mut concept_value = serde_json::Map::new();
+                        concept_value.insert(
+                            "code".to_string(),
+                            serde_json::Value::String(translation_target.code),
+                        );
+                        concept_value.insert(
+                            "system".to_string(),
+                            serde_json::Value::String(translation_target.system),
+                        );
+                        if let Some(display) = translation_target.display {
+                            concept_value
+                                .insert("display".to_string(), serde_json::Value::String(display));
+                        }
+
+                        concept_part.insert(
+                            "valueCoding".to_string(),
+                            serde_json::Value::Object(concept_value),
+                        );
+                        match_parts.push(serde_json::Value::Object(concept_part));
+
+                        match_param
+                            .insert("part".to_string(), serde_json::Value::Array(match_parts));
+                        parameter_list.push(serde_json::Value::Object(match_param));
+                    }
+
+                    parameters.insert(
+                        "parameter".to_string(),
+                        serde_json::Value::Array(parameter_list),
+                    );
+
+                    let parameters_value =
+                        FhirPathValue::resource(serde_json::Value::Object(parameters));
+
+                    Ok(EvaluationResult {
+                        value: crate::core::Collection::from(vec![parameters_value]),
+                    })
+                }
+                Err(e) => Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0059,
+                    format!("Concept translation failed: {e}"),
+                )),
+            }
         }
     }
 

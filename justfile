@@ -229,17 +229,9 @@ cli-parse EXPRESSION:
 cli-validate EXPRESSION:
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- validate "{{EXPRESSION}}"
 
-# Analyze FHIRPath expression (shows all errors, warnings, and suggestions by default)
-cli-analyze EXPRESSION *ARGS:
-    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- analyze "{{EXPRESSION}}" {{ARGS}}
+cli-docs ERROR_CODE:
+    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- docs {{ERROR_CODE}}
 
-# Validate FHIRPath expression  
-cli-analyze-validate EXPRESSION:
-    just cli-analyze "{{EXPRESSION}}" --validate-only
-
-# Analyze with legacy single-error mode
-cli-analyze-legacy EXPRESSION *ARGS:
-    just cli-analyze "{{EXPRESSION}}" --legacy-mode {{ARGS}}
 
 cli-help:
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- help

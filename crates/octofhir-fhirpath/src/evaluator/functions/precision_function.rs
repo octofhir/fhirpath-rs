@@ -8,10 +8,11 @@
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Precision function evaluator
 pub struct PrecisionFunctionEvaluator {
@@ -45,6 +46,7 @@ impl PrecisionFunctionEvaluator {
     }
 
     /// Get precision of a decimal value (number of decimal places)
+    #[allow(dead_code)]
     fn get_decimal_precision(decimal_str: &str) -> String {
         if let Some(dot_pos) = decimal_str.find('.') {
             let decimal_places = decimal_str.len() - dot_pos - 1;
@@ -87,9 +89,9 @@ impl PureFunctionEvaluator for PrecisionFunctionEvaluator {
             FhirPathValue::Date(date, _, _) => {
                 // For dates, return character count of the formatted representation up to precision
                 let count = match date.precision {
-                    crate::core::temporal::TemporalPrecision::Year => 4,    // "2014"
-                    crate::core::temporal::TemporalPrecision::Month => 7,   // "2014-01"
-                    crate::core::temporal::TemporalPrecision::Day => 10,    // "2014-01-05"
+                    crate::core::temporal::TemporalPrecision::Year => 4, // "2014"
+                    crate::core::temporal::TemporalPrecision::Month => 7, // "2014-01"
+                    crate::core::temporal::TemporalPrecision::Day => 10, // "2014-01-05"
                     _ => {
                         return Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0055,
@@ -102,12 +104,12 @@ impl PureFunctionEvaluator for PrecisionFunctionEvaluator {
             FhirPathValue::DateTime(datetime, _, _) => {
                 // For datetimes, return character count of the formatted representation up to precision
                 let count = match datetime.precision {
-                    crate::core::temporal::TemporalPrecision::Year => 4,         // "2014"
-                    crate::core::temporal::TemporalPrecision::Month => 7,        // "2014-01"
-                    crate::core::temporal::TemporalPrecision::Day => 10,         // "2014-01-05"
-                    crate::core::temporal::TemporalPrecision::Hour => 13,        // "2014-01-05T10"
-                    crate::core::temporal::TemporalPrecision::Minute => 16,      // "2014-01-05T10:30"
-                    crate::core::temporal::TemporalPrecision::Second => 19,      // "2014-01-05T10:30:00"
+                    crate::core::temporal::TemporalPrecision::Year => 4, // "2014"
+                    crate::core::temporal::TemporalPrecision::Month => 7, // "2014-01"
+                    crate::core::temporal::TemporalPrecision::Day => 10, // "2014-01-05"
+                    crate::core::temporal::TemporalPrecision::Hour => 13, // "2014-01-05T10"
+                    crate::core::temporal::TemporalPrecision::Minute => 16, // "2014-01-05T10:30"
+                    crate::core::temporal::TemporalPrecision::Second => 19, // "2014-01-05T10:30:00"
                     crate::core::temporal::TemporalPrecision::Millisecond => 17, // "2014-01-05T10:30" (excluding :00.000)
                 };
                 FhirPathValue::integer(count)
@@ -115,9 +117,9 @@ impl PureFunctionEvaluator for PrecisionFunctionEvaluator {
             FhirPathValue::Time(time, _, _) => {
                 // For times, return character count of the formatted representation up to precision
                 let count = match time.precision {
-                    crate::core::temporal::TemporalPrecision::Hour => 2,        // "10"
-                    crate::core::temporal::TemporalPrecision::Minute => 4,      // "10:30" (excluding T prefix)
-                    crate::core::temporal::TemporalPrecision::Second => 8,      // "10:30:00"
+                    crate::core::temporal::TemporalPrecision::Hour => 2, // "10"
+                    crate::core::temporal::TemporalPrecision::Minute => 4, // "10:30" (excluding T prefix)
+                    crate::core::temporal::TemporalPrecision::Second => 8, // "10:30:00"
                     crate::core::temporal::TemporalPrecision::Millisecond => 9, // "10:30:00" (excluding .000 and T prefix)
                     _ => {
                         return Err(FhirPathError::evaluation_error(

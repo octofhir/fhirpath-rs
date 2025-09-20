@@ -410,6 +410,7 @@ impl fmt::Display for PrecisionDate {
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for PrecisionDate {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         use std::cmp::Ordering;
@@ -809,6 +810,7 @@ impl fmt::Display for PrecisionDateTime {
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for PrecisionDateTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         // Different timezone specification → indeterminate
@@ -984,6 +986,7 @@ impl fmt::Display for PrecisionTime {
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for PrecisionTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         // Same precision - can compare normally
@@ -1167,7 +1170,7 @@ impl CalendarDuration {
 
     /// Create a duration from a string like "5 days" or "2 years"
     pub fn from_string(s: &str) -> Result<Self> {
-        let parts: Vec<&str> = s.trim().split_whitespace().collect();
+        let parts: Vec<&str> = s.split_whitespace().collect();
         if parts.len() != 2 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,

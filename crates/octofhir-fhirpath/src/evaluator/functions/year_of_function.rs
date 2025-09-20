@@ -7,10 +7,11 @@ use chrono::Datelike;
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// YearOf function evaluator
 pub struct YearOfFunctionEvaluator {
@@ -90,10 +91,7 @@ impl PureFunctionEvaluator for YearOfFunctionEvaluator {
                 } else {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0055,
-                        format!(
-                            "Cannot parse '{}' as Date or DateTime for yearOf function",
-                            s
-                        ),
+                        format!("Cannot parse '{s}' as Date or DateTime for yearOf function"),
                     ));
                 }
             }

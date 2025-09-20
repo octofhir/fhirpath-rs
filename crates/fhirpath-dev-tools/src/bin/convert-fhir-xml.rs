@@ -19,9 +19,23 @@ fn unescape_html_entities(text: &str) -> String {
 
 // FHIR elements that are always arrays even if single occurrence
 const FHIR_ARRAY_ELEMENTS: &[&str] = &[
-    "identifier", "name", "telecom", "address", "contact", "communication",
-    "extension", "modifierExtension", "given", "prefix", "suffix", "line",
-    "coding", "contained", "link", "photo", "generalPractitioner"
+    "identifier",
+    "name",
+    "telecom",
+    "address",
+    "contact",
+    "communication",
+    "extension",
+    "modifierExtension",
+    "given",
+    "prefix",
+    "suffix",
+    "line",
+    "coding",
+    "contained",
+    "link",
+    "photo",
+    "generalPractitioner",
 ];
 
 fn is_array_element(name: &str) -> bool {
@@ -53,7 +67,10 @@ fn from_xml(input: &str) -> Result<Value, String> {
     let root = doc.root_element();
 
     let mut root_obj = Map::new();
-    root_obj.insert("resourceType".to_string(), Value::String(root.tag_name().name().to_string()));
+    root_obj.insert(
+        "resourceType".to_string(),
+        Value::String(root.tag_name().name().to_string()),
+    );
 
     // Convert all children of the root element
     convert_element_children(&root, &mut root_obj)?;
@@ -61,7 +78,10 @@ fn from_xml(input: &str) -> Result<Value, String> {
     Ok(Value::Object(root_obj))
 }
 
-fn convert_element_children(element: &roxmltree::Node, obj: &mut Map<String, Value>) -> Result<(), String> {
+fn convert_element_children(
+    element: &roxmltree::Node,
+    obj: &mut Map<String, Value>,
+) -> Result<(), String> {
     for child in element.children() {
         if child.is_element() {
             let child_name = child.tag_name().name();
@@ -152,7 +172,6 @@ fn get_element_text_content(element: &roxmltree::Node) -> String {
     result
 }
 
-
 fn convert_file(input_path: &Path, output_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let xml = fs::read_to_string(input_path)?;
     let json_value = from_xml(&xml).map_err(|e| format!("Conversion failed: {e}"))?;
@@ -160,11 +179,18 @@ fn convert_file(input_path: &Path, output_path: &Path) -> Result<(), Box<dyn std
     Ok(())
 }
 
-fn convert_directory(source_dir: &Path, target_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn convert_directory(
+    source_dir: &Path,
+    target_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Create target directory if it doesn't exist
     fs::create_dir_all(target_dir)?;
 
-    println!("🔄 Converting FHIR XML files from {} to {}", source_dir.display(), target_dir.display());
+    println!(
+        "🔄 Converting FHIR XML files from {} to {}",
+        source_dir.display(),
+        target_dir.display()
+    );
 
     let mut converted_count = 0;
     let mut failed_count = 0;
@@ -180,7 +206,11 @@ fn convert_directory(source_dir: &Path, target_dir: &Path) -> Result<(), Box<dyn
 
             match convert_file(&path, &output_path) {
                 Ok(()) => {
-                    println!("✅ Converted {} -> {}", path.display(), output_path.display());
+                    println!(
+                        "✅ Converted {} -> {}",
+                        path.display(),
+                        output_path.display()
+                    );
                     converted_count += 1;
                 }
                 Err(e) => {
@@ -191,7 +221,10 @@ fn convert_directory(source_dir: &Path, target_dir: &Path) -> Result<(), Box<dyn
         }
     }
 
-    println!("🎉 Conversion completed! {} files converted, {} failed", converted_count, failed_count);
+    println!(
+        "🎉 Conversion completed! {} files converted, {} failed",
+        converted_count, failed_count
+    );
     Ok(())
 }
 
@@ -199,8 +232,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 3 {
         eprintln!("Usage:");
-        eprintln!("  {} <input.xml> <output.json>      # Convert single file", args[0]);
-        eprintln!("  {} <source_dir> <target_dir>      # Convert all XML files in directory", args[0]);
+        eprintln!(
+            "  {} <input.xml> <output.json>      # Convert single file",
+            args[0]
+        );
+        eprintln!(
+            "  {} <source_dir> <target_dir>      # Convert all XML files in directory",
+            args[0]
+        );
         std::process::exit(1);
     }
 
@@ -213,7 +252,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         // Single file mode
         convert_file(&source_path, &target_path)?;
-        println!("✅ Converted {} -> {}", source_path.display(), target_path.display());
+        println!(
+            "✅ Converted {} -> {}",
+            source_path.display(),
+            target_path.display()
+        );
     }
 
     Ok(())

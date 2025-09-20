@@ -4,7 +4,7 @@
 //! including unit conversions using the UCUM library.
 
 use crate::core::{FhirPathValue, types::CalendarUnit};
-use octofhir_ucum::{parse_expression, evaluate_owned, precision::to_f64};
+use octofhir_ucum::{evaluate_owned, parse_expression, precision::to_f64};
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
@@ -34,16 +34,49 @@ impl std::fmt::Display for QuantityError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QuantityError::IncompatibleUnits(from, to) => {
-                write!(f, "Cannot convert from '{}' to '{}': incompatible units", from, to)
+                write!(
+                    f,
+                    "Cannot convert from '{from}' to '{to}': incompatible units"
+                )
             }
-            QuantityError::ParseError(msg) => write!(f, "Parse error: {}", msg),
-            QuantityError::EvaluationError(msg) => write!(f, "Evaluation error: {}", msg),
-            QuantityError::InvalidQuantity(msg) => write!(f, "Invalid quantity: {}", msg),
+            QuantityError::ParseError(msg) => write!(f, "Parse error: {msg}"),
+            QuantityError::EvaluationError(msg) => write!(f, "Evaluation error: {msg}"),
+            QuantityError::InvalidQuantity(msg) => write!(f, "Invalid quantity: {msg}"),
         }
     }
 }
 
 impl std::error::Error for QuantityError {}
+
+/// Check if two unit strings are equivalent
+/// Handles common cases where unit and code fields might differ but represent the same unit
+fn units_are_equivalent(unit1: &str, unit2: &str) -> bool {
+    // Direct match (already checked above, but for completeness)
+    if unit1 == unit2 {
+        return true;
+    }
+
+    // Common pound equivalences in FHIR/UCUM
+    let pound_variants = ["lb", "lbs", "[lb_av]", "lb_av"];
+    let is_pound1 = pound_variants.contains(&unit1);
+    let is_pound2 = pound_variants.contains(&unit2);
+
+    if is_pound1 && is_pound2 {
+        return true;
+    }
+
+    // Add other common equivalences as needed
+    // kg/kilogram, g/gram, m/meter, etc.
+    let kg_variants = ["kg", "kilogram"];
+    let is_kg1 = kg_variants.contains(&unit1);
+    let is_kg2 = kg_variants.contains(&unit2);
+
+    if is_kg1 && is_kg2 {
+        return true;
+    }
+
+    false
+}
 
 /// Compare two quantities and return an Ordering (for <, >, <= comparisons)
 pub fn compare_quantities(
@@ -57,25 +90,44 @@ pub fn compare_quantities(
     // Handle simple cases first
     match (left_unit, right_unit) {
         // Both have no units - compare values directly
-        (None, None) => return Ok(Some(left_value.cmp(&right_value))),
+        (None, None) => Ok(Some(left_value.cmp(&right_value))),
 
         // One has unit, other doesn't - not comparable
-        (Some(_), None) | (None, Some(_)) => return Ok(None),
+        (Some(_), None) | (None, Some(_)) => Ok(None),
 
         // Both have same unit - compare values directly
-        (Some(lu), Some(ru)) if lu == ru => {
-            return Ok(Some(left_value.cmp(&right_value)));
+        (Some(lu), Some(ru)) if lu == ru => Ok(Some(left_value.cmp(&right_value))),
+
+        // Handle common unit equivalences that might not match exactly
+        (Some(lu), Some(ru)) if units_are_equivalent(lu, ru) => {
+            Ok(Some(left_value.cmp(&right_value)))
         }
 
         // Different units - need conversion
         (Some(lu), Some(ru)) => {
             // First check if they are calendar units
             if let (Some(left_cal), Some(right_cal)) = (left_calendar_unit, right_calendar_unit) {
-                return compare_calendar_quantities_ordering(left_value, *left_cal, right_value, *right_cal);
+                return compare_calendar_quantities_ordering(
+                    left_value,
+                    *left_cal,
+                    right_value,
+                    *right_cal,
+                );
             }
 
             // Try UCUM conversion
-            return convert_and_compare_ucum_ordering(left_value, lu, right_value, ru);
+            match convert_and_compare_ucum_ordering(left_value, lu, right_value, ru) {
+                Ok(result) => Ok(result),
+                Err(_) => {
+                    // UCUM conversion failed, but if units are exactly the same string,
+                    // we can still compare them directly as a fallback
+                    if lu == ru {
+                        return Ok(Some(left_value.cmp(&right_value)));
+                    }
+                    // If units are different and UCUM failed, return not comparable
+                    Ok(None)
+                }
+            }
         }
     }
 }
@@ -92,14 +144,19 @@ pub fn are_quantities_equivalent(
     // Handle simple cases first
     match (left_unit, right_unit) {
         // Both have no units - compare values directly
-        (None, None) => return Ok((left_value - right_value).abs() < Decimal::new(1, 10)),
+        (None, None) => Ok((left_value - right_value).abs() < Decimal::new(1, 10)),
 
         // One has unit, other doesn't - not equivalent
-        (Some(_), None) | (None, Some(_)) => return Ok(false),
+        (Some(_), None) | (None, Some(_)) => Ok(false),
 
         // Both have same unit - compare values directly
         (Some(lu), Some(ru)) if lu == ru => {
-            return Ok((left_value - right_value).abs() < Decimal::new(1, 10));
+            Ok((left_value - right_value).abs() < Decimal::new(1, 10))
+        }
+
+        // Handle common unit equivalences that might not match exactly
+        (Some(lu), Some(ru)) if units_are_equivalent(lu, ru) => {
+            Ok((left_value - right_value).abs() < Decimal::new(1, 10))
         }
 
         // Different units - need conversion
@@ -110,7 +167,7 @@ pub fn are_quantities_equivalent(
             }
 
             // Try UCUM conversion for equivalence
-            return convert_and_compare_ucum_equivalence(left_value, lu, right_value, ru);
+            convert_and_compare_ucum_equivalence(left_value, lu, right_value, ru)
         }
     }
 }
@@ -127,14 +184,19 @@ pub fn are_quantities_equal(
     // Handle simple cases first
     match (left_unit, right_unit) {
         // Both have no units - compare values directly
-        (None, None) => return Ok((left_value - right_value).abs() < Decimal::new(1, 10)),
+        (None, None) => Ok((left_value - right_value).abs() < Decimal::new(1, 10)),
 
         // One has unit, other doesn't - not equal
-        (Some(_), None) | (None, Some(_)) => return Ok(false),
+        (Some(_), None) | (None, Some(_)) => Ok(false),
 
         // Both have same unit - compare values directly
         (Some(lu), Some(ru)) if lu == ru => {
-            return Ok((left_value - right_value).abs() < Decimal::new(1, 10));
+            Ok((left_value - right_value).abs() < Decimal::new(1, 10))
+        }
+
+        // Handle common unit equivalences that might not match exactly
+        (Some(lu), Some(ru)) if units_are_equivalent(lu, ru) => {
+            Ok((left_value - right_value).abs() < Decimal::new(1, 10))
         }
 
         // Different units - need conversion
@@ -145,7 +207,7 @@ pub fn are_quantities_equal(
             }
 
             // Try UCUM conversion for equality (exact)
-            return convert_and_compare_ucum(left_value, lu, right_value, ru);
+            convert_and_compare_ucum(left_value, lu, right_value, ru)
         }
     }
 }
@@ -175,7 +237,9 @@ pub fn convert_quantity(
         return convert_ucum_quantity(value, from_unit_str, to_unit);
     }
 
-    Err(QuantityError::InvalidQuantity("Cannot convert unitless quantity to a specific unit".to_string()))
+    Err(QuantityError::InvalidQuantity(
+        "Cannot convert unitless quantity to a specific unit".to_string(),
+    ))
 }
 
 /// Compare two calendar quantities and return an Ordering
@@ -245,21 +309,19 @@ fn convert_and_compare_ucum_ordering(
     right_unit: &str,
 ) -> Result<Option<std::cmp::Ordering>, QuantityError> {
     // Parse both units
-    let left_expr = parse_expression(left_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", left_unit, e))
-    })?;
+    let left_expr = parse_expression(left_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
 
-    let right_expr = parse_expression(right_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", right_unit, e))
-    })?;
+    let right_expr = parse_expression(right_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
 
     // Evaluate both units
     let left_eval = evaluate_owned(&left_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", left_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{left_unit}': {e}"))
     })?;
 
     let right_eval = evaluate_owned(&right_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", right_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{right_unit}': {e}"))
     })?;
 
     // Check if dimensions are compatible
@@ -268,10 +330,16 @@ fn convert_and_compare_ucum_ordering(
     }
 
     // Convert both to canonical units and compare
-    let left_canonical = to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
-    let right_canonical = to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
+    let left_canonical =
+        to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
+    let right_canonical =
+        to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
 
-    Ok(Some(left_canonical.partial_cmp(&right_canonical).unwrap_or(std::cmp::Ordering::Equal)))
+    Ok(Some(
+        left_canonical
+            .partial_cmp(&right_canonical)
+            .unwrap_or(std::cmp::Ordering::Equal),
+    ))
 }
 
 /// Convert and compare two UCUM quantities for equivalence (with tolerance)
@@ -282,21 +350,19 @@ fn convert_and_compare_ucum_equivalence(
     right_unit: &str,
 ) -> Result<bool, QuantityError> {
     // Parse both units
-    let left_expr = parse_expression(left_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", left_unit, e))
-    })?;
+    let left_expr = parse_expression(left_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
 
-    let right_expr = parse_expression(right_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", right_unit, e))
-    })?;
+    let right_expr = parse_expression(right_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
 
     // Evaluate both units
     let left_eval = evaluate_owned(&left_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", left_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{left_unit}': {e}"))
     })?;
 
     let right_eval = evaluate_owned(&right_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", right_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{right_unit}': {e}"))
     })?;
 
     // Check if dimensions are compatible
@@ -305,8 +371,10 @@ fn convert_and_compare_ucum_equivalence(
     }
 
     // Convert both to canonical units and compare
-    let left_canonical = to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
-    let right_canonical = to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
+    let left_canonical =
+        to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
+    let right_canonical =
+        to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
 
     // Use a more lenient tolerance for equivalence to account for measurement precision
     // This allows for small differences that might occur in real-world measurements
@@ -325,21 +393,19 @@ fn convert_and_compare_ucum(
     right_unit: &str,
 ) -> Result<bool, QuantityError> {
     // Parse both units
-    let left_expr = parse_expression(left_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", left_unit, e))
-    })?;
+    let left_expr = parse_expression(left_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
 
-    let right_expr = parse_expression(right_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", right_unit, e))
-    })?;
+    let right_expr = parse_expression(right_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
 
     // Evaluate both units
     let left_eval = evaluate_owned(&left_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", left_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{left_unit}': {e}"))
     })?;
 
     let right_eval = evaluate_owned(&right_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", right_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{right_unit}': {e}"))
     })?;
 
     // Check if dimensions are compatible
@@ -348,8 +414,10 @@ fn convert_and_compare_ucum(
     }
 
     // Convert both to canonical units and compare
-    let left_canonical = to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
-    let right_canonical = to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
+    let left_canonical =
+        to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
+    let right_canonical =
+        to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
 
     Ok((left_canonical - right_canonical).abs() < 1e-10)
 }
@@ -362,21 +430,19 @@ pub fn are_ucum_units_comparable(left_unit: &str, right_unit: &str) -> Result<bo
     }
 
     // Parse both units
-    let left_expr = parse_expression(left_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", left_unit, e))
-    })?;
+    let left_expr = parse_expression(left_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
 
-    let right_expr = parse_expression(right_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", right_unit, e))
-    })?;
+    let right_expr = parse_expression(right_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
 
     // Evaluate both units
     let left_eval = evaluate_owned(&left_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", left_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{left_unit}': {e}"))
     })?;
 
     let right_eval = evaluate_owned(&right_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", right_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{right_unit}': {e}"))
     })?;
 
     // Units are comparable if they have the same dimension
@@ -390,26 +456,27 @@ fn convert_ucum_quantity(
     to_unit: &str,
 ) -> Result<ConversionResult, QuantityError> {
     // Parse both units
-    let from_expr = parse_expression(from_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", from_unit, e))
-    })?;
+    let from_expr = parse_expression(from_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{from_unit}': {e}")))?;
 
-    let to_expr = parse_expression(to_unit).map_err(|e| {
-        QuantityError::ParseError(format!("Failed to parse '{}': {}", to_unit, e))
-    })?;
+    let to_expr = parse_expression(to_unit)
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{to_unit}': {e}")))?;
 
     // Evaluate both units
     let from_eval = evaluate_owned(&from_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", from_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{from_unit}': {e}"))
     })?;
 
     let to_eval = evaluate_owned(&to_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{}': {}", to_unit, e))
+        QuantityError::EvaluationError(format!("Failed to evaluate '{to_unit}': {e}"))
     })?;
 
     // Check if dimensions are compatible
     if from_eval.dim != to_eval.dim {
-        return Err(QuantityError::IncompatibleUnits(from_unit.to_string(), to_unit.to_string()));
+        return Err(QuantityError::IncompatibleUnits(
+            from_unit.to_string(),
+            to_unit.to_string(),
+        ));
     }
 
     // Calculate conversion factor
@@ -439,13 +506,13 @@ pub fn multiply_quantities(
     let result_value = left_value * right_value;
 
     // Handle unit combination
-    let (result_unit, result_ucum_unit, result_calendar_unit) = match (left_unit, right_unit) {
+    let (result_unit, _result_ucum_unit, _result_calendar_unit) = match (left_unit, right_unit) {
         (None, None) => (None, None::<Arc<octofhir_ucum::UnitRecord>>, None),
         (Some(l), None) => (Some(l.clone()), None, *left_calendar_unit),
         (None, Some(r)) => (Some(r.clone()), None, *right_calendar_unit),
         (Some(l), Some(r)) => {
             // For now, simple concatenation - TODO: implement proper UCUM unit multiplication
-            let combined_unit = format!("{}.{}", l, r);
+            let combined_unit = format!("{l}.{r}");
             (Some(combined_unit), None, None)
         }
     };
@@ -460,19 +527,21 @@ pub fn divide_quantities(
     left_calendar_unit: &Option<CalendarUnit>,
     right_value: Decimal,
     right_unit: &Option<String>,
-    right_calendar_unit: &Option<CalendarUnit>,
+    _right_calendar_unit: &Option<CalendarUnit>,
 ) -> Result<FhirPathValue, QuantityError> {
     if right_value == Decimal::ZERO {
-        return Err(QuantityError::InvalidQuantity("Division by zero".to_string()));
+        return Err(QuantityError::InvalidQuantity(
+            "Division by zero".to_string(),
+        ));
     }
 
     let result_value = left_value / right_value;
 
     // Handle unit combination
-    let (result_unit, result_ucum_unit, result_calendar_unit) = match (left_unit, right_unit) {
+    let (result_unit, _result_ucum_unit, _result_calendar_unit) = match (left_unit, right_unit) {
         (None, None) => (None, None::<Arc<octofhir_ucum::UnitRecord>>, None),
         (Some(l), None) => (Some(l.clone()), None, *left_calendar_unit),
-        (None, Some(r)) => (Some(format!("1/{}", r)), None, None),
+        (None, Some(r)) => (Some(format!("1/{r}")), None, None),
         (Some(l), Some(r)) => {
             // Handle special cases
             if l == r {
@@ -480,7 +549,7 @@ pub fn divide_quantities(
                 (Some("1".to_string()), None, None)
             } else {
                 // For now, simple concatenation - TODO: implement proper UCUM unit division
-                let combined_unit = format!("{}/{}", l, r);
+                let combined_unit = format!("{l}/{r}");
                 (Some(combined_unit), None, None)
             }
         }

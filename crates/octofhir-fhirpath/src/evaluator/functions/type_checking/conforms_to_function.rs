@@ -107,11 +107,14 @@ impl ProviderPureFunctionEvaluator for ConformsToFunctionEvaluator {
         };
 
         // Check conformance for the single input item
-        match self.check_conformance(context, &input[0], &profile_url).await {
+        match self
+            .check_conformance(context, &input[0], &profile_url)
+            .await
+        {
             Ok(Some(conforms)) => {
                 // Successful validation
                 Ok(EvaluationResult::new(crate::core::Collection::from_iter(
-                    vec![FhirPathValue::boolean(conforms)]
+                    vec![FhirPathValue::boolean(conforms)],
                 )))
             }
             Ok(None) => {
@@ -161,7 +164,7 @@ impl ConformsToFunctionEvaluator {
         if !profile_url.starts_with("http://") && !profile_url.starts_with("https://") {
             return Err(FhirPathError::evaluation_error(
                 FP0063,
-                format!("Invalid profile URL: {}", profile_url),
+                format!("Invalid profile URL: {profile_url}"),
             ));
         }
 
@@ -172,7 +175,7 @@ impl ConformsToFunctionEvaluator {
                 // For invalid/unknown profiles, return error instead of empty
                 Err(FhirPathError::evaluation_error(
                     FP0063,
-                    format!("Profile validation failed: {}", err),
+                    format!("Profile validation failed: {err}"),
                 ))
             }
         }
@@ -204,7 +207,8 @@ mod tests {
             None, // No terminology provider
             None, // No validation provider
             None, // No trace provider
-        ).await
+        )
+        .await
     }
 
     #[tokio::test]

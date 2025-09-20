@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+};
 
 /// ToDateTime function evaluator
 pub struct ToDateTimeFunctionEvaluator {
@@ -65,7 +65,7 @@ impl PureFunctionEvaluator for ToDateTimeFunctionEvaluator {
         }
 
         let result = match &input[0] {
-            FhirPathValue::DateTime(precision_datetime, _, _) => {
+            FhirPathValue::DateTime(_precision_datetime, _, _) => {
                 // DateTime is already a datetime, return as-is
                 Some(input[0].clone())
             }

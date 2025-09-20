@@ -71,7 +71,7 @@ impl PureFunctionEvaluator for ToBooleanFunctionEvaluator {
                     _ => {
                         return Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0055,
-                            format!("Cannot convert '{}' to boolean", s),
+                            format!("Cannot convert '{s}' to boolean"),
                         ));
                     }
                 },

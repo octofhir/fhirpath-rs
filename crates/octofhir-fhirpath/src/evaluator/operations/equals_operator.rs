@@ -21,6 +21,12 @@ pub struct EqualsOperatorEvaluator {
     metadata: OperatorMetadata,
 }
 
+impl Default for EqualsOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EqualsOperatorEvaluator {
     /// Create a new equality operator evaluator
     pub fn new() -> Self {
@@ -36,9 +42,14 @@ impl EqualsOperatorEvaluator {
 
     /// Extract quantity information from a FHIR Quantity resource
     fn extract_quantity_from_resource(&self, json: &serde_json::Value) -> Option<FhirPathValue> {
-        let value = json.get("value")?.as_f64()?;
+        // Handle both numeric and string values in FHIR JSON
+        let value = match json.get("value")? {
+            serde_json::Value::Number(n) => n.as_f64()?,
+            serde_json::Value::String(s) => s.parse::<f64>().ok()?,
+            _ => return None,
+        };
         let unit = json.get("unit").and_then(|u| u.as_str()).unwrap_or("");
-        let system = json.get("system").and_then(|s| s.as_str()).unwrap_or("");
+        let _system = json.get("system").and_then(|s| s.as_str()).unwrap_or("");
         let code = json.get("code").and_then(|c| c.as_str()).unwrap_or("");
 
         // Prefer code over unit if available
@@ -46,7 +57,11 @@ impl EqualsOperatorEvaluator {
 
         Some(FhirPathValue::quantity(
             rust_decimal::Decimal::from_f64_retain(value)?,
-            if unit_str.is_empty() { None } else { Some(unit_str.to_string()) },
+            if unit_str.is_empty() {
+                None
+            } else {
+                Some(unit_str.to_string())
+            },
         ))
     }
 
@@ -177,7 +192,10 @@ impl EqualsOperatorEvaluator {
                 }
             }
             // FHIR.Quantity (Resource) vs Quantity comparison
-            (FhirPathValue::Resource(json, type_info, _), quantity @ FhirPathValue::Quantity { .. }) => {
+            (
+                FhirPathValue::Resource(json, type_info, _),
+                quantity @ FhirPathValue::Quantity { .. },
+            ) => {
                 if type_info.type_name == "Quantity" {
                     // Try to extract Quantity information from the FHIR resource
                     if let Some(fhir_quantity) = self.extract_quantity_from_resource(json) {
@@ -186,7 +204,10 @@ impl EqualsOperatorEvaluator {
                 }
                 Some(false)
             }
-            (quantity @ FhirPathValue::Quantity { .. }, FhirPathValue::Resource(json, type_info, _)) => {
+            (
+                quantity @ FhirPathValue::Quantity { .. },
+                FhirPathValue::Resource(json, type_info, _),
+            ) => {
                 if type_info.type_name == "Quantity" {
                     // Try to extract Quantity information from the FHIR resource
                     if let Some(fhir_quantity) = self.extract_quantity_from_resource(json) {
@@ -220,7 +241,7 @@ impl EqualsOperatorEvaluator {
 impl OperationEvaluator for EqualsOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -303,7 +324,7 @@ mod tests {
         let evaluator = EqualsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -325,7 +346,7 @@ mod tests {
         let evaluator = EqualsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -347,7 +368,7 @@ mod tests {
         let evaluator = EqualsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -369,7 +390,7 @@ mod tests {
         let evaluator = EqualsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -391,7 +412,7 @@ mod tests {
         let evaluator = EqualsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

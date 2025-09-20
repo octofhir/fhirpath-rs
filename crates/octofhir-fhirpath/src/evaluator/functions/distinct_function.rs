@@ -7,10 +7,11 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Distinct function evaluator
 pub struct DistinctFunctionEvaluator {
@@ -65,7 +66,7 @@ impl PureFunctionEvaluator for DistinctFunctionEvaluator {
         for item in input {
             // Create a key for comparison - this is a simplified approach
             // In a full implementation, we'd need proper equality comparison for FHIR values
-            let key = format!("{:?}", item);
+            let key = format!("{item:?}");
 
             if !seen.contains(&key) {
                 seen.insert(key);

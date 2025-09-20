@@ -7,10 +7,11 @@ use chrono::Timelike;
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// MinuteOf function evaluator
 pub struct MinuteOfFunctionEvaluator {
@@ -69,7 +70,8 @@ impl PureFunctionEvaluator for MinuteOfFunctionEvaluator {
         if input.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                "minuteOf function can only be called on a single datetime or time value".to_string(),
+                "minuteOf function can only be called on a single datetime or time value"
+                    .to_string(),
             ));
         }
 

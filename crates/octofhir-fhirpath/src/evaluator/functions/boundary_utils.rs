@@ -2,7 +2,6 @@
 
 use chrono::{Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike};
 use rust_decimal::Decimal;
-use rust_decimal::prelude::*;
 
 use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 
@@ -43,15 +42,12 @@ pub fn compute_numeric_boundaries(
     let (mode, active_scale) = match precision {
         None => (NumericMode::Default, original_scale),
         Some(p) => {
-            if p < 0 || p > MAX_DECIMAL_PRECISION {
+            if !(0..=MAX_DECIMAL_PRECISION).contains(&p) {
                 return Err(NumericBoundaryError::PrecisionOutOfRange);
             }
             let p_u32 = p as u32;
-            if p_u32 > original_scale {
-                (NumericMode::DefaultWithRequested, p_u32)
-            } else {
-                (NumericMode::Reduced, p_u32)
-            }
+            // When precision is specified, always use precision-based calculation
+            (NumericMode::Precision, p_u32)
         }
     };
 
@@ -59,6 +55,16 @@ pub fn compute_numeric_boundaries(
 
     match mode {
         NumericMode::Default | NumericMode::DefaultWithRequested => {
+            let step = decimal_step(active_scale);
+            let half = step / Decimal::from(2);
+            Ok(NumericBoundaries {
+                low: value - half,
+                high: value + half,
+                requested_scale,
+            })
+        }
+        NumericMode::Precision => {
+            // Use the specified precision to calculate step size
             let step = decimal_step(active_scale);
             let half = step / Decimal::from(2);
             Ok(NumericBoundaries {
@@ -102,10 +108,12 @@ pub fn compute_numeric_boundaries(
 
 /// Helper enum describing how numeric boundaries should be computed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 enum NumericMode {
     Default,
     DefaultWithRequested,
     Reduced,
+    Precision,
 }
 
 #[inline]
@@ -199,13 +207,13 @@ pub fn compute_datetime_boundary(
     kind: BoundaryKind,
 ) -> PrecisionDateTime {
     let tz = if value.tz_specified {
-        value.datetime.offset().clone()
+        *value.datetime.offset()
     } else if matches!(kind, BoundaryKind::Low) {
         FixedOffset::east_opt(14 * 3600).unwrap()
     } else {
         FixedOffset::east_opt(-12 * 3600).unwrap()
     };
-    let mut year = value.datetime.year();
+    let year = value.datetime.year();
     let mut month = if value.precision >= TemporalPrecision::Month {
         value.datetime.month()
     } else {
@@ -297,7 +305,7 @@ pub fn compute_date_boundary(
     target: TemporalPrecision,
     kind: BoundaryKind,
 ) -> PrecisionDate {
-    let mut year = value.date.year();
+    let year = value.date.year();
     let mut month = if value.precision >= TemporalPrecision::Month {
         value.date.month()
     } else {
@@ -335,7 +343,7 @@ pub fn compute_time_boundary(
     target: TemporalPrecision,
     kind: BoundaryKind,
 ) -> PrecisionTime {
-    let mut hour = if value.precision >= TemporalPrecision::Hour {
+    let hour = if value.precision >= TemporalPrecision::Hour {
         value.time.hour()
     } else {
         boundary_hour(kind)

@@ -84,7 +84,7 @@ impl PureFunctionEvaluator for ContainsFunctionEvaluator {
 
         for value in input {
             if let FhirPathValue::String(s, _, _) = &value {
-                let contains_result = s.contains(&substring);
+                let contains_result = s.contains(substring);
                 results.push(FhirPathValue::boolean(contains_result));
             } else {
                 return Err(FhirPathError::evaluation_error(

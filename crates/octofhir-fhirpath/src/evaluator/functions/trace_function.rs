@@ -3,9 +3,10 @@
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use std::sync::Arc;
 
 pub struct TraceFunctionEvaluator {
@@ -34,7 +35,8 @@ impl TraceFunctionEvaluator {
                             parameter_type: vec!["Collection".to_string()],
                             optional: true,
                             is_expression: true,
-                            description: "Optional expression to evaluate for each item".to_string(),
+                            description: "Optional expression to evaluate for each item"
+                                .to_string(),
                             default_value: None,
                         },
                     ],
@@ -102,10 +104,15 @@ impl LazyFunctionEvaluator for TraceFunctionEvaluator {
         // If there's a second parameter (selector), evaluate it for each item
         if args.len() == 2 {
             for (index, item) in input.iter().enumerate() {
-                let mut item_context = context.create_child_context(crate::core::Collection::single(item.clone()));
+                let item_context =
+                    context.create_child_context(crate::core::Collection::single(item.clone()));
                 item_context.set_variable("$this".to_string(), item.clone());
-                item_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
-                item_context.set_variable("$total".to_string(), FhirPathValue::integer(input.len() as i64));
+                item_context
+                    .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+                item_context.set_variable(
+                    "$total".to_string(),
+                    FhirPathValue::integer(input.len() as i64),
+                );
                 let selector_result = evaluator.evaluate(&args[1], &item_context).await?;
 
                 // Format the trace message with the selector result
@@ -113,31 +120,33 @@ impl LazyFunctionEvaluator for TraceFunctionEvaluator {
                     "{}".to_string()
                 } else {
                     // Use Display formatting to show only values without type info
-                    selector_result.value.values()
+                    selector_result
+                        .value
+                        .values()
                         .iter()
-                        .map(|v| format!("{}", v))
+                        .map(|v| format!("{v}"))
                         .collect::<Vec<_>>()
                         .join(", ")
                 };
 
                 // Use trace provider if available, otherwise fall back to eprintln
-                if let Some(ref provider) = trace_provider {
+                if let Some(provider) = trace_provider {
                     provider.trace(&name, index, &selector_str);
                 } else {
-                    eprintln!("TRACE[{}][{}]: {}", name, index, selector_str);
+                    eprintln!("TRACE[{name}][{index}]: {selector_str}");
                 }
             }
         } else {
             // Simple trace without selector
             for (index, item) in input.iter().enumerate() {
                 // Use Display formatting to show only values without type info
-                let item_str = format!("{}", item);
+                let item_str = format!("{item}");
 
                 // Use trace provider if available, otherwise fall back to eprintln
-                if let Some(ref provider) = trace_provider {
+                if let Some(provider) = trace_provider {
                     provider.trace(&name, index, &item_str);
                 } else {
-                    eprintln!("TRACE[{}][{}]: {}", name, index, item_str);
+                    eprintln!("TRACE[{name}][{index}]: {item_str}");
                 }
             }
         }

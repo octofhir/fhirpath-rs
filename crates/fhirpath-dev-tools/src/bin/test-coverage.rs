@@ -28,9 +28,9 @@ mod integration_test_runner {
     use octofhir_fhir_model::FhirVersion;
     use octofhir_fhirpath::FhirPathValue;
     use octofhir_fhirpath::ModelProvider;
-    use octofhir_fhirschema::create_validation_provider_from_embedded;
     use octofhir_fhirpath::core::trace::create_cli_provider;
     use octofhir_fhirpath::{Collection, FhirPathEngine, create_function_registry};
+    use octofhir_fhirschema::create_validation_provider_from_embedded;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use std::collections::HashMap;
@@ -174,9 +174,11 @@ mod integration_test_runner {
             let trace_provider = create_cli_provider();
             engine = engine.with_trace_provider(trace_provider);
 
-            if let Ok(validation_provider) = create_validation_provider_from_embedded(
-                model_provider.clone() as std::sync::Arc<dyn octofhir_fhir_model::provider::ModelProvider>
-            ).await {
+            if let Ok(validation_provider) =
+                create_validation_provider_from_embedded(model_provider.clone()
+                    as std::sync::Arc<dyn octofhir_fhir_model::provider::ModelProvider>)
+                .await
+            {
                 engine = engine.with_validation_provider(validation_provider);
             }
 

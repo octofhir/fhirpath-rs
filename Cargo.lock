@@ -2497,17 +2497,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nom_locate"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b577e2d69827c4740cba2b52efaad1c4cc7c73042860b199710b3575c68438d"
-dependencies = [
- "bytecount",
- "memchr",
- "nom 8.0.0",
-]
-
-[[package]]
 name = "nu-ansi-term"
 version = "0.50.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2607,6 +2596,8 @@ dependencies = [
 [[package]]
 name = "octofhir-fhir-model"
 version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3caa9087e3aa6ac93e297d954d76d40fe959cf686e1a978b9d2ec14cada8b23c"
 dependencies = [
  "async-trait",
  "indexmap",
@@ -2628,21 +2619,15 @@ dependencies = [
  "ariadne",
  "async-trait",
  "base64",
- "bumpalo",
  "chrono",
  "chumsky",
  "colored",
- "dashmap",
  "divan",
  "futures",
- "glob",
  "hex",
  "html-escape",
  "indexmap",
  "log",
- "lru 0.16.1",
- "nom 8.0.0",
- "nom_locate",
  "octofhir-fhir-model",
  "octofhir-ucum",
  "once_cell",
@@ -2654,15 +2639,12 @@ dependencies = [
  "rstest",
  "rust_decimal",
  "rust_decimal_macros",
- "rustc-hash",
  "serde",
  "serde_json",
  "smallvec",
  "tabled",
  "thiserror",
  "tokio",
- "typed-arena",
- "unicode-xid",
  "url",
  "urlencoding",
  "uuid",
@@ -2671,6 +2653,8 @@ dependencies = [
 [[package]]
 name = "octofhir-fhirschema"
 version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89625a8794ce172e04d2f667020afe89fd194844fd1491b0d62cc1e3b7a02594"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4634,12 +4618,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea3136b675547379c4bd395ca6b938e5ad3c3d20fad76e7fe85f9e0d011419c"
 
 [[package]]
-name = "typed-arena"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
-
-[[package]]
 name = "typenum"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4685,12 +4663,6 @@ name = "unicode-width"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
-
-[[package]]
-name = "unicode-xid"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "untrusted"

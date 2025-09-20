@@ -4,12 +4,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+};
 
 pub struct IsDistinctFunctionEvaluator {
     metadata: FunctionMetadata,
@@ -20,7 +20,9 @@ impl IsDistinctFunctionEvaluator {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "isDistinct".to_string(),
-                description: "Returns true if all items in the collection are distinct (no duplicates)".to_string(),
+                description:
+                    "Returns true if all items in the collection are distinct (no duplicates)"
+                        .to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
                     parameters: vec![],

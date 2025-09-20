@@ -180,7 +180,7 @@ pub fn add_type_information<'a>(
                     BinaryOperator::Union => {
                         // Union returns collection of left type
                         if let Some(ref args) = ast_node.arguments {
-                            if let Some(left_arg) = args.get(0) {
+                            if let Some(left_arg) = args.first() {
                                 left_arg
                                     .return_type
                                     .clone()
@@ -306,7 +306,7 @@ pub fn add_type_information<'a>(
                 }
                 // Collection return type is array of first item's type or generic collection
                 if let Some(ref args) = ast_node.arguments {
-                    if let Some(first_item) = args.get(0) {
+                    if let Some(first_item) = args.first() {
                         ast_node.return_type = first_item
                             .return_type
                             .clone()
@@ -339,7 +339,7 @@ pub fn add_type_information<'a>(
                 // For remaining node types (TypeCast, Filter, Union, TypeCheck, Path, Lambda, etc.)
                 // recursively enhance children if they exist
                 if let Some(ref mut args) = ast_node.arguments {
-                    for (_i, _arg) in args.iter().enumerate() {
+                    for _arg in args.iter() {
                         // Note: We'd need access to the original AST children to properly enhance these
                         // For now, we'll leave them as-is since we don't have a direct mapping
                     }
@@ -355,9 +355,9 @@ pub fn add_type_information<'a>(
 
 /// Helper function to infer FHIR type for property access using ModelProvider
 async fn infer_property_access_type_async(
-    object_type: &str,
-    property_name: &str,
-    model_provider: &dyn octofhir_fhirpath::ModelProvider,
+    _object_type: &str,
+    _property_name: &str,
+    _model_provider: &dyn octofhir_fhirpath::ModelProvider,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     // Use ModelProvider navigation to get correct type information (same as metadata_navigator)
     // navigate_typed_path method no longer available in new ModelProvider API
@@ -411,7 +411,7 @@ pub fn convert_ast_to_lab_format(
             }
 
             // Get return type from function registry if available
-            let return_type = if let Some(registry) = function_registry {
+            let return_type = if let Some(_registry) = function_registry {
                 // Query the function registry for the return type
                 // FunctionRegistry is currently a placeholder
                 if false {
@@ -439,16 +439,16 @@ pub fn convert_ast_to_lab_format(
         ExpressionNode::Literal(node) => {
             use octofhir_fhirpath::ast::LiteralValue;
             let (name, return_type) = match &node.value {
-                LiteralValue::String(s) => (format!("\"{}\"", s), "string"),
+                LiteralValue::String(s) => (format!("\"{s}\""), "string"),
                 LiteralValue::Integer(i) => (i.to_string(), "integer"),
                 LiteralValue::Decimal(d) => (d.to_string(), "decimal"),
                 LiteralValue::Boolean(b) => (b.to_string(), "boolean"),
-                LiteralValue::Date(d) => (format!("@{}", d), "date"),
-                LiteralValue::DateTime(dt) => (format!("@{}", dt), "dateTime"),
-                LiteralValue::Time(t) => (format!("@{}", t), "time"),
+                LiteralValue::Date(d) => (format!("@{d}"), "date"),
+                LiteralValue::DateTime(dt) => (format!("@{dt}"), "dateTime"),
+                LiteralValue::Time(t) => (format!("@{t}"), "time"),
                 LiteralValue::Quantity { value, unit } => {
                     let unit_str = unit.as_ref().map(|u| u.as_str()).unwrap_or("");
-                    (format!("{} '{}'", value, unit_str), "Quantity")
+                    (format!("{value} '{unit_str}'"), "Quantity")
                 }
             };
 
@@ -502,7 +502,7 @@ pub fn convert_ast_to_lab_format(
             }
 
             // Get return type from function registry if available
-            let return_type = if let Some(registry) = function_registry {
+            let return_type = if let Some(_registry) = function_registry {
                 // FunctionRegistry is currently a placeholder
                 if false {
                     // let Some(function_info) = registry.get_function_metadata(&node.method) {

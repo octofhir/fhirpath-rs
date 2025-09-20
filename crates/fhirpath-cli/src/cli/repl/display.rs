@@ -273,7 +273,7 @@ impl DisplayFormatter {
             }
             _ => {
                 // Handle other value types with clean display
-                format!("{:?}", value)
+                format!("{value:?}")
             }
         };
 
@@ -359,7 +359,7 @@ impl DisplayFormatter {
 
     fn blue(&self, text: &str) -> String {
         if self.use_colors {
-            format!("\x1b[34m{}\x1b[0m", text)
+            format!("\x1b[34m{text}\x1b[0m")
         } else {
             text.to_string()
         }
@@ -367,7 +367,7 @@ impl DisplayFormatter {
 
     fn magenta(&self, text: &str) -> String {
         if self.use_colors {
-            format!("\x1b[35m{}\x1b[0m", text)
+            format!("\x1b[35m{text}\x1b[0m")
         } else {
             text.to_string()
         }

@@ -3,12 +3,12 @@
 //! The toQuantity function converts a value to a quantity.
 //! Syntax: value.toQuantity()
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+};
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
@@ -81,7 +81,10 @@ impl PureFunctionEvaluator for ToQuantityFunctionEvaluator {
 
                 // First try parsing as a simple number (unitless quantity)
                 if let Ok(value) = trimmed.parse::<f64>() {
-                    Some(FhirPathValue::quantity(Decimal::from_f64_retain(value).unwrap_or_default(), None))
+                    Some(FhirPathValue::quantity(
+                        Decimal::from_f64_retain(value).unwrap_or_default(),
+                        None,
+                    ))
                 } else {
                     // Try parsing as "value unit" format
                     let parts: Vec<&str> = trimmed.split_whitespace().collect();
@@ -90,7 +93,7 @@ impl PureFunctionEvaluator for ToQuantityFunctionEvaluator {
                             let unit = parts[1].to_string();
                             Some(FhirPathValue::quantity(
                                 Decimal::from_f64_retain(value).unwrap_or_default(),
-                                Some(unit)
+                                Some(unit),
                             ))
                         } else {
                             None

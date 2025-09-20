@@ -6,11 +6,11 @@
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::EvaluationResult;
 
 /// ToString function evaluator
 pub struct ToStringFunctionEvaluator {
@@ -74,20 +74,20 @@ impl PureFunctionEvaluator for ToStringFunctionEvaluator {
                 FhirPathValue::Decimal(d, _, _) => d.to_string(),
                 FhirPathValue::Date(date, _, _) => {
                     // Format date as FHIR date string using Display implementation
-                    format!("{}", date)
+                    format!("{date}")
                 }
                 FhirPathValue::DateTime(dt, _, _) => {
                     // Format datetime as FHIR datetime string using Display implementation
-                    format!("{}", dt)
+                    format!("{dt}")
                 }
                 FhirPathValue::Time(time, _, _) => {
                     // Format time as FHIR time string using Display implementation
-                    format!("{}", time)
+                    format!("{time}")
                 }
                 FhirPathValue::Quantity { value, unit, .. } => {
                     // Format quantity as "value unit"
                     if let Some(unit) = unit {
-                        format!("{} {}", value, unit)
+                        format!("{value} {unit}")
                     } else {
                         value.to_string()
                     }

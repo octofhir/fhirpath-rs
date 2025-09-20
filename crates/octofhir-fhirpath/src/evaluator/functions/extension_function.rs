@@ -6,17 +6,23 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
-use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::core::model_provider::TypeInfo;
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Extension function evaluator for filtering extensions by URL
 pub struct ExtensionFunctionEvaluator {
     metadata: FunctionMetadata,
+}
+
+impl Default for ExtensionFunctionEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExtensionFunctionEvaluator {
@@ -134,8 +140,8 @@ fn create_metadata() -> FunctionMetadata {
             min_params: 1,
             max_params: Some(1),
         },
-                argument_evaluation: ArgumentEvaluationStrategy::Current,
-                null_propagation: NullPropagationStrategy::Focus,
+        argument_evaluation: ArgumentEvaluationStrategy::Current,
+        null_propagation: NullPropagationStrategy::Focus,
         empty_propagation: EmptyPropagation::Propagate,
         deterministic: true,
         category: FunctionCategory::FilteringProjection,

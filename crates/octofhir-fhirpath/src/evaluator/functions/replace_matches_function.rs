@@ -7,12 +7,12 @@ use std::sync::Arc;
 
 use regex::Regex;
 
-use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// replaceMatches function evaluator
 pub struct ReplaceMatchesFunctionEvaluator {
@@ -146,7 +146,7 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
             Some(Regex::new(&pattern).map_err(|err| {
                 FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
-                    format!("Invalid regular expression pattern '{}': {}", pattern, err),
+                    format!("Invalid regular expression pattern '{pattern}': {err}"),
                 )
             })?)
         };

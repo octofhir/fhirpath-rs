@@ -20,10 +20,10 @@ use fhirpath_cli::cli::output::{EvaluationOutput, FormatterFactory, OutputMetada
 use fhirpath_cli::cli::{Cli, Commands, RegistryCommands, RegistryShowTarget, RegistryTarget};
 use octofhir_fhir_model::HttpTerminologyProvider;
 use octofhir_fhir_model::provider::{EmptyModelProvider, FhirVersion, ModelProvider};
+use octofhir_fhirpath::core::trace::create_cli_provider;
 use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::parser::{ParseResult, ParsingMode, parse_with_mode};
 use octofhir_fhirpath::{self, create_function_registry};
-use octofhir_fhirpath::core::trace::create_cli_provider;
 use octofhir_fhirschema::create_validation_provider_from_embedded;
 use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
@@ -52,8 +52,10 @@ async fn create_fhirpath_engine(
     // Create and wire in the FhirSchemaValidationProvider from the existing EmbeddedModelProvider
     // This reuses the already initialized provider and provides out-of-the-box support for conformsTo()
     if let Ok(validation_provider) = create_validation_provider_from_embedded(
-        model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>
-    ).await {
+        model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>,
+    )
+    .await
+    {
         engine = engine.with_validation_provider(validation_provider);
     }
 
@@ -476,11 +478,18 @@ async fn handle_evaluate(
     let context_collection = match octofhir_fhirpath::Collection::from_json_resource(
         resource.clone(),
         Some(model_provider_arc.clone()),
-    ).await {
+    )
+    .await
+    {
         Ok(collection) => collection,
         Err(e) => {
-            eprintln!("⚠️ Warning: Failed to properly type resource, using fallback: {}", e);
-            octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(resource))
+            eprintln!(
+                "⚠️ Warning: Failed to properly type resource, using fallback: {}",
+                e
+            );
+            octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(
+                resource,
+            ))
         }
     };
     let mut eval_context = octofhir_fhirpath::EvaluationContext::new(
@@ -757,104 +766,28 @@ fn handle_validate(
     // Validate is basically the same as parse but focuses on success/failure
     let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
 
-    let output = if parse_result.success {
-        ParseOutput {
-            success: true,
-            ast: parse_result.ast,
-            error: None,
-            expression: expression.to_string(),
-            metadata: OutputMetadata {
-                cache_hits: 0,
-                ast_nodes: 1,
-                memory_used: 0,
-            },
+    if parse_result.success {
+        // Validation successful - show success in quiet mode-aware way
+        if !cli.quiet {
+            println!("✅ Validation successful");
         }
     } else {
-        // Report rich diagnostics with proper spans
+        // Report rich diagnostics with proper spans using new single error format
         let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
         let source_id = handler.add_source("expression".to_string(), expression.to_string());
 
-        // Report all diagnostics from the parser (with proper spans)
-        if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
-            let ariadne_diagnostics: Vec<_> = parse_result
-                .diagnostics
-                .iter()
-                .map(convert_diagnostic_to_ariadne)
-                .collect();
-            handler
-                .report_diagnostics(&ariadne_diagnostics, source_id, &mut stderr())
-                .unwrap_or_default();
-        }
-
-        // Collect all error codes and positions from diagnostics
-        let error_details: Vec<String> = parse_result
+        let ariadne_diagnostics: Vec<_> = parse_result
             .diagnostics
             .iter()
-            .map(|d| {
-                if let Some(location) = &d.location {
-                    format!("{} at {}:{}", d.code.code, location.line, location.column)
-                } else {
-                    d.code.code.clone()
-                }
-            })
+            .map(convert_diagnostic_to_ariadne)
             .collect();
 
-        let error_message = if error_details.is_empty() {
-            "Validation failed".to_string()
-        } else {
-            format!("{}: Validation failed", error_details.join(", "))
-        };
+        handler
+            .report_diagnostics(&ariadne_diagnostics, source_id, &mut stderr())
+            .unwrap_or_default();
 
-        // Create error with all collected error codes instead of using parse_result.into_result()
-        let error = octofhir_fhirpath::core::FhirPathError::parse_error(
-            if error_details.is_empty() {
-                octofhir_fhirpath::core::error_code::FP0001
-            } else {
-                // Use first error code as the primary error for the ErrorCode type - extract just the code part
-                let first_error_code = error_details[0]
-                    .split(" at ")
-                    .next()
-                    .unwrap_or(&error_details[0]);
-                parse_error_code(first_error_code)
-            },
-            &error_message,
-            expression,
-            None,
-        );
-
-        ParseOutput {
-            success: false,
-            ast: None,
-            error: Some(error.into()),
-            expression: expression.to_string(),
-            metadata: OutputMetadata::default(),
-        }
-    };
-
-    match formatter.format_parse(&output) {
-        Ok(formatted) => {
-            println!("{}", formatted);
-            if !output.success {
-                process::exit(1);
-            }
-        }
-        Err(e) => {
-            // Create diagnostic handler for error reporting
-            let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
-            let source_id = handler.add_source("expression".to_string(), expression.to_string());
-
-            let diagnostic = handler.create_diagnostic_from_error(
-                octofhir_fhirpath::core::error_code::FP0001,
-                format!("Error formatting validation output: {}", e),
-                0..expression.len(),
-                Some("Check output format configuration".to_string()),
-            );
-
-            handler
-                .report_diagnostic(&diagnostic, source_id, &mut stderr())
-                .unwrap_or_default();
-            process::exit(1);
-        }
+        // Exit immediately with error code - no need for additional output
+        process::exit(1);
     }
 }
 

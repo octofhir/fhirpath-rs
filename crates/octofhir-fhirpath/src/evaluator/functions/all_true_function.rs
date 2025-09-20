@@ -6,12 +6,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+};
 
 /// AllTrue function evaluator
 pub struct AllTrueFunctionEvaluator {
@@ -82,7 +82,10 @@ impl PureFunctionEvaluator for AllTrueFunctionEvaluator {
                     // Non-boolean values should cause an execution error
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0001,
-                        format!("allTrue function can only be applied to Boolean values, found: {}", item.type_name()),
+                        format!(
+                            "allTrue function can only be applied to Boolean values, found: {}",
+                            item.type_name()
+                        ),
                     ));
                 }
             }

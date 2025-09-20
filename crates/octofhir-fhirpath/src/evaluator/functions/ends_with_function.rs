@@ -6,11 +6,11 @@
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
-use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};
 use crate::evaluator::EvaluationResult;
+use crate::evaluator::function_registry::{
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// EndsWith function evaluator
 pub struct EndsWithFunctionEvaluator {

@@ -31,24 +31,16 @@ workspace = true
 
 
 [dependencies]
-# All dependencies are now internal - no more workspace crate dependencies
-
-# FHIR model - external dependency
 octofhir-fhir-model = { workspace = true }
 
 # Core dependencies
 anyhow = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }
-dashmap = { workspace = true }
-glob = { workspace = true }
 hex = { workspace = true }
 indexmap = { workspace = true }
 log = { workspace = true }
-lru = { workspace = true }
-nom = { workspace = true }
 papaya = { workspace = true }
-nom_locate = { workspace = true }
 octofhir-ucum = { workspace = true }
 uuid = { workspace = true }
 chumsky = { version = "0.10", features = ["pratt"] }
@@ -59,14 +51,10 @@ url = { workspace = true }
 parking_lot = { workspace = true }
 regex = { workspace = true }
 rust_decimal = { workspace = true }
-rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 smallvec = { workspace = true }
 thiserror = { workspace = true }
-typed-arena = { workspace = true }
-bumpalo = { workspace = true }
-unicode-xid = { workspace = true }
 once_cell = { workspace = true }
 urlencoding = "2.1"
 html-escape = "0.2"

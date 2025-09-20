@@ -5,14 +5,20 @@ use rust_decimal::Decimal;
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
-use crate::evaluator::quantity_utils;
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::quantity_utils;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 pub struct GreaterThanOperatorEvaluator {
     metadata: OperatorMetadata,
+}
+
+impl Default for GreaterThanOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GreaterThanOperatorEvaluator {
@@ -77,7 +83,7 @@ impl GreaterThanOperatorEvaluator {
                 match l.partial_cmp(r) {
                     Some(std::cmp::Ordering::Greater) => Some(true),
                     Some(_) => Some(false), // Equal or Less
-                    None => None, // Uncertain due to precision differences
+                    None => None,           // Uncertain due to precision differences
                 }
             }
             (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
@@ -85,7 +91,7 @@ impl GreaterThanOperatorEvaluator {
                 match l.partial_cmp(r) {
                     Some(std::cmp::Ordering::Greater) => Some(true),
                     Some(_) => Some(false), // Equal or Less
-                    None => None, // Uncertain due to precision differences
+                    None => None,           // Uncertain due to precision differences
                 }
             }
             (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => {
@@ -93,7 +99,7 @@ impl GreaterThanOperatorEvaluator {
                 match l.partial_cmp(r) {
                     Some(std::cmp::Ordering::Greater) => Some(true),
                     Some(_) => Some(false), // Equal or Less
-                    None => None, // Uncertain due to precision differences
+                    None => None,           // Uncertain due to precision differences
                 }
             }
             // Quantity comparison (with unit conversion)
@@ -115,7 +121,7 @@ impl GreaterThanOperatorEvaluator {
                 match quantity_utils::compare_quantities(*lv, lu, lc, *rv, ru, rc) {
                     Ok(Some(std::cmp::Ordering::Greater)) => Some(true),
                     Ok(Some(_)) => Some(false), // Equal or Less
-                    Ok(None) | Err(_) => None, // Not comparable or conversion failed
+                    Ok(None) | Err(_) => None,  // Not comparable or conversion failed
                 }
             }
             _ => None,
@@ -127,7 +133,7 @@ impl GreaterThanOperatorEvaluator {
 impl OperationEvaluator for GreaterThanOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,

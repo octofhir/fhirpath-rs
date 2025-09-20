@@ -198,10 +198,12 @@ impl Evaluator {
                 Box::pin(self.evaluate_node_inner(expr, context)).await
             }
             ExpressionNode::Union(union_node) => {
-                // Each side of union should be evaluated independently with fresh contexts
+                // Each side of union should be evaluated in separate child contexts
                 // Variables defined in one side should not be visible to the other side
-                let left_context = context.create_independent_context();
-                let right_context = context.create_independent_context();
+                // but variables defined within each side should be preserved for that side
+                // Use nest() to preserve parent variables like $this
+                let left_context = context.nest();
+                let right_context = context.nest();
 
                 let left_result =
                     Box::pin(self.evaluate_node_inner(&union_node.left, &left_context)).await?;
@@ -260,7 +262,7 @@ impl Evaluator {
             }
             _ => Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                format!("Expression type not yet implemented: {:?}", node),
+                format!("Expression type not yet implemented: {node:?}"),
             )),
         }
     }
@@ -310,7 +312,7 @@ impl Evaluator {
         use std::time::Instant;
 
         let start_time = Instant::now();
-        let node_type = format!("{:?}", node)
+        let node_type = format!("{node:?}")
             .split('(')
             .next()
             .unwrap_or("Unknown")
@@ -515,10 +517,12 @@ impl Evaluator {
                 Box::pin(self.evaluate_node_with_collector(expr, context, collector, depth)).await
             }
             ExpressionNode::Union(union_node) => {
-                // Each side of union should be evaluated independently with fresh contexts
+                // Each side of union should be evaluated in separate child contexts
                 // Variables defined in one side should not be visible to the other side
-                let left_context = context.create_independent_context();
-                let right_context = context.create_independent_context();
+                // but variables defined within each side should be preserved for that side
+                // Use nest() to preserve parent variables like $this
+                let left_context = context.nest();
+                let right_context = context.nest();
 
                 let left_result = Box::pin(self.evaluate_node_with_collector(
                     &union_node.left,
@@ -609,7 +613,7 @@ impl Evaluator {
             }
             _ => Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                format!("Expression type not yet implemented: {:?}", node),
+                format!("Expression type not yet implemented: {node:?}"),
             )),
         };
 
@@ -632,7 +636,7 @@ impl Evaluator {
                 .input_collection()
                 .iter()
                 .map(|v| {
-                    format!("{:?}", v)
+                    format!("{v:?}")
                         .split('(')
                         .next()
                         .unwrap_or("Unknown")
@@ -645,7 +649,7 @@ impl Evaluator {
                     res.value
                         .iter()
                         .map(|v| {
-                            format!("{:?}", v)
+                            format!("{v:?}")
                                 .split('(')
                                 .next()
                                 .unwrap_or("Unknown")
@@ -731,8 +735,7 @@ impl Evaluator {
                                     FhirPathError::evaluation_error(
                                         crate::core::error_code::FP0054,
                                         format!(
-                                            "ModelProvider error getting type '{}': {}",
-                                            identifier, e
+                                            "ModelProvider error getting type '{identifier}': {e}"
                                         ),
                                     )
                                 })?
@@ -761,12 +764,12 @@ impl Evaluator {
                     // Use ModelProvider to get element type information
                     let property_type_info = if let Some(element_type) = self
                         .model_provider
-                        .get_element_type(&type_info, identifier)
+                        .get_element_type(type_info, identifier)
                         .await
                         .map_err(|e| {
                             FhirPathError::evaluation_error(
                                 crate::core::error_code::FP0054,
-                                format!("Model provider error getting element type: {}", e),
+                                format!("Model provider error getting element type: {e}"),
                             )
                         })? {
                         element_type
@@ -839,12 +842,12 @@ impl Evaluator {
                             // Use ModelProvider to get element type for collection items
                             let property_type_info = if let Some(element_type) = self
                                 .model_provider
-                                .get_element_type(&type_info, identifier)
+                                .get_element_type(type_info, identifier)
                                 .await
                                 .map_err(|e| {
                                     FhirPathError::evaluation_error(
                                         crate::core::error_code::FP0054,
-                                        format!("Model provider error getting element type: {}", e),
+                                        format!("Model provider error getting element type: {e}"),
                                     )
                                 })? {
                                 element_type
@@ -928,6 +931,30 @@ impl Evaluator {
                         }
                     }
                 }
+                FhirPathValue::Quantity { value, unit, .. } => {
+                    // Handle quantity property access
+                    match identifier {
+                        "value" => {
+                            // Return the actual decimal value for numeric operations
+                            result_values.push(FhirPathValue::decimal(*value));
+                        }
+                        "unit" => {
+                            if let Some(unit_str) = unit {
+                                result_values.push(FhirPathValue::string(unit_str.clone()));
+                            }
+                            // If no unit, return empty (standard FHIRPath behavior)
+                        }
+                        "code" => {
+                            // For FHIR compatibility, code is an alias for unit
+                            if let Some(unit_str) = unit {
+                                result_values.push(FhirPathValue::string(unit_str.clone()));
+                            }
+                        }
+                        _ => {
+                            // Unknown property on quantity - return empty
+                        }
+                    }
+                }
                 _ => {
                     // Other types don't have navigable properties
                     // Return empty result for this item
@@ -957,7 +984,7 @@ impl Evaluator {
             .map_err(|e| {
                 FhirPathError::evaluation_error(
                     crate::core::error_code::FP0054,
-                    format!("ModelProvider error getting choice types: {}", e),
+                    format!("ModelProvider error getting choice types: {e}"),
                 )
             })?
         {
@@ -1035,7 +1062,7 @@ impl Evaluator {
                 ];
 
                 for type_name in common_types {
-                    let property_name = format!("value{}", type_name);
+                    let property_name = format!("value{type_name}");
                     if let Some(property_value) = json.get(&property_name) {
                         let type_info = crate::core::model_provider::TypeInfo {
                             type_name: type_name.to_string(),
@@ -1269,6 +1296,7 @@ impl Evaluator {
     }
 
     /// Legacy method for compatibility - now uses detect_choice_values
+    #[allow(dead_code)]
     async fn find_choice_type_value(
         &self,
         json: &serde_json::Value,
@@ -1288,7 +1316,10 @@ impl Evaluator {
         match variable_name {
             "this" => {
                 // System variable $this
-                if let Some(this_value) = context.get_variable("this").or_else(|| context.get_variable("$this")) {
+                if let Some(this_value) = context
+                    .get_variable("this")
+                    .or_else(|| context.get_variable("$this"))
+                {
                     Ok(EvaluationResult {
                         value: Collection::single(this_value.clone()),
                     })
@@ -1301,7 +1332,10 @@ impl Evaluator {
             }
             "index" => {
                 // System variable $index
-                if let Some(index_value) = context.get_variable("index").or_else(|| context.get_variable("$index")) {
+                if let Some(index_value) = context
+                    .get_variable("index")
+                    .or_else(|| context.get_variable("$index"))
+                {
                     Ok(EvaluationResult {
                         value: Collection::single(index_value.clone()),
                     })
@@ -1314,7 +1348,10 @@ impl Evaluator {
             }
             "total" => {
                 // System variable $total
-                if let Some(total_value) = context.get_variable("total").or_else(|| context.get_variable("$total")) {
+                if let Some(total_value) = context
+                    .get_variable("total")
+                    .or_else(|| context.get_variable("$total"))
+                {
                     Ok(EvaluationResult {
                         value: Collection::single(total_value.clone()),
                     })
@@ -1331,9 +1368,9 @@ impl Evaluator {
                     Ok(EvaluationResult {
                         value: Collection::single(user_variable.clone()),
                     })
-                } else if variable_name.starts_with('%') {
+                } else if let Some(env_var_name) = variable_name.strip_prefix('%') {
                     // Handle environment variables with % prefix
-                    let env_var_name = &variable_name[1..]; // Remove % prefix
+                    // Remove % prefix
 
                     // Check for standard environment variables
                     if let Some(env_value) = context.get_variable(env_var_name) {
@@ -1342,7 +1379,9 @@ impl Evaluator {
                         })
                     } else {
                         // Check for dynamic %vs-[name] and %ext-[name] variables
-                        if let Some(resolved_value) = context.resolve_environment_variable(env_var_name) {
+                        if let Some(resolved_value) =
+                            context.resolve_environment_variable(env_var_name)
+                        {
                             Ok(EvaluationResult {
                                 value: Collection::single(resolved_value),
                             })
@@ -1350,7 +1389,7 @@ impl Evaluator {
                             // Variable not found
                             Err(FhirPathError::evaluation_error(
                                 crate::core::error_code::FP0054,
-                                format!("Unknown variable: {}", variable_name),
+                                format!("Unknown variable: {variable_name}"),
                             ))
                         }
                     }
@@ -1358,7 +1397,7 @@ impl Evaluator {
                     // Variable not found
                     Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0054,
-                        format!("Unknown variable: {}", variable_name),
+                        format!("Unknown variable: {variable_name}"),
                     ))
                 }
             }
@@ -1415,11 +1454,32 @@ impl Evaluator {
 
                 for element in arr {
                     let fhir_value = match element {
-                        serde_json::Value::Object(_) => FhirPathValue::Resource(
-                            std::sync::Arc::new(element.clone()),
-                            element_type_info.clone(),
-                            None,
-                        ),
+                        serde_json::Value::Object(_) => {
+                            // Check if this is a Quantity type that should be converted to FhirPathValue::Quantity
+                            if element_type_info.type_name == "Quantity"
+                                || element_type_info.name.as_deref() == Some("Quantity")
+                            {
+                                // Convert FHIR Quantity JSON to FhirPathValue::Quantity
+                                if let Some(quantity_value) =
+                                    self.extract_quantity_from_json(element).await
+                                {
+                                    quantity_value
+                                } else {
+                                    // If quantity extraction fails, fall back to Resource
+                                    FhirPathValue::Resource(
+                                        std::sync::Arc::new(element.clone()),
+                                        element_type_info.clone(),
+                                        None,
+                                    )
+                                }
+                            } else {
+                                FhirPathValue::Resource(
+                                    std::sync::Arc::new(element.clone()),
+                                    element_type_info.clone(),
+                                    None,
+                                )
+                            }
+                        }
                         _ => FhirPathValue::wrap_value(
                             crate::core::value::utils::json_to_fhirpath_value(element.clone()),
                             element_type_info.clone(),
@@ -1452,13 +1512,33 @@ impl Evaluator {
                         None,
                     ));
                 } else if property_value.is_object() {
-                    // This is a complex FHIR type - create Resource with correct type info from model provider
-                    let fhir_value = FhirPathValue::Resource(
-                        std::sync::Arc::new(property_value.clone()),
-                        element_type_info.clone(),
-                        None,
-                    );
-                    results.push(fhir_value);
+                    // Check if this is a Quantity type that should be converted to FhirPathValue::Quantity
+                    if element_type_info.type_name == "Quantity"
+                        || element_type_info.name.as_deref() == Some("Quantity")
+                    {
+                        // Convert FHIR Quantity JSON to FhirPathValue::Quantity
+                        if let Some(quantity_value) =
+                            self.extract_quantity_from_json(property_value).await
+                        {
+                            results.push(quantity_value);
+                        } else {
+                            // If quantity extraction fails, fall back to Resource
+                            let fhir_value = FhirPathValue::Resource(
+                                std::sync::Arc::new(property_value.clone()),
+                                element_type_info.clone(),
+                                None,
+                            );
+                            results.push(fhir_value);
+                        }
+                    } else {
+                        // This is a complex FHIR type - create Resource with correct type info from model provider
+                        let fhir_value = FhirPathValue::Resource(
+                            std::sync::Arc::new(property_value.clone()),
+                            element_type_info.clone(),
+                            None,
+                        );
+                        results.push(fhir_value);
+                    }
                 } else {
                     // Primitive values - use json conversion but wrap with correct type info
                     let base_value =
@@ -1476,6 +1556,7 @@ impl Evaluator {
     }
 
     /// Convert JSON to FhirPathValue with specific type information
+    #[allow(dead_code)]
     async fn convert_json_to_fhirpath_with_type(
         &self,
         json: serde_json::Value,
@@ -1493,6 +1574,7 @@ impl Evaluator {
     }
 
     /// Convert JSON value to FhirPathValue using ModelProvider for type information
+    #[allow(dead_code)]
     async fn convert_json_with_type_info(
         &self,
         json: serde_json::Value,
@@ -1523,6 +1605,90 @@ impl Evaluator {
         Ok(FhirPathValue::wrap_value(value, property_type_info, None))
     }
 
+    /// Extract quantity value from FHIR Quantity JSON with UCUM unit parsing support
+    async fn extract_quantity_from_json(&self, json: &serde_json::Value) -> Option<FhirPathValue> {
+        // Handle both numeric and string values in FHIR JSON
+        let value = match json.get("value")? {
+            serde_json::Value::Number(n) => n.as_f64()?,
+            serde_json::Value::String(s) => s.parse::<f64>().ok()?,
+            _ => return None,
+        };
+
+        // Get unit information with UCUM support
+        let unit = json.get("unit").and_then(|u| u.as_str()).unwrap_or("");
+        let code = json.get("code").and_then(|c| c.as_str()).unwrap_or("");
+        let system = json.get("system").and_then(|s| s.as_str()).unwrap_or("");
+
+        // Determine the best unit representation - prefer unit over code for display
+        let unit_str = if !unit.is_empty() {
+            // Prefer unit (human-readable display)
+            unit
+        } else if !code.is_empty() {
+            // Fall back to code if unit is not available
+            code
+        } else {
+            // No unit information
+            ""
+        };
+
+        // Handle common UCUM unit normalizations if possible
+        let normalized_unit =
+            if system == "http://unitsofmeasure.org" || self.looks_like_ucum_unit(unit_str) {
+                self.normalize_ucum_unit(unit_str)
+            } else {
+                unit_str.to_string()
+            };
+
+        Some(FhirPathValue::quantity(
+            rust_decimal::Decimal::from_f64_retain(value)?,
+            if normalized_unit.is_empty() {
+                None
+            } else {
+                Some(normalized_unit)
+            },
+        ))
+    }
+
+    /// Check if a unit string looks like a UCUM unit
+    fn looks_like_ucum_unit(&self, unit: &str) -> bool {
+        // Common UCUM patterns
+        unit.contains("/") || // Division like "mg/dL"
+        unit.contains(".") || // Multiplication like "kg.m"
+        unit.contains("^") || // Exponentiation like "m^2"
+        unit.contains("{") || // Special units like "{score}"
+        ["kg", "g", "mg", "L", "mL", "m", "cm", "mm", "s", "min", "h", "d", "wk", "mo", "a"].contains(&unit) ||
+        unit.starts_with('[') && unit.ends_with(']') // Custom units like "[lb_av]"
+    }
+
+    /// Normalize UCUM units to standard form
+    fn normalize_ucum_unit(&self, unit: &str) -> String {
+        // Basic UCUM normalization - could be enhanced with a full UCUM parser
+        match unit {
+            // Common weight units
+            "kilogram" | "kilograms" => "kg",
+            "gram" | "grams" => "g",
+            "milligram" | "milligrams" => "mg",
+            // Common volume units
+            "liter" | "liters" | "litre" | "litres" => "L",
+            "milliliter" | "milliliters" | "millilitre" | "millilitres" => "mL",
+            // Common length units
+            "meter" | "meters" | "metre" | "metres" => "m",
+            "centimeter" | "centimeters" | "centimetre" | "centimetres" => "cm",
+            "millimeter" | "millimeters" | "millimetre" | "millimetres" => "mm",
+            // Common time units
+            "second" | "seconds" => "s",
+            "minute" | "minutes" => "min",
+            "hour" | "hours" => "h",
+            "day" | "days" => "d",
+            "week" | "weeks" => "wk",
+            "month" | "months" => "mo",
+            "year" | "years" => "a",
+            // Already normalized or unknown - pass through
+            _ => unit,
+        }
+        .to_string()
+    }
+
     /// Wrap JSON with type info for choice types, handling primitive elements
     async fn wrap_json_with_type(
         &self,
@@ -1543,7 +1709,7 @@ impl Evaluator {
 
         // Convert to FhirPathValue and wrap with metadata
         let base_value = crate::core::value::utils::json_to_fhirpath_value(parsed_value);
-        let wrapped_primitive = primitive_element.map(|pe| crate::core::WrappedPrimitiveElement {
+        let wrapped_primitive = primitive_element.map(|_pe| crate::core::WrappedPrimitiveElement {
             id: None,
             extensions: vec![],
         });
@@ -1577,7 +1743,7 @@ impl Evaluator {
                     } else {
                         Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0054,
-                            format!("Invalid date format: {}", date_str),
+                            format!("Invalid date format: {date_str}"),
                         ))
                     }
                 } else {
@@ -1592,7 +1758,7 @@ impl Evaluator {
                     } else {
                         Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0054,
-                            format!("Invalid datetime format: {}", datetime_str),
+                            format!("Invalid datetime format: {datetime_str}"),
                         ))
                     }
                 } else {
@@ -1607,7 +1773,7 @@ impl Evaluator {
                     } else {
                         Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0054,
-                            format!("Invalid time format: {}", time_str),
+                            format!("Invalid time format: {time_str}"),
                         ))
                     }
                 } else {
@@ -1625,7 +1791,7 @@ impl Evaluator {
         property_name: &str,
     ) -> Option<std::sync::Arc<serde_json::Value>> {
         // Check for _propertyName pattern for primitive extensions
-        let primitive_element_name = format!("_{}", property_name);
+        let primitive_element_name = format!("_{property_name}");
         parent_object
             .get(&primitive_element_name)
             .map(|pe| std::sync::Arc::new(pe.clone()))
@@ -1653,8 +1819,7 @@ impl Evaluator {
                                 FhirPathError::evaluation_error(
                                     crate::core::error_code::FP0054,
                                     format!(
-                                        "ModelProvider error getting type '{}': {}",
-                                        resource_type, e
+                                        "ModelProvider error getting type '{resource_type}': {e}"
                                     ),
                                 )
                             })?
@@ -1703,8 +1868,7 @@ impl Evaluator {
                                     FhirPathError::evaluation_error(
                                         crate::core::error_code::FP0054,
                                         format!(
-                                            "ModelProvider error getting type '{}': {}",
-                                            resource_type, e
+                                            "ModelProvider error getting type '{resource_type}': {e}"
                                         ),
                                     )
                                 })?
@@ -1732,6 +1896,7 @@ impl Evaluator {
     }
 
     /// Filter resources by type with ModelProvider validation
+    #[allow(dead_code)]
     async fn filter_resources_by_type(
         &self,
         input: Vec<FhirPathValue>,
@@ -1753,8 +1918,7 @@ impl Evaluator {
                                 FhirPathError::evaluation_error(
                                     crate::core::error_code::FP0054,
                                     format!(
-                                        "ModelProvider error getting type '{}': {}",
-                                        resource_type, e
+                                        "ModelProvider error getting type '{resource_type}': {e}"
                                     ),
                                 )
                             })?
@@ -1775,6 +1939,7 @@ impl Evaluator {
     }
 
     /// Resolve reference with circular reference detection
+    #[allow(dead_code)]
     async fn resolve_reference(
         &self,
         reference_value: &FhirPathValue,
@@ -1787,7 +1952,7 @@ impl Evaluator {
                 if visited.contains(reference_url) {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0054,
-                        format!("Circular reference detected: {}", reference_url),
+                        format!("Circular reference detected: {reference_url}"),
                     ));
                 }
 
@@ -1797,9 +1962,7 @@ impl Evaluator {
                 let mut results = Vec::new();
 
                 // Check if reference is a local fragment reference (starts with #)
-                if reference_url.starts_with('#') {
-                    let local_id = &reference_url[1..];
-
+                if let Some(local_id) = reference_url.strip_prefix('#') {
                     for root_value in context.input_collection().iter() {
                         if let FhirPathValue::Resource(root_json, _, _) = root_value {
                             if let Some(contained) =
@@ -1886,7 +2049,7 @@ impl Evaluator {
                 } else {
                     Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0054,
-                        format!("Unsupported binary operator: {:?}", operator),
+                        format!("Unsupported binary operator: {operator:?}"),
                     ))
                 }
             }
@@ -1915,7 +2078,7 @@ impl Evaluator {
         } else {
             Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                format!("Unsupported unary operator: {:?}", operator),
+                format!("Unsupported unary operator: {operator:?}"),
             ))
         }
     }
@@ -2009,7 +2172,7 @@ impl Evaluator {
         } else {
             Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                format!("Unknown function: {}", function_name),
+                format!("Unknown function: {function_name}"),
             ))
         }
     }
@@ -2155,6 +2318,7 @@ impl Evaluator {
             .await
     }
 
+    #[allow(dead_code)]
     async fn evaluate_function_with_pre_evaluated_args(
         &self,
         function_name: &str,
@@ -2182,7 +2346,7 @@ impl Evaluator {
                     .ok_or_else(|| {
                         FhirPathError::evaluation_error(
                             crate::core::error_code::FP0054,
-                            format!("Unknown function: {}", function_name),
+                            format!("Unknown function: {function_name}"),
                         )
                     })?;
 
@@ -2200,6 +2364,7 @@ impl Evaluator {
     }
 
     /// Direct implementation of combine function to work around context issues
+    #[allow(dead_code)]
     async fn evaluate_combine_function_directly(
         &self,
         arguments: &[ExpressionNode],
@@ -2243,6 +2408,7 @@ impl Evaluator {
     }
 
     /// Evaluate argument in resource context following FHIR specification
+    #[allow(dead_code)]
     async fn evaluate_expression_in_patient_context(
         &self,
         expression: &ExpressionNode,

@@ -14,7 +14,9 @@ use super::error_code::*;
 // Re-export ModelProvider trait and types from octofhir-fhir-model
 pub use octofhir_fhir_model::{
     error::ModelError,
-    provider::{ChoiceTypeInfo, ElementInfo, EmptyModelProvider, FhirVersion, ModelProvider, TypeInfo},
+    provider::{
+        ChoiceTypeInfo, ElementInfo, EmptyModelProvider, FhirVersion, ModelProvider, TypeInfo,
+    },
 };
 
 /// Utility functions for working with ModelProviders

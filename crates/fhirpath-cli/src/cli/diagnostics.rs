@@ -9,6 +9,7 @@ use octofhir_fhirpath::diagnostics::{
     AriadneDiagnostic, DiagnosticEngine, DiagnosticFormatter, DiagnosticSeverity,
 };
 use serde_json::{Value, json};
+use std::collections::HashSet;
 use std::io::{self, Write};
 use std::ops::Range;
 
@@ -65,14 +66,14 @@ impl CliDiagnosticHandler {
             }
             OutputFormat::Raw => {
                 let output = DiagnosticFormatter::format_raw(diagnostic);
-                write!(writer, "{}", output)?;
+                write!(writer, "{output}")?;
                 Ok(())
             }
             OutputFormat::Pretty => {
                 let output =
                     DiagnosticFormatter::format_pretty(&self.engine, diagnostic, source_id)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-                write!(writer, "{}", output)?;
+                        .map_err(|e| io::Error::other(e.to_string()))?;
+                write!(writer, "{output}")?;
                 Ok(())
             }
         }
@@ -107,15 +108,110 @@ impl CliDiagnosticHandler {
                 writeln!(writer, "{}", serde_json::to_string_pretty(&output)?)?;
                 Ok(())
             }
-            _ => {
-                // All other modes: Show unified diagnostics report
+            OutputFormat::Raw => {
+                // Raw mode: Show single consolidated diagnostic with ALL error codes
                 if !diagnostics.is_empty() {
-                    self.engine
-                        .emit_unified_report(diagnostics, source_id, writer)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+                    let consolidated = self.consolidate_diagnostics(diagnostics);
+                    self.report_diagnostic(&consolidated, source_id, writer)?;
                 }
                 Ok(())
             }
+            OutputFormat::Pretty => {
+                // Pretty mode: Show ALL diagnostics as ONE unified report, then add single help message
+                if !diagnostics.is_empty() {
+                    // Show unified report with all diagnostics combined
+                    self.engine
+                        .emit_unified_report(diagnostics, source_id, writer)
+                        .map_err(|e| io::Error::other(e.to_string()))?;
+
+                    // Then show a single consolidated help message with all error codes
+                    let mut error_codes: Vec<String> = diagnostics
+                        .iter()
+                        .map(|d| d.error_code.code_str())
+                        .collect::<HashSet<_>>() // Remove duplicates
+                        .into_iter()
+                        .collect();
+                    error_codes.sort(); // Ensure consistent ordering
+
+                    if error_codes.len() == 1 {
+                        writeln!(writer, "\n  = help: for more information about this error, try `octofhir-fhirpath docs {}`", error_codes[0])?;
+                    } else {
+                        writeln!(writer, "\n  = help: for more information about these errors, try `octofhir-fhirpath docs {}` (or other codes: {})", error_codes[0], error_codes[1..].join(", "))?;
+                    }
+                }
+                Ok(())
+            }
+        }
+    }
+
+    /// Consolidate multiple diagnostics into a single diagnostic with all error codes
+    fn consolidate_diagnostics(&self, diagnostics: &[AriadneDiagnostic]) -> AriadneDiagnostic {
+        if diagnostics.is_empty() {
+            return AriadneDiagnostic {
+                severity: DiagnosticSeverity::Error,
+                error_code: ErrorCode::new(1),
+                message: "No diagnostics to consolidate".to_string(),
+                span: 0..0,
+                help: None,
+                note: None,
+                related: Vec::new(),
+            };
+        }
+
+        if diagnostics.len() == 1 {
+            return diagnostics[0].clone();
+        }
+
+        // Collect all unique error codes
+        let mut error_codes: Vec<String> = diagnostics
+            .iter()
+            .map(|d| d.error_code.code_str())
+            .collect();
+        error_codes.sort();
+        error_codes.dedup();
+
+        // Use the most severe severity
+        let most_severe = diagnostics
+            .iter()
+            .map(|d| &d.severity)
+            .max_by_key(|s| match s {
+                DiagnosticSeverity::Error => 3,
+                DiagnosticSeverity::Warning => 2,
+                DiagnosticSeverity::Info => 1,
+                DiagnosticSeverity::Hint => 0,
+            })
+            .unwrap_or(&DiagnosticSeverity::Error);
+
+        // Create consolidated message
+        let first_message = &diagnostics[0].message;
+        let message = if diagnostics.len() == 1 {
+            first_message.clone()
+        } else {
+            format!("{} (and {} more issues)", first_message, diagnostics.len() - 1)
+        };
+
+        // Use span of first diagnostic
+        let span = diagnostics[0].span.clone();
+
+        // Create help text with docs command suggestion
+        let help_text = if error_codes.len() == 1 {
+            format!("for more information about this error, try `octofhir-fhirpath docs {}`", error_codes[0])
+        } else {
+            format!(
+                "for more information about these errors, try `octofhir-fhirpath docs {}` (or other codes: {})",
+                error_codes[0],
+                error_codes[1..].join(", ")
+            )
+        };
+
+        AriadneDiagnostic {
+            severity: most_severe.clone(),
+            error_code: diagnostics[0].error_code.clone(), // Use first error code as primary
+            message,
+            span,
+            help: Some(help_text),
+            note: Some(format!("found {} error(s) with codes: {}", diagnostics.len(), error_codes.join(", "))),
+            related: Vec::new(),
         }
     }
 
@@ -176,7 +272,7 @@ impl CliDiagnosticHandler {
     /// Show informational message (respects quiet mode)
     pub fn info(&self, message: &str, writer: &mut dyn Write) -> io::Result<()> {
         if !self.quiet_mode && self.output_format != OutputFormat::Json {
-            writeln!(writer, "ℹ️  {}", message)?;
+            writeln!(writer, "ℹ️  {message}")?;
         }
         Ok(())
     }
@@ -184,7 +280,7 @@ impl CliDiagnosticHandler {
     /// Show success message (respects quiet mode)
     pub fn success(&self, message: &str, writer: &mut dyn Write) -> io::Result<()> {
         if !self.quiet_mode && self.output_format != OutputFormat::Json {
-            writeln!(writer, "✅ {}", message)?;
+            writeln!(writer, "✅ {message}")?;
         }
         Ok(())
     }
@@ -192,7 +288,7 @@ impl CliDiagnosticHandler {
     /// Show warning message
     pub fn warning(&self, message: &str, writer: &mut dyn Write) -> io::Result<()> {
         if self.output_format != OutputFormat::Json {
-            writeln!(writer, "⚠️  {}", message)?;
+            writeln!(writer, "⚠️  {message}")?;
         }
         Ok(())
     }
@@ -200,7 +296,7 @@ impl CliDiagnosticHandler {
     /// Show error message
     pub fn error(&self, message: &str, writer: &mut dyn Write) -> io::Result<()> {
         if self.output_format != OutputFormat::Json {
-            writeln!(writer, "❌ {}", message)?;
+            writeln!(writer, "❌ {message}")?;
         }
         Ok(())
     }
@@ -239,8 +335,8 @@ impl CliDiagnosticHandler {
             OutputFormat::Pretty => {
                 let pretty_output =
                     BatchFormatter::format_comprehensive_report(&self.engine, &result.diagnostics)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-                write!(writer, "{}", pretty_output)?;
+                        .map_err(|e| io::Error::other(e.to_string()))?;
+                write!(writer, "{pretty_output}")?;
             }
             OutputFormat::Raw => {
                 // Raw format shows compact list
@@ -255,7 +351,7 @@ impl CliDiagnosticHandler {
 
                 let summary =
                     BatchFormatter::format_compact_summary(&result.diagnostics.statistics);
-                writeln!(writer, "\n{}", summary)?;
+                writeln!(writer, "\n{summary}")?;
             }
         }
 
@@ -265,7 +361,7 @@ impl CliDiagnosticHandler {
     /// Show progress indicator for analysis (respects quiet mode)
     pub fn show_analysis_progress(&self, phase: &str, writer: &mut dyn Write) -> io::Result<()> {
         if !self.quiet_mode && self.output_format != OutputFormat::Json {
-            writeln!(writer, "🔄 {}", phase)?;
+            writeln!(writer, "🔄 {phase}")?;
         }
         Ok(())
     }
@@ -278,7 +374,7 @@ impl CliDiagnosticHandler {
     ) -> io::Result<()> {
         if !self.quiet_mode && self.output_format != OutputFormat::Json {
             let summary = BatchFormatter::format_compact_summary(stats);
-            writeln!(writer, "✅ Analysis complete: {}", summary)?;
+            writeln!(writer, "✅ Analysis complete: {summary}")?;
         }
         Ok(())
     }

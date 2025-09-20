@@ -4,15 +4,22 @@ use async_trait::async_trait;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::core::temporal::{PrecisionDate, PrecisionDateTime};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::quantity_utils;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 pub struct LessEqualOperatorEvaluator {
     metadata: OperatorMetadata,
+}
+
+impl Default for LessEqualOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LessEqualOperatorEvaluator {
@@ -35,6 +42,10 @@ impl LessEqualOperatorEvaluator {
                         ),
                         TypeSignature::new(
                             vec![FhirPathType::Decimal, FhirPathType::Decimal],
+                            FhirPathType::Boolean,
+                        ),
+                        TypeSignature::new(
+                            vec![FhirPathType::Quantity, FhirPathType::Quantity],
                             FhirPathType::Boolean,
                         ),
                     ],
@@ -90,6 +101,32 @@ impl LessEqualOperatorEvaluator {
                     None => None, // Uncertain due to precision differences
                 }
             }
+
+            // Quantity comparison (with unit conversion)
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    calendar_unit: lc,
+                    ..
+                },
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    calendar_unit: rc,
+                    ..
+                },
+            ) => {
+                // Use the quantity utilities for proper unit conversion
+                match quantity_utils::compare_quantities(*lv, lu, lc, *rv, ru, rc) {
+                    Ok(Some(std::cmp::Ordering::Less)) | Ok(Some(std::cmp::Ordering::Equal)) => {
+                        Some(true)
+                    }
+                    Ok(Some(std::cmp::Ordering::Greater)) => Some(false),
+                    Ok(None) | Err(_) => None, // Not comparable or conversion failed
+                }
+            }
+
             _ => None,
         }
     }
@@ -108,11 +145,16 @@ impl LessEqualOperatorEvaluator {
             }
             _ => {
                 // Try parsing as datetimes
-                match (PrecisionDateTime::parse(left), PrecisionDateTime::parse(right)) {
+                match (
+                    PrecisionDateTime::parse(left),
+                    PrecisionDateTime::parse(right),
+                ) {
                     (Some(l_dt), Some(r_dt)) => {
                         // Both parsed as datetimes - use temporal comparison with precision awareness
                         match l_dt.partial_cmp(&r_dt) {
-                            Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => Some(true),
+                            Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => {
+                                Some(true)
+                            }
                             Some(std::cmp::Ordering::Greater) => Some(false),
                             None => None, // Different precisions or uncertain comparison
                         }
@@ -124,14 +166,17 @@ impl LessEqualOperatorEvaluator {
                                 // According to FHIRPath spec: different precision levels return empty
                                 None
                             }
-                            _ => match (PrecisionDateTime::parse(left), PrecisionDate::parse(right)) {
-                                (Some(_), Some(_)) => {
-                                    // According to FHIRPath spec: different precision levels return empty
-                                    None
-                                }
-                                _ => {
-                                    // Neither string could be parsed as temporal - fall back to lexicographic comparison
-                                    Some(left <= right)
+                            _ => {
+                                match (PrecisionDateTime::parse(left), PrecisionDate::parse(right))
+                                {
+                                    (Some(_), Some(_)) => {
+                                        // According to FHIRPath spec: different precision levels return empty
+                                        None
+                                    }
+                                    _ => {
+                                        // Neither string could be parsed as temporal - fall back to lexicographic comparison
+                                        Some(left <= right)
+                                    }
                                 }
                             }
                         }
@@ -146,7 +191,7 @@ impl LessEqualOperatorEvaluator {
 impl OperationEvaluator for LessEqualOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,

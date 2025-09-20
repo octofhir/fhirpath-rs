@@ -7,18 +7,18 @@ use std::sync::Arc;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
 
-use crate::ast::ExpressionNode;
 use crate::core::error_code::{FP0053, FP0054, FP0055, FP0056, FP0057};
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::functions::boundary_utils::{
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
+use crate::evaluator::functions::boundary_utils::{
     BoundaryKind, NumericBoundaryError, compute_date_boundary, compute_datetime_boundary,
     compute_numeric_boundaries, compute_time_boundary, resolve_date_precision,
     resolve_datetime_precision, resolve_time_precision,
 };
-use crate::evaluator::EvaluationResult;
 
 pub struct LowBoundaryFunctionEvaluator {
     metadata: FunctionMetadata,
@@ -121,7 +121,7 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
 
         let result = match &input[0] {
             FhirPathValue::Decimal(value, type_info, primitive) => {
-                match compute_numeric_boundaries(value.clone(), precision_value) {
+                match compute_numeric_boundaries(*value, precision_value) {
                     Ok(boundary) => {
                         let low = apply_requested_scale(boundary.low, boundary.requested_scale);
                         FhirPathValue::Decimal(low, type_info.clone(), primitive.clone())
@@ -153,7 +153,7 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                 calendar_unit,
                 type_info,
                 primitive_element,
-            } => match compute_numeric_boundaries(value.clone(), precision_value) {
+            } => match compute_numeric_boundaries(*value, precision_value) {
                 Ok(boundary) => {
                     let adjusted = apply_requested_scale(boundary.low, boundary.requested_scale);
                     FhirPathValue::Quantity {
@@ -221,7 +221,11 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                 if let Ok(parsed_date) = crate::core::parsing::parse_date_string(s) {
                     match resolve_date_precision(parsed_date.precision, precision_value) {
                         Ok(target_precision) => {
-                            let adjusted = compute_date_boundary(&parsed_date, target_precision, BoundaryKind::Low);
+                            let adjusted = compute_date_boundary(
+                                &parsed_date,
+                                target_precision,
+                                BoundaryKind::Low,
+                            );
                             FhirPathValue::Date(adjusted, type_info.clone(), primitive.clone())
                         }
                         Err(NumericBoundaryError::PrecisionOutOfRange) => {
@@ -233,7 +237,11 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                 } else if let Ok(parsed_datetime) = crate::core::parsing::parse_datetime_string(s) {
                     match resolve_datetime_precision(parsed_datetime.precision, precision_value) {
                         Ok(target_precision) => {
-                            let adjusted = compute_datetime_boundary(&parsed_datetime, target_precision, BoundaryKind::Low);
+                            let adjusted = compute_datetime_boundary(
+                                &parsed_datetime,
+                                target_precision,
+                                BoundaryKind::Low,
+                            );
                             FhirPathValue::DateTime(adjusted, type_info.clone(), primitive.clone())
                         }
                         Err(NumericBoundaryError::PrecisionOutOfRange) => {
@@ -245,7 +253,9 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                 } else {
                     return Err(FhirPathError::evaluation_error(
                         FP0055,
-                        format!("lowBoundary cannot be applied to String '{}' (not a valid temporal value)", s),
+                        format!(
+                            "lowBoundary cannot be applied to String '{s}' (not a valid temporal value)"
+                        ),
                     ));
                 }
             }
@@ -269,10 +279,8 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
 
 fn apply_requested_scale(mut value: Decimal, requested: Option<u32>) -> Decimal {
     if let Some(scale) = requested {
-        if value.scale() < scale {
-            if value.set_scale(scale).is_err() {
-                return value.round_dp(scale);
-            }
+        if value.scale() < scale && value.set_scale(scale).is_err() {
+            return value.round_dp(scale);
         }
     }
     value

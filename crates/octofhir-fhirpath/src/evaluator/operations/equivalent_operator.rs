@@ -8,17 +8,23 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::FromPrimitive;
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::core::model_provider::TypeInfo;
-use crate::evaluator::quantity_utils;
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::quantity_utils;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Equivalent operator evaluator
 pub struct EquivalentOperatorEvaluator {
     metadata: OperatorMetadata,
+}
+
+impl Default for EquivalentOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EquivalentOperatorEvaluator {
@@ -64,31 +70,34 @@ impl EquivalentOperatorEvaluator {
     ) -> Option<bool> {
         // Check if this is a FHIR Quantity resource
         if type_info.type_name == "Quantity" || type_info.name.as_deref() == Some("Quantity") {
-                // Extract value and code from FHIR quantity
-                let fhir_value = fhir_json.get("value")?;
-                let fhir_code = fhir_json.get("code")?.as_str()?;
+            // Extract value and code from FHIR quantity
+            let fhir_value = fhir_json.get("value")?;
+            let fhir_code = fhir_json.get("code")?.as_str()?;
 
-                // Convert FHIR value to Decimal (could be integer or float)
-                let fhir_decimal = if let Some(int_val) = fhir_value.as_i64() {
-                    Decimal::from(int_val)
-                } else if let Some(float_val) = fhir_value.as_f64() {
-                    Decimal::from_f64(float_val)?
-                } else {
-                    return Some(false); // Invalid value type
-                };
+            // Convert FHIR value to Decimal (could be integer, float, or string)
+            let fhir_decimal = if let Some(int_val) = fhir_value.as_i64() {
+                Decimal::from(int_val)
+            } else if let Some(float_val) = fhir_value.as_f64() {
+                Decimal::from_f64(float_val)?
+            } else if let Some(str_val) = fhir_value.as_str() {
+                // Handle string values (common in FHIR JSON)
+                str_val.parse::<Decimal>().ok()?
+            } else {
+                return Some(false); // Invalid value type
+            };
 
-                // Use quantity utilities for comparison
-                match crate::evaluator::quantity_utils::are_quantities_equivalent(
-                    fhir_decimal,
-                    &Some(fhir_code.to_string()),
-                    &None, // FHIR quantities don't have calendar units
-                    fhirpath_value,
-                    fhirpath_unit,
-                    fhirpath_calendar_unit,
-                ) {
-                    Ok(result) => Some(result),
-                    Err(_) => Some(false),
-                }
+            // Use quantity utilities for comparison
+            match crate::evaluator::quantity_utils::are_quantities_equivalent(
+                fhir_decimal,
+                &Some(fhir_code.to_string()),
+                &None, // FHIR quantities don't have calendar units
+                fhirpath_value,
+                fhirpath_unit,
+                fhirpath_calendar_unit,
+            ) {
+                Ok(result) => Some(result),
+                Err(_) => Some(false),
+            }
         } else {
             // Not a quantity, not equivalent
             Some(false)
@@ -130,8 +139,8 @@ impl EquivalentOperatorEvaluator {
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
                 let left_decimal = Decimal::from(*l);
                 // Integer has precision 0, so compare rounded decimal to precision 0
-                let right_precision = self.get_decimal_precision(r);
-                let min_precision = 0_u32.min(right_precision);
+                let _right_precision = self.get_decimal_precision(r);
+                let min_precision = 0_u32;
 
                 let left_rounded = self.round_decimal(&left_decimal, min_precision);
                 let right_rounded = self.round_decimal(r, min_precision);
@@ -141,8 +150,8 @@ impl EquivalentOperatorEvaluator {
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Integer(r, _, _)) => {
                 let right_decimal = Decimal::from(*r);
                 // Integer has precision 0, so compare rounded decimal to precision 0
-                let left_precision = self.get_decimal_precision(l);
-                let min_precision = left_precision.min(0_u32);
+                let _left_precision = self.get_decimal_precision(l);
+                let min_precision = 0_u32;
 
                 let left_rounded = self.round_decimal(l, min_precision);
                 let right_rounded = self.round_decimal(&right_decimal, min_precision);
@@ -190,12 +199,24 @@ impl EquivalentOperatorEvaluator {
             }
 
             // FHIR Resource (Quantity) vs FHIRPath Quantity equivalence
-            (FhirPathValue::Resource(json, type_info, _), FhirPathValue::Quantity { value: rv, unit: ru, calendar_unit: rc, .. }) => {
-                self.compare_fhir_quantity_with_fhirpath_quantity(json, type_info, *rv, ru, rc)
-            }
-            (FhirPathValue::Quantity { value: lv, unit: lu, calendar_unit: lc, .. }, FhirPathValue::Resource(json, type_info, _)) => {
-                self.compare_fhir_quantity_with_fhirpath_quantity(json, type_info, *lv, lu, lc)
-            }
+            (
+                FhirPathValue::Resource(json, type_info, _),
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    calendar_unit: rc,
+                    ..
+                },
+            ) => self.compare_fhir_quantity_with_fhirpath_quantity(json, type_info, *rv, ru, rc),
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    calendar_unit: lc,
+                    ..
+                },
+                FhirPathValue::Resource(json, type_info, _),
+            ) => self.compare_fhir_quantity_with_fhirpath_quantity(json, type_info, *lv, lu, lc),
 
             // Collection equivalence (recursive)
             (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
@@ -236,7 +257,10 @@ impl EquivalentOperatorEvaluator {
             }
 
             // Resource equivalence (compare JSON objects)
-            (FhirPathValue::Resource(l_json, l_type, _), FhirPathValue::Resource(r_json, r_type, _)) => {
+            (
+                FhirPathValue::Resource(l_json, l_type, _),
+                FhirPathValue::Resource(r_json, r_type, _),
+            ) => {
                 // Resources are equivalent if they have the same type and the same JSON content
                 if l_type.type_name == r_type.type_name {
                     Some(l_json == r_json)
@@ -256,7 +280,7 @@ impl EquivalentOperatorEvaluator {
 impl OperationEvaluator for EquivalentOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -361,7 +385,7 @@ mod tests {
         let evaluator = EquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -383,7 +407,7 @@ mod tests {
         let evaluator = EquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -405,7 +429,7 @@ mod tests {
         let evaluator = EquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -427,7 +451,7 @@ mod tests {
         let evaluator = EquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -449,7 +473,7 @@ mod tests {
         let evaluator = EquivalentOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

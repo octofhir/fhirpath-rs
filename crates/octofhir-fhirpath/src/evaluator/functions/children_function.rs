@@ -7,11 +7,11 @@
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
-use crate::ast::ExpressionNode;
+};
 
 /// Children function evaluator
 pub struct ChildrenFunctionEvaluator {
@@ -24,7 +24,8 @@ impl ChildrenFunctionEvaluator {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "children".to_string(),
-                description: "Returns the direct child elements of a resource or element".to_string(),
+                description: "Returns the direct child elements of a resource or element"
+                    .to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
                     parameters: vec![],
@@ -75,6 +76,7 @@ impl ChildrenFunctionEvaluator {
     }
 
     /// Convert JSON value to FhirPathValue(s)
+    #[allow(clippy::only_used_in_recursion)]
     fn convert_json_to_fhir_path_values(&self, json: &serde_json::Value) -> Vec<FhirPathValue> {
         match json {
             serde_json::Value::String(s) => vec![FhirPathValue::string(s.clone())],
@@ -133,7 +135,7 @@ impl PureFunctionEvaluator for ChildrenFunctionEvaluator {
                     // For collections, get children of all items in the collection
                     for collection_item in collection.iter() {
                         if let FhirPathValue::Resource(json, _, _) = collection_item {
-                            all_children.extend(self.extract_children(&json));
+                            all_children.extend(self.extract_children(json));
                         }
                     }
                 }

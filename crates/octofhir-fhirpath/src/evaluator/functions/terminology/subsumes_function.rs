@@ -7,12 +7,11 @@
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
 };
-use crate::evaluator::{EvaluationContext, EvaluationResult};
-use octofhir_fhir_model::TerminologyProvider;
 
 /// Subsumes function evaluator
 pub struct SubsumesFunctionEvaluator {
@@ -224,8 +223,7 @@ impl ProviderPureFunctionEvaluator for SubsumesFunctionEvaluator {
         })?;
 
         // Extract subsumption parameters
-        let (system, parent_code, child_code) =
-            Self::extract_subsumption_params(&input, &args)?;
+        let (system, parent_code, child_code) = Self::extract_subsumption_params(&input, &args)?;
 
         // Perform subsumption test
         match terminology_provider
@@ -243,7 +241,7 @@ impl ProviderPureFunctionEvaluator for SubsumesFunctionEvaluator {
             }
             Err(e) => Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0059,
-                format!("Subsumption test failed: {}", e),
+                format!("Subsumption test failed: {e}"),
             )),
         }
     }

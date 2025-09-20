@@ -9,9 +9,10 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Select function evaluator
 pub struct SelectFunctionEvaluator {
@@ -75,14 +76,12 @@ impl LazyFunctionEvaluator for SelectFunctionEvaluator {
 
         // Process each item in the input collection
         for (index, item) in input.iter().enumerate() {
-            let mut child_context = context.create_child_context(Collection::single(item.clone()));
+            let child_context = context.create_child_context(Collection::single(item.clone()));
             child_context.set_variable("$this".to_string(), item.clone());
             child_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
 
             // Evaluate projection expression with child context
-            let result = evaluator
-                .evaluate(projection_expr, &child_context)
-                .await?;
+            let result = evaluator.evaluate(projection_expr, &child_context).await?;
 
             // Flatten the results - add all items from the result collection
             for result_item in result.value.iter() {

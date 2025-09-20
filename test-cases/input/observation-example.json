@@ -1,4 +1,5 @@
 {
+  "resourceType": "Observation",
   "category": {
     "coding": [
       {
@@ -38,6 +39,7 @@
   },
   "extension": [
     {
+      "url": "http://example.com/fhir/StructureDefinition/patient-age",
       "valueAge": {
         "code": "a",
         "system": "http://unitsofmeasure.org",

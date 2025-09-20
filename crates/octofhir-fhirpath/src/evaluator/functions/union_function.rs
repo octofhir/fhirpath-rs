@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Union function evaluator
 pub struct UnionFunctionEvaluator {
@@ -23,7 +23,8 @@ impl UnionFunctionEvaluator {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "union".to_string(),
-                description: "Returns the union of two collections, removing duplicates".to_string(),
+                description: "Returns the union of two collections, removing duplicates"
+                    .to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
                     parameters: vec![FunctionParameter {
@@ -85,9 +86,18 @@ impl PureFunctionEvaluator for UnionFunctionEvaluator {
                     (FhirPathValue::Date(a, _, _), FhirPathValue::Date(b, _, _)) => a == b,
                     (FhirPathValue::DateTime(a, _, _), FhirPathValue::DateTime(b, _, _)) => a == b,
                     (FhirPathValue::Time(a, _, _), FhirPathValue::Time(b, _, _)) => a == b,
-                    (FhirPathValue::Quantity { value: v1, unit: u1, .. }, FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
-                        v1 == v2 && u1 == u2
-                    },
+                    (
+                        FhirPathValue::Quantity {
+                            value: v1,
+                            unit: u1,
+                            ..
+                        },
+                        FhirPathValue::Quantity {
+                            value: v2,
+                            unit: u2,
+                            ..
+                        },
+                    ) => v1 == v2 && u1 == u2,
                     // For different types, they are not equal
                     _ => false,
                 }

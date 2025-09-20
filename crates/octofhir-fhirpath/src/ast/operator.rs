@@ -207,6 +207,7 @@ impl BinaryOperator {
     }
 
     /// Parse an operator from its string representation
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "+" => Some(Self::Add),
@@ -284,6 +285,7 @@ impl UnaryOperator {
     }
 
     /// Parse a unary operator from its string representation
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "-" => Some(Self::Negate),

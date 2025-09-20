@@ -3,12 +3,12 @@
 //! The toTime function converts a value to a time.
 //! Syntax: value.toTime()
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+};
 use std::sync::Arc;
 
 pub struct ToTimeFunctionEvaluator {
@@ -62,7 +62,7 @@ impl PureFunctionEvaluator for ToTimeFunctionEvaluator {
         }
 
         let result = match &input[0] {
-            FhirPathValue::Time(precision_time, _, _) => {
+            FhirPathValue::Time(_precision_time, _, _) => {
                 // Time is already a time, return as-is
                 Some(input[0].clone())
             }
@@ -76,11 +76,7 @@ impl PureFunctionEvaluator for ToTimeFunctionEvaluator {
             FhirPathValue::String(s, _, _) => {
                 // Try to parse string as time
                 use crate::core::temporal::PrecisionTime;
-                if let Some(precision_time) = PrecisionTime::parse(s) {
-                    Some(FhirPathValue::time(precision_time))
-                } else {
-                    None
-                }
+                PrecisionTime::parse(s).map(FhirPathValue::time)
             }
             _ => {
                 // Other types cannot be converted to time

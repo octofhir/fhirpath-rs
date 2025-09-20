@@ -61,7 +61,7 @@ impl ErrorCode {
 
     /// Get human-readable description for this error code
     pub fn description(&self) -> &'static str {
-        self.info().title
+        self.info().description
     }
 }
 

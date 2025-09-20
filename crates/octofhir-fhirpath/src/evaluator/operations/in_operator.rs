@@ -19,6 +19,12 @@ pub struct InOperatorEvaluator {
     equals_evaluator: EqualsOperatorEvaluator,
 }
 
+impl Default for InOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InOperatorEvaluator {
     /// Create a new in operator evaluator
     pub fn new() -> Self {
@@ -65,7 +71,7 @@ impl InOperatorEvaluator {
 impl OperationEvaluator for InOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -88,7 +94,8 @@ impl OperationEvaluator for InOperatorEvaluator {
         if left.len() > 1 {
             return Err(crate::core::FhirPathError::evaluation_error(
                 crate::core::error_code::FP0051,
-                "Left operand of 'in' operator must be a single value, not a collection".to_string(),
+                "Left operand of 'in' operator must be a single value, not a collection"
+                    .to_string(),
             ));
         }
 
@@ -169,7 +176,7 @@ mod tests {
         let evaluator = InOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -195,7 +202,7 @@ mod tests {
         let evaluator = InOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -221,7 +228,7 @@ mod tests {
         let evaluator = InOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -247,7 +254,7 @@ mod tests {
         let evaluator = InOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -269,7 +276,7 @@ mod tests {
         let evaluator = InOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -293,7 +300,7 @@ mod tests {
         let evaluator = InOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

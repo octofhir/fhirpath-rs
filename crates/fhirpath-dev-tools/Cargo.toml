@@ -30,16 +30,12 @@ path = "src/bin/fhirpath-bench.rs"
 name = "generate-docs"
 path = "src/bin/generate-docs.rs"
 
-[[bin]]
-name = "test-export"
-path = "src/bin/test-export.rs"
-
 [lints]
 workspace = true
 
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-octofhir-fhirschema = { path = "../../../fhirschema/octofhir-fhirschema" }
+octofhir-fhirschema = { version = "0.3.2" }
 octofhir-fhir-model = { workspace = true }
 
 # Dev tools dependencies

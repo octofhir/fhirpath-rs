@@ -3,9 +3,10 @@
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use std::sync::Arc;
 
 pub struct ExistsFunctionEvaluator {
@@ -77,7 +78,7 @@ impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
             let single_item_collection = vec![item.clone()];
 
             // Create nested context for this iteration
-            let mut iteration_context = EvaluationContext::new(
+            let iteration_context = EvaluationContext::new(
                 crate::core::Collection::from(single_item_collection.clone()),
                 context.model_provider().clone(),
                 context.terminology_provider().cloned(),
@@ -88,7 +89,8 @@ impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
 
             // Set lambda variables: $this = single item, $index = current index
             iteration_context.set_variable("$this".to_string(), item.clone());
-            iteration_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            iteration_context
+                .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
 
             // Evaluate criteria expression in the iteration context
             let result = evaluator

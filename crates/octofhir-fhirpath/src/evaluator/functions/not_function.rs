@@ -69,14 +69,21 @@ impl PureFunctionEvaluator for NotFunctionEvaluator {
                         primitive.clone(),
                     ));
                 }
-                _ => {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0055,
-                        format!(
-                            "not function can only be applied to Boolean values, got {}",
-                            value.type_name()
-                        ),
+                FhirPathValue::Integer(i, type_info, primitive) => {
+                    // Convert integer to boolean: 0 is false, non-zero is true
+                    let bool_value = *i != 0;
+                    results.push(FhirPathValue::Boolean(
+                        !bool_value,
+                        type_info.clone(),
+                        primitive.clone(),
                     ));
+                }
+                _ => {
+                    // According to FHIRPath spec, return empty collection for type mismatches
+                    // rather than throwing an error
+                    return Ok(EvaluationResult {
+                        value: crate::core::Collection::empty(),
+                    });
                 }
             }
         }

@@ -11,6 +11,7 @@ pub struct DiagnosticEngine {
     /// Source text manager
     source_manager: SourceManager,
     /// Color scheme configuration
+    #[allow(dead_code)]
     color_scheme: ColorScheme,
     /// Whether to show colors in output
     show_colors: bool,
@@ -106,6 +107,7 @@ impl DiagnosticEngine {
     }
 
     /// Build a unified report with multiple diagnostics
+    #[allow(clippy::type_complexity)]
     pub fn build_unified_report(
         &self,
         diagnostics: &[AriadneDiagnostic],
@@ -120,13 +122,25 @@ impl DiagnosticEngine {
             .get_source(source_id)
             .ok_or("Source not found")?;
 
-        // Use the first diagnostic as the primary report, but don't show the header
+        // Create unified report with all error codes and messages
         let primary = &diagnostics[0];
+
+        // Collect all unique error codes
+        let mut error_codes: Vec<String> = diagnostics
+            .iter()
+            .map(|d| d.error_code.code_str())
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+        error_codes.sort();
+
+        // Use custom report kind to avoid automatic "Error:" text
+        let report_kind = ariadne::ReportKind::Custom("", primary.severity.color());
         let mut report = Report::build(
-            primary.severity.to_report_kind(),
+            report_kind,
             (source_id, primary.span.clone()),
-        );
-        // Don't add code or message header - the user wants to show only span information
+        )
+        .with_code(error_codes.join(","));
 
         // Add labels for all diagnostics
         for diagnostic in diagnostics {
@@ -142,17 +156,7 @@ impl DiagnosticEngine {
             report = report.with_label(label);
         }
 
-        // Add documentation links for all unique error codes (Rust-like format)
-        let mut seen_codes = std::collections::HashSet::new();
-        for diagnostic in diagnostics {
-            if seen_codes.insert(diagnostic.error_code.code) {
-                let docs_note = format!(
-                    "For more information about this error, try: `octofhir-fhirpath docs {}`",
-                    diagnostic.error_code.code_str()
-                );
-                report = report.with_note(&docs_note);
-            }
-        }
+        // Do not add automatic documentation links - let CLI handler add them manually
 
         Ok(report.finish())
     }
@@ -176,6 +180,7 @@ impl DiagnosticEngine {
     }
 
     /// Build a comprehensive diagnostic report using Ariadne
+    #[allow(clippy::type_complexity)]
     pub fn build_report(
         &self,
         diagnostic: &AriadneDiagnostic,
@@ -212,13 +217,6 @@ impl DiagnosticEngine {
         if let Some(help) = &diagnostic.help {
             report = report.with_help(help);
         }
-
-        // Add note with documentation link (Rust-like format)
-        let docs_note = format!(
-            "For more information about this error, try: `octofhir-fhirpath docs {}`",
-            diagnostic.error_code.code_str()
-        );
-        report = report.with_note(&docs_note);
 
         // Add custom note if provided
         if let Some(note) = &diagnostic.note {

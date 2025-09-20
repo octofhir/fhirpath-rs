@@ -1,11 +1,11 @@
 //! Empty function implementation
 
 use crate::core::{FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::EvaluationResult;
 use std::sync::Arc;
 
 pub struct EmptyFunctionEvaluator {

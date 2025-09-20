@@ -94,13 +94,12 @@ impl OutputFormatter for PrettyFormatter {
                         .as_ref()
                         .unwrap_or(&result_metadata.type_info.type_name);
 
-
                     let value_str = format_fhir_value_pretty(&result_metadata.value);
 
                     // Show additional type information when available
                     let type_display = if let Some(namespace) = &result_metadata.type_info.namespace
                     {
-                        format!("{}.{}", namespace, type_name)
+                        format!("{namespace}.{type_name}")
                     } else {
                         type_name.clone()
                     };
@@ -165,11 +164,9 @@ impl OutputFormatter for PrettyFormatter {
                 ));
             }
             result.push('\n');
-        } else if let Some(ref error) = output.error {
-            result.push_str(&format!(
-                "💥 Error: {}\n",
-                self.colorize(&error.to_string(), colored::Color::Red)
-            ));
+        } else if output.error.is_some() {
+            // Error details are already shown via diagnostic handler to stderr
+            // No need to duplicate the error message here
         }
 
         Ok(result)
@@ -192,12 +189,10 @@ impl OutputFormatter for PrettyFormatter {
                     "📊 AST nodes: {}\n",
                     self.colorize(&output.metadata.ast_nodes.to_string(), colored::Color::Cyan)
                 ));
-            } else if let Some(ref error) = output.error {
+            } else if output.error.is_some() {
                 result.push_str(&format!("{} Parse failed\n", self.error_icon()));
-                result.push_str(&format!(
-                    "💥 Error: {}\n",
-                    self.colorize(&error.to_string(), colored::Color::Red)
-                ));
+                // Error details are already shown via diagnostic handler to stderr
+                // No need to duplicate the error message here
             }
 
             Ok(result)
@@ -288,12 +283,10 @@ impl OutputFormatter for PrettyFormatter {
                         self.info_icon()
                     ));
                 }
-            } else if let Some(ref error) = output.error {
+            } else if output.error.is_some() {
                 result.push_str(&format!("{} Analysis failed\n", self.error_icon()));
-                result.push_str(&format!(
-                    "💥 Error: {}\n",
-                    self.colorize(&error.to_string(), colored::Color::Red)
-                ));
+                // Error details are already shown via diagnostic handler to stderr
+                // No need to duplicate the error message here
             }
 
             Ok(result)
@@ -320,7 +313,7 @@ fn get_fhir_type_name(value: &FhirPathValue) -> String {
         // Base64Binary variant doesn't exist anymore
         // Uri variant doesn't exist anymore
         // Url variant doesn't exist anymore
-        FhirPathValue::Resource(json, type_info, _) => {
+        FhirPathValue::Resource(_json, type_info, _) => {
             // Use the TypeInfo's name if available
             if let Some(ref name) = type_info.name {
                 name.clone()

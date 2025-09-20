@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// HasTemplateIdOf function evaluator for CDA documents
 pub struct HasTemplateIdOfFunctionEvaluator {
@@ -61,7 +61,10 @@ impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                format!("hasTemplateIdOf function expects 1 argument, got {}", args.len()),
+                format!(
+                    "hasTemplateIdOf function expects 1 argument, got {}",
+                    args.len()
+                ),
             ));
         }
 
@@ -102,7 +105,7 @@ impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
         // Check each element for the template ID
         for element in &elements_to_check {
             if let FhirPathValue::Resource(json, type_info, _) = element {
-                if has_template_id(&**json, &type_info.type_name, template_id) {
+                if has_template_id(json, &type_info.type_name, template_id) {
                     return Ok(EvaluationResult {
                         value: crate::core::Collection::single(FhirPathValue::boolean(true)),
                     });
@@ -134,8 +137,8 @@ fn has_template_id(json: &serde_json::Value, resource_type: &str, template_id: &
         "http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD" => {
             // This is a C-CDA Continuity of Care Document template
             // Check if this is a ClinicalDocument OR if it has resourceType ClinicalDocument
-            let is_clinical_document = resource_type == "ClinicalDocument" ||
-                json.get("resourceType").and_then(|v| v.as_str()) == Some("ClinicalDocument");
+            let is_clinical_document = resource_type == "ClinicalDocument"
+                || json.get("resourceType").and_then(|v| v.as_str()) == Some("ClinicalDocument");
 
             if is_clinical_document {
                 // Check for typical CCD structure

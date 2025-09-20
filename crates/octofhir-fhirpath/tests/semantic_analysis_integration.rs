@@ -3,14 +3,14 @@
 //! These tests demonstrate how our semantic analyzer can catch errors
 //! like the C# implementation while preserving fast runtime evaluation.
 
-use octofhir_fhir_model::EmptyModelProvider;
+use octofhir_fhir_model::{EmptyModelProvider, ModelProvider};
 use octofhir_fhirpath::diagnostics::DiagnosticSeverity;
 use octofhir_fhirpath::parser::parse_with_semantic_analysis;
 use std::sync::Arc;
 
 #[tokio::test]
 async fn test_valid_expression_analysis() {
-    let model_provider = Arc::new(EmptyModelProvider::new());
+    let model_provider = Arc::new(EmptyModelProvider);
 
     let result = parse_with_semantic_analysis("Patient.name", model_provider, None).await;
 
@@ -30,7 +30,7 @@ async fn test_valid_expression_analysis() {
 
 #[tokio::test]
 async fn test_invalid_property_semantic_error() {
-    let model_provider = Arc::new(EmptyModelProvider::new());
+    let model_provider = Arc::new(EmptyModelProvider);
 
     // First get Patient type to establish context
     let patient_type = model_provider.get_type("Patient").await.unwrap().unwrap();
@@ -78,7 +78,7 @@ async fn test_invalid_property_semantic_error() {
 
 #[tokio::test]
 async fn test_chain_head_resource_detection() {
-    let model_provider = Arc::new(EmptyModelProvider::new());
+    let model_provider = Arc::new(EmptyModelProvider);
 
     let result = parse_with_semantic_analysis(
         "Patient.name.given",
@@ -95,7 +95,7 @@ async fn test_chain_head_resource_detection() {
 
 #[tokio::test]
 async fn test_unknown_resource_type_error() {
-    let model_provider = Arc::new(EmptyModelProvider::new());
+    let model_provider = Arc::new(EmptyModelProvider);
 
     let result = parse_with_semantic_analysis("UnknownResource.name", model_provider, None).await;
 
@@ -118,7 +118,7 @@ async fn test_unknown_resource_type_error() {
 
 #[tokio::test]
 async fn test_semantic_vs_runtime_behavior() {
-    let model_provider = Arc::new(EmptyModelProvider::new());
+    let model_provider = Arc::new(EmptyModelProvider);
 
     // Test the same expression that fails in testSimpleFail
     let patient_type = model_provider.get_type("Patient").await.unwrap().unwrap();

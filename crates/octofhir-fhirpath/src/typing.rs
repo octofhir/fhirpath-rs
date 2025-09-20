@@ -459,7 +459,7 @@ impl TypeResolverFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::path::CanonicalPath;
+    use crate::core::model_provider::TypeInfo;
     use octofhir_fhir_model::EmptyModelProvider;
     use std::sync::Arc;
 
@@ -512,11 +512,19 @@ mod tests {
             "string"
         );
         assert_eq!(
-            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Integer(42, TypeInfo::system_type("Integer".to_string(), true), None)),
+            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Integer(
+                42,
+                TypeInfo::system_type("Integer".to_string(), true),
+                None
+            )),
             "integer"
         );
         assert_eq!(
-            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Boolean(true, TypeInfo::system_type("Boolean".to_string(), true), None)),
+            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Boolean(
+                true,
+                TypeInfo::system_type("Boolean".to_string(), true),
+                None
+            )),
             "boolean"
         );
     }

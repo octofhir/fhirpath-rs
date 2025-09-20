@@ -7,12 +7,13 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
+use crate::ast::{ExpressionNode, LiteralNode, LiteralValue};
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, LazyFunctionEvaluator,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// RepeatAll function evaluator
 pub struct RepeatAllFunctionEvaluator {
@@ -62,6 +63,39 @@ impl RepeatAllFunctionEvaluator {
 
     /// Maximum iterations for iterative approach
     const MAX_ITERATIONS: usize = 1000;
+
+    /// Check if a type name is valid using ModelProvider
+    fn literal_to_fhirpath_value(&self, literal: &LiteralNode) -> Option<FhirPathValue> {
+        match &literal.value {
+            LiteralValue::String(s) => Some(FhirPathValue::string(s.clone())),
+            LiteralValue::Integer(i) => Some(FhirPathValue::integer(*i)),
+            LiteralValue::Decimal(d) => Some(FhirPathValue::decimal(*d)),
+            LiteralValue::Boolean(b) => Some(FhirPathValue::boolean(*b)),
+            _ => None,
+        }
+    }
+
+    /// Check if two values are equal (for infinite loop detection)
+    fn values_equal(&self, a: &FhirPathValue, b: &FhirPathValue) -> bool {
+        match (a, b) {
+            (FhirPathValue::String(s1, _, _), FhirPathValue::String(s2, _, _)) => s1 == s2,
+            (FhirPathValue::Integer(i1, _, _), FhirPathValue::Integer(i2, _, _)) => i1 == i2,
+            (FhirPathValue::Decimal(d1, _, _), FhirPathValue::Decimal(d2, _, _)) => d1 == d2,
+            (FhirPathValue::Boolean(b1, _, _), FhirPathValue::Boolean(b2, _, _)) => b1 == b2,
+            _ => false,
+        }
+    }
+
+    /// Convert value to string for error messages
+    fn value_to_string(&self, value: &FhirPathValue) -> String {
+        match value {
+            FhirPathValue::String(s, _, _) => format!("'{s}'"),
+            FhirPathValue::Integer(i, _, _) => i.to_string(),
+            FhirPathValue::Decimal(d, _, _) => d.to_string(),
+            FhirPathValue::Boolean(b, _, _) => b.to_string(),
+            _ => "unknown".to_string(),
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -73,10 +107,10 @@ impl LazyFunctionEvaluator for RepeatAllFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
-        if args.is_empty() {
+        if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                "repeatAll function requires one argument (projection expression)".to_string(),
+                format!("repeatAll function expects 1 argument, got {}", args.len()),
             ));
         }
 
@@ -84,8 +118,34 @@ impl LazyFunctionEvaluator for RepeatAllFunctionEvaluator {
         let mut results = Vec::new();
         let mut processed_count = 0;
 
+        // Check for infinite constant repetition before starting
+        // If the expression is a constant that equals any input item, it will loop infinitely
+        if let ExpressionNode::Literal(literal) = projection_expr {
+            if let Some(literal_value) = self.literal_to_fhirpath_value(literal) {
+                for item in &input {
+                    if self.values_equal(item, &literal_value) {
+                        return Err(FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0061,
+                            format!(
+                                "repeatAll function with constant '{}' would create infinite loop",
+                                self.value_to_string(&literal_value)
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+
         // Use iterative approach instead of recursion to prevent stack overflow
-        self.repeat_all_iterative(input, projection_expr, context, &evaluator, &mut results, &mut processed_count).await?;
+        self.repeat_all_iterative(
+            input,
+            projection_expr,
+            context,
+            &evaluator,
+            &mut results,
+            &mut processed_count,
+        )
+        .await?;
 
         Ok(EvaluationResult {
             value: crate::core::Collection::from(results),
@@ -129,32 +189,46 @@ impl RepeatAllFunctionEvaluator {
             if iterations > Self::MAX_ITERATIONS {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0061,
-                    format!("repeatAll exceeded maximum iterations ({}) to prevent infinite loops", Self::MAX_ITERATIONS),
+                    format!(
+                        "repeatAll exceeded maximum iterations ({}) to prevent infinite loops",
+                        Self::MAX_ITERATIONS
+                    ),
                 ));
             }
 
             if depth > Self::MAX_DEPTH {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0061,
-                    format!("repeatAll exceeded maximum depth ({}) to prevent infinite recursion", Self::MAX_DEPTH),
+                    format!(
+                        "repeatAll exceeded maximum depth ({}) to prevent infinite recursion",
+                        Self::MAX_DEPTH
+                    ),
                 ));
             }
 
             if *processed_count > Self::MAX_ITEMS {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0061,
-                    format!("repeatAll exceeded maximum item limit ({}) to prevent infinite expansion", Self::MAX_ITEMS),
+                    format!(
+                        "repeatAll exceeded maximum item limit ({}) to prevent infinite expansion",
+                        Self::MAX_ITEMS
+                    ),
                 ));
             }
 
             // Create a simple hash for cycle detection (basic but effective)
-            let item_hash = format!("{:?}", current_item);
+            let item_hash = format!("{current_item:?}");
 
             // Add current item to results (repeatAll includes all items, even duplicates)
             results.push(current_item.clone());
 
+            // For constants, limit expansion after a few iterations to prevent infinite generation
+            if depth > 5 {
+                continue; // Skip expansion for deep constants
+            }
+
             // Only expand if we haven't seen this exact item at this depth (prevents immediate cycles)
-            let item_key = format!("{}@{}", item_hash, depth);
+            let item_key = format!("{item_hash}@{depth}");
             if seen_values.contains(&item_key) {
                 continue; // Skip expansion to prevent immediate cycles
             }

@@ -7,6 +7,7 @@
 pub mod context;
 pub mod engine;
 pub mod environment_variables;
+#[allow(clippy::module_inception)]
 pub mod evaluator;
 pub mod function_registry;
 pub mod functions;
@@ -27,8 +28,8 @@ pub use context::EvaluationContext;
 pub use environment_variables::{EnvironmentVariables, EnvironmentVariablesBuilder};
 pub use evaluator::{AsyncNodeEvaluator, Evaluator};
 pub use function_registry::{
-    FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter, FunctionRegistry,
-    FunctionSignature, create_function_registry,
+    FunctionCategory, FunctionMetadata, FunctionParameter, FunctionRegistry, FunctionSignature,
+    create_function_registry,
 };
 pub use metadata_collector::{
     CacheStats, EvaluationSummary, MetadataCollector, NodeEvaluationInfo, PerformanceMetrics,

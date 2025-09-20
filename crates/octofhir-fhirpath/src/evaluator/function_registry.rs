@@ -167,7 +167,7 @@ pub trait FunctionEvaluator: Send + Sync {
     /// - evaluator: Async evaluator for argument expressions
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        _input: Vec<FhirPathValue>,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -183,7 +183,7 @@ pub trait FunctionEvaluator: Send + Sync {
 
         // Check parameter count
         let param_count_ok = arg_count >= signature.min_params
-            && signature.max_params.map_or(true, |max| arg_count <= max);
+            && signature.max_params.is_none_or(|max| arg_count <= max);
 
         if !param_count_ok {
             return false;
@@ -241,7 +241,7 @@ pub trait PureFunctionEvaluator: Send + Sync {
     /// - args: Pre-evaluated function arguments (each Vec<FhirPathValue> is one argument)
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        _input: Vec<FhirPathValue>,
         args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult>;
 
@@ -259,7 +259,7 @@ pub trait ProviderPureFunctionEvaluator: Send + Sync {
     /// - context: Evaluation context providing access to terminology/model/trace providers
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        _input: Vec<FhirPathValue>,
         args: Vec<Vec<FhirPathValue>>,
         context: &crate::evaluator::EvaluationContext,
     ) -> Result<EvaluationResult>;
@@ -280,7 +280,7 @@ pub trait LazyFunctionEvaluator: Send + Sync {
     /// - evaluator: Async evaluator for argument expressions
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        _input: Vec<FhirPathValue>,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -327,7 +327,7 @@ impl FunctionEvaluatorWrapper {
 
                 // Check parameter count
                 let param_count_ok = arg_count >= signature.min_params
-                    && signature.max_params.map_or(true, |max| arg_count <= max);
+                    && signature.max_params.is_none_or(|max| arg_count <= max);
 
                 if !param_count_ok {
                     return false;
@@ -345,7 +345,7 @@ impl FunctionEvaluatorWrapper {
 
                 // Check parameter count
                 let param_count_ok = arg_count >= signature.min_params
-                    && signature.max_params.map_or(true, |max| arg_count <= max);
+                    && signature.max_params.is_none_or(|max| arg_count <= max);
 
                 if !param_count_ok {
                     return false;
@@ -363,7 +363,7 @@ impl FunctionEvaluatorWrapper {
 
                 // Check parameter count
                 let param_count_ok = arg_count >= signature.min_params
-                    && signature.max_params.map_or(true, |max| arg_count <= max);
+                    && signature.max_params.is_none_or(|max| arg_count <= max);
 
                 if !param_count_ok {
                     return false;
@@ -412,10 +412,7 @@ impl FunctionRegistry {
         self.metadata_cache.insert(name.clone(), metadata);
 
         // Update categories
-        self.categories
-            .entry(category)
-            .or_insert_with(Vec::new)
-            .push(name);
+        self.categories.entry(category).or_default().push(name);
     }
 
     /// Register a provider-dependent pure function evaluator (needs providers)
@@ -432,10 +429,7 @@ impl FunctionRegistry {
         self.metadata_cache.insert(name.clone(), metadata);
 
         // Update categories
-        self.categories
-            .entry(category)
-            .or_insert_with(Vec::new)
-            .push(name);
+        self.categories.entry(category).or_default().push(name);
     }
 
     /// Register a lazy function evaluator (new lazy interface)
@@ -449,10 +443,7 @@ impl FunctionRegistry {
         self.metadata_cache.insert(name.clone(), metadata);
 
         // Update categories
-        self.categories
-            .entry(category)
-            .or_insert_with(Vec::new)
-            .push(name);
+        self.categories.entry(category).or_default().push(name);
     }
 
     /// Get function evaluator by name (standard interface for backward compatibility)
@@ -570,7 +561,7 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_lazy_function(SelectFunctionEvaluator::create());
         self.registry
-            .register_provider_pure_function(OfTypeFunctionEvaluator::create());
+            .register_lazy_function(OfTypeFunctionEvaluator::create());
         self.registry
             .register_lazy_function(RepeatFunctionEvaluator::create());
         self.registry
@@ -800,7 +791,7 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_lazy_function(IsFunctionEvaluator::create());
         self.registry
-            .register_provider_pure_function(AsFunctionEvaluator::create());
+            .register_lazy_function(AsFunctionEvaluator::create());
         self.registry
             .register_pure_function(TypeFunctionEvaluator::create());
 
@@ -862,7 +853,7 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_lazy_function(IsFunctionEvaluator::create());
         self.registry
-            .register_provider_pure_function(AsFunctionEvaluator::create());
+            .register_lazy_function(AsFunctionEvaluator::create());
         self.registry
             .register_pure_function(TypeFunctionEvaluator::create());
         self.registry
@@ -938,7 +929,7 @@ mod tests {
 
     #[test]
     fn test_function_registry_builder() {
-        let registry = FunctionRegistryBuilder::new()
+        let _registry = FunctionRegistryBuilder::new()
             .with_existence_functions()
             .with_string_functions()
             .build();

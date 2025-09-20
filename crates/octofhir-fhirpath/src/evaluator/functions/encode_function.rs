@@ -6,12 +6,12 @@
 use base64::Engine;
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Encode function evaluator
 pub struct EncodeFunctionEvaluator {
@@ -127,8 +127,7 @@ impl PureFunctionEvaluator for EncodeFunctionEvaluator {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
                     format!(
-                        "Unsupported encoding format: {}. Supported formats: base64, urlbase64, hex, url, html",
-                        format_str
+                        "Unsupported encoding format: {format_str}. Supported formats: base64, urlbase64, hex, url, html"
                     ),
                 ));
             }

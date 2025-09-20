@@ -3,9 +3,9 @@
 //! This module provides a simplified evaluation context with proper variable scoping using
 //! parent chain pattern for variable scoping.
 
+use papaya::HashMap as LockFreeHashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
-use papaya::HashMap as LockFreeHashMap;
 
 use crate::core::trace::SharedTraceProvider;
 use crate::core::{Collection, FhirPathValue, ModelProvider};
@@ -37,19 +37,36 @@ pub struct EvaluationContext {
 fn create_environment_variables() -> HashMap<String, FhirPathValue> {
     let mut env = HashMap::new();
 
-    // Standard environment variables from FHIR specification
-    env.insert(
-        "sct".to_string(),
-        FhirPathValue::string("http://snomed.info/sct".to_string()),
-    );
-    env.insert(
-        "loinc".to_string(),
-        FhirPathValue::string("http://loinc.org".to_string()),
-    );
-    env.insert(
-        "ucum".to_string(),
-        FhirPathValue::string("http://unitsofmeasure.org".to_string()),
-    );
+    // Use the EnvironmentVariables struct to get all standard variables
+    let env_vars = crate::evaluator::environment_variables::EnvironmentVariables::new();
+
+    // Add standard environment variables from FHIR specification
+    if let Some(sct_url) = env_vars.sct_url {
+        env.insert("sct".to_string(), FhirPathValue::string(sct_url));
+    }
+    if let Some(loinc_url) = env_vars.loinc_url {
+        env.insert("loinc".to_string(), FhirPathValue::string(loinc_url));
+    }
+
+    // Add value set variables (%vs-*)
+    for (name, url) in env_vars.value_sets {
+        env.insert(format!("vs-{name}"), FhirPathValue::string(url));
+    }
+
+    // Add extension variables (%ext-*)
+    for (name, url) in env_vars.extensions {
+        env.insert(format!("ext-{name}"), FhirPathValue::string(url));
+    }
+
+    // Add custom variables (strip % prefix if present since that's just FHIRPath syntax)
+    for (key, value) in env_vars.custom_variables {
+        let var_name = if let Some(stripped) = key.strip_prefix('%') {
+            stripped.to_string()
+        } else {
+            key
+        };
+        env.insert(var_name, value);
+    }
 
     env
 }
@@ -80,8 +97,8 @@ impl EvaluationContext {
         // Add %vs-[name] and %ext-[name] support
         // These will be dynamically resolved when accessed
 
-        Self {
-            input_collection,
+        let context = Self {
+            input_collection: input_collection.clone(),
             model_provider,
             terminology_provider,
             validation_provider,
@@ -94,7 +111,15 @@ impl EvaluationContext {
                 lock_free_map
             },
             parent_context: None,
+        };
+
+        // Set $this to the root input collection for root-level evaluation
+        // This follows FHIRPath specification where $this refers to the current context
+        if let Some(root_value) = input_collection.first() {
+            context.set_variable("this".to_string(), root_value.clone());
         }
+
+        context
     }
 
     /// Get variable value using parent chain pattern
@@ -186,20 +211,18 @@ impl EvaluationContext {
         }
 
         // Handle %vs-[name] pattern for value sets
-        if name.starts_with("vs-") {
-            let vs_name = &name[3..]; // Remove "vs-" prefix
+        if let Some(vs_name) = name.strip_prefix("vs-") {
+            // Remove "vs-" prefix
             return Some(FhirPathValue::string(format!(
-                "http://hl7.org/fhir/ValueSet/{}",
-                vs_name
+                "http://hl7.org/fhir/ValueSet/{vs_name}"
             )));
         }
 
         // Handle %ext-[name] pattern for extensions
-        if name.starts_with("ext-") {
-            let ext_name = &name[4..]; // Remove "ext-" prefix
+        if let Some(ext_name) = name.strip_prefix("ext-") {
+            // Remove "ext-" prefix
             return Some(FhirPathValue::string(format!(
-                "http://hl7.org/fhir/StructureDefinition/{}",
-                ext_name
+                "http://hl7.org/fhir/StructureDefinition/{ext_name}"
             )));
         }
 

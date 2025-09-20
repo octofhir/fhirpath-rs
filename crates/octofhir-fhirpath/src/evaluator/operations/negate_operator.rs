@@ -58,7 +58,7 @@ impl NegateOperatorEvaluator {
                 value: -value,
                 unit: unit.clone(),
                 ucum_unit: ucum_unit.clone(),
-                calendar_unit: calendar_unit.clone(),
+                calendar_unit: *calendar_unit,
                 primitive_element: primitive_element.clone(),
                 type_info: type_info.clone(),
             }),
@@ -75,7 +75,7 @@ impl NegateOperatorEvaluator {
 impl OperationEvaluator for NegateOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         _right: Vec<FhirPathValue>, // Empty for unary operations

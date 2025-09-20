@@ -8,7 +8,8 @@ use std::sync::Arc;
 
 use crate::ast::{
     AnalysisMetadata, BinaryOperationNode, BinaryOperator, ExpressionAnalysis, ExpressionNode,
-    FunctionCallNode, IdentifierNode, LiteralNode, LiteralValue, MethodCallNode, PropertyAccessNode,
+    FunctionCallNode, IdentifierNode, LiteralNode, LiteralValue, MethodCallNode,
+    PropertyAccessNode,
 };
 use crate::core::FhirPathError;
 use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
@@ -137,7 +138,7 @@ impl SemanticAnalyzer {
                     code: "PROPERTY_NOT_FOUND".to_string(),
                     namespace: Some("fhirpath".to_string()),
                 },
-                message: format!("prop '{}' not found on {}", name, type_display),
+                message: format!("prop '{name}' not found on {type_display}"),
                 location: identifier.location.clone(),
                 related: vec![],
             };
@@ -235,7 +236,7 @@ impl SemanticAnalyzer {
                 if self.is_temporal_literal(left_literal) && self.is_number_literal(right_literal) {
                     // Extract the actual number value for a better error message
                     let number_str = self.get_number_string(right_literal);
-                    let suggestion = format!("+ {} 'days'", number_str);
+                    let suggestion = format!("+ {number_str} 'days'");
 
                     // This is a semantic error: date + plain number is not allowed
                     analysis.add_diagnostic(Diagnostic {
@@ -244,7 +245,7 @@ impl SemanticAnalyzer {
                             code: "FP0082".to_string(),
                             namespace: None,
                         },
-                        message: format!("Cannot add a plain number to a date/time value. Use a quantity with units instead (e.g., {})", suggestion),
+                        message: format!("Cannot add a plain number to a date/time value. Use a quantity with units instead (e.g., {suggestion})"),
                         location: binary_op.location.clone(),
                         related: Vec::new(),
                     });
@@ -285,6 +286,7 @@ impl SemanticAnalyzer {
     }
 
     /// Suggest property name fixes for typos
+    #[allow(dead_code)]
     async fn suggest_property_fixes(
         &self,
         property_name: &str,
@@ -305,6 +307,7 @@ impl SemanticAnalyzer {
     }
 
     /// Calculate simple edit distance between strings
+    #[allow(dead_code)]
     fn string_distance(&self, a: &str, b: &str) -> usize {
         let a_chars: Vec<char> = a.chars().collect();
         let b_chars: Vec<char> = b.chars().collect();
@@ -318,6 +321,7 @@ impl SemanticAnalyzer {
 
         let mut matrix = vec![vec![0; b_chars.len() + 1]; a_chars.len() + 1];
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..=a_chars.len() {
             matrix[i][0] = i;
         }
@@ -350,9 +354,26 @@ impl SemanticAnalyzer {
     ) -> Result<AnalysisMetadata, FhirPathError> {
         // Check for functions that require an input context but are called without one
         let functions_requiring_context = [
-            "length", "empty", "count", "first", "last", "tail", "skip", "take",
-            "exists", "all", "any", "allTrue", "anyTrue", "distinct", "children",
-            "descendants", "where", "select", "single", "hasValue"
+            "length",
+            "empty",
+            "count",
+            "first",
+            "last",
+            "tail",
+            "skip",
+            "take",
+            "exists",
+            "all",
+            "any",
+            "allTrue",
+            "anyTrue",
+            "distinct",
+            "children",
+            "descendants",
+            "where",
+            "select",
+            "single",
+            "hasValue",
         ];
 
         if functions_requiring_context.contains(&func_call.name.as_str()) && self.is_chain_head {
@@ -371,10 +392,10 @@ impl SemanticAnalyzer {
         }
 
         // Check for specific function type validation
-        if func_call.name == "iif" && func_call.arguments.len() >= 1 {
+        if func_call.name == "iif" && !func_call.arguments.is_empty() {
             // Analyze the first argument (condition) - should be boolean
             let condition_expr = &func_call.arguments[0];
-            let metadata = self.analyze_node(condition_expr, analysis).await?;
+            let _metadata = self.analyze_node(condition_expr, analysis).await?;
 
             // Check if it's a literal non-boolean value
             if let ExpressionNode::Literal(literal) = condition_expr {
@@ -435,7 +456,7 @@ impl SemanticAnalyzer {
         self.is_chain_head = false;
 
         // Check for specific method type validation
-        if method_call.method == "iif" && method_call.arguments.len() >= 1 {
+        if method_call.method == "iif" && !method_call.arguments.is_empty() {
             // Analyze the first argument (condition) - should be boolean
             let condition_expr = &method_call.arguments[0];
 
@@ -493,25 +514,32 @@ impl SemanticAnalyzer {
     }
 
     /// Check if an expression contains union operations (creates collections)
+    #[allow(clippy::only_used_in_recursion)]
     fn contains_union_operation(&self, expr: &ExpressionNode) -> bool {
         match expr {
+            ExpressionNode::Union(_) => {
+                // This is a union operation - direct detection
+                true
+            }
             ExpressionNode::BinaryOperation(binary_op) => {
-                if binary_op.operator == BinaryOperator::Union {
-                    true
-                } else {
-                    // Recursively check both operands
-                    self.contains_union_operation(&binary_op.left) ||
-                    self.contains_union_operation(&binary_op.right)
-                }
+                // Recursively check both operands
+                self.contains_union_operation(&binary_op.left)
+                    || self.contains_union_operation(&binary_op.right)
             }
             ExpressionNode::FunctionCall(func_call) => {
                 // Check function arguments
-                func_call.arguments.iter().any(|arg| self.contains_union_operation(arg))
+                func_call
+                    .arguments
+                    .iter()
+                    .any(|arg| self.contains_union_operation(arg))
             }
             ExpressionNode::MethodCall(method_call) => {
                 // Check object and method arguments
-                self.contains_union_operation(&method_call.object) ||
-                method_call.arguments.iter().any(|arg| self.contains_union_operation(arg))
+                self.contains_union_operation(&method_call.object)
+                    || method_call
+                        .arguments
+                        .iter()
+                        .any(|arg| self.contains_union_operation(arg))
             }
             ExpressionNode::PropertyAccess(prop_access) => {
                 // Check the object being accessed

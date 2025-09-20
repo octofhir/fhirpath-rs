@@ -392,6 +392,7 @@ fn timezone_format_str<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich
 }
 
 /// Parse full datetime format: 2021-01-01T15:30:00Z
+#[allow(dead_code)]
 fn datetime_full_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     // Parse date, then require 'T' immediately followed by a valid time
@@ -418,6 +419,7 @@ fn datetime_full_parser<'a>()
 }
 
 /// Parse a date-only value marked as DateTime using trailing 'T': 2021-01-01T, 2021-01T, or 2021T
+#[allow(dead_code)]
 fn datetime_date_shorthand_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     date_format_str()
@@ -612,6 +614,7 @@ fn datetime_date_or_full_parser<'a>()
 }
 
 /// Parse date only format: 2021-01-01, 2021-01, or 2021 (only if not followed by T)
+#[allow(dead_code)]
 fn date_only_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     // Kept for potential future use, but not referenced anymore since
@@ -707,7 +710,7 @@ pub fn variable_parser<'a>()
             )))
             .map(|name: String| {
                 ExpressionNode::Variable(VariableNode {
-                    name: name,
+                    name,
                     location: None,
                 })
             }),

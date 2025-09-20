@@ -6,10 +6,11 @@
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Length function evaluator
 pub struct LengthFunctionEvaluator {
@@ -67,7 +68,9 @@ impl PureFunctionEvaluator for LengthFunctionEvaluator {
                     // For a single string, return its character length
                     let string_length = s.chars().count() as i64;
                     return Ok(EvaluationResult {
-                        value: crate::core::Collection::single(FhirPathValue::integer(string_length)),
+                        value: crate::core::Collection::single(FhirPathValue::integer(
+                            string_length,
+                        )),
                     });
                 }
                 _ => {

@@ -4,12 +4,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
-use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 pub struct ExcludeFunctionEvaluator {
     metadata: FunctionMetadata,
@@ -20,7 +20,8 @@ impl ExcludeFunctionEvaluator {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "exclude".to_string(),
-                description: "Returns the collection excluding items that match the parameter".to_string(),
+                description: "Returns the collection excluding items that match the parameter"
+                    .to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
                     parameters: vec![FunctionParameter {
@@ -64,7 +65,10 @@ impl ExcludeFunctionEvaluator {
             (FhirPathValue::Time(t1, _, _), FhirPathValue::Time(t2, _, _)) => t1 == t2,
 
             // FHIR Resources - leverage Arc<JsonValue> for efficient nested object comparison
-            (FhirPathValue::Resource(json1, type1, _), FhirPathValue::Resource(json2, type2, _)) => {
+            (
+                FhirPathValue::Resource(json1, type1, _),
+                FhirPathValue::Resource(json2, type2, _),
+            ) => {
                 // Fast path: if Arc pointers are the same, objects are identical
                 if std::sync::Arc::ptr_eq(json1, json2) {
                     return true;

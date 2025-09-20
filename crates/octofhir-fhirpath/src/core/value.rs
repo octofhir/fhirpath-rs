@@ -77,23 +77,33 @@ pub mod utils {
 
     /// Convert JSON object to Quantity FhirPathValue
     fn convert_json_to_quantity(obj: &serde_json::Map<String, JsonValue>) -> FhirPathValue {
-        // Extract value
+        // Extract value - handle both string and number representations
         let value = obj
             .get("value")
-            .and_then(|v| v.as_f64())
+            .and_then(|v| {
+                // Try as number first
+                if let Some(f) = v.as_f64() {
+                    Some(f)
+                } else if let Some(s) = v.as_str() {
+                    // Try to parse string as number
+                    s.parse::<f64>().ok()
+                } else {
+                    None
+                }
+            })
             .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
             .unwrap_or_default();
 
-        // For unit, prefer "unit" field over "code" field for display
-        // This matches FHIRPath expectation that .unit returns human-readable unit
+        // For quantity comparisons, use the "code" field (UCUM) for calculations
+        // The "unit" field is for human display but "code" is canonical for math
         let unit = obj
-            .get("unit")
-            .and_then(|u| u.as_str())
+            .get("code")
+            .and_then(|c| c.as_str())
             .map(|s| s.to_string())
             .or_else(|| {
-                // Fallback to code if no unit field
-                obj.get("code")
-                    .and_then(|c| c.as_str())
+                // Fallback to unit if no code field
+                obj.get("unit")
+                    .and_then(|u| u.as_str())
                     .map(|s| s.to_string())
             });
 
@@ -175,10 +185,7 @@ pub mod utils {
                         .map_err(|e| {
                             crate::core::FhirPathError::evaluation_error(
                                 crate::core::error_code::FP0054,
-                                format!(
-                                    "ModelProvider error getting type '{}': {}",
-                                    resource_type, e
-                                ),
+                                format!("ModelProvider error getting type '{resource_type}': {e}"),
                             )
                         })?
                         .unwrap_or_else(|| crate::core::model_provider::TypeInfo {

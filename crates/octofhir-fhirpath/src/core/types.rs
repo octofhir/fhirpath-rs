@@ -10,8 +10,8 @@ use std::sync::{Arc, LazyLock};
 
 use super::error::{FhirPathError, Result};
 use super::error_code::*;
-use super::model_provider::{ModelProvider, TypeInfo};
 use super::model_provider::utils::extract_resource_type;
+use super::model_provider::{ModelProvider, TypeInfo};
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 
 // Import the new evaluation types from fhir-model-rs
@@ -68,7 +68,8 @@ impl Collection {
         json: JsonValue,
         model_provider: Option<Arc<dyn ModelProvider>>,
     ) -> crate::core::Result<Self> {
-        let resource_value = FhirPathValue::resource_with_model_provider(json, model_provider).await?;
+        let resource_value =
+            FhirPathValue::resource_with_model_provider(json, model_provider).await?;
         Ok(Self::from_values(vec![resource_value]))
     }
 
@@ -219,6 +220,12 @@ pub struct WrappedExtension {
     pub value: Option<JsonValue>,
     /// Nested extensions
     pub extensions: Vec<WrappedExtension>,
+}
+
+impl Default for WrappedPrimitiveElement {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WrappedPrimitiveElement {
@@ -394,6 +401,7 @@ impl CalendarUnit {
     }
 
     /// Parse from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "millisecond" | "milliseconds" | "ms" => Some(Self::Millisecond),
@@ -636,7 +644,7 @@ impl FhirPathValue {
         match self {
             Self::Boolean(v, _, _) => Self::Boolean(*v, default_type_info.clone(), None),
             Self::Integer(v, _, _) => Self::Integer(*v, default_type_info.clone(), None),
-            Self::Decimal(v, _, _) => Self::Decimal(v.clone(), default_type_info.clone(), None),
+            Self::Decimal(v, _, _) => Self::Decimal(*v, default_type_info.clone(), None),
             Self::String(v, _, _) => Self::String(v.clone(), default_type_info.clone(), None),
             Self::Date(v, _, _) => Self::Date(v.clone(), default_type_info.clone(), None),
             Self::DateTime(v, _, _) => Self::DateTime(v.clone(), default_type_info.clone(), None),
@@ -649,7 +657,7 @@ impl FhirPathValue {
                 calendar_unit,
                 ..
             } => Self::Quantity {
-                value: value.clone(),
+                value: *value,
                 unit: unit.clone(),
                 ucum_unit: ucum_unit.clone(),
                 calendar_unit: *calendar_unit,
@@ -698,7 +706,7 @@ impl FhirPathValue {
             Self::Resource(_, type_info, _) => {
                 // Use the corrected type_name from TypeInfo for display
                 type_info.type_name.clone()
-            },
+            }
             Self::Collection(_) => "Collection".to_string(),
             Self::Empty => "empty".to_string(),
         }
@@ -1204,11 +1212,25 @@ impl FhirPathValue {
             Self::Boolean(b, _, primitive) => Self::Boolean(*b, new_type_info, primitive.clone()),
             Self::Integer(i, _, primitive) => Self::Integer(*i, new_type_info, primitive.clone()),
             Self::Decimal(d, _, primitive) => Self::Decimal(*d, new_type_info, primitive.clone()),
-            Self::String(s, _, primitive) => Self::String(s.clone(), new_type_info, primitive.clone()),
-            Self::Date(date, _, primitive) => Self::Date(date.clone(), new_type_info, primitive.clone()),
-            Self::DateTime(dt, _, primitive) => Self::DateTime(dt.clone(), new_type_info, primitive.clone()),
-            Self::Time(time, _, primitive) => Self::Time(time.clone(), new_type_info, primitive.clone()),
-            Self::Quantity { value, unit, ucum_unit, calendar_unit, .. } => Self::Quantity {
+            Self::String(s, _, primitive) => {
+                Self::String(s.clone(), new_type_info, primitive.clone())
+            }
+            Self::Date(date, _, primitive) => {
+                Self::Date(date.clone(), new_type_info, primitive.clone())
+            }
+            Self::DateTime(dt, _, primitive) => {
+                Self::DateTime(dt.clone(), new_type_info, primitive.clone())
+            }
+            Self::Time(time, _, primitive) => {
+                Self::Time(time.clone(), new_type_info, primitive.clone())
+            }
+            Self::Quantity {
+                value,
+                unit,
+                ucum_unit,
+                calendar_unit,
+                ..
+            } => Self::Quantity {
                 value: *value,
                 unit: unit.clone(),
                 ucum_unit: ucum_unit.clone(),
@@ -1216,7 +1238,9 @@ impl FhirPathValue {
                 type_info: new_type_info,
                 primitive_element: None,
             },
-            Self::Resource(json, _, primitive) => Self::Resource(json.clone(), new_type_info, primitive.clone()),
+            Self::Resource(json, _, primitive) => {
+                Self::Resource(json.clone(), new_type_info, primitive.clone())
+            }
             Self::Collection(collection) => Self::Collection(collection.clone()),
             Self::Empty => Self::Empty,
         }
@@ -1226,44 +1250,69 @@ impl FhirPathValue {
     pub fn to_evaluation_result(&self) -> EvaluationResult {
         match self {
             Self::Boolean(b, type_info, _) => {
-                let type_info_result = type_info.namespace.as_ref()
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
                 EvaluationResult::Boolean(*b, type_info_result)
             }
             Self::Integer(i, type_info, _) => {
-                let type_info_result = type_info.namespace.as_ref()
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
                 EvaluationResult::Integer(*i, type_info_result)
             }
             Self::Decimal(d, type_info, _) => {
-                let type_info_result = type_info.namespace.as_ref()
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
                 EvaluationResult::Decimal(*d, type_info_result)
             }
             Self::String(s, type_info, _) => {
-                let type_info_result = type_info.namespace.as_ref()
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
                 EvaluationResult::String(s.clone(), type_info_result)
             }
             Self::Date(d, type_info, _) => {
-                let type_info_result = type_info.namespace.as_ref()
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
                 EvaluationResult::Date(d.to_string(), type_info_result)
             }
             Self::DateTime(dt, type_info, _) => {
-                let type_info_result = type_info.namespace.as_ref()
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
                 EvaluationResult::DateTime(dt.to_string(), type_info_result)
             }
             Self::Time(t, type_info, _) => {
-                let type_info_result = type_info.namespace.as_ref()
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
                 EvaluationResult::Time(t.to_string(), type_info_result)
             }
-            Self::Quantity { value, unit, type_info, .. } => {
-                let type_info_result = type_info.namespace.as_ref()
+            Self::Quantity {
+                value,
+                unit,
+                type_info,
+                ..
+            } => {
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
-                EvaluationResult::Quantity(*value, unit.clone().unwrap_or_default(), type_info_result)
+                EvaluationResult::Quantity(
+                    *value,
+                    unit.clone().unwrap_or_default(),
+                    type_info_result,
+                )
             }
             Self::Resource(json, type_info, _) => {
                 // Convert to object representation
@@ -1273,7 +1322,9 @@ impl FhirPathValue {
                         map.insert(key.clone(), self.json_to_evaluation_result(value));
                     }
                 }
-                let type_info_result = type_info.namespace.as_ref()
+                let type_info_result = type_info
+                    .namespace
+                    .as_ref()
                     .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
                 EvaluationResult::Object {
                     map,
@@ -1281,7 +1332,8 @@ impl FhirPathValue {
                 }
             }
             Self::Collection(collection) => {
-                let items = collection.iter()
+                let items = collection
+                    .iter()
                     .map(|v| v.to_evaluation_result())
                     .collect();
                 EvaluationResult::Collection {
@@ -1295,6 +1347,7 @@ impl FhirPathValue {
     }
 
     /// Helper method to convert JSON values to EvaluationResult
+    #[allow(clippy::only_used_in_recursion)]
     fn json_to_evaluation_result(&self, value: &JsonValue) -> EvaluationResult {
         match value {
             JsonValue::Null => EvaluationResult::Empty,
@@ -1314,7 +1367,8 @@ impl FhirPathValue {
             }
             JsonValue::String(s) => EvaluationResult::string(s.clone()),
             JsonValue::Array(arr) => {
-                let items = arr.iter()
+                let items = arr
+                    .iter()
                     .map(|v| self.json_to_evaluation_result(v))
                     .collect();
                 EvaluationResult::collection(items)
@@ -1334,7 +1388,8 @@ impl FhirPathValue {
         match eval_result {
             EvaluationResult::Empty => Self::Empty,
             EvaluationResult::Boolean(b, type_info) => {
-                let ti = type_info.as_ref()
+                let ti = type_info
+                    .as_ref()
                     .map(|ti| TypeInfo {
                         type_name: ti.name.clone(),
                         singleton: Some(true),
@@ -1352,7 +1407,8 @@ impl FhirPathValue {
                 Self::Boolean(*b, ti, None)
             }
             EvaluationResult::Integer(i, type_info) => {
-                let ti = type_info.as_ref()
+                let ti = type_info
+                    .as_ref()
                     .map(|ti| TypeInfo {
                         type_name: ti.name.clone(),
                         singleton: Some(true),
@@ -1370,7 +1426,8 @@ impl FhirPathValue {
                 Self::Integer(*i, ti, None)
             }
             EvaluationResult::String(s, type_info) => {
-                let ti = type_info.as_ref()
+                let ti = type_info
+                    .as_ref()
                     .map(|ti| TypeInfo {
                         type_name: ti.name.clone(),
                         singleton: Some(true),
@@ -1388,7 +1445,8 @@ impl FhirPathValue {
                 Self::String(s.clone(), ti, None)
             }
             EvaluationResult::Decimal(d, type_info) => {
-                let ti = type_info.as_ref()
+                let ti = type_info
+                    .as_ref()
                     .map(|ti| TypeInfo {
                         type_name: ti.name.clone(),
                         singleton: Some(true),
@@ -1406,9 +1464,7 @@ impl FhirPathValue {
                 Self::Decimal(*d, ti, None)
             }
             EvaluationResult::Collection { items, .. } => {
-                let values = items.iter()
-                    .map(|item| Self::from_evaluation_result(item))
-                    .collect();
+                let values = items.iter().map(Self::from_evaluation_result).collect();
                 Self::Collection(Collection::from_values(values))
             }
             // Add other variants as needed
@@ -1440,9 +1496,7 @@ impl fmt::Display for FhirPathValue {
                     write!(f, "{resource_type}({json})")
                 } else {
                     let display_name = type_info.name.as_deref().unwrap_or(&type_info.type_name);
-                    eprintln!("DEBUG Display: Using display_name='{}' from type_info.name={:?}, type_info.type_name='{}'",
-                              display_name, type_info.name, type_info.type_name);
-                    write!(f, "{}({json})", display_name)
+                    write!(f, "{display_name}({json})")
                 }
             }
             Self::Collection(collection) => {
@@ -1902,11 +1956,7 @@ impl TypeDetails {
 
     /// Check if this type is optional (allows zero values)
     pub fn is_optional(&self) -> bool {
-        match self.cardinality {
-            Cardinality::ZeroToOne | Cardinality::ZeroToMany => true,
-            Cardinality::Range(0, _) => true,
-            _ => false,
-        }
+        matches!(self.cardinality, Cardinality::ZeroToOne | Cardinality::ZeroToMany | Cardinality::Range(0, _))
     }
 
     /// Get minimum cardinality
@@ -1939,13 +1989,13 @@ impl Cardinality {
             "1..1" => Ok(Self::OneToOne),
             "1..*" => Ok(Self::OneToMany),
             _ => {
-                if let Some(n) = s.parse::<usize>().ok() {
+                if let Ok(n) = s.parse::<usize>() {
                     Ok(Self::Exact(n))
                 } else if let Some((min_str, max_str)) = s.split_once("..") {
                     let min = min_str.parse::<usize>().map_err(|_| {
                         FhirPathError::evaluation_error(
                             FP0051,
-                            format!("Invalid cardinality format: {}", s),
+                            format!("Invalid cardinality format: {s}"),
                         )
                     })?;
                     let max = if max_str == "*" {
@@ -1954,7 +2004,7 @@ impl Cardinality {
                         Some(max_str.parse::<usize>().map_err(|_| {
                             FhirPathError::evaluation_error(
                                 FP0051,
-                                format!("Invalid cardinality format: {}", s),
+                                format!("Invalid cardinality format: {s}"),
                             )
                         })?)
                     };
@@ -1962,7 +2012,7 @@ impl Cardinality {
                 } else {
                     Err(FhirPathError::evaluation_error(
                         FP0051,
-                        format!("Invalid cardinality format: {}", s),
+                        format!("Invalid cardinality format: {s}"),
                     ))
                 }
             }
@@ -1977,8 +2027,8 @@ impl Cardinality {
             Self::OneToOne => "1..1".to_string(),
             Self::OneToMany => "1..*".to_string(),
             Self::Exact(n) => n.to_string(),
-            Self::Range(min, Some(max)) => format!("{}..{}", min, max),
-            Self::Range(min, None) => format!("{}..*", min),
+            Self::Range(min, Some(max)) => format!("{min}..{max}"),
+            Self::Range(min, None) => format!("{min}..*"),
         }
     }
 
@@ -1998,7 +2048,7 @@ impl Cardinality {
             Self::Range(_, max) => *max,
         };
 
-        count >= min && max.map_or(true, |m| count <= m)
+        count >= min && max.is_none_or(|m| count <= m)
     }
 }
 
@@ -2106,14 +2156,14 @@ impl TypeConstraint {
     /// Get human-readable description of this constraint
     pub fn description(&self) -> String {
         match self {
-            Self::ValueSet(url) => format!("Must be a value from ValueSet: {}", url),
-            Self::Pattern(pattern) => format!("Must match pattern: {}", pattern),
-            Self::MinLength(min) => format!("Minimum length: {}", min),
-            Self::MaxLength(max) => format!("Maximum length: {}", max),
-            Self::MinValue(min) => format!("Minimum value: {}", min),
-            Self::MaxValue(max) => format!("Maximum value: {}", max),
-            Self::FixedValue(val) => format!("Fixed value: {}", val),
-            Self::RequiredProperty(prop) => format!("Required property: {}", prop),
+            Self::ValueSet(url) => format!("Must be a value from ValueSet: {url}"),
+            Self::Pattern(pattern) => format!("Must match pattern: {pattern}"),
+            Self::MinLength(min) => format!("Minimum length: {min}"),
+            Self::MaxLength(max) => format!("Maximum length: {max}"),
+            Self::MinValue(min) => format!("Minimum value: {min}"),
+            Self::MaxValue(max) => format!("Maximum value: {max}"),
+            Self::FixedValue(val) => format!("Fixed value: {val}"),
+            Self::RequiredProperty(prop) => format!("Required property: {prop}"),
             Self::ConditionalConstraint {
                 condition,
                 constraint,
@@ -2126,20 +2176,20 @@ impl TypeConstraint {
 
 #[cfg(test)]
 pub mod test_utils {
-    use super::*;
-    use crate::core::{ModelProvider, TypeInfo, ElementInfo};
-    use serde_json::Value as JsonValue;
+    use crate::core::model_provider::{ElementInfo, ModelProvider, TypeInfo};
+    use octofhir_fhir_model::error::Result as ModelResult;
 
     /// Create a test model provider for unit tests
     pub fn create_test_model_provider() -> impl ModelProvider {
         TestModelProvider
     }
 
+    #[derive(Debug)]
     struct TestModelProvider;
 
     #[async_trait::async_trait]
     impl ModelProvider for TestModelProvider {
-        async fn get_type(&self, _type_name: &str) -> Result<Option<TypeInfo>> {
+        async fn get_type(&self, _type_name: &str) -> ModelResult<Option<TypeInfo>> {
             Ok(Some(TypeInfo {
                 type_name: "TestType".to_string(),
                 singleton: Some(true),
@@ -2153,7 +2203,7 @@ pub mod test_utils {
             &self,
             _parent_type: &TypeInfo,
             _property_name: &str,
-        ) -> Result<Option<TypeInfo>> {
+        ) -> ModelResult<Option<TypeInfo>> {
             Ok(Some(TypeInfo {
                 type_name: "String".to_string(),
                 singleton: Some(true),
@@ -2171,24 +2221,31 @@ pub mod test_utils {
             vec![]
         }
 
-        async fn get_children_type(&self, _parent_type: &TypeInfo) -> Result<Option<TypeInfo>> {
+        async fn get_children_type(
+            &self,
+            _parent_type: &TypeInfo,
+        ) -> ModelResult<Option<TypeInfo>> {
             Ok(None)
         }
 
-        async fn get_elements(&self, _type_name: &str) -> Result<Vec<ElementInfo>> {
+        async fn get_elements(&self, _type_name: &str) -> ModelResult<Vec<ElementInfo>> {
             Ok(vec![])
         }
 
-        async fn get_resource_types(&self) -> Result<Vec<String>> {
+        async fn get_resource_types(&self) -> ModelResult<Vec<String>> {
             Ok(vec!["TestResource".to_string()])
         }
 
-        async fn get_complex_types(&self) -> Result<Vec<String>> {
+        async fn get_complex_types(&self) -> ModelResult<Vec<String>> {
             Ok(vec!["TestType".to_string()])
         }
 
-        async fn get_primitive_types(&self) -> Result<Vec<String>> {
-            Ok(vec!["string".to_string(), "integer".to_string(), "boolean".to_string()])
+        async fn get_primitive_types(&self) -> ModelResult<Vec<String>> {
+            Ok(vec![
+                "string".to_string(),
+                "integer".to_string(),
+                "boolean".to_string(),
+            ])
         }
     }
 }

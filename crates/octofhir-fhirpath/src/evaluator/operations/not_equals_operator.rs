@@ -19,6 +19,12 @@ pub struct NotEqualsOperatorEvaluator {
     equals_evaluator: EqualsOperatorEvaluator,
 }
 
+impl Default for NotEqualsOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NotEqualsOperatorEvaluator {
     /// Create a new not equals operator evaluator
     pub fn new() -> Self {
@@ -104,7 +110,7 @@ mod tests {
         let evaluator = NotEqualsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -126,7 +132,7 @@ mod tests {
         let evaluator = NotEqualsOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

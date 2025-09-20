@@ -3,11 +3,11 @@
 //! This function tests if a value can be converted to a Quantity.
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::EvaluationResult;
 use std::sync::Arc;
 
 /// ConvertsToQuantity function evaluator
@@ -63,13 +63,13 @@ impl PureFunctionEvaluator for ConvertsToQuantityFunctionEvaluator {
                 FhirPathValue::String(s, _, _) => {
                     // Test if string can be parsed as Quantity
                     // A quantity string format is typically: "value unit" or just "value"
-                    if let Ok(_) = s.trim().parse::<f64>() {
+                    if s.trim().parse::<f64>().is_ok() {
                         true // Can be converted as a unitless quantity
                     } else {
                         // Check for "value unit" format
-                        let parts: Vec<&str> = s.trim().split_whitespace().collect();
+                        let parts: Vec<&str> = s.split_whitespace().collect();
                         if parts.len() == 2 {
-                            if let Ok(_) = parts[0].parse::<f64>() {
+                            if parts[0].parse::<f64>().is_ok() {
                                 true // First part is a valid number
                             } else {
                                 false
@@ -79,9 +79,9 @@ impl PureFunctionEvaluator for ConvertsToQuantityFunctionEvaluator {
                         }
                     }
                 }
-                FhirPathValue::Integer(_, _, _) => true,  // Numbers can be converted to quantities
-                FhirPathValue::Decimal(_, _, _) => true,  // Decimals can be converted to quantities
-                FhirPathValue::Quantity { .. } => true, // Already a Quantity
+                FhirPathValue::Integer(_, _, _) => true, // Numbers can be converted to quantities
+                FhirPathValue::Decimal(_, _, _) => true, // Decimals can be converted to quantities
+                FhirPathValue::Quantity { .. } => true,  // Already a Quantity
                 _ => false, // Other types cannot be converted to Quantity
             };
 

@@ -10,9 +10,10 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Sort function evaluator
 pub struct SortFunctionEvaluator {
@@ -149,7 +150,7 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
             let single_item_collection = vec![item.clone()];
 
             // Create nested context for this iteration
-            let mut iteration_context = EvaluationContext::new(
+            let iteration_context = EvaluationContext::new(
                 crate::core::Collection::from(single_item_collection.clone()),
                 context.model_provider().clone(),
                 context.terminology_provider().cloned(),
@@ -159,8 +160,12 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
             .await;
 
             iteration_context.set_variable("$this".to_string(), item.clone());
-            iteration_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
-            iteration_context.set_variable("$total".to_string(), FhirPathValue::integer(input.len() as i64));
+            iteration_context
+                .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            iteration_context.set_variable(
+                "$total".to_string(),
+                FhirPathValue::integer(input.len() as i64),
+            );
 
             let mut sort_keys = Vec::new();
 

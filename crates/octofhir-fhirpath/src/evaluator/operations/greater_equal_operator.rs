@@ -8,10 +8,17 @@ use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::quantity_utils;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 pub struct GreaterEqualOperatorEvaluator {
     metadata: OperatorMetadata,
+}
+
+impl Default for GreaterEqualOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GreaterEqualOperatorEvaluator {
@@ -34,6 +41,10 @@ impl GreaterEqualOperatorEvaluator {
                         ),
                         TypeSignature::new(
                             vec![FhirPathType::Decimal, FhirPathType::Decimal],
+                            FhirPathType::Boolean,
+                        ),
+                        TypeSignature::new(
+                            vec![FhirPathType::Quantity, FhirPathType::Quantity],
                             FhirPathType::Boolean,
                         ),
                     ],
@@ -66,7 +77,9 @@ impl GreaterEqualOperatorEvaluator {
             (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => {
                 // Use PartialOrd for proper temporal precision handling
                 match l.partial_cmp(r) {
-                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => Some(true),
+                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => {
+                        Some(true)
+                    }
                     Some(std::cmp::Ordering::Less) => Some(false),
                     None => None, // Uncertain due to precision differences
                 }
@@ -74,7 +87,9 @@ impl GreaterEqualOperatorEvaluator {
             (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
                 // Use PartialOrd for proper temporal precision handling
                 match l.partial_cmp(r) {
-                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => Some(true),
+                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => {
+                        Some(true)
+                    }
                     Some(std::cmp::Ordering::Less) => Some(false),
                     None => None, // Uncertain due to precision differences
                 }
@@ -82,11 +97,39 @@ impl GreaterEqualOperatorEvaluator {
             (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => {
                 // Use PartialOrd for proper temporal precision handling
                 match l.partial_cmp(r) {
-                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => Some(true),
+                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => {
+                        Some(true)
+                    }
                     Some(std::cmp::Ordering::Less) => Some(false),
                     None => None, // Uncertain due to precision differences
                 }
             }
+
+            // Quantity comparison (with unit conversion)
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    calendar_unit: lc,
+                    ..
+                },
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    calendar_unit: rc,
+                    ..
+                },
+            ) => {
+                // Use the quantity utilities for proper unit conversion
+                match quantity_utils::compare_quantities(*lv, lu, lc, *rv, ru, rc) {
+                    Ok(Some(std::cmp::Ordering::Greater)) | Ok(Some(std::cmp::Ordering::Equal)) => {
+                        Some(true)
+                    }
+                    Ok(Some(std::cmp::Ordering::Less)) => Some(false),
+                    Ok(None) | Err(_) => None, // Not comparable or conversion failed
+                }
+            }
+
             _ => None,
         }
     }
@@ -96,7 +139,7 @@ impl GreaterEqualOperatorEvaluator {
 impl OperationEvaluator for GreaterEqualOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,

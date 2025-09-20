@@ -20,21 +20,35 @@ impl DiagnosticFormatter {
 
     /// Format diagnostic for CLI raw output (no colors, just text)
     pub fn format_raw(diagnostic: &AriadneDiagnostic) -> String {
-        format!(
-            "[{}] {}: {}\n  at span {}..{}\n  help: {}\n  docs: {}",
+        let severity_str = match diagnostic.severity {
+            DiagnosticSeverity::Error => "error",
+            DiagnosticSeverity::Warning => "warning",
+            DiagnosticSeverity::Info => "info",
+            DiagnosticSeverity::Hint => "hint",
+        };
+
+        let mut output = format!(
+            "{}[{}]: {}",
+            severity_str,
             diagnostic.error_code.code_str(),
-            match diagnostic.severity {
-                DiagnosticSeverity::Error => "error",
-                DiagnosticSeverity::Warning => "warning",
-                DiagnosticSeverity::Info => "info",
-                DiagnosticSeverity::Hint => "hint",
-            },
-            diagnostic.message,
-            diagnostic.span.start,
-            diagnostic.span.end,
-            diagnostic.help.as_deref().unwrap_or("(none)"),
-            diagnostic.error_code.docs_url()
-        )
+            diagnostic.message
+        );
+
+        if let Some(note) = &diagnostic.note {
+            output.push_str(&format!("\n  = note: {}", note));
+        }
+
+        if let Some(help) = &diagnostic.help {
+            output.push_str(&format!("\n  = help: {}", help));
+        } else {
+            // Always show docs command suggestion if no other help is provided
+            output.push_str(&format!(
+                "\n  = help: for more information about this error, try `octofhir-fhirpath docs {}`",
+                diagnostic.error_code.code_str()
+            ));
+        }
+
+        output
     }
 
     /// Format diagnostic for JSON output (structured data)

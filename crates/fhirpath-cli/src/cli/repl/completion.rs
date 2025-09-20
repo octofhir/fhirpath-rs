@@ -30,6 +30,7 @@ pub struct FhirPathCompleter {
     commands: Vec<String>,
     cached_functions: std::sync::RwLock<Option<Vec<String>>>,
     cached_resource_types: std::sync::RwLock<Option<Vec<String>>>,
+    #[allow(dead_code)]
     model_provider: Arc<dyn ModelProvider>,
     registry: std::sync::RwLock<Option<Arc<FunctionRegistry>>>,
 }
@@ -280,7 +281,7 @@ impl FhirPathCompleter {
     /// Get function names from registry if available
     fn get_functions_from_registry(&self) -> Vec<String> {
         if let Ok(registry_guard) = self.registry.read() {
-            if let Some(ref registry) = *registry_guard {
+            if let Some(ref _registry) = *registry_guard {
                 // FunctionRegistry is currently a placeholder, so return empty list
                 return Vec::new();
             }
@@ -535,13 +536,11 @@ impl FhirPathCompleter {
         }
 
         // For :load command, suggest file extensions
-        if context.starts_with(":load ") && !word.is_empty() {
-            if word.ends_with('.') {
-                candidates.push(Pair {
-                    display: "json".to_string(),
-                    replacement: "json".to_string(),
-                });
-            }
+        if context.starts_with(":load ") && !word.is_empty() && word.ends_with('.') {
+            candidates.push(Pair {
+                display: "json".to_string(),
+                replacement: "json".to_string(),
+            });
         }
 
         // For :help command, suggest function names
@@ -791,11 +790,11 @@ impl FhirPathCompleter {
                 if self
                     .commands
                     .iter()
-                    .any(|cmd| cmd == &format!(":{}", current_word))
+                    .any(|cmd| cmd == &format!(":{current_word}"))
                 {
-                    result.push_str(&format!("\x1b[1;36m{}\x1b[0m", current_word)); // Bold cyan
+                    result.push_str(&format!("\x1b[1;36m{current_word}\x1b[0m")); // Bold cyan
                 } else {
-                    result.push_str(&format!("\x1b[36m{}\x1b[0m", current_word)); // Regular cyan
+                    result.push_str(&format!("\x1b[36m{current_word}\x1b[0m")); // Regular cyan
                 }
 
                 if ch.is_whitespace() {
@@ -816,11 +815,11 @@ impl FhirPathCompleter {
             if self
                 .commands
                 .iter()
-                .any(|cmd| cmd == &format!(":{}", current_word))
+                .any(|cmd| cmd == &format!(":{current_word}"))
             {
-                result.push_str(&format!("\x1b[1;36m{}\x1b[0m", current_word));
+                result.push_str(&format!("\x1b[1;36m{current_word}\x1b[0m"));
             } else {
-                result.push_str(&format!("\x1b[36m{}\x1b[0m", current_word));
+                result.push_str(&format!("\x1b[36m{current_word}\x1b[0m"));
             }
         }
 
@@ -852,7 +851,7 @@ impl FhirPathCompleter {
                     let mut string_content = String::new();
                     let mut escaped = false;
 
-                    while let Some(inner_ch) = chars.next() {
+                    for inner_ch in chars.by_ref() {
                         if escaped {
                             string_content.push(inner_ch);
                             escaped = false;
@@ -889,7 +888,7 @@ impl FhirPathCompleter {
                         }
                     }
 
-                    result.push_str(&format!("\x1b[33m{}\x1b[0m", operator)); // Yellow for operators
+                    result.push_str(&format!("\x1b[33m{operator}\x1b[0m")); // Yellow for operators
                 }
 
                 // Parentheses and brackets
@@ -898,7 +897,7 @@ impl FhirPathCompleter {
                         self.append_highlighted_token(&mut result, &current_token);
                         current_token.clear();
                     }
-                    result.push_str(&format!("\x1b[37m{}\x1b[0m", ch)); // White for brackets
+                    result.push_str(&format!("\x1b[37m{ch}\x1b[0m")); // White for brackets
                 }
 
                 // Dot notation
@@ -907,7 +906,7 @@ impl FhirPathCompleter {
                         self.append_highlighted_token(&mut result, &current_token);
                         current_token.clear();
                     }
-                    result.push_str(&format!("\x1b[37m{}\x1b[0m", ch)); // White for dots
+                    result.push_str(&format!("\x1b[37m{ch}\x1b[0m")); // White for dots
                 }
 
                 // Comma
@@ -916,7 +915,7 @@ impl FhirPathCompleter {
                         self.append_highlighted_token(&mut result, &current_token);
                         current_token.clear();
                     }
-                    result.push_str(&format!("\x1b[37m{}\x1b[0m", ch)); // White for commas
+                    result.push_str(&format!("\x1b[37m{ch}\x1b[0m")); // White for commas
                 }
 
                 // Whitespace
@@ -947,13 +946,13 @@ impl FhirPathCompleter {
     fn append_highlighted_token(&self, result: &mut String, token: &str) {
         // Check if it's a number
         if token.parse::<f64>().is_ok() || token.parse::<i64>().is_ok() {
-            result.push_str(&format!("\x1b[35m{}\x1b[0m", token)); // Magenta for numbers
+            result.push_str(&format!("\x1b[35m{token}\x1b[0m")); // Magenta for numbers
             return;
         }
 
         // Check if it's a boolean
         if matches!(token, "true" | "false") {
-            result.push_str(&format!("\x1b[35m{}\x1b[0m", token)); // Magenta for booleans
+            result.push_str(&format!("\x1b[35m{token}\x1b[0m")); // Magenta for booleans
             return;
         }
 
@@ -962,27 +961,27 @@ impl FhirPathCompleter {
             token,
             "and" | "or" | "xor" | "implies" | "mod" | "div" | "in" | "contains"
         ) {
-            result.push_str(&format!("\x1b[33m{}\x1b[0m", token)); // Yellow for keywords/operators
+            result.push_str(&format!("\x1b[33m{token}\x1b[0m")); // Yellow for keywords/operators
             return;
         }
 
         // Check if it's a function from registry or common functions
         let function_names = self.get_cached_function_names();
         if function_names.iter().any(|f| f == token) {
-            result.push_str(&format!("\x1b[34m{}\x1b[0m", token)); // Blue for functions
+            result.push_str(&format!("\x1b[34m{token}\x1b[0m")); // Blue for functions
             return;
         }
 
         // Check if it's a FHIR resource type from model provider
         let resource_types = self.get_resource_types_from_provider();
         if resource_types.iter().any(|r| r == token) {
-            result.push_str(&format!("\x1b[1;32m{}\x1b[0m", token)); // Bold green for resource types
+            result.push_str(&format!("\x1b[1;32m{token}\x1b[0m")); // Bold green for resource types
             return;
         }
 
         // Check if it starts with uppercase (likely a resource type or property)
-        if token.chars().next().map_or(false, |c| c.is_uppercase()) {
-            result.push_str(&format!("\x1b[32m{}\x1b[0m", token)); // Green for properties/types
+        if token.chars().next().is_some_and(|c| c.is_uppercase()) {
+            result.push_str(&format!("\x1b[32m{token}\x1b[0m")); // Green for properties/types
             return;
         }
 

@@ -132,10 +132,7 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
         if context.get_variable(&variable_name).is_some() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0058,
-                format!(
-                    "Variable '{}' is already defined in this scope",
-                    variable_name
-                ),
+                format!("Variable '{variable_name}' is already defined in this scope"),
             ));
         }
 
@@ -144,7 +141,7 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
             let variable_value = if input.is_empty() {
                 FhirPathValue::Empty
             } else if input.len() == 1 {
-                input.iter().next().cloned().unwrap_or(FhirPathValue::Empty)
+                input.first().cloned().unwrap_or(FhirPathValue::Empty)
             } else {
                 FhirPathValue::Collection(crate::core::Collection::from(input.clone()))
             };

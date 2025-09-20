@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Join function evaluator
 pub struct JoinFunctionEvaluator {
@@ -97,7 +97,7 @@ impl PureFunctionEvaluator for JoinFunctionEvaluator {
                 FhirPathValue::Time(t, _, _) => Ok(t.to_string()),
                 _ => Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
-                    format!("Cannot convert {:?} to string for join operation", value),
+                    format!("Cannot convert {value:?} to string for join operation"),
                 )),
             })
             .collect();

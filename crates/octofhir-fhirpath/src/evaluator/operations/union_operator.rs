@@ -16,6 +16,12 @@ pub struct UnionOperatorEvaluator {
     metadata: OperatorMetadata,
 }
 
+impl Default for UnionOperatorEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UnionOperatorEvaluator {
     /// Create a new union operator evaluator
     pub fn new() -> Self {
@@ -34,7 +40,7 @@ impl UnionOperatorEvaluator {
 impl OperationEvaluator for UnionOperatorEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        __input: Vec<FhirPathValue>,
         _context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
@@ -56,9 +62,18 @@ impl OperationEvaluator for UnionOperatorEvaluator {
                     (FhirPathValue::Date(a, _, _), FhirPathValue::Date(b, _, _)) => a == b,
                     (FhirPathValue::DateTime(a, _, _), FhirPathValue::DateTime(b, _, _)) => a == b,
                     (FhirPathValue::Time(a, _, _), FhirPathValue::Time(b, _, _)) => a == b,
-                    (FhirPathValue::Quantity { value: v1, unit: u1, .. }, FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
-                        v1 == v2 && u1 == u2
-                    },
+                    (
+                        FhirPathValue::Quantity {
+                            value: v1,
+                            unit: u1,
+                            ..
+                        },
+                        FhirPathValue::Quantity {
+                            value: v2,
+                            unit: u2,
+                            ..
+                        },
+                    ) => v1 == v2 && u1 == u2,
                     // For different types, they are not equal
                     _ => false,
                 }
@@ -109,7 +124,7 @@ mod tests {
         let evaluator = UnionOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;
@@ -134,7 +149,7 @@ mod tests {
         let evaluator = UnionOperatorEvaluator::new();
         let context = EvaluationContext::new(
             Collection::empty(),
-            std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
         )
         .await;

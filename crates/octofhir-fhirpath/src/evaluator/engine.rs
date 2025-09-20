@@ -9,13 +9,12 @@ use crate::ast::ExpressionNode;
 use crate::core::trace::SharedTraceProvider;
 use crate::core::{FhirPathValue, ModelProvider, Result};
 use crate::parser;
-use octofhir_fhir_model::TerminologyProvider;
 
 use async_trait::async_trait;
 use octofhir_fhir_model::{
     CompiledExpression, ErrorSeverity, EvaluationResult as ModelEvaluationResult,
-    FhirPathConstraint, FhirPathEvaluator, ValidationError, ValidationProvider, ValidationResult,
-    Variables,
+    FhirPathConstraint, FhirPathEvaluator, TerminologyProvider, ValidationError,
+    ValidationProvider, ValidationResult, Variables,
 };
 use serde_json::Value as JsonValue;
 
@@ -137,6 +136,7 @@ impl FhirPathEngine {
     }
 
     /// Auto-prepend resource type if expression doesn't start with capital letter
+    #[allow(dead_code)]
     async fn maybe_prepend_resource_type(
         &self,
         expression: &str,
@@ -155,7 +155,7 @@ impl FhirPathEngine {
         // Try to auto-extract resource type from input
         if let Some(resource_type) = self.extract_resource_type_from_context(context).await? {
             // Prepend the resource type
-            Ok(format!("{}.{}", resource_type, expression))
+            Ok(format!("{resource_type}.{expression}"))
         } else {
             // No resource type found, use expression as-is
             Ok(expression.to_string())
@@ -163,6 +163,7 @@ impl FhirPathEngine {
     }
 
     /// Extract resource type from evaluation context
+    #[allow(dead_code)]
     async fn extract_resource_type_from_context(
         &self,
         context: &EvaluationContext,
@@ -290,7 +291,7 @@ impl FhirPathEvaluator for FhirPathEngine {
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
         // Create evaluation context with variables
-        let mut eval_context = EvaluationContext::new(
+        let eval_context = EvaluationContext::new(
             collection,
             self.model_provider.clone(),
             self.terminology_provider.clone(),
@@ -301,11 +302,11 @@ impl FhirPathEvaluator for FhirPathEngine {
 
         // Add variables to context
         // TODO: Implement proper conversion from ModelEvaluationResult to FhirPathValue
-        for (name, _value) in variables {
+        for name in variables.keys() {
             // For now, skip variable conversion - this needs proper implementation
             // let fhir_value = FhirPathValue::from_evaluation_result(value);
             // eval_context.add_variable(name.clone(), fhir_value);
-            eprintln!("Warning: Variable {} not added - conversion not implemented", name);
+            eprintln!("Warning: Variable {name} not added - conversion not implemented");
         }
 
         // Evaluate using our internal engine
@@ -346,7 +347,7 @@ impl FhirPathEvaluator for FhirPathEngine {
         match crate::parser::parse_ast(expression) {
             Ok(_ast) => Ok(ValidationResult::success()),
             Err(e) => {
-                let error = ValidationError::new(format!("Syntax error: {}", e))
+                let error = ValidationError::new(format!("Syntax error: {e}"))
                     .with_code("SYNTAX_ERROR".to_string());
                 Ok(ValidationResult::with_errors(vec![error]))
             }
@@ -425,10 +426,9 @@ impl FhirPathEvaluator for FhirPathEngine {
                 }
                 Err(e) => {
                     // Evaluation error - treat as constraint failure
-                    let error =
-                        ValidationError::new(format!("Constraint evaluation failed: {}", e))
-                            .with_code(constraint.key.clone())
-                            .with_location(constraint.expression.clone());
+                    let error = ValidationError::new(format!("Constraint evaluation failed: {e}"))
+                        .with_code(constraint.key.clone())
+                        .with_location(constraint.expression.clone());
                     errors.push(error);
                 }
             }

@@ -7,10 +7,11 @@ use chrono::Datelike;
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy,
-};use crate::evaluator::EvaluationResult;
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// MonthOf function evaluator
 pub struct MonthOfFunctionEvaluator {
@@ -69,7 +70,8 @@ impl PureFunctionEvaluator for MonthOfFunctionEvaluator {
         if input.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                "monthOf function can only be called on a single date or datetime value".to_string(),
+                "monthOf function can only be called on a single date or datetime value"
+                    .to_string(),
             ));
         }
 
@@ -88,7 +90,7 @@ impl PureFunctionEvaluator for MonthOfFunctionEvaluator {
                 } else {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0055,
-                        format!("Cannot parse '{}' as Date or DateTime for monthOf function", s),
+                        format!("Cannot parse '{s}' as Date or DateTime for monthOf function"),
                     ));
                 }
             }

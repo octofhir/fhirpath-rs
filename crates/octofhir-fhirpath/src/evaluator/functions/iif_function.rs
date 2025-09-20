@@ -8,9 +8,10 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
-};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Iif (conditional) function evaluator
 pub struct IifFunctionEvaluator {
@@ -109,8 +110,19 @@ impl LazyFunctionEvaluator for IifFunctionEvaluator {
         let true_expr = &args[1];
         let false_expr = args.get(2);
 
+        // Create a child context for evaluation that sets $this properly
+        let evaluation_context = {
+            let child_context = context.nest();
+            if input.len() == 1 {
+                child_context.set_variable("$this".to_string(), input[0].clone());
+            }
+            child_context
+        };
+
         // Evaluate the condition
-        let condition_result = evaluator.evaluate(condition_expr, context).await?;
+        let condition_result = evaluator
+            .evaluate(condition_expr, &evaluation_context)
+            .await?;
         let condition_values: Vec<FhirPathValue> = condition_result.value.iter().cloned().collect();
 
         // Validate condition type - should be boolean in strict mode
@@ -141,11 +153,11 @@ impl LazyFunctionEvaluator for IifFunctionEvaluator {
         // Return the appropriate result
         if is_true {
             // Evaluate and return true expression
-            let result = evaluator.evaluate(true_expr, context).await?;
+            let result = evaluator.evaluate(true_expr, &evaluation_context).await?;
             Ok(result)
         } else if let Some(false_expr) = false_expr {
             // Evaluate and return false expression
-            let result = evaluator.evaluate(false_expr, context).await?;
+            let result = evaluator.evaluate(false_expr, &evaluation_context).await?;
             Ok(result)
         } else {
             // No false expression provided, return empty

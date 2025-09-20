@@ -127,7 +127,10 @@ mod tests {
         .await;
 
         // Set system variables for testing
-        context.set_variable("this".to_string(), FhirPathValue::string("this_value".to_string()));
+        context.set_variable(
+            "this".to_string(),
+            FhirPathValue::string("this_value".to_string()),
+        );
         context.set_variable("index".to_string(), FhirPathValue::integer(5));
         context.set_variable("total".to_string(), FhirPathValue::integer(10));
 

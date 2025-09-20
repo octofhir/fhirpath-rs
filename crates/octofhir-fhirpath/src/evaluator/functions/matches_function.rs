@@ -8,11 +8,11 @@ use regex::Regex;
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
-use crate::evaluator::function_registry::{
-    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
-};
 use crate::evaluator::EvaluationResult;
+use crate::evaluator::function_registry::{
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};
 
 /// Matches function evaluator
 pub struct MatchesFunctionEvaluator {
@@ -127,10 +127,7 @@ impl PureFunctionEvaluator for MatchesFunctionEvaluator {
             Err(e) => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
-                    format!(
-                        "Invalid regular expression pattern '{}': {}",
-                        pattern_str, e
-                    ),
+                    format!("Invalid regular expression pattern '{pattern_str}': {e}"),
                 ));
             }
         };

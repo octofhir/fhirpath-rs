@@ -17,7 +17,6 @@
 //! Usage: cargo run --bin test-runner <test_file.json>
 
 use octofhir_fhir_model::FhirVersion;
-use octofhir_fhirpath::FhirPathValue;
 use octofhir_fhirpath::core::trace::create_cli_provider;
 use octofhir_fhirschema::create_validation_provider_from_embedded;
 use serde_json::Value;
@@ -220,22 +219,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     engine = engine.with_trace_provider(trace_provider);
 
     if let Ok(validation_provider) = create_validation_provider_from_embedded(
-        model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>
-    ).await {
+        model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>,
+    )
+    .await
+    {
         engine = engine.with_validation_provider(validation_provider);
     }
 
-    // Attach real terminology provider (tx.fhir.org) by default for integration tests
-    let tx_base = match fhir_version.as_str() {
-        "r6" => "https://tx.fhir.org/r6",
-        "r5" => "https://tx.fhir.org/r5",
-        "r4b" => "https://tx.fhir.org/r4b",
-        _ => "https://tx.fhir.org/r4",
-    };
-    if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base.to_string()) {
-        let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> =
-            std::sync::Arc::new(tx);
-        engine = engine.with_terminology_provider(tx_arc.clone());
+    // Skip terminology provider for TerminologyTests to avoid network dependencies
+    // Those tests should be handled with mock responses
+    if test_suite.name != "TerminologyTests" {
+        // Use real terminology provider (tx.fhir.org) for integration tests
+        let tx_base = match fhir_version.as_str() {
+            "r6" => "https://tx.fhir.org/r6",
+            "r5" => "https://tx.fhir.org/r5",
+            "r4b" => "https://tx.fhir.org/r4b",
+            _ => "https://tx.fhir.org/r4",
+        };
+        if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base.to_string()) {
+            let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> =
+                std::sync::Arc::new(tx);
+            engine = engine.with_terminology_provider(tx_arc.clone());
+        }
     }
     let engine_time = engine_start.elapsed();
     println!("✅ FhirPathEngine created in {}ms", engine_time.as_millis());
