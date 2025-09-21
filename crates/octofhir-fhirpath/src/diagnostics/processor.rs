@@ -938,7 +938,7 @@ mod tests {
             severity: DiagnosticSeverity::Error,
             error_code: FP0055,
             message: "Property not found".to_string(),
-            span: 8..16,
+            span: 8..15, // "invalid" without the period
             help: None,
             note: None,
             related: Vec::new(),
@@ -1059,7 +1059,7 @@ mod tests {
                 severity: DiagnosticSeverity::Error,
                 error_code: FP0055,
                 message: "Property not found".to_string(),
-                span: 7..12,
+                span: 15..20, // Non-overlapping span to test CauseEffect
                 help: None,
                 note: None,
                 related: Vec::new(),

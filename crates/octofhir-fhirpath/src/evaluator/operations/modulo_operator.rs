@@ -129,6 +129,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
@@ -151,15 +153,20 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
         let left = vec![FhirPathValue::integer(10)];
         let right = vec![FhirPathValue::integer(0)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await;
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Modulo by zero"));
+        // Modulo by zero returns empty collection per FHIRPath spec
+        assert_eq!(result.value.len(), 0);
     }
 }

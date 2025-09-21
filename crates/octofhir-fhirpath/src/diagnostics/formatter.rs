@@ -35,11 +35,11 @@ impl DiagnosticFormatter {
         );
 
         if let Some(note) = &diagnostic.note {
-            output.push_str(&format!("\n  = note: {}", note));
+            output.push_str(&format!("\n  = note: {note}"));
         }
 
         if let Some(help) = &diagnostic.help {
-            output.push_str(&format!("\n  = help: {}", help));
+            output.push_str(&format!("\n  = help: {help}"));
         } else {
             // Always show docs command suggestion if no other help is provided
             output.push_str(&format!(
@@ -216,8 +216,9 @@ mod tests {
         assert!(raw.contains("[FP0055]"));
         assert!(raw.contains("error"));
         assert!(raw.contains("Property 'invalid' not found"));
-        assert!(raw.contains("13..20"));
+        // Raw format doesn't include span information - that's for detailed formats
         assert!(raw.contains("Check available properties"));
+        assert!(raw.contains("Property must exist in FHIR schema"));
     }
 
     #[test]
@@ -298,8 +299,9 @@ mod tests {
         assert!(pretty.is_ok());
 
         let output = pretty.unwrap();
-        assert!(output.contains("❌")); // Error emoji
-        assert!(output.contains("FHIRPath Diagnostic Report"));
+        // Check that the pretty format includes error code and message
+        assert!(output.contains("[FP0055] Error:"));
+        assert!(output.contains("Property 'invalid' not found"));
     }
 
     #[test]

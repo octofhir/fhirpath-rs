@@ -20,6 +20,7 @@ pub mod diagnostic_template_registry;
 // mod diagnostic_enhancement_tests;
 // mod integration_tests;
 // mod type_analysis_integration_tests;
+pub mod expression_context;
 pub mod function_analyzer;
 pub mod hierarchy_analyzer;
 pub mod property_analyzer;
@@ -39,6 +40,7 @@ pub use choice_type_analyzer::{
 };
 pub use diagnostic_builder::{DiagnosticBuilder, DiagnosticContext};
 pub use diagnostic_template_registry::{DiagnosticTemplate, DiagnosticTemplateRegistry};
+pub use expression_context::ExpressionContext;
 pub use function_analyzer::{
     AnalysisResult as FunctionAnalysisResult, ArgumentType, FunctionAnalyzer, FunctionSignature,
     InputRequirement, ReturnType,
@@ -52,7 +54,7 @@ pub use static_analyzer::{
     StaticAnalysisResult, StaticAnalyzer, SuggestionType,
 };
 pub use type_analyzer::{
-    Cardinality, ContextAnalysisResult, ExpressionContext, ExpressionContextResult, TypeAnalyzer,
+    Cardinality, ContextAnalysisResult, ExpressionContextResult, TypeAnalyzer,
 };
 pub use union_analyzer::{
     AnalysisResult as UnionAnalysisResult, UnionOperation, UnionTypeAnalyzer,

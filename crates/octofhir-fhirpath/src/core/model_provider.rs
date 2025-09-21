@@ -90,8 +90,12 @@ mod tests {
     async fn test_empty_provider_basic() {
         let provider = EmptyModelProvider;
 
-        // Test that EmptyModelProvider returns None for type lookup
+        // Test that EmptyModelProvider returns a generic "Any" type for all lookups
         let patient_type = provider.get_type("Patient").await.unwrap();
-        assert!(patient_type.is_none());
+        assert!(patient_type.is_some());
+
+        let type_info = patient_type.unwrap();
+        assert_eq!(type_info.type_name, "Any");
+        assert_eq!(type_info.name, Some("Patient".to_string()));
     }
 }

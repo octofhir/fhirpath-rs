@@ -574,6 +574,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
@@ -596,11 +598,13 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
-        let left = vec![FhirPathValue::decimal(5.5)];
-        let right = vec![FhirPathValue::decimal(3.2)];
+        let left = vec![FhirPathValue::decimal(Decimal::new(55, 1))];
+        let right = vec![FhirPathValue::decimal(Decimal::new(32, 1))];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -610,7 +614,7 @@ mod tests {
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first().unwrap().as_decimal(),
-            Some(Decimal::from_f64_retain(8.7).unwrap())
+            Some(Decimal::new(87, 1))
         );
     }
 
@@ -621,11 +625,13 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
         let left = vec![FhirPathValue::integer(5)];
-        let right = vec![FhirPathValue::decimal(3.5)];
+        let right = vec![FhirPathValue::decimal(Decimal::new(35, 1))];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -646,6 +652,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
@@ -659,8 +667,8 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string(),
-            Some("Hello World".to_string())
+            result.value.first().unwrap().as_string().as_deref(),
+            Some("Hello World")
         );
     }
 
@@ -671,11 +679,19 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
-        let left = vec![FhirPathValue::quantity(5.0, "kg".to_string())];
-        let right = vec![FhirPathValue::quantity(3.0, "kg".to_string())];
+        let left = vec![FhirPathValue::quantity(
+            Decimal::new(5, 0),
+            Some("kg".to_string()),
+        )];
+        let right = vec![FhirPathValue::quantity(
+            Decimal::new(3, 0),
+            Some("kg".to_string()),
+        )];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -685,7 +701,7 @@ mod tests {
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
             assert_eq!(*value, Decimal::from_f64_retain(8.0).unwrap());
-            assert_eq!(*unit, "kg");
+            assert_eq!(unit.as_deref(), Some("kg"));
         } else {
             panic!("Expected quantity result");
         }
@@ -697,6 +713,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;

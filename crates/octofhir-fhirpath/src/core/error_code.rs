@@ -43,7 +43,7 @@ impl ErrorCode {
     /// Get documentation URL for this error code
     pub fn docs_url(&self) -> String {
         format!(
-            "https://octofhir.github.io/fhirpath-rs/errors/FP{:04}",
+            "https://octofhir.github.io/fhirpath-rs/errors/fp{:04}/",
             self.code
         )
     }
@@ -102,7 +102,7 @@ impl ErrorInfo {
     /// Get documentation URL for this error
     pub fn docs_url(&self) -> String {
         format!(
-            "https://octofhir.github.io/fhirpath-rs/errors/FP{:04}",
+            "https://octofhir.github.io/fhirpath-rs/errors/fp{:04}/",
             self.code
         )
     }
@@ -712,19 +712,19 @@ mod tests {
     fn test_docs_url() {
         assert_eq!(
             FP0001.docs_url(),
-            "https://octofhir.github.io/fhirpath-rs/errors/FP0001"
+            "https://octofhir.github.io/fhirpath-rs/errors/fp0001/"
         );
         assert_eq!(
             FP0051.docs_url(),
-            "https://octofhir.github.io/fhirpath-rs/errors/FP0051"
+            "https://octofhir.github.io/fhirpath-rs/errors/fp0051/"
         );
         assert_eq!(
             FP0101.docs_url(),
-            "https://octofhir.github.io/fhirpath-rs/errors/FP0101"
+            "https://octofhir.github.io/fhirpath-rs/errors/fp0101/"
         );
         assert_eq!(
             FP0151.docs_url(),
-            "https://octofhir.github.io/fhirpath-rs/errors/FP0151"
+            "https://octofhir.github.io/fhirpath-rs/errors/fp0151/"
         );
     }
 
@@ -733,7 +733,7 @@ mod tests {
         let info = FP0002.info();
         assert_eq!(
             info.docs_url(),
-            "https://octofhir.github.io/fhirpath-rs/errors/FP0002"
+            "https://octofhir.github.io/fhirpath-rs/errors/fp0002/"
         );
     }
 
@@ -751,11 +751,26 @@ mod tests {
 
     #[test]
     fn test_error_descriptions() {
-        assert_eq!(FP0001.description(), "Invalid FHIRPath syntax");
-        assert_eq!(FP0002.description(), "Unexpected token in expression");
-        assert_eq!(FP0051.description(), "Type mismatch in operation");
-        assert_eq!(FP0101.description(), "Resource not found");
-        assert_eq!(FP0151.description(), "Type inference failed");
+        assert_eq!(
+            FP0001.description(),
+            "The FHIRPath expression contains invalid syntax that cannot be parsed."
+        );
+        assert_eq!(
+            FP0002.description(),
+            "The parser encountered a token that was not expected in the current context."
+        );
+        assert_eq!(
+            FP0051.description(),
+            "An operation was attempted between incompatible types."
+        );
+        assert_eq!(
+            FP0101.description(),
+            "The requested resource could not be found by the model provider."
+        );
+        assert_eq!(
+            FP0151.description(),
+            "The static analyzer was unable to infer the type of an expression or variable."
+        );
     }
 
     #[test]

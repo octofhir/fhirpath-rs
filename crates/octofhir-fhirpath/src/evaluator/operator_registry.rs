@@ -408,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_operator_registry_builder() {
-        let registry = OperatorRegistryBuilder::new()
+        let _registry = OperatorRegistryBuilder::new()
             .with_arithmetic_operators()
             .with_comparison_operators()
             .build();

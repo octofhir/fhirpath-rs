@@ -467,6 +467,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
@@ -489,11 +491,13 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
-        let left = vec![FhirPathValue::decimal(8.7)];
-        let right = vec![FhirPathValue::decimal(3.2)];
+        let left = vec![FhirPathValue::decimal(Decimal::new(87, 1))];
+        let right = vec![FhirPathValue::decimal(Decimal::new(32, 1))];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -514,11 +518,19 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
-        let left = vec![FhirPathValue::quantity(8.0, "kg".to_string())];
-        let right = vec![FhirPathValue::quantity(3.0, "kg".to_string())];
+        let left = vec![FhirPathValue::quantity(
+            Decimal::new(8, 0),
+            Some("kg".to_string()),
+        )];
+        let right = vec![FhirPathValue::quantity(
+            Decimal::new(3, 0),
+            Some("kg".to_string()),
+        )];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -528,7 +540,7 @@ mod tests {
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
             assert_eq!(*value, Decimal::from_f64_retain(5.0).unwrap());
-            assert_eq!(*unit, "kg");
+            assert_eq!(unit.as_deref(), Some("kg"));
         } else {
             panic!("Expected quantity result");
         }

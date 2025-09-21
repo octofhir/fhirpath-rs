@@ -268,7 +268,7 @@ pub fn parse_with_mode(input: &str, mode: ParsingMode) -> ParseResult {
 /// use octofhir_fhir_model::EmptyModelProvider;
 /// use std::sync::Arc;
 ///
-/// let model_provider = Arc::new(EmptyModelProvider::new());
+/// let model_provider = Arc::new(EmptyModelProvider);
 /// let result = parse_with_semantic_analysis("Patient.name", model_provider, None);
 /// ```
 pub async fn parse_with_semantic_analysis(

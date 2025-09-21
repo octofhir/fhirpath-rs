@@ -206,6 +206,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
@@ -219,8 +221,8 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string(),
-            Some("Hello World".to_string())
+            result.value.first().unwrap().as_string().as_deref(),
+            Some("Hello World")
         );
     }
 
@@ -230,6 +232,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;
@@ -244,8 +248,8 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string(),
-            Some("Count: 42".to_string())
+            result.value.first().unwrap().as_string().as_deref(),
+            Some("Count: 42")
         );
     }
 
@@ -255,6 +259,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;
@@ -269,8 +275,8 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string(),
-            Some("42 items".to_string())
+            result.value.first().unwrap().as_string().as_deref(),
+            Some("42 items")
         );
     }
 
@@ -280,6 +286,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;
@@ -294,8 +302,8 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string(),
-            Some("Active: true".to_string())
+            result.value.first().unwrap().as_string().as_deref(),
+            Some("Active: true")
         );
     }
 
@@ -305,6 +313,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;
@@ -320,8 +330,8 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string(),
-            Some("Hello".to_string())
+            result.value.first().unwrap().as_string().as_deref(),
+            Some("Hello")
         );
 
         // Test empty collection with string
@@ -335,8 +345,8 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string(),
-            Some("World".to_string())
+            result.value.first().unwrap().as_string().as_deref(),
+            Some("World")
         );
     }
 }

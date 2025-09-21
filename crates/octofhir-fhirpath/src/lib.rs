@@ -33,19 +33,22 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use octofhir_fhirpath::{FhirPathEngine, Collection};
+//! use octofhir_fhirpath::{FhirPathEngine, Collection, EvaluationContext};
 //! use octofhir_fhir_model::EmptyModelProvider;
 //! use std::sync::Arc;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create a FHIRPath engine with a model provider
-//! let registry = octofhir_fhirpath::create_empty_registry();
+//! let registry = octofhir_fhirpath::create_function_registry();
 //! let model_provider = Arc::new(EmptyModelProvider);
-//! let engine = FhirPathEngine::new(Arc::new(registry), model_provider);
+//! let engine = FhirPathEngine::new(Arc::new(registry), model_provider.clone()).await?;
+//!
+//! // Create evaluation context
+//! let context = EvaluationContext::new(Collection::empty(), model_provider, None, None, None).await;
 //!
 //! // Parse and evaluate an expression
 //! let expression = "Patient.name.family";
-//! let result = engine.evaluate(expression, &Collection::empty()).await?;
+//! let result = engine.evaluate(expression, &context).await?;
 //!
 //! println!("Result: {:?}", result);
 //! # Ok(())
@@ -60,6 +63,9 @@ pub mod core;
 // Engine modules
 pub mod evaluator;
 pub mod parser;
+
+// Analysis modules
+pub mod analyzer;
 
 // Support modules
 pub mod diagnostics;
@@ -141,18 +147,25 @@ pub use crate::diagnostics::{
     SourceManager,
 };
 
+// Re-export analyzer types
+pub use crate::analyzer::{AnalysisContext, StaticAnalysisResult, StaticAnalyzer};
+
 /// Create a FhirPathEngine with EmptyModelProvider for testing and development
 ///
 /// This is a convenience function for getting started quickly with FHIRPath
 /// evaluation when you don't need full FHIR schema support.
 ///
 /// ```rust,no_run
-/// use octofhir_fhirpath::create_engine_with_empty_provider;
+/// use octofhir_fhirpath::{create_engine_with_empty_provider, Collection, EvaluationContext};
+/// use octofhir_fhir_model::EmptyModelProvider;
+/// use std::sync::Arc;
 ///
 /// # async fn example() -> octofhir_fhirpath::Result<()> {
 /// let engine = create_engine_with_empty_provider().await?;
+/// let model_provider = Arc::new(EmptyModelProvider);
+/// let context = EvaluationContext::new(Collection::empty(), model_provider, None, None, None).await;
 ///
-/// let result = engine.evaluate("1 + 2", &octofhir_fhirpath::Collection::empty()).await?;
+/// let result = engine.evaluate("1 + 2", &context).await?;
 /// # Ok(())
 /// # }
 /// ```

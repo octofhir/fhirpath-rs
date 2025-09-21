@@ -268,6 +268,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
@@ -293,11 +295,13 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
-        let left = vec![FhirPathValue::decimal(10.0)];
-        let right = vec![FhirPathValue::decimal(2.0)];
+        let left = vec![FhirPathValue::decimal(Decimal::new(10, 0))];
+        let right = vec![FhirPathValue::decimal(Decimal::new(2, 0))];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -318,16 +322,21 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
         let left = vec![FhirPathValue::integer(10)];
         let right = vec![FhirPathValue::integer(0)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await;
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Division by zero"));
+        // Integer division by zero returns empty collection per FHIRPath spec
+        assert_eq!(result.value.len(), 0);
     }
 
     #[tokio::test]
@@ -337,10 +346,15 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
-        let left = vec![FhirPathValue::quantity(15.0, "kg".to_string())];
+        let left = vec![FhirPathValue::quantity(
+            Decimal::new(15, 0),
+            Some("kg".to_string()),
+        )];
         let right = vec![FhirPathValue::integer(3)];
 
         let result = evaluator
@@ -351,7 +365,7 @@ mod tests {
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
             assert_eq!(*value, Decimal::from(5));
-            assert_eq!(*unit, "kg");
+            assert_eq!(unit.as_deref(), Some("kg"));
         } else {
             panic!("Expected quantity result");
         }

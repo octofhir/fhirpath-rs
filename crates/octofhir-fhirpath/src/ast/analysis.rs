@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_metadata_with_type_info() {
-        let type_info = TypeInfo::string();
+        let type_info = TypeInfo::system_type("string".to_string(), false);
         let metadata = AnalysisMetadata::with_type_info(type_info.clone());
         assert_eq!(metadata.type_info, Some(type_info));
     }

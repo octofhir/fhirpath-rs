@@ -153,6 +153,20 @@ impl DiagnosticEngine {
             report = report.with_label(label);
         }
 
+        // Add help text from the first diagnostic that has it
+        if let Some(diagnostic_with_help) = diagnostics.iter().find(|d| d.help.is_some()) {
+            if let Some(help) = &diagnostic_with_help.help {
+                report = report.with_help(help);
+            }
+        }
+
+        // Add note from the first diagnostic that has it
+        if let Some(diagnostic_with_note) = diagnostics.iter().find(|d| d.note.is_some()) {
+            if let Some(note) = &diagnostic_with_note.note {
+                report = report.with_note(note);
+            }
+        }
+
         // Do not add automatic documentation links - let CLI handler add them manually
 
         Ok(report.finish())

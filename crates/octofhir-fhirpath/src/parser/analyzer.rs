@@ -11,7 +11,7 @@ use crate::ast::{
     FunctionCallNode, IdentifierNode, LiteralNode, LiteralValue, MethodCallNode,
     PropertyAccessNode,
 };
-use crate::core::FhirPathError;
+use crate::core::{FhirPathError, SourceLocation};
 use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
 use octofhir_fhir_model::{ModelProvider, TypeInfo};
 
@@ -23,6 +23,8 @@ pub struct SemanticAnalyzer {
     input_type: Option<TypeInfo>,
     /// Whether we're at the head of a navigation chain
     is_chain_head: bool,
+    /// Expression text for span calculation
+    expression_text: Option<String>,
 }
 
 impl SemanticAnalyzer {
@@ -32,6 +34,7 @@ impl SemanticAnalyzer {
             model_provider,
             input_type: None,
             is_chain_head: true,
+            expression_text: None,
         }
     }
 
@@ -63,6 +66,88 @@ impl SemanticAnalyzer {
         }
 
         Ok(analysis)
+    }
+
+    /// Analyze an expression with text for span calculation
+    pub async fn analyze_expression_with_text(
+        &mut self,
+        expr: &ExpressionNode,
+        context_type: Option<TypeInfo>,
+        expression_text: &str,
+    ) -> Result<ExpressionAnalysis, FhirPathError> {
+        // Store the expression text for span calculation
+        self.expression_text = Some(expression_text.to_string());
+
+        // Analyze the expression normally
+        let mut result = self.analyze_expression(expr, context_type).await?;
+
+        // Post-process diagnostics to calculate accurate spans
+        for diagnostic in &mut result.diagnostics {
+            if diagnostic.location.is_none() {
+                // Try to calculate span from the diagnostic message
+                diagnostic.location =
+                    self.calculate_location_from_message(&diagnostic.message, expression_text);
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Calculate source location from diagnostic message
+    fn calculate_location_from_message(
+        &self,
+        message: &str,
+        expression_text: &str,
+    ) -> Option<SourceLocation> {
+        // Try to extract identifiers or function names from the diagnostic message
+        // and find their position in the expression
+
+        // Look for property names in quotes
+        if let Some(property_start) = message.find("'") {
+            if let Some(property_end) = message[property_start + 1..].find("'") {
+                let property_name = &message[property_start + 1..property_start + 1 + property_end];
+                if let Some(pos) = expression_text.find(property_name) {
+                    return Some(SourceLocation {
+                        offset: pos,
+                        length: property_name.len(),
+                        line: 1,
+                        column: pos + 1,
+                    });
+                }
+            }
+        }
+
+        // Look for function names in the message (not hardcoded resource types)
+        let function_names = [
+            "resourceType",
+            "ofType",
+            "is",
+            "as",
+            "where",
+            "first",
+            "last",
+        ];
+        for word in &function_names {
+            if message.contains(word) {
+                if let Some(pos) = expression_text.find(word) {
+                    return Some(SourceLocation {
+                        offset: pos,
+                        length: word.len(),
+                        line: 1,
+                        column: pos + 1,
+                    });
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Check if a type is a Reference type
+    fn is_reference_type(&self, type_info: &TypeInfo) -> bool {
+        type_info.type_name == "Reference"
+            || type_info.type_name.ends_with("Reference")
+            || type_info.type_name.contains("Reference[")
     }
 
     /// Analyze a single AST node
@@ -114,6 +199,20 @@ impl SemanticAnalyzer {
 
         // Try to use model provider for accurate type information
         if let Some(ref input_type) = self.input_type {
+            // Special case: resourceType is always valid on Reference types
+            if name == "resourceType" && self.is_reference_type(input_type) {
+                metadata.type_info = Some(TypeInfo {
+                    type_name: "String".to_string(),
+                    singleton: Some(true),
+                    is_empty: Some(false),
+                    namespace: Some("System".to_string()),
+                    name: Some("String".to_string()),
+                });
+                self.input_type = metadata.type_info.clone();
+                self.is_chain_head = false;
+                return Ok(metadata);
+            }
+
             // First try to navigate from input type (property access)
             if let Ok(Some(element_type)) =
                 self.model_provider.get_element_type(input_type, name).await
@@ -125,20 +224,31 @@ impl SemanticAnalyzer {
             }
 
             // If property not found and we have a concrete type, this is a semantic error
-            // C# implementation: "prop 'given1' not found on HumanName[]"
+            // Use PropertyAnalyzer to get suggestions
+            let property_provider = self.model_provider.clone();
+            let property_analyzer = crate::analyzer::PropertyAnalyzer::new(property_provider);
+            let suggestions = property_analyzer.suggest_properties(input_type, name).await;
+
             let type_display = if input_type.singleton.unwrap_or(true) {
                 input_type.type_name.clone()
             } else {
                 format!("{}[]", input_type.type_name)
             };
 
+            let message = format!("prop '{name}' not found on {type_display}");
+            let _help_text = if !suggestions.is_empty() {
+                Some(format!("Did you mean '{}'?", suggestions[0].property_name))
+            } else {
+                None
+            };
+
             let diagnostic = Diagnostic {
-                severity: DiagnosticSeverity::Error, // Make this an error like C# implementation
+                severity: DiagnosticSeverity::Error,
                 code: DiagnosticCode {
                     code: "PROPERTY_NOT_FOUND".to_string(),
                     namespace: Some("fhirpath".to_string()),
                 },
-                message: format!("prop '{name}' not found on {type_display}"),
+                message,
                 location: identifier.location.clone(),
                 related: vec![],
             };

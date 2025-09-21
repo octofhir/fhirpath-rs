@@ -72,7 +72,7 @@ async fn test_invalid_property_semantic_error() {
         "Error should indicate property not found"
     );
 
-    println!("✅ Semantic error detected: {}", error_message);
+    println!("✅ Semantic error detected: {error_message}");
     println!("📝 This matches C# implementation: 'prop 'given1' not found on HumanName[]'");
 }
 

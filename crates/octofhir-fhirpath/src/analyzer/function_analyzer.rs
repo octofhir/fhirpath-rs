@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use crate::ast::{ExpressionNode, analysis::AnalysisMetadata};
+use crate::core::error_code::{FP0053, FP0054};
 use crate::core::{FhirPathError, ModelProvider, SourceLocation};
-use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
+use crate::diagnostics::{AriadneDiagnostic, Diagnostic, DiagnosticCode, DiagnosticSeverity};
 use octofhir_fhir_model::TypeInfo;
 
 /// Result type for function analysis operations
@@ -12,6 +13,7 @@ pub type AnalysisResult = Result<AnalysisMetadata, FhirPathError>;
 pub struct FunctionAnalyzer {
     #[allow(dead_code)]
     model_provider: Arc<dyn ModelProvider>,
+    function_registry: Arc<crate::evaluator::FunctionRegistry>,
 }
 
 /// Function signature information for validation
@@ -77,9 +79,160 @@ pub enum ReturnType {
 }
 
 impl FunctionAnalyzer {
-    /// Create a new FunctionAnalyzer with the given ModelProvider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
-        Self { model_provider }
+    /// Create a new FunctionAnalyzer with the given ModelProvider and FunctionRegistry
+    pub fn new(
+        model_provider: Arc<dyn ModelProvider>,
+        function_registry: Arc<crate::evaluator::FunctionRegistry>,
+    ) -> Self {
+        Self {
+            model_provider,
+            function_registry,
+        }
+    }
+
+    /// Validate function call and return AriadneDiagnostic directly (for static analyzer)
+    pub async fn validate_function_call_new(
+        &self,
+        function_name: &str,
+        input_type: &TypeInfo,
+        arguments: &[ExpressionNode],
+        span: std::ops::Range<usize>,
+    ) -> Vec<AriadneDiagnostic> {
+        let mut diagnostics = Vec::new();
+
+        // Get function signature
+        let signature = match self.get_function_signature(function_name) {
+            Some(sig) => sig,
+            None => {
+                // Unknown function - provide suggestions
+                let suggestions = self.suggest_function_names(function_name);
+                let message = if !suggestions.is_empty() {
+                    format!(
+                        "Unknown function '{}', did you mean '{}'?",
+                        function_name, suggestions[0]
+                    )
+                } else {
+                    format!("Unknown function '{function_name}'")
+                };
+
+                let diagnostic = AriadneDiagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    error_code: FP0054,
+                    message,
+                    span,
+                    help: None,
+                    note: None,
+                    related: Vec::new(),
+                };
+                diagnostics.push(diagnostic);
+                return diagnostics;
+            }
+        };
+
+        // Validate input requirements
+        if let Some(input_diagnostic) = self.validate_input_requirements_new(
+            function_name,
+            input_type,
+            &signature.input_requirements,
+            span.clone(),
+        ) {
+            diagnostics.push(input_diagnostic);
+        }
+
+        // Validate argument count
+        let provided_args = arguments.len();
+        let min_args = signature.required_args;
+        let max_args = signature.required_args + signature.optional_args;
+
+        if provided_args < min_args {
+            let diagnostic = AriadneDiagnostic {
+                severity: DiagnosticSeverity::Error,
+                error_code: FP0053,
+                message: format!(
+                    "Function '{function_name}' requires at least {min_args} argument(s), but {provided_args} provided"
+                ),
+                span,
+                help: None,
+                note: None,
+                related: Vec::new(),
+            };
+            diagnostics.push(diagnostic);
+        } else if provided_args > max_args {
+            let diagnostic = AriadneDiagnostic {
+                severity: DiagnosticSeverity::Error,
+                error_code: FP0053,
+                message: format!(
+                    "Function '{function_name}' accepts at most {max_args} argument(s), but {provided_args} provided"
+                ),
+                span,
+                help: None,
+                note: None,
+                related: Vec::new(),
+            };
+            diagnostics.push(diagnostic);
+        }
+
+        diagnostics
+    }
+
+    /// Validate input requirements and return AriadneDiagnostic
+    fn validate_input_requirements_new(
+        &self,
+        function_name: &str,
+        input_type: &TypeInfo,
+        requirement: &InputRequirement,
+        span: std::ops::Range<usize>,
+    ) -> Option<AriadneDiagnostic> {
+        match requirement {
+            InputRequirement::Singleton => {
+                if !input_type.singleton.unwrap_or(true) {
+                    Some(AriadneDiagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        error_code: FP0053,
+                        message: format!("Function '{function_name}()' requires singleton input"),
+                        span,
+                        help: None,
+                        note: None,
+                        related: Vec::new(),
+                    })
+                } else {
+                    None
+                }
+            }
+            InputRequirement::Collection => {
+                if input_type.singleton.unwrap_or(true) {
+                    Some(AriadneDiagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        error_code: FP0053,
+                        message: format!("Function '{function_name}()' requires collection input"),
+                        span,
+                        help: None,
+                        note: None,
+                        related: Vec::new(),
+                    })
+                } else {
+                    None
+                }
+            }
+            InputRequirement::NonEmptyCollection => {
+                if input_type.singleton.unwrap_or(true) || input_type.is_empty.unwrap_or(false) {
+                    Some(AriadneDiagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        error_code: FP0053,
+                        message: format!(
+                            "Function '{function_name}()' requires non-empty collection input"
+                        ),
+                        span,
+                        help: None,
+                        note: None,
+                        related: Vec::new(),
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     /// Validate function with enhanced context checking
@@ -96,14 +249,21 @@ impl FunctionAnalyzer {
         let signature = match self.get_function_signature(function_name) {
             Some(sig) => sig,
             None => {
-                // Unknown function
+                // Unknown function - provide suggestions
+                let suggestions = self.suggest_function_names(function_name);
+                let mut message = format!("Unknown function '{function_name}'");
+
+                if !suggestions.is_empty() {
+                    message.push_str(&format!(". Did you mean '{}'?", suggestions[0]));
+                }
+
                 let diagnostic = Diagnostic {
                     severity: DiagnosticSeverity::Error,
                     code: DiagnosticCode {
                         code: "FP0304".to_string(),
                         namespace: None,
                     },
-                    message: format!("Unknown function '{function_name}'"),
+                    message,
                     location,
                     related: vec![],
                 };
@@ -161,6 +321,82 @@ impl FunctionAnalyzer {
         metadata.type_info = Some(self.resolve_return_type(&signature.return_type, input_type));
 
         Ok(metadata)
+    }
+
+    /// Suggest function names for typos using edit distance
+    fn suggest_function_names(&self, attempted_name: &str) -> Vec<String> {
+        let mut suggestions = Vec::new();
+
+        // Get all available function names from registry
+        let available_functions = self.get_all_function_names();
+
+        for func_name in available_functions {
+            let distance = self.levenshtein_distance(attempted_name, &func_name);
+            let max_distance = std::cmp::max(2, attempted_name.len() / 2);
+
+            if distance <= max_distance {
+                suggestions.push((func_name, distance));
+            }
+        }
+
+        suggestions.sort_by_key(|&(_, distance)| distance);
+        suggestions
+            .into_iter()
+            .map(|(name, _)| name)
+            .take(3)
+            .collect()
+    }
+
+    /// Get all function names from the registry
+    fn get_all_function_names(&self) -> Vec<String> {
+        self.function_registry
+            .list_functions()
+            .into_iter()
+            .cloned()
+            .collect()
+    }
+
+    /// Calculate Levenshtein distance between two strings
+    fn levenshtein_distance(&self, a: &str, b: &str) -> usize {
+        let a_chars: Vec<char> = a.chars().collect();
+        let b_chars: Vec<char> = b.chars().collect();
+        let a_len = a_chars.len();
+        let b_len = b_chars.len();
+
+        if a_len == 0 {
+            return b_len;
+        }
+        if b_len == 0 {
+            return a_len;
+        }
+
+        let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
+
+        for i in 0..=a_len {
+            matrix[i][0] = i;
+        }
+        for j in 0..=b_len {
+            matrix[0][j] = j;
+        }
+
+        for i in 1..=a_len {
+            for j in 1..=b_len {
+                let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                    0
+                } else {
+                    1
+                };
+                matrix[i][j] = std::cmp::min(
+                    std::cmp::min(
+                        matrix[i - 1][j] + 1, // deletion
+                        matrix[i][j - 1] + 1, // insertion
+                    ),
+                    matrix[i - 1][j - 1] + cost, // substitution
+                );
+            }
+        }
+
+        matrix[a_len][b_len]
     }
 
     /// Validate aggregate functions require collections
@@ -621,7 +857,8 @@ mod tests {
 
     fn create_test_analyzer() -> FunctionAnalyzer {
         let provider = Arc::new(EmptyModelProvider);
-        FunctionAnalyzer::new(provider)
+        let function_registry = Arc::new(crate::evaluator::FunctionRegistry::new());
+        FunctionAnalyzer::new(provider, function_registry)
     }
 
     fn create_test_type_info(type_name: &str, singleton: bool) -> TypeInfo {

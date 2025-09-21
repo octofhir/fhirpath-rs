@@ -326,6 +326,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
@@ -347,6 +349,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;
@@ -370,11 +374,13 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
         let left = vec![FhirPathValue::integer(42)];
-        let right = vec![FhirPathValue::decimal(42.0)];
+        let right = vec![FhirPathValue::decimal(Decimal::new(42, 0))];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -391,6 +397,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;
@@ -413,6 +421,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;

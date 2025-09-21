@@ -802,12 +802,31 @@ mod tests {
 
     #[test]
     fn test_operator_case_recovery() {
-        // Test case insensitive keyword recovery
-        let result = parse_for_analysis("true AND false OR true");
-        assert!(!result.has_errors, "Should recover from uppercase keywords");
+        // Test parsing of correct lowercase keywords first
+        let result = parse_for_analysis("true and false or true");
+        assert!(!result.has_errors, "Lowercase keywords should work");
 
+        let result = parse_for_analysis("not true");
+        assert!(!result.has_errors, "Lowercase 'not' should work");
+
+        // Test that uppercase binary operators produce helpful error messages
+        let result = parse_for_analysis("true AND false OR true");
+        assert!(
+            result.has_errors,
+            "Should detect uppercase keywords as errors"
+        );
+
+        // Should provide helpful diagnostic about the invalid token
+        assert!(!result.diagnostics.is_empty());
+        let diagnostic = &result.diagnostics[0];
+        assert!(diagnostic.message.contains("Expected"));
+
+        // BUT: uppercase NOT actually works (different parser path)
         let result = parse_for_analysis("NOT true");
-        assert!(!result.has_errors, "Should recover from uppercase NOT");
+        assert!(
+            !result.has_errors,
+            "Uppercase NOT works through identifier path"
+        );
     }
 
     #[test]

@@ -283,14 +283,15 @@ mod tests {
 
     #[test]
     fn test_comprehensive_report_formatting() {
-        let engine = DiagnosticEngine::new();
+        let mut engine = DiagnosticEngine::new();
+        let source_id = engine.add_source("test.fhirpath", "Patient.invalid.name");
         let mut collector = MultiDiagnosticCollector::new();
 
         collector.error(FP0001, "Syntax error".to_string(), 0..5);
         collector.warning(FP0153, "Performance warning".to_string(), 10..15);
         collector.suggestion(FP0154, "Optimization suggestion".to_string(), 20..25);
 
-        let batch = collector.build_batch(0, "test".to_string());
+        let batch = collector.build_batch(source_id, "test".to_string());
         let formatted = BatchFormatter::format_comprehensive_report(&engine, &batch).unwrap();
 
         assert!(formatted.contains("📋 FHIRPath Analysis Report"));

@@ -512,7 +512,7 @@ async fn handle_evaluate(
     }
 
     // First parse the expression to get proper diagnostics with span information
-    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
+    let parse_result = parse_with_mode(expression, ParsingMode::Fast);
 
     let output = if !parse_result.success {
         // Parse failed - show detailed diagnostics with proper spans
@@ -722,7 +722,7 @@ fn handle_parse(
 ) {
     use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
     use std::io::stderr;
-    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
+    let parse_result = parse_with_mode(expression, ParsingMode::Fast);
 
     let output = if parse_result.success {
         ParseOutput {
@@ -834,7 +834,7 @@ async fn handle_validate(
     let source_id = handler.add_source("expression".to_string(), expression.to_string());
 
     // First parse the expression
-    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
+    let parse_result = parse_with_mode(expression, ParsingMode::Fast);
 
     let mut all_diagnostics: Vec<octofhir_fhirpath::diagnostics::AriadneDiagnostic> = Vec::new();
     let mut has_errors = false;
@@ -997,7 +997,7 @@ async fn handle_analyze_multi_error(
     let source_id = handler.add_source("expression".to_string(), expression.to_string());
 
     // First parse the expression with proper diagnostics (same as evaluate command)
-    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
+    let parse_result = parse_with_mode(expression, ParsingMode::Fast);
 
     let mut all_diagnostics: Vec<octofhir_fhirpath::diagnostics::AriadneDiagnostic> = Vec::new();
 

@@ -183,6 +183,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
@@ -205,11 +207,13 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
-        let left = vec![FhirPathValue::decimal(17.8)];
-        let right = vec![FhirPathValue::decimal(5.2)];
+        let left = vec![FhirPathValue::decimal(Decimal::new(178, 1))];
+        let right = vec![FhirPathValue::decimal(Decimal::new(52, 1))];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -227,15 +231,20 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
         let left = vec![FhirPathValue::integer(10)];
         let right = vec![FhirPathValue::integer(0)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await;
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Division by zero"));
+        // Integer division by zero returns empty collection per FHIRPath spec
+        assert_eq!(result.value.len(), 0);
     }
 }

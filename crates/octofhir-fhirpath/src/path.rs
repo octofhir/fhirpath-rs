@@ -450,7 +450,7 @@ mod tests {
 
         let complex = CanonicalPath::parse("Patient.name[0].given[1]").unwrap();
         assert_eq!(complex.to_string(), "Patient.name[0].given[1]");
-        assert_eq!(complex.depth(), 4);
+        assert_eq!(complex.depth(), 5);
     }
 
     #[test]

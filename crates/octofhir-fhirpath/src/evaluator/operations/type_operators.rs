@@ -383,11 +383,13 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
         let left = vec![FhirPathValue::boolean(true)];
-        let right = vec![FhirPathValue::string("boolean".to_string())];
+        let right = vec![FhirPathValue::string("Boolean".to_string())];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -404,6 +406,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;
@@ -427,11 +431,13 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
+            None,
+            None,
         )
         .await;
 
         let left = vec![FhirPathValue::integer(42)];
-        let right = vec![FhirPathValue::string("integer".to_string())];
+        let right = vec![FhirPathValue::string("Integer".to_string())];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -448,6 +454,8 @@ mod tests {
         let context = EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
             None,
         )
         .await;

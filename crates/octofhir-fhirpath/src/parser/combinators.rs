@@ -915,10 +915,14 @@ mod tests {
 
         assert!(result.is_ok());
         if let Ok(ExpressionNode::Literal(lit)) = result {
-            if let LiteralValue::String(s) = lit.value {
-                assert_eq!(s, "@2021-01-01");
-            } else {
-                panic!("Expected datetime literal");
+            match lit.value {
+                LiteralValue::Date(_) => {
+                    // Success - we got a date literal
+                }
+                LiteralValue::DateTime(_) => {
+                    // Success - we got a datetime literal
+                }
+                _ => panic!("Expected datetime literal"),
             }
         }
     }

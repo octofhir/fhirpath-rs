@@ -24,7 +24,7 @@ mod tests {
         let input = Collection::empty();
         let context = EvaluationContext::new(
             input,
-            engine.model_provider().clone(),
+            engine.get_model_provider().clone(),
             Some(terminology_provider.clone()),
             None, // No validation provider
             None, // No trace provider
@@ -56,7 +56,7 @@ mod tests {
         let input = Collection::empty();
         let context = EvaluationContext::new(
             input,
-            engine.model_provider().clone(),
+            engine.get_model_provider().clone(),
             None, // No terminology provider
             None, // No validation provider
             None, // No trace provider
@@ -119,7 +119,7 @@ mod tests {
         let input = Collection::from(vec![FhirPathValue::string("test")]);
         let mut context = EvaluationContext::new(
             input,
-            engine.model_provider().clone(),
+            engine.get_model_provider().clone(),
             Some(terminology_provider.clone()),
             None, // No validation provider
             None, // No trace provider
