@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         rust: [stable, beta]
         exclude:
           # Reduce CI load - only test stable on non-Linux platforms
@@ -62,15 +62,28 @@ jobs:
       - name: Run clippy
         if: matrix.rust == 'stable'
         run: cargo clippy --workspace --all-targets --all-features
+        env:
+          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
 
       - name: Build workspace
         run: cargo build --verbose --workspace
+        env:
+          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
 
       - name: Build CLI binary
         run: cargo build --verbose --package fhirpath-cli
+        env:
+          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
 
       - name: Run tests
         run: cargo test --verbose --workspace --all-features
+        env:
+          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
+          CARGO_PROFILE_TEST_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
 
       - name: Run tests (release mode)
         run: cargo test --release --verbose --workspace

@@ -68,10 +68,17 @@ jobs:
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets --all-features
           cargo test --workspace --all-features
+        env:
+          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
+          CARGO_PROFILE_TEST_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
 
       - name: Build fhirpath-cli binary
         run: |
           cargo build --release --target ${{ matrix.target }} --package fhirpath-cli
+        env:
+          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
 
       - name: Prepare binary for release (Unix)
         if: runner.os != 'Windows'
@@ -223,6 +230,9 @@ jobs:
 
       - name: Build octofhir-fhirpath crate
         run: cargo build --release --package octofhir-fhirpath
+        env:
+          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ runner.os == 'Windows' && '1' || '2' }}
 
       - name: Test publishing octofhir-fhirpath (dry run)
         run: |

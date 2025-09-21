@@ -65,3 +65,10 @@ lsp-types = "0.97.0"
 
 [workspace.lints.rust]
 missing_docs = "allow"
+
+# Reduce debug info for Windows CI to avoid LNK1318 errors
+[profile.dev]
+debug = 1
+
+[profile.test]
+debug = 1
