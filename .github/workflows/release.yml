@@ -41,6 +41,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          # Configure git for Windows line endings
+          autocrlf: false
+        with:
           fetch-depth: 0
 
       - name: Install Node.js and pnpm
@@ -157,6 +160,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          # Configure git for Windows line endings
+          autocrlf: false
+        with:
           fetch-depth: 0
 
       - name: Configure git
@@ -244,6 +250,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          # Configure git for Windows line endings
+          autocrlf: false
         with:
           fetch-depth: 0
 

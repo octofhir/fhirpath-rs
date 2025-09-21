@@ -27,6 +27,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          # Configure git for Windows line endings
+          autocrlf: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
@@ -138,6 +141,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          # Configure git for Windows line endings
+          autocrlf: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -181,6 +187,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          # Configure git for Windows line endings
+          autocrlf: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
