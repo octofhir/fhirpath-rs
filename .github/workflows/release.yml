@@ -84,11 +84,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config
 
-      - name: Run quality assurance
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets --all-features --exclude fhirpath-dev-tools
-          cargo test --workspace --all-features --exclude fhirpath-dev-tools
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --all-features --exclude fhirpath-dev-tools
         env:
           # Windows-specific: Completely disable debug info to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
@@ -97,6 +97,22 @@ jobs:
           CARGO_PROFILE_TEST_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
           CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
           RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+
+      - name: Run tests (Windows - no doctests)
+        if: matrix.os == 'windows-latest'
+        run: cargo test --workspace --all-features --exclude fhirpath-dev-tools --lib --bins
+        env:
+          # Windows-specific: Completely disable debug info to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
+          CARGO_PROFILE_TEST_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
+          CARGO_PROFILE_DEV_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_PROFILE_TEST_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+
+      - name: Run tests (Non-Windows - with doctests)
+        if: matrix.os != 'windows-latest'
+        run: cargo test --workspace --all-features --exclude fhirpath-dev-tools
 
       - name: Build fhirpath-cli binary
         run: |

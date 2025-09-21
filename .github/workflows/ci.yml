@@ -99,8 +99,9 @@ jobs:
           CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
           RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
-      - name: Run tests
-        run: cargo test --verbose --workspace --all-features --exclude fhirpath-dev-tools
+      - name: Run tests (Windows - no doctests)
+        if: matrix.os == 'windows-latest'
+        run: cargo test --verbose --workspace --all-features --exclude fhirpath-dev-tools --lib --bins
         env:
           # Windows-specific: Completely disable debug info to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
@@ -111,7 +112,16 @@ jobs:
           CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
           RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
-      - name: Run tests (release mode)
+      - name: Run tests (Non-Windows - with doctests)
+        if: matrix.os != 'windows-latest'
+        run: cargo test --verbose --workspace --all-features --exclude fhirpath-dev-tools
+
+      - name: Run tests (release mode - Windows no doctests)
+        if: matrix.os == 'windows-latest'
+        run: cargo test --release --verbose --workspace --exclude fhirpath-dev-tools --lib --bins
+
+      - name: Run tests (release mode - Non-Windows with doctests)
+        if: matrix.os != 'windows-latest'
         run: cargo test --release --verbose --workspace --exclude fhirpath-dev-tools
 
       - name: Run benchmarks (quick check)
