@@ -72,6 +72,8 @@ jobs:
           # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
           CARGO_PROFILE_TEST_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
 
       - name: Build fhirpath-cli binary
         run: |
@@ -79,6 +81,8 @@ jobs:
         env:
           # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
 
       - name: Prepare binary for release (Unix)
         if: runner.os != 'Windows'
@@ -233,6 +237,8 @@ jobs:
         env:
           # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ runner.os == 'Windows' && '1' || '2' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ runner.os == 'Windows' && '-C debuginfo=1' || '' }}
+          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C debuginfo=1' || '' }}
 
       - name: Test publishing octofhir-fhirpath (dry run)
         run: |

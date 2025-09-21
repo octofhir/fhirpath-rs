@@ -72,3 +72,10 @@ debug = 1
 
 [profile.test]
 debug = 1
+
+# Windows-specific profile to avoid LNK1318 errors
+[profile.dev.package."*"]
+debug = 1
+
+[profile.test.package."*"]
+debug = 1

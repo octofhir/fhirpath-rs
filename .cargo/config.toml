@@ -1,0 +1,8 @@
+# Windows-specific configuration to avoid LNK1318 PDB errors
+[target.x86_64-pc-windows-msvc]
+# Reduce debug info to line tables only to avoid PDB size issues
+rustflags = ["-C", "debuginfo=1"]
+
+[env]
+# Additional Windows-specific environment variables
+CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS = { value = "-C debuginfo=1", condition = { any-of = ["cfg(windows)", "cfg(target_os = \"windows\")"] } }
