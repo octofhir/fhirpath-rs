@@ -5,10 +5,9 @@
 //! - Versioned evaluation endpoints for R4, R4B, R5, R6
 //! - Expression analysis with validation
 //! - File management for FHIR resource storage
-//! - Embedded SolidJS web interface
 //! - CORS support for web-based tools
+//! - API-only server (no embedded UI)
 
-pub mod assets;
 pub mod config;
 pub mod error;
 pub mod handlers;

@@ -315,7 +315,6 @@ async fn main() {
             max_body_size,
             timeout,
             rate_limit,
-            no_ui,
         } => {
             handle_server(
                 port,
@@ -325,7 +324,6 @@ async fn main() {
                 max_body_size,
                 timeout,
                 rate_limit,
-                no_ui,
                 &cli,
             )
             .await;
@@ -1275,7 +1273,6 @@ async fn handle_server(
     max_body_size: u64,
     _timeout: u64,
     _rate_limit: u32,
-    _no_ui: bool,
     _cli: &Cli,
 ) {
     use fhirpath_cli::cli::server::{config::ServerConfig, start_server};

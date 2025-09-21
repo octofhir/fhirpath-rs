@@ -40,8 +40,6 @@ chrono = { workspace = true }
 rust_decimal = { workspace = true }
 octofhir-ucum = { workspace = true }
 base64 = "0.22"
-include_dir = "0.7"
-mime_guess = "2.0"
 
 # CLI dependencies
 clap = { workspace = true }

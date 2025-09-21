@@ -156,7 +156,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: RegistryCommands,
     },
-    /// Start HTTP server with web interface
+    /// Start HTTP API server for FHIRPath evaluation
     Server {
         /// Port to bind the server to
         #[arg(short, long, default_value = "8084")]
@@ -179,9 +179,6 @@ pub enum Commands {
         /// Rate limit: requests per minute per IP
         #[arg(long, default_value = "100")]
         rate_limit: u32,
-        /// Run server without web UI (API-only mode)
-        #[arg(long)]
-        no_ui: bool,
     },
     // /// Start Terminal User Interface (TUI) - Advanced multi-panel REPL
     // Tui {
