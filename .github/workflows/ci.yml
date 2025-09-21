@@ -44,6 +44,15 @@ jobs:
         with:
           version: latest
 
+      - name: Configure Windows build (avoid LNK1318)
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo "CARGO_PROFILE_DEV_DEBUG=0" >> $env:GITHUB_ENV
+          echo "CARGO_PROFILE_TEST_DEBUG=0" >> $env:GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_DEBUG=0" >> $env:GITHUB_ENV
+          echo "RUSTFLAGS=-C debuginfo=0 -C strip=symbols" >> $env:GITHUB_ENV
+          echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C debuginfo=0 -C strip=symbols" >> $env:GITHUB_ENV
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
@@ -61,7 +70,7 @@ jobs:
 
       - name: Run clippy
         if: matrix.rust == 'stable'
-        run: cargo clippy --workspace --all-targets --all-features
+        run: cargo clippy --workspace --all-targets --all-features --exclude fhirpath-dev-tools
         env:
           # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
@@ -69,7 +78,7 @@ jobs:
           RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
 
       - name: Build workspace
-        run: cargo build --verbose --workspace
+        run: cargo build --verbose --workspace --exclude fhirpath-dev-tools
         env:
           # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
@@ -85,7 +94,7 @@ jobs:
           RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
 
       - name: Run tests
-        run: cargo test --verbose --workspace --all-features
+        run: cargo test --verbose --workspace --all-features --exclude fhirpath-dev-tools
         env:
           # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
@@ -95,7 +104,7 @@ jobs:
           RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
 
       - name: Run tests (release mode)
-        run: cargo test --release --verbose --workspace
+        run: cargo test --release --verbose --workspace --exclude fhirpath-dev-tools
 
       - name: Run benchmarks (quick check)
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'

@@ -68,14 +68,26 @@ missing_docs = "allow"
 
 # Reduce debug info for Windows CI to avoid LNK1318 errors
 [profile.dev]
-debug = 1
+debug = 0
+strip = "symbols"
 
 [profile.test]
-debug = 1
+debug = 0
+strip = "symbols"
+
+[profile.release]
+debug = 0
+strip = "symbols"
 
 # Windows-specific profile to avoid LNK1318 errors
 [profile.dev.package."*"]
-debug = 1
+debug = 0
+strip = "symbols"
 
 [profile.test.package."*"]
-debug = 1
+debug = 0
+strip = "symbols"
+
+[profile.release.package."*"]
+debug = 0
+strip = "symbols"
