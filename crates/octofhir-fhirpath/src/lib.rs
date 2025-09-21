@@ -1,6 +1,11 @@
 //! # OctoFHIR FHIRPath Implementation
 
 #![allow(missing_docs)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::needless_option_as_deref)]
+#![allow(clippy::default_constructed_unit_structs)]
+#![allow(clippy::len_zero)]
 //!
 //! A high-performance, spec-compliant implementation of the FHIRPath expression language
 //! for FHIR resources. This implementation consolidates all functionality into a single

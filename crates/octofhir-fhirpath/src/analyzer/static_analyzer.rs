@@ -27,6 +27,7 @@ pub struct StaticAnalyzer {
     type_analyzer: TypeAnalyzer,
     #[allow(dead_code)]
     diagnostic_builder: DiagnosticBuilder,
+    #[allow(dead_code)]
     semantic_analyzer: SemanticAnalyzer,
     /// Current source expression being analyzed (for span calculation)
     current_source: Option<String>,
@@ -612,6 +613,7 @@ impl StaticAnalyzer {
 
         let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..=a_len {
             matrix[i][0] = i;
         }
@@ -782,6 +784,7 @@ impl StaticAnalyzer {
     }
 
     /// Recursively validate properties in an AST node
+    #[allow(dead_code)]
     fn validate_node_properties<'a>(
         &'a self,
         node: &'a ExpressionNode,
@@ -887,6 +890,7 @@ impl StaticAnalyzer {
     }
 
     /// Validate a property name against the current type
+    #[allow(dead_code)]
     async fn validate_property_name(
         &self,
         parent_type: &TypeInfo,
@@ -922,6 +926,7 @@ impl StaticAnalyzer {
     }
 
     /// Validate a resource type literal (used in ofType, is, as functions)
+    #[allow(dead_code)]
     async fn validate_resource_type_literal(
         &self,
         resource_type: &str,
@@ -1015,6 +1020,7 @@ impl StaticAnalyzer {
     }
 
     /// Validate function calls for type-related operations
+    #[allow(dead_code)]
     async fn validate_function_call(
         &self,
         function_name: &str,
@@ -1052,6 +1058,7 @@ impl StaticAnalyzer {
     }
 
     /// Validate type operations (ofType, is, as) against the current type context
+    #[allow(dead_code)]
     async fn validate_type_operation(
         &self,
         operation: &str,
@@ -1068,6 +1075,7 @@ impl StaticAnalyzer {
     }
 
     /// Check if a type is a Reference type
+    #[allow(dead_code)]
     fn is_reference_type(&self, type_info: &TypeInfo) -> bool {
         type_info.type_name == "Reference"
             || type_info.type_name.ends_with("Reference")
@@ -1076,6 +1084,7 @@ impl StaticAnalyzer {
     }
 
     /// Convert legacy diagnostic to AriadneDiagnostic
+    #[allow(dead_code)]
     fn convert_legacy_diagnostic_to_ariadne(
         &self,
         diagnostic: crate::diagnostics::Diagnostic,
@@ -1100,6 +1109,7 @@ impl StaticAnalyzer {
     }
 
     /// Create a diagnostic for parse errors
+    #[allow(dead_code)]
     fn create_parse_error_diagnostic(
         &self,
         error: FhirPathError,

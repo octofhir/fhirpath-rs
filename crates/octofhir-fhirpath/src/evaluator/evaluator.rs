@@ -1243,7 +1243,7 @@ impl Evaluator {
                     && key
                         .chars()
                         .nth(base_property.len())
-                        .map_or(false, |c| c.is_uppercase())
+                        .is_some_and(|c| c.is_uppercase())
             })
             .cloned()
             .collect();

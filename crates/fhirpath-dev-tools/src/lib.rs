@@ -1,3 +1,5 @@
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::single_char_add_str)]
 // Copyright 2024 OctoFHIR Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

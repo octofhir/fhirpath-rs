@@ -372,6 +372,7 @@ impl FunctionAnalyzer {
 
         let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..=a_len {
             matrix[i][0] = i;
         }

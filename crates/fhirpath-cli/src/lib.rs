@@ -1,3 +1,8 @@
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::vec_init_then_push)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::manual_strip)]
+#![allow(clippy::len_zero)]
 // Copyright 2024 OctoFHIR Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

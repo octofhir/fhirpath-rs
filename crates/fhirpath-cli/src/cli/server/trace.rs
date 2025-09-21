@@ -2,7 +2,6 @@
 
 use octofhir_fhirpath::core::{SharedTraceProvider, TraceProvider};
 use serde_json::Value as JsonValue;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// Trace entry with structured
@@ -70,14 +69,14 @@ impl Default for ServerApiTraceProvider {
 
 impl TraceProvider for ServerApiTraceProvider {
     fn trace(&self, name: &str, index: usize, message: &str) {
-        let trace_line = format!("TRACE[{}][{}]: {}", name, index, message);
+        let trace_line = format!("TRACE[{name}][{index}]: {message}");
         if let Ok(mut traces) = self.traces.lock() {
             traces.push(trace_line);
         }
     }
 
     fn trace_simple(&self, name: &str, message: &str) {
-        let trace_line = format!("TRACE[{}]: {}", name, message);
+        let trace_line = format!("TRACE[{name}]: {message}");
         if let Ok(mut traces) = self.traces.lock() {
             traces.push(trace_line);
         }

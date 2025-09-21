@@ -13,6 +13,7 @@ use octofhir_fhir_model::{ModelProvider, TypeInfo};
 /// Analyzer for type inference and validation
 #[derive(Debug)]
 pub struct TypeAnalyzer {
+    #[allow(dead_code)]
     model_provider: Arc<dyn ModelProvider>,
 }
 

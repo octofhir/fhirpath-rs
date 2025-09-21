@@ -1,3 +1,6 @@
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::single_char_add_str)]
+
 use std::fs;
 use std::path::PathBuf;
 

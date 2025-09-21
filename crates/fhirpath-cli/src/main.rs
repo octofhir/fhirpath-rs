@@ -1266,6 +1266,7 @@ fn open_browser(url: &str) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_server(
     port: u16,
     _storage: std::path::PathBuf,
@@ -1278,7 +1279,6 @@ async fn handle_server(
     _cli: &Cli,
 ) {
     use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
-    use std::net::Ipv4Addr;
 
     let config = ServerConfig {
         port,
@@ -1293,7 +1293,7 @@ async fn handle_server(
     };
 
     if let Err(e) = start_server(config).await {
-        eprintln!("❌ Server error: {}", e);
+        eprintln!("❌ Server error: {e}");
         std::process::exit(1);
     }
 }

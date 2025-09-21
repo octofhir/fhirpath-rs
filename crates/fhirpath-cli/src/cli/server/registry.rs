@@ -14,7 +14,7 @@ use octofhir_fhirpath::{FunctionRegistry, create_function_registry};
 use papaya::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// Shared registry containing pre-initialized FhirPathEngines for all FHIR versions
 #[derive(Clone)]
@@ -94,10 +94,7 @@ impl ServerRegistry {
         &self,
         version: ServerFhirVersion,
     ) -> Option<Arc<Mutex<FhirPathEngine>>> {
-        self.evaluation_engines
-            .pin()
-            .get(&version)
-            .map(|guard| guard.clone())
+        self.evaluation_engines.pin().get(&version).cloned()
     }
     /// Get the number of FHIR versions supported
     pub fn version_count(&self) -> usize {
@@ -132,9 +129,9 @@ impl ServerRegistry {
             .model_providers
             .pin()
             .get(&version)
-            .map(|guard| guard.clone())
+            .cloned()
             .ok_or_else(|| ServerError::BadRequest {
-                message: format!("FHIR version {} not supported", version),
+                message: format!("FHIR version {version} not supported"),
             })?;
 
         let engine =
@@ -154,10 +151,7 @@ impl ServerRegistry {
         &self,
         version: ServerFhirVersion,
     ) -> Option<Arc<EmbeddedModelProvider>> {
-        self.model_providers
-            .pin()
-            .get(&version)
-            .map(|guard| guard.clone())
+        self.model_providers.pin().get(&version).cloned()
     }
 }
 

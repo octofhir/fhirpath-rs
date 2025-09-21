@@ -1,6 +1,5 @@
 //! Request and response models for the FHIRPath HTTP server
 
-use base64::Engine;
 use octofhir_fhirpath::FhirPathValue;
 use octofhir_ucum::precision::NumericOps;
 use serde::{Deserialize, Serialize};

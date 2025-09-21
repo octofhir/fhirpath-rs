@@ -14,6 +14,7 @@ use octofhir_fhir_model::{ModelProvider, TypeInfo};
 /// Analyzer for union type operations
 #[derive(Debug)]
 pub struct UnionTypeAnalyzer {
+    #[allow(dead_code)]
     model_provider: Arc<dyn ModelProvider>,
 }
 

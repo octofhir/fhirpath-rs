@@ -117,7 +117,7 @@ mod tests {
 
         // Create evaluation context
         let input = Collection::from(vec![FhirPathValue::string("test")]);
-        let mut context = EvaluationContext::new(
+        let context = EvaluationContext::new(
             input,
             engine.get_model_provider().clone(),
             Some(terminology_provider.clone()),

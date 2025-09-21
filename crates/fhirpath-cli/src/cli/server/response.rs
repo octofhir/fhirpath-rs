@@ -41,6 +41,7 @@ impl StandardResponseBuilder {
         eval_time: Duration,
         total_time: Duration,
     ) -> Self {
+        #[allow(clippy::vec_init_then_push)]
         let mut timing_parts = Vec::new();
 
         timing_parts.push(FhirPathLabResponseParameter {
@@ -212,6 +213,7 @@ impl StandardResponseBuilder {
 
     /// Add metadata about the evaluation
     pub fn with_metadata(mut self, fhir_version: &str, engine_reused: bool) -> Self {
+        #[allow(clippy::vec_init_then_push)]
         let mut metadata_parts = Vec::new();
 
         metadata_parts.push(FhirPathLabResponseParameter {

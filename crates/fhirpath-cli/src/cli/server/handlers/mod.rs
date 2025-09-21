@@ -7,7 +7,6 @@ use crate::cli::server::{
     response::create_error_response,
     version::ServerFhirVersion,
 };
-use octofhir_fhirpath::core::CollectionWithMetadata;
 use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode};
 use octofhir_fhirpath::{Collection, FhirPathValue};
 use serde_json::Value as JsonValue;
@@ -28,6 +27,7 @@ use tracing::info;
 #[derive(Debug, Deserialize)]
 pub struct EvaluateQuery {
     /// Optional file to load as resource
+    #[allow(dead_code)]
     file: Option<String>,
 }
 
@@ -226,6 +226,7 @@ pub async fn analyze_handler(
 // Helper functions
 
 /// Load a FHIR resource from a file
+#[allow(dead_code)]
 async fn load_resource_from_file(filename: &str) -> ServerResult<serde_json::Value> {
     use std::path::PathBuf;
     use tokio::fs;
@@ -302,6 +303,7 @@ fn json_to_fhirpath_value(json: serde_json::Value) -> FhirPathValue {
 }
 
 /// Convert GET query parameters to FHIRPath Lab request format
+#[allow(dead_code)]
 fn convert_get_to_fhirpath_lab_request(
     params: HashMap<String, String>,
 ) -> Result<FhirPathLabRequest, String> {
@@ -910,7 +912,7 @@ async fn fhirpath_lab_handler_impl(
     let mut eval_time = std::time::Duration::from_millis(0);
     if parse_result.success {
         if let Some(_ast) = parse_result.ast {
-            let mut engine = engine_arc.lock_owned().await;
+            let engine = engine_arc.lock_owned().await;
             let eval_start = Instant::now();
 
             // Handle optional start context evaluation
@@ -957,7 +959,7 @@ async fn fhirpath_lab_handler_impl(
                     octofhir_fhirpath::FhirPathValue::resource(parsed_request.resource.clone());
                 let initial_context_collection = Collection::single(resource_value);
                 let embedded_provider = crate::EmbeddedModelProvider::r4();
-                let mut context_eval_context = EvaluationContext::new(
+                let context_eval_context = EvaluationContext::new(
                     initial_context_collection,
                     std::sync::Arc::new(embedded_provider),
                     None,
@@ -988,7 +990,7 @@ async fn fhirpath_lab_handler_impl(
                         }
                     }
                     Err(e) => {
-                        eval_time = eval_start.elapsed();
+                        let _ = eval_start.elapsed();
                         let operation_outcome = OperationOutcome::error(
                             "processing",
                             &format!("Context expression evaluation error: {}", e),
@@ -1010,7 +1012,7 @@ async fn fhirpath_lab_handler_impl(
             for context_value in context_results {
                 let context_collection = Collection::single(context_value);
                 let embedded_provider = crate::EmbeddedModelProvider::r4();
-                let mut eval_context = EvaluationContext::new(
+                let eval_context = EvaluationContext::new(
                     context_collection,
                     std::sync::Arc::new(embedded_provider),
                     None,
@@ -1033,7 +1035,7 @@ async fn fhirpath_lab_handler_impl(
                         all_results.extend(collection_with_metadata.result.value.iter().cloned());
                     }
                     Err(e) => {
-                        eval_time = eval_start.elapsed();
+                        let _ = eval_start.elapsed();
                         let operation_outcome = OperationOutcome::error(
                             "processing",
                             &format!("Expression evaluation error: {}", e),
@@ -1299,6 +1301,7 @@ fn create_single_result_parameter_simple(
 }
 
 /// Create a single result parameter with metadata from ResultWithMetadata
+#[allow(dead_code)]
 fn create_single_result_parameter_with_metadata(
     result: &octofhir_fhirpath::core::ResultWithMetadata,
     index: usize,
@@ -1433,6 +1436,7 @@ fn create_single_result_parameter_with_metadata(
 }
 
 /// Determine the appropriate parameter name based on FHIR type (from metadata)
+#[allow(dead_code)]
 fn determine_fhir_type_name_from_string(
     _item: &JsonValue,
     fhir_type: &str,
@@ -1464,6 +1468,7 @@ fn determine_fhir_type_name_from_string(
 }
 
 /// Create a resource path string for trace information
+#[allow(dead_code)]
 fn create_resource_path(expression: &str, index: usize) -> String {
     // For arrays, add index notation
     if index > 0 {
@@ -1487,6 +1492,7 @@ fn add_debug_trace_info(response: &mut FhirPathLabResponse, expression: &str, re
 }
 
 /// Count items in a JSON value (array length or 1 for non-arrays)
+#[allow(dead_code)]
 fn items_count(value: &JsonValue) -> usize {
     match value {
         JsonValue::Array(items) => items.len(),
@@ -1495,6 +1501,7 @@ fn items_count(value: &JsonValue) -> usize {
 }
 
 /// Alternative FHIRPath Lab API using per-request engine creation
+#[allow(dead_code)]
 async fn fhirpath_lab_handler_impl_per_request(
     registry: ServerRegistry,
     request: FhirPathLabRequest,
@@ -1743,7 +1750,7 @@ async fn evaluate_fhirpath_expression(
     let resource_value = octofhir_fhirpath::FhirPathValue::resource(request.resource.clone());
     let collection = octofhir_fhirpath::Collection::single(resource_value);
     let embedded_provider = crate::EmbeddedModelProvider::r4();
-    let mut context = octofhir_fhirpath::EvaluationContext::new(
+    let context = octofhir_fhirpath::EvaluationContext::new(
         collection,
         std::sync::Arc::new(embedded_provider),
         None,
