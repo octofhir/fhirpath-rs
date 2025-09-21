@@ -782,10 +782,10 @@ pub struct MemoryInfo {
 /// Convert FhirPathValue to JsonValue for API responses
 pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
     match value {
-        FhirPathValue::Boolean(b) => JsonValue::Bool(b),
-        FhirPathValue::String(s) => JsonValue::String(s.to_string()),
-        FhirPathValue::Integer(i) => JsonValue::Number(serde_json::Number::from(i)),
-        FhirPathValue::Decimal(d) => {
+        FhirPathValue::Boolean(b, _, _) => JsonValue::Bool(b),
+        FhirPathValue::String(s, _, _) => JsonValue::String(s),
+        FhirPathValue::Integer(i, _, _) => JsonValue::Number(serde_json::Number::from(i)),
+        FhirPathValue::Decimal(d, _, _) => {
             // Convert decimal to JSON number, handling precision
             if let Ok(f) = d.to_string().parse::<f64>() {
                 JsonValue::Number(
@@ -795,14 +795,16 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
                 JsonValue::String(d.to_string())
             }
         }
-        FhirPathValue::DateTime(dt) => JsonValue::String(dt.to_string()),
-        FhirPathValue::Date(d) => JsonValue::String(d.to_string()),
-        FhirPathValue::Time(t) => JsonValue::String(t.to_string()),
+        FhirPathValue::DateTime(dt, _, _) => JsonValue::String(dt.to_string()),
+        FhirPathValue::Date(d, _, _) => JsonValue::String(d.to_string()),
+        FhirPathValue::Time(t, _, _) => JsonValue::String(t.to_string()),
         FhirPathValue::Quantity {
             value,
             unit,
             ucum_unit,
             calendar_unit: _,
+            type_info: _,
+            primitive_element: _,
         } => {
             // Serialize quantity as object
             serde_json::json!({
@@ -817,26 +819,11 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
                 .collect();
             JsonValue::Array(items)
         }
-        FhirPathValue::Resource(resource) => {
-            // Convert FHIR resource back to JSON using Debug trait
-            JsonValue::String(format!("{:?}", resource))
+        FhirPathValue::Resource(resource, _, _) => {
+            // Convert FHIR resource back to original JSON value
+            resource.as_ref().clone()
         }
-        FhirPathValue::JsonValue(json_val) => json_val.as_ref().clone(),
-        FhirPathValue::TypeInfoObject { namespace, name } => {
-            serde_json::json!({
-                "namespace": namespace.to_string(),
-                "name": name.to_string()
-            })
-        }
-        FhirPathValue::Id(id) => JsonValue::String(id.to_string()),
-        FhirPathValue::Base64Binary(bytes) => {
-            JsonValue::String(base64::engine::general_purpose::STANDARD.encode(&bytes))
-        }
-        FhirPathValue::Uri(uri) => JsonValue::String(uri),
-        FhirPathValue::Url(url) => JsonValue::String(url),
         FhirPathValue::Empty => JsonValue::Array(vec![]), // Empty collection
-        FhirPathValue::Wrapped(wrapped) => (*wrapped.value).clone(),
-        FhirPathValue::ResourceWrapped(wrapped) => (*wrapped.value).clone(),
     }
 }
 

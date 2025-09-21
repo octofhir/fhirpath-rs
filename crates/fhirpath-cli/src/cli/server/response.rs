@@ -23,20 +23,26 @@ impl StandardResponseBuilder {
     /// Add evaluation results to the response
     pub fn with_evaluation_results(mut self, results: &[JsonValue], expression: &str) -> Self {
         // Add the expression that was evaluated
-        self.response.add_string_parameter("expression", expression.to_string());
-        
+        self.response
+            .add_string_parameter("expression", expression.to_string());
+
         // Add evaluation results as proper "result" parameters with typed parts
         for result in results {
             self.add_result_parameter(result.clone());
         }
-        
+
         self
     }
 
     /// Add timing information to the response
-    pub fn with_timing(mut self, parse_time: Duration, eval_time: Duration, total_time: Duration) -> Self {
+    pub fn with_timing(
+        mut self,
+        parse_time: Duration,
+        eval_time: Duration,
+        total_time: Duration,
+    ) -> Self {
         let mut timing_parts = Vec::new();
-        
+
         timing_parts.push(FhirPathLabResponseParameter {
             name: "parse".to_string(),
             extension: None,
@@ -108,14 +114,20 @@ impl StandardResponseBuilder {
 
     /// Add parse debug information
     pub fn with_parse_debug(mut self, parse_debug: String, parse_debug_tree: JsonValue) -> Self {
-        self.response.add_ast_debug_info(parse_debug, parse_debug_tree);
+        self.response
+            .add_ast_debug_info(parse_debug, parse_debug_tree);
         self
     }
 
     /// Add an error to the response
-    pub fn with_error(mut self, error_code: &str, error_message: &str, details: Option<String>) -> Self {
+    pub fn with_error(
+        mut self,
+        error_code: &str,
+        error_message: &str,
+        details: Option<String>,
+    ) -> Self {
         let mut error_parts = Vec::new();
-        
+
         error_parts.push(FhirPathLabResponseParameter {
             name: "severity".to_string(),
             extension: None,
@@ -201,7 +213,7 @@ impl StandardResponseBuilder {
     /// Add metadata about the evaluation
     pub fn with_metadata(mut self, fhir_version: &str, engine_reused: bool) -> Self {
         let mut metadata_parts = Vec::new();
-        
+
         metadata_parts.push(FhirPathLabResponseParameter {
             name: "fhirVersion".to_string(),
             extension: None,
@@ -240,7 +252,8 @@ impl StandardResponseBuilder {
             part: None,
         });
 
-        self.response.add_complex_parameter("metadata", metadata_parts);
+        self.response
+            .add_complex_parameter("metadata", metadata_parts);
         self
     }
 
@@ -265,7 +278,8 @@ impl StandardResponseBuilder {
             part: None,
         }];
 
-        self.response.add_complex_parameter("parameters", evaluator_part);
+        self.response
+            .add_complex_parameter("parameters", evaluator_part);
         self
     }
 
@@ -507,7 +521,10 @@ impl StandardResponseBuilder {
     /// Check if a string looks like a FHIR code
     fn is_fhir_code(&self, s: &str) -> bool {
         // Simple heuristic: codes are typically short and contain no spaces
-        s.len() < 50 && !s.contains(' ') && s.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        s.len() < 50
+            && !s.contains(' ')
+            && s.chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
     }
 
     /// Check if an object is a FHIR HumanName
@@ -522,7 +539,10 @@ impl StandardResponseBuilder {
 
     /// Check if an object is a FHIR Address
     fn is_fhir_address(&self, obj: &serde_json::Map<String, JsonValue>) -> bool {
-        obj.contains_key("line") || obj.contains_key("city") || obj.contains_key("state") || obj.contains_key("postalCode")
+        obj.contains_key("line")
+            || obj.contains_key("city")
+            || obj.contains_key("state")
+            || obj.contains_key("postalCode")
     }
 
     /// Check if an object is a FHIR ContactPoint
@@ -543,9 +563,12 @@ pub fn create_success_response() -> StandardResponseBuilder {
 }
 
 /// Create a standard error response
-pub fn create_error_response(error_code: &str, error_message: &str, details: Option<String>) -> StandardResponseBuilder {
-    StandardResponseBuilder::new()
-        .with_error(error_code, error_message, details)
+pub fn create_error_response(
+    error_code: &str,
+    error_message: &str,
+    details: Option<String>,
+) -> StandardResponseBuilder {
+    StandardResponseBuilder::new().with_error(error_code, error_message, details)
 }
 
 #[cfg(test)]
@@ -559,7 +582,7 @@ mod tests {
             .with_timing(
                 Duration::from_millis(10),
                 Duration::from_millis(50),
-                Duration::from_millis(60)
+                Duration::from_millis(60),
             )
             .with_metadata("r4", true)
             .build();
@@ -570,14 +593,17 @@ mod tests {
 
     #[test]
     fn test_error_response() {
-        let response = create_error_response("PARSE_ERROR", "Invalid expression", Some("Syntax error at position 5".to_string()))
-            .build();
+        let response = create_error_response(
+            "PARSE_ERROR",
+            "Invalid expression",
+            Some("Syntax error at position 5".to_string()),
+        )
+        .build();
 
         assert_eq!(response.resource_type, "Parameters");
-        
+
         // Should have an error parameter
-        let error_param = response.parameter.iter()
-            .find(|p| p.name == "error");
+        let error_param = response.parameter.iter().find(|p| p.name == "error");
         assert!(error_param.is_some());
     }
 }

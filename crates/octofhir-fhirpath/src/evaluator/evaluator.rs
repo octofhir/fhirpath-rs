@@ -1240,7 +1240,10 @@ impl Evaluator {
                 key.starts_with(base_property)
                     && key != &base_property
                     && key.len() > base_property.len()
-                    && key.chars().nth(base_property.len()).map_or(false, |c| c.is_uppercase())
+                    && key
+                        .chars()
+                        .nth(base_property.len())
+                        .map_or(false, |c| c.is_uppercase())
             })
             .cloned()
             .collect();

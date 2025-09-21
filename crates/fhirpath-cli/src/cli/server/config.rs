@@ -81,7 +81,9 @@ impl ServerConfig {
         match self.trace_config {
             TraceConfig::None => octofhir_fhirpath::core::trace::create_noop_provider(),
             TraceConfig::Cli => octofhir_fhirpath::core::trace::create_cli_provider(),
-            TraceConfig::Server => crate::cli::server::trace::ServerApiTraceProvider::create_shared(),
+            TraceConfig::Server => {
+                crate::cli::server::trace::ServerApiTraceProvider::create_shared()
+            }
         }
     }
 

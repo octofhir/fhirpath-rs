@@ -168,16 +168,12 @@ async fn create_model_provider_for_version(
     let _model_version = version.to_model_version();
 
     match version {
-        ServerFhirVersion::R4 => {
-            Ok(crate::EmbeddedModelProvider::r4())
-        }
+        ServerFhirVersion::R4 => Ok(crate::EmbeddedModelProvider::r4()),
         ServerFhirVersion::R4B => {
             // Use R4 for R4B as they are compatible
             Ok(crate::EmbeddedModelProvider::r4())
         }
-        ServerFhirVersion::R5 => {
-            Ok(crate::EmbeddedModelProvider::r5())
-        }
+        ServerFhirVersion::R5 => Ok(crate::EmbeddedModelProvider::r5()),
         ServerFhirVersion::R6 => {
             // R6 uses R5 schema for now since R6 is still in development
             warn!("FHIR R6 is using R5 schema as R6 is still in development");

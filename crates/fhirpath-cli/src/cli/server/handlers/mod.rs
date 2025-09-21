@@ -262,27 +262,40 @@ async fn load_resource_from_file(filename: &str) -> ServerResult<serde_json::Val
 
 /// Convert JSON value to FhirPathValue
 fn json_to_fhirpath_value(json: serde_json::Value) -> FhirPathValue {
+    use octofhir_fhir_model::TypeInfo;
+
+    let default_type_info = TypeInfo {
+        type_name: "System.Any".to_string(),
+        singleton: Some(true),
+        is_empty: Some(false),
+        namespace: Some("System".to_string()),
+        name: Some("Any".to_string()),
+    };
+
     match json {
-        serde_json::Value::Bool(b) => FhirPathValue::Boolean(b),
+        serde_json::Value::Bool(b) => FhirPathValue::Boolean(b, default_type_info.clone(), None),
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
-                FhirPathValue::Integer(i)
+                FhirPathValue::Integer(i, default_type_info.clone(), None)
             } else if let Some(f) = n.as_f64() {
                 use rust_decimal::Decimal;
-                FhirPathValue::Decimal(Decimal::from_f64_retain(f).unwrap_or_default())
+                FhirPathValue::Decimal(
+                    Decimal::from_f64_retain(f).unwrap_or_default(),
+                    default_type_info.clone(),
+                    None,
+                )
             } else {
-                FhirPathValue::String(n.to_string().into())
+                FhirPathValue::String(n.to_string(), default_type_info.clone(), None)
             }
         }
-        serde_json::Value::String(s) => FhirPathValue::String(s.into()),
+        serde_json::Value::String(s) => FhirPathValue::String(s, default_type_info.clone(), None),
         serde_json::Value::Array(arr) => {
             let values: Vec<FhirPathValue> = arr.into_iter().map(json_to_fhirpath_value).collect();
             FhirPathValue::Collection(values.into())
         }
         serde_json::Value::Object(_) => {
-            // For now, convert objects to JSON strings
-            // TODO: Properly handle FHIR nodes
-            FhirPathValue::String(json.to_string().into())
+            // For objects, convert to Resource type or string representation
+            FhirPathValue::String(json.to_string(), default_type_info.clone(), None)
         }
         serde_json::Value::Null => FhirPathValue::Empty,
     }
@@ -944,7 +957,14 @@ async fn fhirpath_lab_handler_impl(
                     octofhir_fhirpath::FhirPathValue::resource(parsed_request.resource.clone());
                 let initial_context_collection = Collection::single(resource_value);
                 let embedded_provider = crate::EmbeddedModelProvider::r4();
-                let mut context_eval_context = EvaluationContext::new(initial_context_collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
+                let mut context_eval_context = EvaluationContext::new(
+                    initial_context_collection,
+                    std::sync::Arc::new(embedded_provider),
+                    None,
+                    None,
+                    None,
+                )
+                .await;
 
                 // Set variables for context evaluation
                 for (name, value) in &parsed_request.variables {
@@ -958,7 +978,7 @@ async fn fhirpath_lab_handler_impl(
                     .await
                 {
                     Ok(context_collection_with_metadata) => {
-                        let context_collection = context_collection_with_metadata.value;
+                        let context_collection = context_collection_with_metadata.result.value;
                         if context_collection.is_empty() {
                             // Context expression returned empty - no results to evaluate main expression against
                             vec![]
@@ -990,7 +1010,14 @@ async fn fhirpath_lab_handler_impl(
             for context_value in context_results {
                 let context_collection = Collection::single(context_value);
                 let embedded_provider = crate::EmbeddedModelProvider::r4();
-                let mut eval_context = EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
+                let mut eval_context = EvaluationContext::new(
+                    context_collection,
+                    std::sync::Arc::new(embedded_provider),
+                    None,
+                    None,
+                    None,
+                )
+                .await;
 
                 // Set variables for main expression evaluation
                 for (name, value) in &parsed_request.variables {
@@ -1003,7 +1030,7 @@ async fn fhirpath_lab_handler_impl(
                     .await
                 {
                     Ok(collection_with_metadata) => {
-                        all_results.extend(collection_with_metadata.value.iter().cloned());
+                        all_results.extend(collection_with_metadata.result.value.iter().cloned());
                     }
                     Err(e) => {
                         eval_time = eval_start.elapsed();
@@ -1127,7 +1154,7 @@ fn format_fhirpath_results(
     // Create result parts for each evaluation result
     let mut result_parts = Vec::new();
     for (index, result) in results.iter().enumerate() {
-        let result_param = create_single_result_parameter(result, index, expression);
+        let result_param = create_single_result_parameter_simple(result, index, expression);
         result_parts.push(result_param);
     }
 
@@ -1162,6 +1189,114 @@ fn format_fhirpath_results(
 }
 
 // Removed hardcoded type correction - will investigate ModelProvider issue instead
+
+/// Create a simple result parameter from FhirPathValue
+fn create_single_result_parameter_simple(
+    result: &FhirPathValue,
+    index: usize,
+    _expression: &str,
+) -> FhirPathLabResponseParameter {
+    let json_value = fhir_value_to_json(result.clone());
+
+    // Create basic parameter based on the type
+    match json_value {
+        serde_json::Value::String(s) => FhirPathLabResponseParameter {
+            name: format!("item{}", index),
+            extension: None,
+            value_string: Some(s),
+            value_code: None,
+            value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
+            resource: None,
+            part: None,
+        },
+        serde_json::Value::Bool(b) => FhirPathLabResponseParameter {
+            name: format!("item{}", index),
+            extension: None,
+            value_string: None,
+            value_code: None,
+            value_decimal: None,
+            value_boolean: Some(b),
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
+            resource: None,
+            part: None,
+        },
+        serde_json::Value::Number(n) => {
+            if n.is_i64() {
+                FhirPathLabResponseParameter {
+                    name: format!("item{}", index),
+                    extension: None,
+                    value_string: None,
+                    value_code: None,
+                    value_decimal: None,
+                    value_boolean: None,
+                    value_integer: Some(n.as_i64().unwrap_or(0) as i32),
+                    value_uri: None,
+                    value_date_time: None,
+                    value_date: None,
+                    value_human_name: None,
+                    value_identifier: None,
+                    value_address: None,
+                    value_contact_point: None,
+                    resource: None,
+                    part: None,
+                }
+            } else {
+                FhirPathLabResponseParameter {
+                    name: format!("item{}", index),
+                    extension: None,
+                    value_string: None,
+                    value_code: None,
+                    value_decimal: Some(n.as_f64().unwrap_or(0.0)),
+                    value_boolean: None,
+                    value_integer: None,
+                    value_uri: None,
+                    value_date_time: None,
+                    value_date: None,
+                    value_human_name: None,
+                    value_identifier: None,
+                    value_address: None,
+                    value_contact_point: None,
+                    resource: None,
+                    part: None,
+                }
+            }
+        }
+        _ => FhirPathLabResponseParameter {
+            name: format!("item{}", index),
+            extension: None,
+            value_string: None,
+            value_code: None,
+            value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
+            resource: Some(json_value),
+            part: None,
+        },
+    }
+}
 
 /// Create a single result parameter with metadata from ResultWithMetadata
 fn create_single_result_parameter_with_metadata(
@@ -1315,14 +1450,14 @@ fn determine_fhir_type_name_from_string(
         "dateTime" | "instant" => "dateTime".to_string(),
         "date" => "date".to_string(),
         "time" => "time".to_string(),
-        
+
         // Complex types - use exact type name
         "HumanName" => "HumanName".to_string(),
-        "Identifier" => "Identifier".to_string(),  
+        "Identifier" => "Identifier".to_string(),
         "Address" => "Address".to_string(),
         "ContactPoint" => "ContactPoint".to_string(),
         "Quantity" => "Quantity".to_string(),
-        
+
         // Use the metadata type directly for any other types
         other => other.to_string(),
     }
@@ -1608,7 +1743,14 @@ async fn evaluate_fhirpath_expression(
     let resource_value = octofhir_fhirpath::FhirPathValue::resource(request.resource.clone());
     let collection = octofhir_fhirpath::Collection::single(resource_value);
     let embedded_provider = crate::EmbeddedModelProvider::r4();
-    let mut context = octofhir_fhirpath::EvaluationContext::new(collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
+    let mut context = octofhir_fhirpath::EvaluationContext::new(
+        collection,
+        std::sync::Arc::new(embedded_provider),
+        None,
+        None,
+        None,
+    )
+    .await;
 
     // Set variables
     for (name, value) in &request.variables {
@@ -1622,7 +1764,7 @@ async fn evaluate_fhirpath_expression(
         .await
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
-    Ok(result)
+    Ok(result.result)
 }
 
 /// Create timing parameters for the response

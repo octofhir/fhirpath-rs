@@ -306,30 +306,30 @@ async fn main() {
         }
         Commands::Registry { ref command } => {
             handle_registry(command, &cli).await;
-        } // Commands::Server {
-          //     port,
-          //     ref storage,
-          //     ref host,
-          //     cors_all,
-          //     max_body_size,
-          //     timeout,
-          //     rate_limit,
-          //     no_ui,
-          // } => {
-          //     handle_server(
-          //         port,
-          //         storage.clone(),
-          //         host.clone(),
-          //         cors_all,
-          //         max_body_size,
-          //         timeout,
-          //         rate_limit,
-          //         no_ui,
-          //         &cli,
-          //     )
-          //     .await;
-          // }
-          // Commands::Tui {
+        }
+        Commands::Server {
+            port,
+            ref storage,
+            ref host,
+            cors_all,
+            max_body_size,
+            timeout,
+            rate_limit,
+            no_ui,
+        } => {
+            handle_server(
+                port,
+                storage.clone(),
+                host.clone(),
+                cors_all,
+                max_body_size,
+                timeout,
+                rate_limit,
+                no_ui,
+                &cli,
+            )
+            .await;
+        } // Commands::Tui {
           //     ref input,
           //     ref variables,
           //     ref config,
@@ -993,8 +993,16 @@ async fn handle_repl(
     };
 
     // Start REPL with shared model provider (same as other commands)
-    let model_provider_arc = shared_model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
-    if let Err(e) = start_repl(model_provider_arc, config, initial_resource, initial_variables).await {
+    let model_provider_arc =
+        shared_model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
+    if let Err(e) = start_repl(
+        model_provider_arc,
+        config,
+        initial_resource,
+        initial_variables,
+    )
+    .await
+    {
         eprintln!("REPL error: {e}");
         std::process::exit(1);
     }
@@ -1258,34 +1266,37 @@ fn open_browser(url: &str) {
     }
 }
 
-// async fn handle_server(
-//     port: u16,
-//     storage: std::path::PathBuf,
-//     host: String,
-//     cors_all: bool,
-//     max_body_size: u64,
-//     timeout: u64,
-//     rate_limit: u32,
-//     no_ui: bool,
-//     _cli: &Cli,
-// ) {
-//     use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
+async fn handle_server(
+    port: u16,
+    _storage: std::path::PathBuf,
+    host: String,
+    cors_all: bool,
+    max_body_size: u64,
+    _timeout: u64,
+    _rate_limit: u32,
+    _no_ui: bool,
+    _cli: &Cli,
+) {
+    use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
+    use std::net::Ipv4Addr;
 
-//     let config = ServerConfig {
-//         port,
-//         host: host.parse().unwrap_or([127, 0, 0, 1].into()),
-//         cors_all,
-//         max_body_size_mb: max_body_size,
-//         timeout_seconds: timeout,
-//         rate_limit_per_minute: rate_limit,
-//         trace_config: fhirpath_cli::cli::server::config::TraceConfig::Server, // Server mode for API
-//     };
+    let config = ServerConfig {
+        port,
+        host: host
+            .parse()
+            .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))),
+        cors_all,
+        max_body_size_mb: max_body_size,
+        timeout_seconds: _timeout,
+        rate_limit_per_minute: _rate_limit,
+        trace_config: fhirpath_cli::cli::server::config::TraceConfig::Server,
+    };
 
-//     if let Err(e) = start_server(config).await {
-//         eprintln!("❌ Server error: {}", e);
-//         std::process::exit(1);
-//     }
-// }
+    if let Err(e) = start_server(config).await {
+        eprintln!("❌ Server error: {}", e);
+        std::process::exit(1);
+    }
+}
 
 /// Extract resource type from FHIRPath expression automatically
 fn extract_resource_type_from_expression(

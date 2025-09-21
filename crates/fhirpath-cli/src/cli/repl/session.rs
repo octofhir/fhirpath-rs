@@ -18,16 +18,18 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use colored::*;
-use reedline::{DefaultPrompt, Reedline, Signal, ReedlineMenu, ColumnarMenu, MenuBuilder,
-              default_emacs_keybindings, Emacs, KeyCode, KeyModifiers, ReedlineEvent};
-use std::io::{stdout, Write};
+use reedline::{
+    ColumnarMenu, DefaultPrompt, Emacs, KeyCode, KeyModifiers, MenuBuilder, Reedline,
+    ReedlineEvent, ReedlineMenu, Signal, default_emacs_keybindings,
+};
 use serde_json::Value as JsonValue;
+use std::io::{Write, stdout};
 
 use super::completion::FhirPathCompleter;
 use super::display::DisplayFormatter;
 use super::help::HelpSystem;
 use super::{ReplCommand, ReplConfig};
-use octofhir_fhirpath::analyzer::{StaticAnalyzer, AnalysisContext};
+use octofhir_fhirpath::analyzer::{AnalysisContext, StaticAnalyzer};
 use octofhir_fhirpath::core::JsonValueExt;
 use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
 use octofhir_fhirpath::parser::parse_with_analysis;
@@ -83,7 +85,8 @@ impl ReplSession {
             .with_columns(3)
             .with_column_width(Some(20))
             .with_column_padding(2);
-        line_editor = line_editor.with_menu(ReedlineMenu::EngineCompleter(Box::new(completion_menu)));
+        line_editor =
+            line_editor.with_menu(ReedlineMenu::EngineCompleter(Box::new(completion_menu)));
 
         // Load history if file is specified
         if let Some(history_path) = &config.history_file {
@@ -378,7 +381,9 @@ impl ReplSession {
             Ok(result) => result,
             Err(e) => {
                 // Use Ariadne diagnostics for error display (same as CLI)
-                return Err(anyhow::anyhow!(self.format_error_with_ariadne(expression, &anyhow::anyhow!(e))));
+                return Err(anyhow::anyhow!(
+                    self.format_error_with_ariadne(expression, &anyhow::anyhow!(e))
+                ));
             }
         };
 
@@ -713,7 +718,7 @@ impl ReplSession {
                         is_empty: Some(false),
                         namespace: Some("FHIR".to_string()),
                         name: Some("Resource".to_string()),
-                    }
+                    },
                 }
             } else {
                 octofhir_fhir_model::TypeInfo {
@@ -1071,7 +1076,11 @@ Examples:
     }
 
     /// Format evaluation errors with Ariadne diagnostics
-    fn format_evaluation_error_with_ariadne(&mut self, expression: &str, error: &anyhow::Error) -> String {
+    fn format_evaluation_error_with_ariadne(
+        &mut self,
+        expression: &str,
+        error: &anyhow::Error,
+    ) -> String {
         use octofhir_fhirpath::core::error_code::ErrorCode;
         use octofhir_fhirpath::diagnostics::DiagnosticSeverity;
 
@@ -1086,7 +1095,10 @@ Examples:
             format!("Evaluation error: {}", error),
         );
 
-        match self.diagnostic_engine.format_diagnostic(&ariadne_diagnostic, source_id) {
+        match self
+            .diagnostic_engine
+            .format_diagnostic(&ariadne_diagnostic, source_id)
+        {
             Ok(formatted) => formatted,
             Err(_) => {
                 // Fallback to simple error formatting if Ariadne formatting fails

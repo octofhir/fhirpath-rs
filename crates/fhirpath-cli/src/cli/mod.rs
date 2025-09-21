@@ -18,7 +18,7 @@ pub mod ast;
 pub mod diagnostics;
 pub mod output;
 pub mod repl;
-// pub mod server; // Commented out temporarily - will return later
+pub mod server;
 
 use clap::{Parser, Subcommand};
 use output::OutputFormat;
@@ -156,33 +156,33 @@ pub enum Commands {
         #[command(subcommand)]
         command: RegistryCommands,
     },
-    // /// Start HTTP server with web interface
-    // Server {
-    //     /// Port to bind the server to
-    //     #[arg(short, long, default_value = "8084")]
-    //     port: u16,
-    //     /// Directory for JSON file storage
-    //     #[arg(short, long, default_value = "./storage")]
-    //     storage: std::path::PathBuf,
-    //     /// Host to bind to
-    //     #[arg(long, default_value = "127.0.0.1")]
-    //     host: String,
-    //     /// Enable CORS for all origins (development mode)
-    //     #[arg(long)]
-    //     cors_all: bool,
-    //     /// Maximum request body size in MB
-    //     #[arg(long, default_value = "60")]
-    //     max_body_size: u64,
-    //     /// Expression execution timeout in seconds
-    //     #[arg(long, default_value = "30")]
-    //     timeout: u64,
-    //     /// Rate limit: requests per minute per IP
-    //     #[arg(long, default_value = "100")]
-    //     rate_limit: u32,
-    //     /// Run server without web UI (API-only mode)
-    //     #[arg(long)]
-    //     no_ui: bool,
-    // },
+    /// Start HTTP server with web interface
+    Server {
+        /// Port to bind the server to
+        #[arg(short, long, default_value = "8084")]
+        port: u16,
+        /// Directory for JSON file storage
+        #[arg(short, long, default_value = "./storage")]
+        storage: std::path::PathBuf,
+        /// Host to bind to
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// Enable CORS for all origins (development mode)
+        #[arg(long)]
+        cors_all: bool,
+        /// Maximum request body size in MB
+        #[arg(long, default_value = "60")]
+        max_body_size: u64,
+        /// Expression execution timeout in seconds
+        #[arg(long, default_value = "30")]
+        timeout: u64,
+        /// Rate limit: requests per minute per IP
+        #[arg(long, default_value = "100")]
+        rate_limit: u32,
+        /// Run server without web UI (API-only mode)
+        #[arg(long)]
+        no_ui: bool,
+    },
     // /// Start Terminal User Interface (TUI) - Advanced multi-panel REPL
     // Tui {
     //     /// JSON file containing FHIR resource to load initially

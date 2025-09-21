@@ -14,10 +14,10 @@
 
 //! Auto-completion support for the REPL
 
-use reedline::{Completer, Span, Suggestion};
-use std::sync::Arc;
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use reedline::{Completer, Span, Suggestion};
+use std::sync::Arc;
 
 use octofhir_fhirpath::FunctionRegistry;
 use octofhir_fhirpath::ModelProvider;
@@ -100,7 +100,8 @@ impl FhirPathCompleter {
         scored_matches.sort_by(|a, b| b.0.cmp(&a.0));
 
         // Create enhanced completions with descriptions
-        for (_, name) in scored_matches.into_iter().take(10) { // Limit to top 10 matches
+        for (_, name) in scored_matches.into_iter().take(10) {
+            // Limit to top 10 matches
             let description = self.get_function_description(&name);
             let display = if description.is_empty() {
                 name.clone()
@@ -154,11 +155,8 @@ impl FhirPathCompleter {
         if let Ok(registry_guard) = self.registry.read() {
             if let Some(ref registry) = *registry_guard {
                 // Get all function names directly
-                let function_names: Vec<String> = registry
-                    .list_functions()
-                    .into_iter()
-                    .cloned()
-                    .collect();
+                let function_names: Vec<String> =
+                    registry.list_functions().into_iter().cloned().collect();
 
                 // Cache the results
                 if let Ok(mut cache_guard) = self.cached_functions.write() {
@@ -401,7 +399,8 @@ impl FhirPathCompleter {
         scored_matches.sort_by(|a, b| b.0.cmp(&a.0));
 
         // Create completion candidates
-        for (_, property, description) in scored_matches.into_iter().take(8) { // Limit to top 8 properties
+        for (_, property, description) in scored_matches.into_iter().take(8) {
+            // Limit to top 8 properties
             candidates.push(Pair {
                 display: format!("{} - {}", property, description),
                 replacement: property.to_string(),
@@ -478,7 +477,9 @@ impl Completer for FhirPathCompleter {
         if word.starts_with(':') {
             let command_word = &word[1..]; // Remove the ':'
             for cmd in &self.commands {
-                if cmd.starts_with(word) || self.fuzzy_matcher.fuzzy_match(cmd, command_word).is_some() {
+                if cmd.starts_with(word)
+                    || self.fuzzy_matcher.fuzzy_match(cmd, command_word).is_some()
+                {
                     suggestions.push(Suggestion {
                         value: cmd[1..].to_string(), // Remove ':' for replacement
                         description: Some(format!("Command: {}", cmd)),
