@@ -18,15 +18,16 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use colored::*;
-use rustyline::error::ReadlineError;
-use rustyline::{Editor, history::FileHistory};
+use reedline::{DefaultPrompt, Reedline, Signal, ReedlineMenu, ColumnarMenu, MenuBuilder,
+              default_emacs_keybindings, Emacs, KeyCode, KeyModifiers, ReedlineEvent};
+use std::io::{stdout, Write};
 use serde_json::Value as JsonValue;
 
 use super::completion::FhirPathCompleter;
 use super::display::DisplayFormatter;
 use super::help::HelpSystem;
 use super::{ReplCommand, ReplConfig};
-// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
+use octofhir_fhirpath::analyzer::{StaticAnalyzer, AnalysisContext};
 use octofhir_fhirpath::core::JsonValueExt;
 use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
 use octofhir_fhirpath::parser::parse_with_analysis;
@@ -35,9 +36,9 @@ use octofhir_fhirpath::{EvaluationContext, FhirPathEngine, FhirPathValue};
 /// Main REPL session that handles user interaction
 pub struct ReplSession {
     engine: FhirPathEngine,
-    // analyzer: StaticAnalyzer, // Removed
+    analyzer: StaticAnalyzer,
     diagnostic_engine: DiagnosticEngine,
-    editor: Editor<FhirPathCompleter, FileHistory>,
+    line_editor: Reedline,
     current_resource: Option<FhirPathValue>,
     variables: HashMap<String, FhirPathValue>,
     config: ReplConfig,
@@ -49,27 +50,50 @@ pub struct ReplSession {
 impl ReplSession {
     /// Create a new REPL session with a pre-created engine
     pub async fn new(engine: FhirPathEngine, config: ReplConfig) -> Result<Self> {
-        // Create analyzer
-        // let analyzer = StaticAnalyzer::new(
-        //     engine.get_function_registry().clone(),
-        //     engine.get_model_provider().clone(),
-        // ); // Removed
+        // Create analyzer with model provider
+        let analyzer = StaticAnalyzer::new(engine.get_model_provider());
 
-        // Initialize editor with history
-        let mut editor = Editor::<FhirPathCompleter, FileHistory>::new()
-            .context("Failed to create readline editor")?;
+        // Initialize reedline editor
+        let mut line_editor = Reedline::create();
+
+        // Set up key bindings for completion (Tab key)
+        let mut keybindings = default_emacs_keybindings();
+        keybindings.add_binding(
+            KeyModifiers::NONE,
+            KeyCode::Tab,
+            ReedlineEvent::UntilFound(vec![
+                ReedlineEvent::Menu("completion_menu".to_string()),
+                ReedlineEvent::MenuNext,
+            ]),
+        );
+
+        let edit_mode = Box::new(Emacs::new(keybindings));
+        line_editor = line_editor.with_edit_mode(edit_mode);
 
         // Set up completer
         let completer = FhirPathCompleter::with_registry(
             engine.get_model_provider().clone(),
             Some(engine.get_function_registry().clone()),
         );
-        editor.set_helper(Some(completer));
+        line_editor = line_editor.with_completer(Box::new(completer));
+
+        // Set up completion menu for better UX
+        let completion_menu = ColumnarMenu::default()
+            .with_name("completion_menu")
+            .with_columns(3)
+            .with_column_width(Some(20))
+            .with_column_padding(2);
+        line_editor = line_editor.with_menu(ReedlineMenu::EngineCompleter(Box::new(completion_menu)));
 
         // Load history if file is specified
         if let Some(history_path) = &config.history_file {
             if history_path.exists() {
-                let _ = editor.load_history(history_path);
+                if let Ok(history) = reedline::FileBackedHistory::with_file(
+                    config.history_size,
+                    history_path.clone(),
+                ) {
+                    line_editor = line_editor.with_history(Box::new(history));
+                }
             }
         }
 
@@ -85,9 +109,9 @@ impl ReplSession {
 
         Ok(Self {
             engine,
-            // analyzer,
+            analyzer,
             diagnostic_engine,
-            editor,
+            line_editor,
             current_resource: None,
             variables: HashMap::new(),
             config,
@@ -104,24 +128,26 @@ impl ReplSession {
         // Cache function names for autocomplete
         self.cache_function_names().await;
 
+        let prompt = DefaultPrompt::new(
+            reedline::DefaultPromptSegment::Basic(self.config.prompt.clone()),
+            reedline::DefaultPromptSegment::Empty,
+        );
+
         loop {
-            match self.editor.readline(&self.config.prompt) {
-                Ok(line) => {
-                    let line = line.trim();
+            let sig = self.line_editor.read_line(&prompt);
+            match sig {
+                Ok(Signal::Success(buffer)) => {
+                    let line = buffer.trim();
 
                     // Handle empty lines
                     if line.is_empty() {
                         continue;
                     }
 
-                    // Add to history and process normally
-                    self.editor
-                        .add_history_entry(line)
-                        .context("Failed to add history entry")?;
-
                     match self.process_input(line).await {
                         Ok(Some(output)) => {
                             println!("{output}");
+                            stdout().flush().unwrap();
                             self.interrupt_count = 0; // Reset interrupt count after successful command
                         }
                         Ok(None) => {
@@ -129,10 +155,11 @@ impl ReplSession {
                         }
                         Err(e) => {
                             println!("{}", self.formatter.format_error(&e));
+                            stdout().flush().unwrap();
                         }
                     }
                 }
-                Err(ReadlineError::Interrupted) => {
+                Ok(Signal::CtrlC) => {
                     self.interrupt_count += 1;
                     if self.interrupt_count == 1 {
                         if self.config.color_output {
@@ -140,6 +167,7 @@ impl ReplSession {
                         } else {
                             println!("Use ':quit' or press Ctrl+C again to exit");
                         }
+                        stdout().flush().unwrap();
                         continue;
                     } else {
                         if self.config.color_output {
@@ -150,7 +178,7 @@ impl ReplSession {
                         break;
                     }
                 }
-                Err(ReadlineError::Eof) => {
+                Ok(Signal::CtrlD) => {
                     println!("exit");
                     break;
                 }
@@ -158,13 +186,6 @@ impl ReplSession {
                     println!("Error: {e}");
                     break;
                 }
-            }
-        }
-
-        // Save history before exit
-        if let Some(history_path) = &self.config.history_file {
-            if let Err(e) = self.editor.save_history(history_path) {
-                eprintln!("Warning: Failed to save history: {e}");
             }
         }
 
@@ -353,11 +374,13 @@ impl ReplSession {
         )
         .await;
 
-        let result = self
-            .engine
-            .evaluate(expression, &context)
-            .await
-            .with_context(|| format!("Failed to evaluate expression: '{expression}'"))?;
+        let result = match self.engine.evaluate(expression, &context).await {
+            Ok(result) => result,
+            Err(e) => {
+                // Use Ariadne diagnostics for error display (same as CLI)
+                return Err(anyhow::anyhow!(self.format_error_with_ariadne(expression, &anyhow::anyhow!(e))));
+            }
+        };
 
         // Convert EvaluationResult to Vec<FhirPathValue>
         let values: Vec<FhirPathValue> = result.value.iter().cloned().collect();
@@ -567,9 +590,30 @@ impl ReplSession {
     }
 
     /// Get type information for an expression
-    async fn get_expression_type(&self, expression: &str) -> Result<String> {
-        // Type analysis not available (StaticAnalyzer removed)
-        Ok(format!("Type analysis not available for '{expression}'"))
+    async fn get_expression_type(&mut self, expression: &str) -> Result<String> {
+        // Create analysis context with default root type
+        let context = AnalysisContext::default();
+
+        // Run static analysis to get type information
+        let analysis_result = self.analyzer.analyze_expression(expression, context).await;
+
+        if let Some(type_info) = analysis_result.type_info {
+            Ok(format!(
+                "Type: {} (namespace: {}, singleton: {})",
+                type_info.type_name,
+                type_info.namespace.unwrap_or_else(|| "Unknown".to_string()),
+                type_info.singleton.unwrap_or(false)
+            ))
+        } else if !analysis_result.diagnostics.is_empty() {
+            // Show first diagnostic if no type info available
+            let first_diagnostic = &analysis_result.diagnostics[0];
+            Ok(format!(
+                "Type analysis failed: {}",
+                first_diagnostic.message
+            ))
+        } else {
+            Ok(format!("Type information not available for '{expression}'"))
+        }
     }
 
     /// Explain expression evaluation steps
@@ -649,10 +693,45 @@ impl ReplSession {
         }
 
         // Run static analysis if parsing succeeded (same logic as CLI)
-        // Static analysis not available (StaticAnalyzer removed)
-        // if parse_result.success && parse_result.ast.is_some() {
-        //     ...
-        // }
+        if parse_result.success && parse_result.ast.is_some() {
+            // Create analysis context with default root type or infer from current resource
+            let root_type = if let Some(resource) = &self.current_resource {
+                match resource {
+                    FhirPathValue::Resource(res, _, _) => {
+                        let resource_type = res.resource_type().unwrap_or("Resource");
+                        octofhir_fhir_model::TypeInfo {
+                            type_name: resource_type.to_string(),
+                            singleton: Some(true),
+                            is_empty: Some(false),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some(resource_type.to_string()),
+                        }
+                    }
+                    _ => octofhir_fhir_model::TypeInfo {
+                        type_name: "Resource".to_string(),
+                        singleton: Some(true),
+                        is_empty: Some(false),
+                        namespace: Some("FHIR".to_string()),
+                        name: Some("Resource".to_string()),
+                    }
+                }
+            } else {
+                octofhir_fhir_model::TypeInfo {
+                    type_name: "Resource".to_string(),
+                    singleton: Some(true),
+                    is_empty: Some(false),
+                    namespace: Some("FHIR".to_string()),
+                    name: Some("Resource".to_string()),
+                }
+            };
+
+            let context = AnalysisContext::new(root_type)
+                .with_deep_analysis()
+                .with_optimization_suggestions(true);
+
+            let analysis_result = self.analyzer.analyze_expression(expression, context).await;
+            all_diagnostics.extend(analysis_result.diagnostics);
+        }
 
         // Sort and deduplicate diagnostics (same as CLI)
         all_diagnostics.sort_by(|a, b| {
@@ -769,18 +848,9 @@ impl ReplSession {
 
     /// Get command history
     fn show_history(&self) -> Result<String> {
-        let history = self.editor.history();
-        let entries: Vec<String> = history
-            .iter()
-            .enumerate()
-            .map(|(i, entry)| format!("{:3}: {}", i + 1, entry))
-            .collect();
-
-        if entries.is_empty() {
-            Ok("No command history".to_string())
-        } else {
-            Ok(entries.join("\n"))
-        }
+        // For reedline, we'll provide a simple message indicating history is available
+        // The actual history is managed by reedline and accessible via arrow keys
+        Ok("Command history is available using arrow keys (↑/↓) or Ctrl+R for search".to_string())
     }
 
     /// Print welcome message
@@ -882,11 +952,9 @@ impl ReplSession {
 
     /// Cache function names from registry for autocomplete
     async fn cache_function_names(&mut self) {
-        // FunctionRegistry is currently a placeholder, so use empty list
-        let function_names: Vec<String> = Vec::new();
-        if let Some(helper) = self.editor.helper_mut() {
-            helper.cache_function_names(function_names);
-        }
+        // Function names are now cached directly in the completer
+        // This method is kept for interface compatibility but doesn't need to do anything
+        // since reedline completers handle their own caching
     }
 
     /// Get general help text
@@ -989,7 +1057,6 @@ Examples:
     }
 
     /// Format an error with Ariadne diagnostics
-    #[allow(dead_code)]
     fn format_error_with_ariadne(&mut self, expression: &str, error: &anyhow::Error) -> String {
         // Check if we can parse the expression to get detailed diagnostics
         let parse_result = parse_with_analysis(expression);
@@ -998,8 +1065,33 @@ Examples:
             // Use parser diagnostics for better error reporting
             self.format_parser_diagnostics(expression, &parse_result.diagnostics)
         } else {
-            // Fallback to simple error formatting
-            self.formatter.format_error(error)
+            // Expression parsed successfully, but evaluation failed - create a custom diagnostic
+            self.format_evaluation_error_with_ariadne(expression, error)
+        }
+    }
+
+    /// Format evaluation errors with Ariadne diagnostics
+    fn format_evaluation_error_with_ariadne(&mut self, expression: &str, error: &anyhow::Error) -> String {
+        use octofhir_fhirpath::core::error_code::ErrorCode;
+        use octofhir_fhirpath::diagnostics::DiagnosticSeverity;
+
+        // Add the expression as a source
+        let source_id = self.diagnostic_engine.add_source("expression", expression);
+
+        // Create a diagnostic for the evaluation error
+        let ariadne_diagnostic = self.diagnostic_engine.create_diagnostic(
+            ErrorCode::new(999), // Use a generic evaluation error code
+            DiagnosticSeverity::Error,
+            0..expression.len(), // Highlight the entire expression
+            format!("Evaluation error: {}", error),
+        );
+
+        match self.diagnostic_engine.format_diagnostic(&ariadne_diagnostic, source_id) {
+            Ok(formatted) => formatted,
+            Err(_) => {
+                // Fallback to simple error formatting if Ariadne formatting fails
+                self.formatter.format_error(error)
+            }
         }
     }
 

@@ -51,7 +51,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 colored = { workspace = true }
-rustyline = { workspace = true }
+reedline = "0.42"
+fuzzy-matcher = "0.3"
 tabled = "0.20"
 human-panic = "2.0"
 

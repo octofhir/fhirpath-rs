@@ -289,7 +289,21 @@ async fn main() {
         Commands::Docs { ref error_code } => {
             handle_docs(error_code, &cli);
         }
-        // Commands::Repl { ... } => { ... } // Commented out during Phase 1
+        Commands::Repl {
+            ref input,
+            ref variables,
+            ref history_file,
+            history_size,
+        } => {
+            handle_repl(
+                input.as_deref(),
+                variables,
+                history_file.as_deref(),
+                history_size,
+                &cli,
+            )
+            .await;
+        }
         Commands::Registry { ref command } => {
             handle_registry(command, &cli).await;
         } // Commands::Server {
@@ -919,7 +933,6 @@ async fn handle_analyze(
     handle_analyze_multi_error(expression, cli, formatter, model_provider).await;
 }
 
-#[allow(dead_code)]
 async fn handle_repl(
     input: Option<&str>,
     variables: &[String],
@@ -931,8 +944,14 @@ async fn handle_repl(
     use serde_json::Value as JsonValue;
     use std::path::PathBuf;
 
-    let model_provider =
-        std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::new(FhirVersion::R4));
+    // Create shared model provider matching the pattern from other commands
+    let shared_model_provider = match create_shared_model_provider().await {
+        Ok(provider) => provider,
+        Err(e) => {
+            eprintln!("❌ Failed to initialize FHIR schema: {e}");
+            process::exit(1);
+        }
+    };
 
     // Parse initial variables
     let mut initial_variables = Vec::new();
@@ -973,8 +992,9 @@ async fn handle_repl(
         history_file: history_file.map(PathBuf::from),
     };
 
-    // Start REPL
-    if let Err(e) = start_repl(model_provider, config, initial_resource, initial_variables).await {
+    // Start REPL with shared model provider (same as other commands)
+    let model_provider_arc = shared_model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
+    if let Err(e) = start_repl(model_provider_arc, config, initial_resource, initial_variables).await {
         eprintln!("REPL error: {e}");
         std::process::exit(1);
     }
@@ -996,8 +1016,8 @@ async fn handle_analyze_multi_error(
     let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
     let source_id = handler.add_source("expression".to_string(), expression.to_string());
 
-    // First parse the expression with proper diagnostics (same as evaluate command)
-    let parse_result = parse_with_mode(expression, ParsingMode::Fast);
+    // First parse the expression with analysis mode for better error recovery
+    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
 
     let mut all_diagnostics: Vec<octofhir_fhirpath::diagnostics::AriadneDiagnostic> = Vec::new();
 

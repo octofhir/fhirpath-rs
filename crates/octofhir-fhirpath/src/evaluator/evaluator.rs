@@ -1233,12 +1233,14 @@ impl Evaluator {
         };
 
         // Find all properties that start with base_property and are longer than base_property
+        // AND the suffix starts with uppercase letter (valid FHIR choice type pattern)
         let possible_choices: Vec<String> = json_obj
             .keys()
             .filter(|key| {
                 key.starts_with(base_property)
                     && key != &base_property
                     && key.len() > base_property.len()
+                    && key.chars().nth(base_property.len()).map_or(false, |c| c.is_uppercase())
             })
             .cloned()
             .collect();

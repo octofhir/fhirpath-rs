@@ -136,21 +136,21 @@ pub enum Commands {
         /// Error code to get documentation for (e.g., FP0001, FP0055)
         error_code: String,
     },
-    // /// Start interactive FHIRPath REPL (commented out during Phase 1)
-    // Repl {
-    //     /// JSON file containing FHIR resource to load initially
-    //     #[arg(short, long)]
-    //     input: Option<String>,
-    //     /// Initial variables to set in format var=value (can be used multiple times)
-    //     #[arg(short, long = "variable")]
-    //     variables: Vec<String>,
-    //     /// History file to use (default: ~/.fhirpath_history)
-    //     #[arg(long)]
-    //     history_file: Option<String>,
-    //     /// Maximum number of history entries (default: 1000)
-    //     #[arg(long, default_value = "1000")]
-    //     history_size: usize,
-    // },
+    /// Start interactive FHIRPath REPL
+    Repl {
+        /// JSON file containing FHIR resource to load initially
+        #[arg(short, long)]
+        input: Option<String>,
+        /// Initial variables to set in format var=value (can be used multiple times)
+        #[arg(short, long = "variable")]
+        variables: Vec<String>,
+        /// History file to use (default: ~/.fhirpath_history)
+        #[arg(long)]
+        history_file: Option<String>,
+        /// Maximum number of history entries (default: 1000)
+        #[arg(long, default_value = "1000")]
+        history_size: usize,
+    },
     /// Registry information for functions and operators
     Registry {
         #[command(subcommand)]
