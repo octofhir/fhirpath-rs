@@ -41,10 +41,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           # Configure git for Windows line endings
           autocrlf: false
-        with:
-          fetch-depth: 0
 
       - name: Install Node.js and pnpm
         uses: actions/setup-node@v4
@@ -160,10 +159,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           # Configure git for Windows line endings
           autocrlf: false
-        with:
-          fetch-depth: 0
 
       - name: Configure git
         run: |
@@ -251,10 +249,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           # Configure git for Windows line endings
           autocrlf: false
-        with:
-          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
