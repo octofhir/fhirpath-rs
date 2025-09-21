@@ -72,8 +72,11 @@ jobs:
           echo "CARGO_PROFILE_DEV_DEBUG=0" >> $env:GITHUB_ENV
           echo "CARGO_PROFILE_TEST_DEBUG=0" >> $env:GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_DEBUG=0" >> $env:GITHUB_ENV
-          echo "RUSTFLAGS=-C debuginfo=0 -C strip=symbols" >> $env:GITHUB_ENV
-          echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C debuginfo=0 -C strip=symbols" >> $env:GITHUB_ENV
+          echo "CARGO_PROFILE_DEV_STRIP=symbols" >> $env:GITHUB_ENV
+          echo "CARGO_PROFILE_TEST_STRIP=symbols" >> $env:GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_STRIP=symbols" >> $env:GITHUB_ENV
+          echo "RUSTFLAGS=-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE" >> $env:GITHUB_ENV
+          echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE" >> $env:GITHUB_ENV
 
       - name: Install build dependencies (Linux)
         if: runner.os == 'Linux'
@@ -87,21 +90,25 @@ jobs:
           cargo clippy --workspace --all-targets --all-features --exclude fhirpath-dev-tools
           cargo test --workspace --all-features --exclude fhirpath-dev-tools
         env:
-          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          # Windows-specific: Completely disable debug info to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
           CARGO_PROFILE_TEST_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols' || '' }}
-          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols' || '' }}
+          CARGO_PROFILE_DEV_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_PROFILE_TEST_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
       - name: Build fhirpath-cli binary
         run: |
           cargo build --release --target ${{ matrix.target }} --package fhirpath-cli
         env:
-          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          # Windows-specific: Completely disable debug info to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
           CARGO_PROFILE_RELEASE_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols' || '' }}
-          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols' || '' }}
+          CARGO_PROFILE_DEV_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_PROFILE_RELEASE_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
       - name: Prepare binary for release (Unix)
         if: runner.os != 'Windows'
@@ -265,11 +272,13 @@ jobs:
       - name: Build octofhir-fhirpath crate
         run: cargo build --release --package octofhir-fhirpath
         env:
-          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
+          # Windows-specific: Completely disable debug info to avoid LNK1318 errors
           CARGO_PROFILE_DEV_DEBUG: ${{ runner.os == 'Windows' && '0' || '2' }}
           CARGO_PROFILE_RELEASE_DEBUG: ${{ runner.os == 'Windows' && '0' || '2' }}
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ runner.os == 'Windows' && '-C debuginfo=0 -C strip=symbols' || '' }}
-          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C debuginfo=0 -C strip=symbols' || '' }}
+          CARGO_PROFILE_DEV_STRIP: ${{ runner.os == 'Windows' && 'symbols' || 'none' }}
+          CARGO_PROFILE_RELEASE_STRIP: ${{ runner.os == 'Windows' && 'symbols' || 'none' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ runner.os == 'Windows' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
       - name: Test publishing octofhir-fhirpath (dry run)
         run: |

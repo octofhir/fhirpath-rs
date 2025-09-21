@@ -3,7 +3,9 @@
 # Completely disable debug info to avoid PDB issues on CI
 rustflags = [
     "-C", "debuginfo=0",
-    "-C", "strip=symbols"
+    "-C", "strip=symbols",
+    "-C", "link-arg=/DEBUG:NONE",
+    "-C", "link-arg=/INCREMENTAL:NO"
 ]
 
 [target.x86_64-pc-windows-gnu]

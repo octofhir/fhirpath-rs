@@ -50,8 +50,11 @@ jobs:
           echo "CARGO_PROFILE_DEV_DEBUG=0" >> $env:GITHUB_ENV
           echo "CARGO_PROFILE_TEST_DEBUG=0" >> $env:GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_DEBUG=0" >> $env:GITHUB_ENV
-          echo "RUSTFLAGS=-C debuginfo=0 -C strip=symbols" >> $env:GITHUB_ENV
-          echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C debuginfo=0 -C strip=symbols" >> $env:GITHUB_ENV
+          echo "CARGO_PROFILE_DEV_STRIP=symbols" >> $env:GITHUB_ENV
+          echo "CARGO_PROFILE_TEST_STRIP=symbols" >> $env:GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_STRIP=symbols" >> $env:GITHUB_ENV
+          echo "RUSTFLAGS=-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE" >> $env:GITHUB_ENV
+          echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE" >> $env:GITHUB_ENV
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -72,36 +75,41 @@ jobs:
         if: matrix.rust == 'stable'
         run: cargo clippy --workspace --all-targets --all-features --exclude fhirpath-dev-tools
         env:
-          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
-          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
-          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
+          # Windows-specific: Completely disable debug info to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
+          CARGO_PROFILE_DEV_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
       - name: Build workspace
         run: cargo build --verbose --workspace --exclude fhirpath-dev-tools
         env:
-          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
-          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
-          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
+          # Windows-specific: Completely disable debug info to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
+          CARGO_PROFILE_DEV_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
       - name: Build CLI binary
         run: cargo build --verbose --package fhirpath-cli
         env:
-          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
-          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
-          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
+          # Windows-specific: Completely disable debug info to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
+          CARGO_PROFILE_DEV_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
       - name: Run tests
         run: cargo test --verbose --workspace --all-features --exclude fhirpath-dev-tools
         env:
-          # Windows-specific: Reduce PDB pressure to avoid LNK1318 errors
-          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
-          CARGO_PROFILE_TEST_DEBUG: ${{ matrix.os == 'windows-latest' && '1' || '2' }}
+          # Windows-specific: Completely disable debug info to avoid LNK1318 errors
+          CARGO_PROFILE_DEV_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
+          CARGO_PROFILE_DEV_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
+          CARGO_PROFILE_TEST_DEBUG: ${{ matrix.os == 'windows-latest' && '0' || '2' }}
+          CARGO_PROFILE_TEST_STRIP: ${{ matrix.os == 'windows-latest' && 'symbols' || 'none' }}
           # Additional Windows-specific settings
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
-          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=1' || '' }}
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
+          RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C debuginfo=0 -C strip=symbols -C link-arg=/DEBUG:NONE' || '' }}
 
       - name: Run tests (release mode)
         run: cargo test --release --verbose --workspace --exclude fhirpath-dev-tools
