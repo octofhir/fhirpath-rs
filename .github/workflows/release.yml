@@ -349,7 +349,7 @@ jobs:
 
     steps:
       - name: Delete GitHub release on publish failure
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             console.log('Publishing failed, cleaning up GitHub release...');
