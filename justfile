@@ -223,7 +223,7 @@ test-case CASE:
 
 
 # CLI commands
-cli-evaluate EXPRESSION FILE="":
+cli-evaluate EXPRESSION FILE="patient-example.json":
     @if [ "{{FILE}}" = "" ]; then \
         echo "Reading FHIR resource from stdin..."; \
         cargo run --package fhirpath-cli --bin octofhir-fhirpath -- evaluate "{{EXPRESSION}}"; \

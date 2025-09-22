@@ -78,32 +78,49 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
         let mut matching_extensions = Vec::new();
 
         for item in input {
-            // Look for extension property in the item
+            // Handle complex types/resources with direct extension arrays
             if let FhirPathValue::Resource(json, _, _) = &item {
-                if let Some(extensions) = json.get("extension") {
-                    if let Some(extensions_array) = extensions.as_array() {
-                        for extension in extensions_array {
-                            if let Some(url) = extension.get("url") {
-                                if let Some(url_str) = url.as_str() {
-                                    if url_str == target_url {
-                                        // Convert the extension JSON to FhirPathValue with proper FHIR type info
-                                        let type_info = TypeInfo {
-                                            type_name: "Extension".to_string(),
-                                            name: Some("Extension".to_string()),
-                                            is_empty: Some(false),
-                                            namespace: Some("FHIR".to_string()),
-                                            singleton: Some(true),
-                                        };
-
-                                        let extension_value = FhirPathValue::Resource(
-                                            Arc::new(extension.clone()),
-                                            type_info,
-                                            None,
-                                        );
-                                        matching_extensions.push(extension_value);
-                                    }
-                                }
+                if let Some(extensions) = json.get("extension").and_then(|e| e.as_array()) {
+                    for extension in extensions {
+                        if let Some(url_str) = extension.get("url").and_then(|u| u.as_str()) {
+                            if url_str == target_url {
+                                let type_info = TypeInfo {
+                                    type_name: "Extension".to_string(),
+                                    name: Some("Extension".to_string()),
+                                    is_empty: Some(false),
+                                    namespace: Some("FHIR".to_string()),
+                                    singleton: Some(true),
+                                };
+                                let extension_value = FhirPathValue::Resource(
+                                    Arc::new(extension.clone()),
+                                    type_info,
+                                    None,
+                                );
+                                matching_extensions.push(extension_value);
                             }
+                        }
+                    }
+                }
+            } else {
+                // Handle primitives with extensions attached via wrapped primitive element
+                if let Some(pe) = item.wrapped_primitive_element() {
+                    for ext in &pe.extensions {
+                        if ext.url == target_url {
+                            // Build minimal JSON with url to represent the extension
+                            let type_info = TypeInfo {
+                                type_name: "Extension".to_string(),
+                                name: Some("Extension".to_string()),
+                                is_empty: Some(false),
+                                namespace: Some("FHIR".to_string()),
+                                singleton: Some(true),
+                            };
+                            let json = serde_json::json!({ "url": ext.url });
+                            let extension_value = FhirPathValue::Resource(
+                                Arc::new(json),
+                                type_info,
+                                None,
+                            );
+                            matching_extensions.push(extension_value);
                         }
                     }
                 }

@@ -67,10 +67,19 @@ impl ResolveFunctionEvaluator {
         &self,
         reference: &str,
         context: &EvaluationContext,
-    ) -> Option<FhirPathValue> {
-        // Get the root resource from the $this variable (the original Bundle)
-        // instead of the current input collection (which contains the individual references)
-        if let Some(root_resource) = context.get_variable("this") {
+    ) -> Option<std::sync::Arc<serde_json::Value>> {
+        // Determine the appropriate root for resolution.
+        // Prefer %resource, then %context, then $this/this, finally fall back to input root.
+        let root_candidate = context
+            .get_variable("%resource")
+            .or_else(|| context.get_variable("resource"))
+            .or_else(|| context.get_variable("%context"))
+            .or_else(|| context.get_variable("context"))
+            .or_else(|| context.get_variable("$this"))
+            .or_else(|| context.get_variable("this"))
+            .or_else(|| context.input_collection().first().cloned());
+
+        if let Some(root_resource) = root_candidate {
             // Create a single-item collection containing the root resource
             let root_collection = crate::core::Collection::from(vec![root_resource]);
 
@@ -90,15 +99,15 @@ impl ResolveFunctionEvaluator {
         }
     }
 
-    /// Resolve contained resource reference
+    /// Resolve contained resource reference and return the resolved JSON
     fn resolve_contained_reference(
         &self,
         id: &str,
         root_collection: &crate::core::Collection,
-    ) -> Option<FhirPathValue> {
+    ) -> Option<std::sync::Arc<serde_json::Value>> {
         // Look through all items in the root collection
         for item in root_collection.iter() {
-            if let FhirPathValue::Resource(resource_json, type_info, primitive) = item {
+            if let FhirPathValue::Resource(resource_json, _type_info, _primitive) = item {
                 // Check contained resources
                 if let Some(contained_array) = resource_json.get("contained") {
                     if let Some(contained_list) = contained_array.as_array() {
@@ -106,12 +115,7 @@ impl ResolveFunctionEvaluator {
                             if let Some(item_id) = contained_resource.get("id") {
                                 if let Some(id_str) = item_id.as_str() {
                                     if id_str == id {
-                                        // Return Arc-shared reference to avoid copying
-                                        return Some(FhirPathValue::Resource(
-                                            Arc::new(contained_resource.clone()),
-                                            type_info.clone(),
-                                            primitive.clone(),
-                                        ));
+                                        return Some(Arc::new(contained_resource.clone()));
                                     }
                                 }
                             }
@@ -123,12 +127,12 @@ impl ResolveFunctionEvaluator {
         None
     }
 
-    /// Resolve Bundle entry reference
+    /// Resolve Bundle entry reference and return the resolved JSON
     fn resolve_bundle_reference(
         &self,
         reference: &str,
         root_collection: &crate::core::Collection,
-    ) -> Option<FhirPathValue> {
+    ) -> Option<std::sync::Arc<serde_json::Value>> {
         // Parse reference (e.g., "Patient/123")
         let parts: Vec<&str> = reference.split('/').collect();
         if parts.len() != 2 {
@@ -138,7 +142,7 @@ impl ResolveFunctionEvaluator {
 
         // Look through all items in the root collection
         for item in root_collection.iter() {
-            if let FhirPathValue::Resource(resource_json, type_info, primitive) = item {
+            if let FhirPathValue::Resource(resource_json, _type_info, _primitive) = item {
                 // Check if this is a Bundle
                 if let Some(rt) = resource_json.get("resourceType") {
                     if let Some(rt_str) = rt.as_str() {
@@ -162,12 +166,7 @@ impl ResolveFunctionEvaluator {
                                                 .unwrap_or(false);
 
                                             if matches_type && matches_id {
-                                                // Return Arc-shared reference to avoid copying
-                                                return Some(FhirPathValue::Resource(
-                                                    Arc::new(entry_resource.clone()),
-                                                    type_info.clone(),
-                                                    primitive.clone(),
-                                                ));
+                                                return Some(Arc::new(entry_resource.clone()));
                                             }
                                         }
                                     }
@@ -188,8 +187,7 @@ impl ResolveFunctionEvaluator {
                                 .unwrap_or(false);
 
                             if matches_type && matches_id {
-                                // Return Arc-shared reference to avoid copying
-                                return Some(item.clone());
+                                return Some(resource_json.clone());
                             }
                         }
                     }
@@ -221,15 +219,40 @@ impl ProviderPureFunctionEvaluator for ResolveFunctionEvaluator {
             });
         }
 
-        let mut resolved_resources = Vec::new();
+        let mut resolved_resources: Vec<FhirPathValue> = Vec::new();
 
         for value in &input {
             if let Some(reference_string) = self.extract_reference(value) {
                 // Resolve reference within the current resource tree
-                if let Some(resolved_resource) =
+                if let Some(resolved_json) =
                     self.resolve_reference_in_tree(&reference_string, context)
                 {
-                    resolved_resources.push(resolved_resource);
+                    // Determine resource type
+                    let resource_type = resolved_json
+                        .get("resourceType")
+                        .and_then(|rt| rt.as_str())
+                        .unwrap_or("Resource");
+
+                    // Obtain precise TypeInfo from ModelProvider if available
+                    let type_info = context
+                        .model_provider()
+                        .get_type(resource_type)
+                        .await
+                        .unwrap_or(None)
+                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
+                            type_name: resource_type.to_string(),
+                            singleton: Some(true),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some(resource_type.to_string()),
+                            is_empty: Some(false),
+                        });
+
+                    // Wrap the resolved JSON as a Resource with correct type info
+                    resolved_resources.push(FhirPathValue::Resource(
+                        resolved_json,
+                        type_info,
+                        None,
+                    ));
                 }
                 // If resolution fails, the item is ignored (per FHIR spec)
             }

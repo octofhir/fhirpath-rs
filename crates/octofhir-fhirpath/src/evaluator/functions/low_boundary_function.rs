@@ -279,8 +279,9 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
 
 fn apply_requested_scale(mut value: Decimal, requested: Option<u32>) -> Decimal {
     if let Some(scale) = requested {
-        if value.scale() < scale && value.set_scale(scale).is_err() {
-            return value.round_dp(scale);
+        if value.scale() < scale {
+            // Increase the scale without changing the numeric value
+            value.rescale(scale);
         }
     }
     value

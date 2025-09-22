@@ -64,6 +64,40 @@ impl RepeatAllFunctionEvaluator {
     /// Maximum iterations for iterative approach
     const MAX_ITERATIONS: usize = 1000;
 
+    /// Simple pattern check: expression is a direct arithmetic op on $this
+    fn is_simple_arithmetic_on_this(&self, expr: &ExpressionNode) -> bool {
+        use crate::ast::operator::BinaryOperator;
+        use ExpressionNode as EN;
+        match expr {
+            EN::BinaryOperation(bin) => {
+                let is_arith = matches!(
+                    bin.operator,
+                    BinaryOperator::Add
+                        | BinaryOperator::Subtract
+                        | BinaryOperator::Multiply
+                        | BinaryOperator::Divide
+                        | BinaryOperator::IntegerDivide
+                        | BinaryOperator::Modulo
+                );
+                if !is_arith {
+                    return false;
+                }
+                let left_is_this = matches!(*bin.left.clone(), EN::Variable(ref v) if v.name == "this");
+                let right_is_this = matches!(*bin.right.clone(), EN::Variable(ref v) if v.name == "this");
+                if left_is_this ^ right_is_this {
+                    let other_is_literal = if left_is_this {
+                        matches!(*bin.right.clone(), EN::Literal(_))
+                    } else {
+                        matches!(*bin.left.clone(), EN::Literal(_))
+                    };
+                    return other_is_literal;
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+
     /// Check if a type name is valid using ModelProvider
     fn literal_to_fhirpath_value(&self, literal: &LiteralNode) -> Option<FhirPathValue> {
         match &literal.value {
@@ -133,6 +167,20 @@ impl LazyFunctionEvaluator for RepeatAllFunctionEvaluator {
                         ));
                     }
                 }
+            }
+        }
+
+        // Safety: detect simple arithmetic on non-numeric $this that would silently yield empty
+        if self.is_simple_arithmetic_on_this(projection_expr) {
+            let has_non_numeric_seed = input.iter().any(|v| !matches!(
+                v,
+                FhirPathValue::Integer(_,_,_) | FhirPathValue::Decimal(_,_,_) | FhirPathValue::Quantity{..} | FhirPathValue::Date(_,_,_) | FhirPathValue::DateTime(_,_,_) | FhirPathValue::Time(_,_,_)
+            ));
+            if has_non_numeric_seed {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0061,
+                    "repeatAll function projection uses arithmetic on non-numeric input type",
+                ));
             }
         }
 
@@ -222,10 +270,6 @@ impl RepeatAllFunctionEvaluator {
             // Add current item to results (repeatAll includes all items, even duplicates)
             results.push(current_item.clone());
 
-            // For constants, limit expansion after a few iterations to prevent infinite generation
-            if depth > 5 {
-                continue; // Skip expansion for deep constants
-            }
 
             // Only expand if we haven't seen this exact item at this depth (prevents immediate cycles)
             let item_key = format!("{item_hash}@{depth}");
@@ -252,7 +296,14 @@ impl RepeatAllFunctionEvaluator {
 
             // Add children to queue for processing
             for child in projection_result.value.iter() {
-                queue.push_back((child.clone(), depth + 1));
+                // If projection is a literal constant, only expand one level to avoid infinite recursion
+                if let ExpressionNode::Literal(_) = projection_expr {
+                    if depth == 0 {
+                        queue.push_back((child.clone(), depth + 1));
+                    }
+                } else {
+                    queue.push_back((child.clone(), depth + 1));
+                }
             }
         }
 

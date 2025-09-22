@@ -786,10 +786,26 @@ impl Evaluator {
 
                     // Extract the value directly from JSON
                     if let Some(property_value) = json.get(identifier) {
-                        let flattened_values = self
-                            .navigate_property_with_flattening(property_value, &property_type_info)
-                            .await?;
-                        result_values.extend(flattened_values);
+                        // If the property is a primitive (non-array, non-object), wrap with primitive element support
+                        if !property_value.is_array() && !property_value.is_object() {
+                            let wrapped = self
+                                .wrap_json_with_type(
+                                    property_value.clone(),
+                                    &property_type_info,
+                                    identifier,
+                                    json,
+                                )
+                                .await?;
+                            result_values.push(wrapped);
+                        } else {
+                            let flattened_values = self
+                                .navigate_property_with_flattening(
+                                    property_value,
+                                    &property_type_info,
+                                )
+                                .await?;
+                            result_values.extend(flattened_values);
+                        }
                     } else {
                         // Use atomic-ehr pattern: detect choice values first
                         let choice_results = self.detect_choice_values(json, identifier).await?;
@@ -864,13 +880,25 @@ impl Evaluator {
 
                             // Extract the value directly from JSON
                             if let Some(property_value) = json.get(identifier) {
-                                let flattened_values = self
-                                    .navigate_property_with_flattening(
-                                        property_value,
-                                        &property_type_info,
-                                    )
-                                    .await?;
-                                result_values.extend(flattened_values);
+                                if !property_value.is_array() && !property_value.is_object() {
+                                    let wrapped = self
+                                        .wrap_json_with_type(
+                                            property_value.clone(),
+                                            &property_type_info,
+                                            identifier,
+                                            json,
+                                        )
+                                        .await?;
+                                    result_values.push(wrapped);
+                                } else {
+                                    let flattened_values = self
+                                        .navigate_property_with_flattening(
+                                            property_value,
+                                            &property_type_info,
+                                        )
+                                        .await?;
+                                    result_values.extend(flattened_values);
+                                }
                             } else {
                                 // Apply same fallback logic as above
                                 if identifier.starts_with("value") && identifier.len() > 5 {
@@ -956,8 +984,54 @@ impl Evaluator {
                     }
                 }
                 _ => {
-                    // Other types don't have navigable properties
-                    // Return empty result for this item
+                    // Other types don't have standard navigable properties
+                    // But support extension(...) on primitives via wrapped primitive element
+                    if identifier.starts_with("extension") && item.has_primitive_extensions() {
+                        // Helper to build Extension TypeInfo
+                        let ext_type_info = crate::core::model_provider::TypeInfo {
+                            type_name: "Extension".to_string(),
+                            singleton: Some(true),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some("Extension".to_string()),
+                            is_empty: Some(false),
+                        };
+
+                        // Parse optional URL argument if provided: extension('...')
+                        let url_filter: Option<String> = if identifier.starts_with("extension(")
+                            && identifier.ends_with(')')
+                        {
+                            let inner = &identifier[10..identifier.len() - 1];
+                            let trimmed = inner.trim().trim_matches('\'').trim_matches('"');
+                            if !trimmed.is_empty() {
+                                Some(trimmed.to_string())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        if let Some(pe) = item.wrapped_primitive_element() {
+                            for ext in &pe.extensions {
+                                if url_filter
+                                    .as_ref()
+                                    .map(|u| u == &ext.url)
+                                    .unwrap_or(true)
+                                {
+                                    // Build minimal JSON for extension with URL so exists() works
+                                    let json = serde_json::json!({
+                                        "url": ext.url
+                                    });
+                                    let ext_value = FhirPathValue::Resource(
+                                        std::sync::Arc::new(json),
+                                        ext_type_info.clone(),
+                                        None,
+                                    );
+                                    result_values.push(ext_value);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1321,9 +1395,10 @@ impl Evaluator {
         match variable_name {
             "this" => {
                 // System variable $this
+                // Prefer the most local "$this" binding (set by lambdas/functions) over inherited "this"
                 if let Some(this_value) = context
-                    .get_variable("this")
-                    .or_else(|| context.get_variable("$this"))
+                    .get_variable("$this")
+                    .or_else(|| context.get_variable("this"))
                 {
                     Ok(EvaluationResult {
                         value: Collection::single(this_value.clone()),
@@ -1337,9 +1412,10 @@ impl Evaluator {
             }
             "index" => {
                 // System variable $index
+                // Prefer local "$index" over inherited "index"
                 if let Some(index_value) = context
-                    .get_variable("index")
-                    .or_else(|| context.get_variable("$index"))
+                    .get_variable("$index")
+                    .or_else(|| context.get_variable("index"))
                 {
                     Ok(EvaluationResult {
                         value: Collection::single(index_value.clone()),
@@ -1714,10 +1790,56 @@ impl Evaluator {
 
         // Convert to FhirPathValue and wrap with metadata
         let base_value = crate::core::value::utils::json_to_fhirpath_value(parsed_value);
-        let wrapped_primitive = primitive_element.map(|_pe| crate::core::WrappedPrimitiveElement {
-            id: None,
-            extensions: vec![],
+
+        // Build wrapped primitive element with extensions if present
+        let wrapped_primitive = primitive_element.map(|pe_json| {
+            // Parse primitive element JSON to extract extensions
+            let mut wrapped = crate::core::WrappedPrimitiveElement::new();
+            if let Some(exts) = pe_json.get("extension").and_then(|e| e.as_array()) {
+                fn parse_extension(obj: &serde_json::Value) -> crate::core::WrappedExtension {
+                    // Extract URL
+                    let url = obj
+                        .get("url")
+                        .and_then(|u| u.as_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    // Find a value[x] property if present
+                    let mut value_field: Option<serde_json::Value> = None;
+                    if let Some(map) = obj.as_object() {
+                        for (k, v) in map.iter() {
+                            if k.starts_with("value") {
+                                value_field = Some(v.clone());
+                                break;
+                            }
+                        }
+                    }
+
+                    let mut ext = if let Some(v) = value_field {
+                        crate::core::WrappedExtension::with_value(url, v)
+                    } else {
+                        crate::core::WrappedExtension::new(url)
+                    };
+
+                    // Nested extensions
+                    if let Some(nested) = obj.get("extension").and_then(|e| e.as_array()) {
+                        for n in nested {
+                            ext.extensions.push(parse_extension(n));
+                        }
+                    }
+
+                    ext
+                }
+
+                for ext in exts {
+                    if ext.is_object() {
+                        wrapped.extensions.push(parse_extension(ext));
+                    }
+                }
+            }
+            wrapped
         });
+
         Ok(FhirPathValue::wrap_value(
             base_value,
             type_info.clone(),

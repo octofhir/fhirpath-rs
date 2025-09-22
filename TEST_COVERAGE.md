@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2025-09-21
+Generated on: 2025-09-22
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -13,15 +13,17 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 114 | 100% |
 | **Total Individual Tests** | 1118 | 100% |
-| **Passing Tests** | 1020 | 91.2% |
-| **Failing Tests** | 90 | 8.1% |
-| **Error Tests** | 8 | 0.7% |
+| **Passing Tests** | 1059 | 94.7% |
+| **Failing Tests** | 49 | 4.4% |
+| **Error Tests** | 10 | 0.9% |
 
 ## Test Results by Suite
 
 ### ✅ Fully Passing (100%)
 
 - **Comparable.json** - 3/3 tests
+- **HighBoundary.json** - 24/24 tests
+- **LowBoundary.json** - 28/28 tests
 - **Precision.json** - 6/6 tests
 - **cdaTests.json** - 3/3 tests
 - **comments.json** - 9/9 tests
@@ -32,8 +34,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **minimal.json** - 1/1 tests
 - **minute-of.json** - 5/5 tests
 - **month-of.json** - 7/7 tests
-- **period.json** - 2/2 tests
 - **polymorphics.json** - 2/2 tests
+- **repeat-all.json** - 19/19 tests
 - **resolve.json** - 3/3 tests
 - **second-of.json** - 5/5 tests
 - **testAbs.json** - 4/4 tests
@@ -55,6 +57,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testDistinct.json** - 6/6 tests
 - **testDiv.json** - 8/8 tests
 - **testDivide.json** - 9/9 tests
+- **testDollar.json** - 5/5 tests
 - **testEncodeDecode.json** - 8/8 tests
 - **testEndsWith.json** - 12/12 tests
 - **testEquality.json** - 28/28 tests
@@ -64,10 +67,12 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testExclude.json** - 4/4 tests
 - **testExists.json** - 5/5 tests
 - **testExp.json** - 3/3 tests
+- **testExtension.json** - 3/3 tests
 - **testFirstLast.json** - 2/2 tests
 - **testFloor.json** - 4/4 tests
 - **testGreaterThan.json** - 30/30 tests
 - **testGreatorOrEqual.json** - 30/30 tests
+- **testIif.json** - 12/12 tests
 - **testIn.json** - 8/8 tests
 - **testIndexOf.json** - 6/6 tests
 - **testIndexer.json** - 2/2 tests
@@ -113,48 +118,43 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testTrim.json** - 6/6 tests
 - **testTruncate.json** - 4/4 tests
 - **testVariables.json** - 4/4 tests
+- **testWhere.json** - 4/4 tests
 - **timezone-offset-of.json** - 5/5 tests
 - **to-date.json** - 11/11 tests
 - **year-of.json** - 9/9 tests
 
 ### 🟡 Well Implemented (70%+)
 
-- **testInheritance.json** - 95.8% (23/24 tests)
+- **testUnion.json** - 91.7% (11/12 tests)
 - **testLiterals.json** - 91.5% (75/82 tests)
 - **testTypes.json** - 88.9% (88/99 tests)
-- **testIif.json** - 83.3% (10/12 tests)
-- **testUnion.json** - 83.3% (10/12 tests)
-- **testDollar.json** - 80.0% (4/5 tests)
-- **testWhere.json** - 75.0% (3/4 tests)
-- **repeat-all.json** - 73.7% (14/19 tests)
+- **testInheritance.json** - 83.3% (20/24 tests)
+- **testRepeat.json** - 80.0% (4/5 tests)
 
 ### 🟠 Partially Implemented (30-70%)
 
 - **testCombine--.json** - 66.7% (2/3 tests)
 - **testSubSetOf.json** - 66.7% (2/3 tests)
-- **testRepeat.json** - 60.0% (3/5 tests)
 - **testType.json** - 56.7% (17/30 tests)
 - **miscEngineTests.json** - 50.0% (1/2 tests)
 - **testSuperSetOf.json** - 50.0% (1/2 tests)
-- **LowBoundary.json** - 46.4% (13/28 tests)
 - **defineVariable.json** - 38.1% (8/21 tests)
-- **HighBoundary.json** - 33.3% (8/24 tests)
-- **testExtension.json** - 33.3% (1/3 tests)
 
 ### 🔴 Major Issues (0-30%)
 
 - **TerminologyTests.json** - 0.0% (0/3 tests) - Missing
+- **period.json** - 0.0% (0/2 tests) - Missing
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **91.2% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **94.7% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 114
 - **Total Tests**: 1118
-- **Pass Rate**: 91.2%
+- **Pass Rate**: 94.7%
 
 ---
 
-*Report generated on: 2025-09-21 19:36:19*
+*Report generated on: 2025-09-22 20:25:25*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*
