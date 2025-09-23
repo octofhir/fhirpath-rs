@@ -185,9 +185,19 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
             current_items = new_items;
         }
 
-        // Place seeds only if produced items share the same type as seeds (numeric/temporal sequences)
-        let same_type_produced = !seed_type_tags.is_disjoint(&produced_type_tags);
-        if same_type_produced {
+        // Place seeds only for numeric/temporal/quantity sequences; never include seeds for complex/object traversals
+        let eligible_seed_types: std::collections::HashSet<&'static str> = [
+            "Integer", "Decimal", "Date", "DateTime", "Time", "Quantity",
+        ]
+        .into_iter()
+        .collect();
+        let seeds_all_eligible = seed_type_tags.iter().all(|t| eligible_seed_types.contains(t));
+        let produced_all_eligible = produced_type_tags
+            .iter()
+            .all(|t| eligible_seed_types.contains(t));
+        let allow_seed_inclusion = seeds_all_eligible && produced_all_eligible && !produced_type_tags.is_empty();
+
+        if allow_seed_inclusion {
             // Seeds first, followed by discovered items (without duplicates)
             let mut final_values = Vec::with_capacity(result_values.len() + original_input.len());
             for item in original_input {
@@ -202,7 +212,7 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
                 value: crate::core::Collection::from(final_values),
             })
         } else {
-            // Do not include seeds when produced items are of different type (e.g., projecting strings from complex types)
+            // Do not include seeds for non-eligible traversals (e.g., property projection producing complex types or strings)
             Ok(EvaluationResult {
                 value: crate::core::Collection::from(result_values),
             })

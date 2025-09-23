@@ -475,35 +475,67 @@ fn fhirpath_parser<'a>()
         with_medium_precedence.pratt((
             // Type operators - precedence 3.5 (lower than membership, same as XOR but evaluated first)
             infix(left(3), just("is").padded(), |left, _, right, _| {
-                if let ExpressionNode::Identifier(ident) = right {
-                    ExpressionNode::TypeCheck(TypeCheckNode {
+                match right {
+                    ExpressionNode::Identifier(ident) => ExpressionNode::TypeCheck(TypeCheckNode {
                         expression: Box::new(left),
                         target_type: ident.name,
                         location: None,
-                    })
-                } else {
-                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                    }),
+                    ExpressionNode::PropertyAccess(prop) => {
+                        if let ExpressionNode::Identifier(base) = *prop.object {
+                            let target_type = format!("{}.{}", base.name, prop.property);
+                            ExpressionNode::TypeCheck(TypeCheckNode {
+                                expression: Box::new(left),
+                                target_type,
+                                location: None,
+                            })
+                        } else {
+                            ExpressionNode::BinaryOperation(BinaryOperationNode {
+                                left: Box::new(left),
+                                operator: BinaryOperator::Is,
+                                right: Box::new(ExpressionNode::PropertyAccess(prop)),
+                                location: None,
+                            })
+                        }
+                    }
+                    other => ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::Is,
-                        right: Box::new(right),
+                        right: Box::new(other),
                         location: None,
-                    })
+                    }),
                 }
             }),
             infix(left(3), just("as").padded(), |left, _, right, _| {
-                if let ExpressionNode::Identifier(ident) = right {
-                    ExpressionNode::TypeCast(TypeCastNode {
+                match right {
+                    ExpressionNode::Identifier(ident) => ExpressionNode::TypeCast(TypeCastNode {
                         expression: Box::new(left),
                         target_type: ident.name,
                         location: None,
-                    })
-                } else {
-                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                    }),
+                    ExpressionNode::PropertyAccess(prop) => {
+                        if let ExpressionNode::Identifier(base) = *prop.object {
+                            let target_type = format!("{}.{}", base.name, prop.property);
+                            ExpressionNode::TypeCast(TypeCastNode {
+                                expression: Box::new(left),
+                                target_type,
+                                location: None,
+                            })
+                        } else {
+                            ExpressionNode::BinaryOperation(BinaryOperationNode {
+                                left: Box::new(left),
+                                operator: BinaryOperator::As,
+                                right: Box::new(ExpressionNode::PropertyAccess(prop)),
+                                location: None,
+                            })
+                        }
+                    }
+                    other => ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::As,
-                        right: Box::new(right),
+                        right: Box::new(other),
                         location: None,
-                    })
+                    }),
                 }
             }),
             // Logical AND - precedence 4

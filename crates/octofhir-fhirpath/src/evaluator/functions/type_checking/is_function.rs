@@ -80,20 +80,18 @@ impl IsFunctionEvaluator {
             return true;
         }
 
-        // Direct name match
-        if actual_name == target_name {
+        // Direct name match only when target has no namespace
+        if target_namespace.is_empty() && actual_name == target_name {
             return true;
         }
 
-        // If target has no namespace, check both FHIR and System namespaces
-        if target_namespace.is_empty() {
-            if actual_name == target_name {
-                return true;
-            }
-            // Also check case variations
-            if actual_name.to_lowercase() == target_name.to_lowercase() {
-                return true;
-            }
+        // If target has no namespace, we already handled exact name match above.
+        // Do NOT perform namespace-insensitive matching between 'Boolean' and 'boolean' or
+        // 'System.Patient' vs 'FHIR.Patient'. Namespaces must match when provided.
+
+        // If target has an explicit namespace that differs from actual, it's not compatible
+        if !target_namespace.is_empty() && target_namespace != actual_namespace {
+            return false;
         }
 
         // First check inheritance using model provider for all types
@@ -115,30 +113,123 @@ impl IsFunctionEvaluator {
             }
         }
 
-        // Specific namespace/name matches and primitive type matches
+        // Specific namespace/name matches and primitive type matches (namespace-aware)
         match target_type {
-            "Boolean" | "boolean" | "System.Boolean" | "FHIR.boolean" => {
-                matches!(value, FhirPathValue::Boolean(_, _, _))
+            // System primitives (uppercase)
+            "Boolean" | "System.Boolean" => {
+                matches!(
+                    value,
+                    FhirPathValue::Boolean(_, type_info, _) if type_info.namespace.as_deref() != Some("FHIR")
+                )
             }
-            "Integer" | "integer" | "System.Integer" | "FHIR.integer" => {
-                matches!(value, FhirPathValue::Integer(_, _, _))
+            "Integer" | "System.Integer" => {
+                matches!(
+                    value,
+                    FhirPathValue::Integer(_, type_info, _) if type_info.namespace.as_deref() != Some("FHIR")
+                )
             }
-            "Decimal" | "decimal" | "System.Decimal" | "FHIR.decimal" => {
-                matches!(value, FhirPathValue::Decimal(_, _, _))
+            "Decimal" | "System.Decimal" => {
+                matches!(
+                    value,
+                    FhirPathValue::Decimal(_, type_info, _) if type_info.namespace.as_deref() != Some("FHIR")
+                )
             }
-            "String" | "string" | "System.String" | "FHIR.string" => {
-                matches!(value, FhirPathValue::String(_, _, _))
+            "String" | "System.String" => {
+                // System.String: any non-FHIR (System) string
+                matches!(
+                    value,
+                    FhirPathValue::String(_, type_info, _) if type_info.namespace.as_deref() != Some("FHIR")
+                )
             }
-            "Date" | "date" | "System.Date" | "FHIR.date" => {
-                matches!(value, FhirPathValue::Date(_, _, _))
+            "Date" | "System.Date" => {
+                matches!(
+                    value,
+                    FhirPathValue::Date(_, type_info, _) if type_info.namespace.as_deref() != Some("FHIR")
+                )
             }
-            "DateTime" | "dateTime" | "System.DateTime" | "FHIR.dateTime" => {
-                matches!(value, FhirPathValue::DateTime(_, _, _))
+            "DateTime" | "System.DateTime" => {
+                matches!(
+                    value,
+                    FhirPathValue::DateTime(_, type_info, _) if type_info.namespace.as_deref() != Some("FHIR")
+                )
             }
-            "Time" | "time" | "System.Time" | "FHIR.time" => {
-                matches!(value, FhirPathValue::Time(_, _, _))
+            "Time" | "System.Time" => {
+                matches!(
+                    value,
+                    FhirPathValue::Time(_, type_info, _) if type_info.namespace.as_deref() != Some("FHIR")
+                )
             }
-            "Quantity" | "quantity" | "System.Quantity" => {
+
+            // FHIR primitives (lowercase)
+            "boolean" | "FHIR.boolean" => {
+                matches!(
+                    value,
+                    FhirPathValue::Boolean(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR")
+                )
+            }
+            "integer" | "FHIR.integer" => {
+                matches!(
+                    value,
+                    FhirPathValue::Integer(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR")
+                )
+            }
+            "decimal" | "FHIR.decimal" => {
+                matches!(
+                    value,
+                    FhirPathValue::Decimal(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR")
+                )
+            }
+            "string" | "FHIR.string" => {
+                match value {
+                    FhirPathValue::String(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR") => {
+                        let actual = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+                        matches!(
+                            actual,
+                            // string itself
+                            "string" | "FHIR.string"
+                            // string-derived FHIR primitives
+                            | "code" | "id" | "markdown"
+                            | "uri" | "url" | "canonical" | "oid" | "uuid"
+                        )
+                    }
+                    _ => false,
+                }
+            }
+            "date" | "FHIR.date" => {
+                matches!(
+                    value,
+                    FhirPathValue::Date(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR")
+                )
+            }
+            "dateTime" | "FHIR.dateTime" => {
+                matches!(
+                    value,
+                    FhirPathValue::DateTime(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR")
+                )
+            }
+            "time" | "FHIR.time" => {
+                matches!(
+                    value,
+                    FhirPathValue::Time(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR")
+                )
+            }
+
+            // FHIR.uri is a supertype for uri-like primitives
+            "uri" | "FHIR.uri" => {
+                match value {
+                    FhirPathValue::String(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR") => {
+                        let actual = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+                        matches!(
+                            actual,
+                            "uri" | "url" | "canonical" | "uuid" | "oid"
+                        )
+                    }
+                    _ => false,
+                }
+            }
+
+            // Quantity (modeled as System type in our implementation)
+            "Quantity" | "System.Quantity" => {
                 matches!(value, FhirPathValue::Quantity { .. })
             }
             _ => false,
@@ -171,7 +262,13 @@ impl IsFunctionEvaluator {
             }
             FhirPathValue::String(_, type_info, _) => {
                 if type_info.namespace.as_deref() == Some("FHIR") {
-                    ("FHIR".to_string(), type_info.type_name.to_lowercase())
+                    // Use the specific FHIR primitive name when available (e.g., code, uri)
+                    let actual = type_info
+                        .name
+                        .as_deref()
+                        .unwrap_or(&type_info.type_name)
+                        .to_string();
+                    ("FHIR".to_string(), actual)
                 } else {
                     ("System".to_string(), "String".to_string())
                 }
@@ -199,7 +296,8 @@ impl IsFunctionEvaluator {
             }
             FhirPathValue::Quantity { .. } => ("System".to_string(), "Quantity".to_string()),
             FhirPathValue::Resource(_, type_info, _) => {
-                ("FHIR".to_string(), type_info.type_name.clone())
+                let name = type_info.name.as_deref().unwrap_or(&type_info.type_name).to_string();
+                ("FHIR".to_string(), name)
             }
             FhirPathValue::Collection(_) => ("System".to_string(), "Collection".to_string()),
             FhirPathValue::Empty => ("System".to_string(), "Empty".to_string()),

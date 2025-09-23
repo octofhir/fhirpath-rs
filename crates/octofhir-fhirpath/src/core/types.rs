@@ -842,13 +842,33 @@ impl FhirPathValue {
 
     /// Create a resource value from JSON with default TypeInfo
     pub fn resource(json: JsonValue) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Resource".to_string(),
-            singleton: Some(true),
-            namespace: Some("FHIR".to_string()),
-            name: Some("Resource".to_string()),
-            is_empty: Some(false),
+        // Try to infer concrete FHIR resource type from the JSON payload
+        let inferred_type = json
+            .as_object()
+            .and_then(|obj| obj.get("resourceType"))
+            .and_then(|rt| rt.as_str())
+            .map(|s| s.to_string());
+
+        let type_info = if let Some(resource_type) = inferred_type {
+            // Set precise FHIR resource typing when resourceType is present
+            TypeInfo {
+                type_name: resource_type.clone(),
+                singleton: Some(true),
+                namespace: Some("FHIR".to_string()),
+                name: Some(resource_type),
+                is_empty: Some(false),
+            }
+        } else {
+            // Fallback to generic Resource typing
+            TypeInfo {
+                type_name: "Resource".to_string(),
+                singleton: Some(true),
+                namespace: Some("FHIR".to_string()),
+                name: Some("Resource".to_string()),
+                is_empty: Some(false),
+            }
         };
+
         Self::Resource(Arc::new(json), type_info, None)
     }
 

@@ -61,29 +61,37 @@ impl PureFunctionEvaluator for ToBooleanFunctionEvaluator {
         let mut results = Vec::new();
 
         for value in input {
-            let boolean_result = match &value {
-                FhirPathValue::Boolean(b, _, _) => *b,
-                FhirPathValue::Integer(i, _, _) => *i != 0,
-                FhirPathValue::Decimal(d, _, _) => !d.is_zero(),
-                FhirPathValue::String(s, _, _) => match s.trim().to_lowercase().as_str() {
-                    "true" | "t" | "yes" | "y" | "1" => true,
-                    "false" | "f" | "no" | "n" | "0" => false,
-                    _ => {
-                        return Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0055,
-                            format!("Cannot convert '{s}' to boolean"),
-                        ));
-                    }
-                },
-                _ => {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0055,
-                        format!("Cannot convert {} to boolean", value.type_name()),
-                    ));
+            match &value {
+                FhirPathValue::Boolean(b, _, _) => {
+                    results.push(FhirPathValue::boolean(*b));
                 }
-            };
-
-            results.push(FhirPathValue::boolean(boolean_result));
+                FhirPathValue::Integer(i, _, _) => {
+                    match *i {
+                        1 => results.push(FhirPathValue::boolean(true)),
+                        0 => results.push(FhirPathValue::boolean(false)),
+                        _ => { /* non-convertible → no result (empty) */ }
+                    }
+                }
+                FhirPathValue::Decimal(d, _, _) => {
+                    if d.is_zero() {
+                        results.push(FhirPathValue::boolean(false));
+                    } else if d == &rust_decimal::Decimal::ONE {
+                        results.push(FhirPathValue::boolean(true));
+                    } else {
+                        // non-convertible → empty
+                    }
+                }
+                FhirPathValue::String(s, _, _) => match s.trim().to_lowercase().as_str() {
+                    "true" | "t" | "yes" | "y" | "1" | "1.0" => {
+                        results.push(FhirPathValue::boolean(true));
+                    }
+                    "false" | "f" | "no" | "n" | "0" | "0.0" => {
+                        results.push(FhirPathValue::boolean(false));
+                    }
+                    _ => { /* non-convertible → empty */ }
+                },
+                _ => { /* non-convertible type → empty */ }
+            }
         }
 
         Ok(EvaluationResult {

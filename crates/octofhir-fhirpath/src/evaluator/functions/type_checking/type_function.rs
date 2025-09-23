@@ -99,7 +99,8 @@ impl TypeFunctionEvaluator {
             }
             FhirPathValue::Quantity { .. } => ("System".to_string(), "Quantity".to_string()),
             FhirPathValue::Resource(_, type_info, _) => {
-                ("FHIR".to_string(), type_info.type_name.clone())
+                let name = type_info.name.as_deref().unwrap_or(&type_info.type_name).to_string();
+                ("FHIR".to_string(), name)
             }
             FhirPathValue::Collection(_) => ("System".to_string(), "Collection".to_string()),
             FhirPathValue::Empty => ("System".to_string(), "Empty".to_string()),

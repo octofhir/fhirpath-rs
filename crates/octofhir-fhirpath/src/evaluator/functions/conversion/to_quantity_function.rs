@@ -68,40 +68,16 @@ impl PureFunctionEvaluator for ToQuantityFunctionEvaluator {
                 Some(input[0].clone())
             }
             FhirPathValue::Integer(i, _, _) => {
-                // Convert integer to unitless quantity
-                Some(FhirPathValue::quantity(Decimal::from(*i), None))
+                // Convert integer to dimensionless quantity with unit '1'
+                Some(FhirPathValue::quantity(Decimal::from(*i), Some("1".to_string())))
             }
             FhirPathValue::Decimal(d, _, _) => {
-                // Convert decimal to unitless quantity
-                Some(FhirPathValue::quantity(*d, None))
+                // Convert decimal to dimensionless quantity with unit '1'
+                Some(FhirPathValue::quantity(*d, Some("1".to_string())))
             }
             FhirPathValue::String(s, _, _) => {
-                // Try to parse string as quantity
-                let trimmed = s.trim();
-
-                // First try parsing as a simple number (unitless quantity)
-                if let Ok(value) = trimmed.parse::<f64>() {
-                    Some(FhirPathValue::quantity(
-                        Decimal::from_f64_retain(value).unwrap_or_default(),
-                        None,
-                    ))
-                } else {
-                    // Try parsing as "value unit" format
-                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
-                    if parts.len() == 2 {
-                        if let Ok(value) = parts[0].parse::<f64>() {
-                            let unit = parts[1].to_string();
-                            Some(FhirPathValue::quantity(
-                                Decimal::from_f64_retain(value).unwrap_or_default(),
-                                Some(unit),
-                            ))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }
+                // Use strict FHIRPath-aware parser for string quantities
+                crate::evaluator::quantity_utils::parse_string_to_quantity_value(s)
             }
             _ => {
                 // Other types cannot be converted to quantity

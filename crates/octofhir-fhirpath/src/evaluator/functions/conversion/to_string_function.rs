@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use octofhir_ucum::find_unit;
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -84,10 +85,25 @@ impl PureFunctionEvaluator for ToStringFunctionEvaluator {
                     // Format time as FHIR time string using Display implementation
                     format!("{time}")
                 }
-                FhirPathValue::Quantity { value, unit, .. } => {
-                    // Format quantity as "value unit"
-                    if let Some(unit) = unit {
-                        format!("{value} {unit}")
+                FhirPathValue::Quantity { value, unit, ucum_unit, calendar_unit, .. } => {
+                    // Format Quantity according to FHIRPath rules:
+                    // - UCUM units are rendered with single quotes: 1 'wk'
+                    // - Calendar units are rendered as plain words: 1 week
+                    // - Dimensionless quantities (unit '1') are rendered as just the value: 1 or 1.0
+                    if let Some(u) = unit.as_deref() {
+                        if u == "1" {
+                            value.to_string()
+                        } else {
+                            let is_ucum = find_unit(u).is_some() || ucum_unit.is_some();
+                            if is_ucum {
+                                format!("{value} '{u}'")
+                            } else if calendar_unit.is_some() {
+                                format!("{value} {u}")
+                            } else {
+                                // Default to quoting non-UCUM, non-calendar units to preserve literal form
+                                format!("{value} '{u}'")
+                            }
+                        }
                     } else {
                         value.to_string()
                     }

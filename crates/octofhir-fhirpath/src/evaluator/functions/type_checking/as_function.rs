@@ -136,12 +136,20 @@ impl AsFunctionEvaluator {
                 // Only allow strict string type conversion
                 match value {
                     FhirPathValue::String(_, type_info, _) => {
-                        // Check if this is actually a FHIR string type, not code, id, etc.
-                        let actual_type = type_info.name.as_deref().unwrap_or(&type_info.type_name);
-                        if actual_type == "string" || type_info.type_name == "String" {
-                            Some(value.clone())
+                        // For FHIR primitives, only allow actual FHIR.string to be treated as string
+                        if type_info.namespace.as_deref() == Some("FHIR") {
+                            let actual = type_info
+                                .name
+                                .as_deref()
+                                .unwrap_or(&type_info.type_name);
+                            if actual.eq_ignore_ascii_case("string") {
+                                Some(value.clone())
+                            } else {
+                                None // Cannot cast FHIR.code/FHIR.uri/etc to string via as(string)
+                            }
                         } else {
-                            None // Cannot cast code, id, etc. to string
+                            // System.String is allowed
+                            Some(value.clone())
                         }
                     }
                     FhirPathValue::Integer(i, _, _) => Some(FhirPathValue::string(i.to_string())),
@@ -194,13 +202,28 @@ impl AsFunctionEvaluator {
                 }
             }
             _ => {
-                // For other types, only allow exact type matches (strict casting)
+                // For complex/resource types: allow exact match or inheritance per ModelProvider
                 let type_info = value.type_info();
                 let actual_type = type_info.name.as_deref().unwrap_or(&type_info.type_name);
-                if actual_type == target_type {
+                // Strip namespace from target type for comparison
+                let base_target = if let Some(dot_pos) = target_type.rfind('.') {
+                    &target_type[dot_pos + 1..]
+                } else {
+                    target_type
+                };
+
+                if actual_type == target_type || actual_type == base_target {
                     Some(value.clone())
                 } else {
-                    None
+                    // Use model provider inheritance checks when possible
+                    let provider = _context.model_provider();
+                    if provider.is_type_derived_from(actual_type, base_target)
+                        || provider.is_type_derived_from(actual_type, target_type)
+                    {
+                        Some(value.clone())
+                    } else {
+                        None
+                    }
                 }
             }
         }
@@ -259,6 +282,15 @@ impl LazyFunctionEvaluator for AsFunctionEvaluator {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0055,
                 format!("Invalid type name: {type_name}"),
+            ));
+        }
+
+        // Enforce singleton input per FHIRPath spec: as() requires input collection of at most one item
+        let input_len = input.len();
+        if input_len > 1 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0055,
+                format!("as() requires a singleton input, found {input_len} items"),
             ));
         }
 

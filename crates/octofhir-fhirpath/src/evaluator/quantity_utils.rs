@@ -8,6 +8,65 @@ use octofhir_ucum::{evaluate_owned, parse_expression, precision::to_f64};
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
+/// Parse a string into a Quantity according to FHIRPath rules used by convertsToQuantity()/toQuantity().
+///
+/// Supported forms:
+/// - "<number>" → unitless quantity
+/// - "<number> '<ucum>'" → UCUM unit in single quotes
+/// - "<number> <calendar-word>" → calendar unit (e.g., day, week, month, year, hour, minute, second, millisecond)
+///
+/// Notably, unquoted UCUM abbreviations like "wk" or "mo" are NOT accepted as calendar words.
+pub fn parse_string_to_quantity_value(s: &str) -> Option<FhirPathValue> {
+    let trimmed = s.trim();
+
+    // 1) Plain number → unitless quantity
+    if let Ok(v) = trimmed.parse::<f64>() {
+        let dec = rust_decimal::Decimal::from_f64_retain(v)?;
+        return Some(FhirPathValue::quantity(dec, Some("1".to_string())));
+    }
+
+    // 2) Split into two parts (number and unit)
+    let mut parts = trimmed.split_whitespace();
+    let num = parts.next()?;
+    let unit_part = parts.next()?;
+    // There should be exactly 2 parts
+    if parts.next().is_some() {
+        return None;
+    }
+
+    // Parse number first
+    let value = num.parse::<f64>().ok()?;
+    let dec = rust_decimal::Decimal::from_f64_retain(value)?;
+
+    // Quoted UCUM: '<unit>'
+    if unit_part.len() >= 2 && unit_part.starts_with('\'') && unit_part.ends_with('\'') {
+        let inner = &unit_part[1..unit_part.len() - 1];
+        return Some(FhirPathValue::quoted_quantity(dec, Some(inner.to_string())));
+    }
+
+    // Calendar words (full words only; no UCUM abbreviations like wk, mo, a)
+    let unit_lc = unit_part.to_ascii_lowercase();
+    // Accept singular/plural full words only
+    let accepted = [
+        "millisecond", "milliseconds",
+        "second", "seconds",
+        "minute", "minutes",
+        "hour", "hours",
+        "day", "days",
+        "week", "weeks",
+        "month", "months",
+        "year", "years",
+    ];
+
+    if accepted.contains(&unit_lc.as_str()) {
+        if let Some(cal) = CalendarUnit::from_str(&unit_lc) {
+            return Some(FhirPathValue::calendar_quantity(dec, cal));
+        }
+    }
+
+    None
+}
+
 /// Result of a quantity conversion operation
 #[derive(Debug, Clone)]
 pub struct ConversionResult {

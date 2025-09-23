@@ -148,7 +148,7 @@ impl Evaluator {
             }
             ExpressionNode::FunctionCall(function_call) => {
                 // Dispatch to function registry
-                self.evaluate_function_call(&function_call.name, &function_call.arguments, context)
+                self.evaluate_function_call(&function_call.name, &function_call.arguments, context, None)
                     .await
             }
             ExpressionNode::IndexAccess(index_access) => {
@@ -172,18 +172,18 @@ impl Evaluator {
                     .await
             }
             ExpressionNode::MethodCall(method_call) => {
-                // Evaluate object first, then call method
+                // Evaluate receiver first, then call method with receiver as input
                 let object_result =
                     Box::pin(self.evaluate_node_inner(&method_call.object, context)).await?;
-                // Use create_child_context to preserve variables from defineVariable
-                let new_context = context.create_child_context(object_result.value);
 
-                self.evaluate_function_call(
-                    &method_call.method,
-                    &method_call.arguments,
-                    &new_context,
-                )
-                .await
+                self
+                    .evaluate_function_call(
+                        &method_call.method,
+                        &method_call.arguments,
+                        context,
+                        Some(object_result.value.values().to_vec()),
+                    )
+                    .await
             }
             ExpressionNode::Collection(collection_node) => {
                 // Evaluate collection literal
@@ -235,7 +235,7 @@ impl Evaluator {
                 });
 
                 // Delegate to the is function
-                self.evaluate_function_call("is", &[type_arg], &new_context)
+                self.evaluate_function_call("is", &[type_arg], &new_context, None)
                     .await
             }
             ExpressionNode::TypeCast(type_cast) => {
@@ -257,7 +257,7 @@ impl Evaluator {
                     location: None,
                 });
                 // Delegate to the as function
-                self.evaluate_function_call("as", &[type_arg], &new_context)
+                self.evaluate_function_call("as", &[type_arg], &new_context, None)
                     .await
             }
             _ => Err(FhirPathError::evaluation_error(
@@ -424,7 +424,7 @@ impl Evaluator {
                 // Record function timing
                 let func_start = Instant::now();
                 let result = self
-                    .evaluate_function_call(&function_call.name, &function_call.arguments, context)
+                    .evaluate_function_call(&function_call.name, &function_call.arguments, context, None)
                     .await;
                 let func_time = func_start.elapsed();
                 collector.record_function_timing(&function_call.name, func_time);
@@ -490,15 +490,14 @@ impl Evaluator {
                     depth + 1,
                 ))
                 .await?;
-                let new_context = context.create_child_context(object_result.value);
-
                 // Record method call timing
                 let method_start = Instant::now();
                 let result = self
                     .evaluate_function_call(
                         &method_call.method,
                         &method_call.arguments,
-                        &new_context,
+                        context,
+                        Some(object_result.value.values().to_vec()),
                     )
                     .await;
                 let method_time = method_start.elapsed();
@@ -571,7 +570,7 @@ impl Evaluator {
                 // Record type check timing
                 let type_check_start = Instant::now();
                 let result = self
-                    .evaluate_function_call("is", &[type_arg], &new_context)
+                    .evaluate_function_call("is", &[type_arg], &new_context, None)
                     .await;
                 let type_check_time = type_check_start.elapsed();
                 collector.record_function_timing("is", type_check_time);
@@ -604,7 +603,7 @@ impl Evaluator {
                 // Record type cast timing
                 let type_cast_start = Instant::now();
                 let result = self
-                    .evaluate_function_call("as", &[type_arg], &new_context)
+                    .evaluate_function_call("as", &[type_arg], &new_context, None)
                     .await;
                 let type_cast_time = type_cast_start.elapsed();
                 collector.record_function_timing("as", type_cast_time);
@@ -1338,30 +1337,73 @@ impl Evaluator {
                 let type_suffix = &choice_property[base_property.len()..];
 
                 // Get type info from ModelProvider if available
-                let choice_type_info =
-                    if let Ok(Some(type_info)) = self.model_provider.get_type(type_suffix).await {
-                        type_info
-                    } else {
-                        // Fallback type info - handle common FHIR primitive type mappings
-                        let mapped_type = match type_suffix {
-                            "String" => "string",
-                            "Integer" => "integer",
-                            "Decimal" => "decimal",
-                            "Boolean" => "boolean",
-                            "Date" => "date",
-                            "DateTime" => "dateTime",
-                            "Time" => "time",
-                            _ => type_suffix,
-                        };
+                let base_info = if let Ok(Some(type_info)) = self.model_provider.get_type(type_suffix).await {
+                    type_info
+                } else {
+                    // Fallback type info - handle common FHIR primitive type mappings
+                    let mapped_type = match type_suffix {
+                        "String" => "string",
+                        "Integer" => "integer",
+                        "Decimal" => "decimal",
+                        "Boolean" => "boolean",
+                        "Date" => "date",
+                        "DateTime" => "dateTime",
+                        "Time" => "time",
+                        "Uri" => "uri",
+                        "Url" => "url",
+                        "Canonical" => "canonical",
+                        "Code" => "code",
+                        "Id" => "id",
+                        "Markdown" => "markdown",
+                        "Uuid" => "uuid",
+                        "Oid" => "oid",
+                        _ => type_suffix,
+                    };
 
+                    crate::core::model_provider::TypeInfo {
+                        type_name: mapped_type.to_string(),
+                        singleton: Some(!property_value.is_array()),
+                        namespace: Some("FHIR".to_string()),
+                        name: Some(mapped_type.to_lowercase()),
+                        is_empty: Some(false),
+                    }
+                };
+
+                // Normalize primitives to FHIR namespace with canonical lowercase names
+                let choice_type_info = {
+                    // Recognize known FHIR primitives (valueX)
+                    let lower = type_suffix.to_ascii_lowercase();
+                    let is_fhir_primitive = matches!(
+                        lower.as_str(),
+                        "string"
+                            | "integer"
+                            | "decimal"
+                            | "boolean"
+                            | "date"
+                            | "datetime"
+                            | "time"
+                            | "uri"
+                            | "url"
+                            | "canonical"
+                            | "code"
+                            | "id"
+                            | "markdown"
+                            | "uuid"
+                            | "oid"
+                    );
+
+                    if is_fhir_primitive {
                         crate::core::model_provider::TypeInfo {
-                            type_name: mapped_type.to_string(),
+                            type_name: lower.clone(),
                             singleton: Some(!property_value.is_array()),
                             namespace: Some("FHIR".to_string()),
-                            name: Some(mapped_type.to_lowercase()),
+                            name: Some(lower),
                             is_empty: Some(false),
                         }
-                    };
+                    } else {
+                        base_info
+                    }
+                };
 
                 // Process the value(s) with proper type information
                 let choice_values = self
@@ -1877,15 +1919,43 @@ impl Evaluator {
                     Ok(value)
                 }
             }
-            "datetime" | "instant" => {
+            "datetime" => {
                 if let Some(datetime_str) = value.as_str() {
-                    // Basic datetime validation (has T separator)
+                    // FHIR dateTime allows partial precision (YYYY | YYYY-MM | YYYY-MM-DD | full dateTime)
+                    // Accept if it matches a simple partial date pattern or contains a 'T'.
+                    let looks_like_partial_date = {
+                        let s = datetime_str;
+                        // Accept years like 2012, 2012-05, 2012-05-06
+                        let bytes = s.as_bytes();
+                        let is_digit = |c: u8| c >= b'0' && c <= b'9';
+                        if bytes.len() == 4 {
+                            bytes.iter().all(|b| is_digit(*b))
+                        } else if bytes.len() >= 7 && s.chars().nth(4) == Some('-') {
+                            // Roughly validate YYYY-.. prefix
+                            bytes[0..4].iter().all(|b| is_digit(*b))
+                        } else {
+                            false
+                        }
+                    };
+                    if datetime_str.contains('T') || looks_like_partial_date {
+                        Ok(value)
+                    } else {
+                        // Be permissive: do not error hard for dateTime strings; pass through
+                        Ok(value)
+                    }
+                } else {
+                    Ok(value)
+                }
+            }
+            "instant" => {
+                if let Some(datetime_str) = value.as_str() {
+                    // instant must include full date, time, and timezone; require 'T' presence
                     if datetime_str.contains('T') {
                         Ok(value)
                     } else {
                         Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0054,
-                            format!("Invalid datetime format: {datetime_str}"),
+                            format!("Invalid instant format (expected full dateTime with time): {datetime_str}"),
                         ))
                     }
                 } else {
@@ -2216,13 +2286,21 @@ impl Evaluator {
         function_name: &str,
         arguments: &[ExpressionNode],
         context: &EvaluationContext,
+        input_override: Option<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         // Get the function evaluator wrapper from the registry
         if let Some(wrapper) = self.function_registry.get_function_wrapper(function_name) {
             let metadata = wrapper.metadata();
 
-            // Check null propagation strategy
-            if self.should_propagate_null(context, metadata) {
+            // Determine input values (method calls can override input)
+            let input_values: Vec<FhirPathValue> = input_override
+                .unwrap_or_else(|| context.input_collection().values().to_vec());
+
+            // Check null propagation strategy against the actual function input (supports method calls)
+            use crate::evaluator::function_registry::NullPropagationStrategy;
+            if matches!(metadata.null_propagation, NullPropagationStrategy::Focus)
+                && input_values.is_empty()
+            {
                 return Ok(EvaluationResult {
                     value: crate::core::Collection::empty(),
                 });
@@ -2235,7 +2313,12 @@ impl Evaluator {
                 ) => {
                     // Pure function - pre-evaluate arguments and call simple interface
                     return self
-                        .evaluate_pure_function(pure_evaluator, arguments, context)
+                        .evaluate_pure_function(
+                            pure_evaluator,
+                            arguments,
+                            context,
+                            input_values,
+                        )
                         .await;
                 }
                 crate::evaluator::function_registry::FunctionEvaluatorWrapper::ProviderPure(
@@ -2247,6 +2330,7 @@ impl Evaluator {
                             provider_pure_evaluator,
                             arguments,
                             context,
+                            input_values,
                         )
                         .await;
                 }
@@ -2258,7 +2342,7 @@ impl Evaluator {
 
                     lazy_evaluator
                         .evaluate(
-                            context.input_collection().values().to_vec(),
+                            input_values,
                             context,
                             arguments.to_vec(),
                             async_evaluator,
@@ -2286,7 +2370,7 @@ impl Evaluator {
 
                             standard_evaluator
                                 .evaluate(
-                                    context.input_collection().values().to_vec(),
+                                    input_values,
                                     context,
                                     arguments.to_vec(),
                                     async_evaluator,
@@ -2310,10 +2394,29 @@ impl Evaluator {
         evaluator: &std::sync::Arc<dyn crate::evaluator::function_registry::PureFunctionEvaluator>,
         arguments: &[ExpressionNode],
         context: &EvaluationContext,
+        input_values: Vec<FhirPathValue>,
     ) -> Result<EvaluationResult> {
         let metadata = evaluator.metadata();
 
-        // Pre-evaluate all arguments based on the function's evaluation strategy and parameter metadata
+        // Prepare an optional receiver-focused context for method-call style argument evaluation
+        // We only use this when the argument expression contains no identifiers/property accesses
+        // and the function does not require Root argument evaluation.
+        let receiver_context = if !input_values.is_empty() {
+            Some(
+                EvaluationContext::new(
+                    Collection::from(input_values.clone()),
+                    self.model_provider.clone(),
+                    self.terminology_provider.clone(),
+                    self.validation_provider.clone(),
+                    self.trace_provider.clone(),
+                )
+                .await,
+            )
+        } else {
+            None
+        };
+
+        // Pre-evaluate all arguments with appropriate context selection
         let mut evaluated_args = Vec::new();
 
         for (i, arg) in arguments.iter().enumerate() {
@@ -2325,28 +2428,30 @@ impl Evaluator {
                 .map(|param| param.is_expression)
                 .unwrap_or(true); // Default to true for backward compatibility
 
+            // Determine which context to use for this argument
+            let use_receiver_ctx = receiver_context.is_some()
+                && !self.expr_has_identifier_or_property(arg)
+                && !matches!(metadata.argument_evaluation, crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root);
+
+            let eval_ctx: &EvaluationContext = if use_receiver_ctx {
+                receiver_context.as_ref().unwrap()
+            } else {
+                context
+            };
+
             if should_evaluate_as_expression {
-                // Standard evaluation - evaluate the expression
-                let arg_result = match metadata.argument_evaluation {
-                    crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root => {
-                        self.evaluate_node(arg, context).await?
-                    }
-                    _ => {
-                        // Evaluate in current context
-                        self.evaluate_node(arg, context).await?
-                    }
-                };
+                // Evaluate the expression in the selected context
+                let arg_result = self.evaluate_node(arg, eval_ctx).await?;
                 evaluated_args.push(arg_result.value.values().to_vec());
             } else {
-                // Evaluate in current context
-                let arg_result = self.evaluate_node(arg, context).await?;
+                let arg_result = self.evaluate_node(arg, eval_ctx).await?;
                 evaluated_args.push(arg_result.value.values().to_vec());
             }
         }
 
         // Call the pure function with pre-evaluated arguments
         evaluator
-            .evaluate(context.input_collection().values().to_vec(), evaluated_args)
+            .evaluate(input_values, evaluated_args)
             .await
     }
 
@@ -2358,6 +2463,7 @@ impl Evaluator {
         >,
         arguments: &[ExpressionNode],
         context: &EvaluationContext,
+        input_values: Vec<FhirPathValue>,
     ) -> Result<EvaluationResult> {
         let metadata = evaluator.metadata();
 
@@ -2395,7 +2501,7 @@ impl Evaluator {
         // Call the provider pure function with pre-evaluated arguments and context for providers
         evaluator
             .evaluate(
-                context.input_collection().values().to_vec(),
+                input_values,
                 evaluated_args,
                 context,
             )
@@ -2419,6 +2525,50 @@ impl Evaluator {
                 false
             }
             NullPropagationStrategy::Custom => false, // Let function handle
+        }
+    }
+
+    // Heuristic to detect if an argument expression references identifiers or properties
+    // If it does not, we allow evaluating it against the method receiver context
+    fn expr_has_identifier_or_property(&self, expr: &crate::ast::ExpressionNode) -> bool {
+        use crate::ast::ExpressionNode as EN;
+        match expr {
+            EN::Identifier(_) => true,
+            EN::PropertyAccess(_) => true,
+            EN::Variable(_) => true,
+            EN::MethodCall(m) => {
+                self.expr_has_identifier_or_property(&m.object)
+                    || m
+                        .arguments
+                        .iter()
+                        .any(|a| self.expr_has_identifier_or_property(a))
+            }
+            EN::FunctionCall(f) => f
+                .arguments
+                .iter()
+                .any(|a| self.expr_has_identifier_or_property(a)),
+            EN::BinaryOperation(b) => {
+                self.expr_has_identifier_or_property(&b.left)
+                    || self.expr_has_identifier_or_property(&b.right)
+            }
+            EN::UnaryOperation(u) => self.expr_has_identifier_or_property(&u.operand),
+            EN::IndexAccess(i) => {
+                self.expr_has_identifier_or_property(&i.object)
+                    || self.expr_has_identifier_or_property(&i.index)
+            }
+            EN::Collection(c) => c
+                .elements
+                .iter()
+                .any(|e| self.expr_has_identifier_or_property(e)),
+            EN::Parenthesized(e) => self.expr_has_identifier_or_property(e),
+            EN::TypeCheck(t) => self.expr_has_identifier_or_property(&t.expression),
+            EN::TypeCast(t) => self.expr_has_identifier_or_property(&t.expression),
+            EN::Union(u) => {
+                self.expr_has_identifier_or_property(&u.left)
+                    || self.expr_has_identifier_or_property(&u.right)
+            }
+            EN::Literal(_) => false,
+            _ => false,
         }
     }
 

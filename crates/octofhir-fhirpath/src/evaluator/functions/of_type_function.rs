@@ -215,9 +215,15 @@ impl OfTypeFunctionEvaluator {
         // Get the actual type info from the item
         let type_info = item.type_info();
         let actual_type = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+        // Strip namespace from target (e.g., FHIR.Patient -> Patient)
+        let base_target = if let Some(dot_pos) = target_type.rfind('.') {
+            &target_type[dot_pos + 1..]
+        } else {
+            target_type
+        };
 
-        // Direct type match
-        if actual_type == target_type {
+        // Direct type match (full or base target)
+        if actual_type == target_type || actual_type == base_target {
             return true;
         }
 
@@ -278,16 +284,12 @@ impl OfTypeFunctionEvaluator {
                 }
                 _ => false,
             },
-            // System.Integer type (should be more generic)
+            // System.Integer type (namespace-aware)
             "Integer" | "System.Integer" => {
                 match item {
                     FhirPathValue::Integer(_, type_info, _) => {
-                        let actual_type = type_info.name.as_deref().unwrap_or(&type_info.type_name);
-                        // System.Integer matches any integer value
-                        actual_type == "Integer"
-                            || actual_type == "System.Integer"
-                            || actual_type == "integer"
-                            || actual_type == "FHIR.integer"
+                        // Only match non-FHIR namespace (System)
+                        type_info.namespace.as_deref() != Some("FHIR")
                     }
                     _ => false,
                 }
@@ -300,16 +302,12 @@ impl OfTypeFunctionEvaluator {
                 }
                 _ => false,
             },
-            // System.Decimal type (should be more generic)
+            // System.Decimal type (namespace-aware)
             "Decimal" | "System.Decimal" => {
                 match item {
                     FhirPathValue::Decimal(_, type_info, _) => {
-                        let actual_type = type_info.name.as_deref().unwrap_or(&type_info.type_name);
-                        // System.Decimal matches any decimal value
-                        actual_type == "Decimal"
-                            || actual_type == "System.Decimal"
-                            || actual_type == "decimal"
-                            || actual_type == "FHIR.decimal"
+                        // Only match non-FHIR namespace (System)
+                        type_info.namespace.as_deref() != Some("FHIR")
                     }
                     _ => false,
                 }
@@ -322,16 +320,12 @@ impl OfTypeFunctionEvaluator {
                 }
                 _ => false,
             },
-            // System.Boolean type (should be more generic)
+            // System.Boolean type (namespace-aware)
             "Boolean" | "System.Boolean" => {
                 match item {
                     FhirPathValue::Boolean(_, type_info, _) => {
-                        let actual_type = type_info.name.as_deref().unwrap_or(&type_info.type_name);
-                        // System.Boolean matches any boolean value
-                        actual_type == "Boolean"
-                            || actual_type == "System.Boolean"
-                            || actual_type == "boolean"
-                            || actual_type == "FHIR.boolean"
+                        // Only match non-FHIR namespace (System)
+                        type_info.namespace.as_deref() != Some("FHIR")
                     }
                     _ => false,
                 }
@@ -339,7 +333,7 @@ impl OfTypeFunctionEvaluator {
             _ => {
                 // For complex types, use ModelProvider for inheritance checking
                 let model_provider = context.model_provider();
-                model_provider.is_type_derived_from(actual_type, target_type)
+                model_provider.is_type_derived_from(actual_type, base_target)
             }
         }
     }

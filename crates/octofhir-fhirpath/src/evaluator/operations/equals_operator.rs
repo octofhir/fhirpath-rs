@@ -165,8 +165,9 @@ impl EqualsOperatorEvaluator {
             // Cross-type temporal comparisons should return empty (None)
             (FhirPathValue::Date(_, _, _), FhirPathValue::DateTime(_, _, _)) => None,
             (FhirPathValue::DateTime(_, _, _), FhirPathValue::Date(_, _, _)) => None,
-            (FhirPathValue::Date(_, _, _), FhirPathValue::Time(_, _, _)) => None,
-            (FhirPathValue::Time(_, _, _), FhirPathValue::Date(_, _, _)) => None,
+            // Date vs Time are never equal
+            (FhirPathValue::Date(_, _, _), FhirPathValue::Time(_, _, _)) => Some(false),
+            (FhirPathValue::Time(_, _, _), FhirPathValue::Date(_, _, _)) => Some(false),
             (FhirPathValue::DateTime(_, _, _), FhirPathValue::Time(_, _, _)) => None,
             (FhirPathValue::Time(_, _, _), FhirPathValue::DateTime(_, _, _)) => None,
 
@@ -185,6 +186,35 @@ impl EqualsOperatorEvaluator {
                     ..
                 },
             ) => {
+                // Handle bridging between calendar units and UCUM codes for specific units
+                let left_has_cal = lc.is_some();
+                let right_has_cal = rc.is_some();
+                if left_has_cal ^ right_has_cal {
+                    // One side is calendar unit, other side might be UCUM
+                    let (cal_value, cal_unit, other_value, other_unit_opt) = if left_has_cal {
+                        (*lv, lc.unwrap(), *rv, ru)
+                    } else {
+                        (*rv, rc.unwrap(), *lv, lu)
+                    };
+
+                    if let Some(other_unit) = other_unit_opt.as_deref() {
+                        match (cal_unit, other_unit) {
+                            (crate::core::CalendarUnit::Day, "d") => {
+                                return Some((cal_value - other_value).abs() < Decimal::new(1, 10));
+                            }
+                            (crate::core::CalendarUnit::Week, "wk") => {
+                                return Some((cal_value - other_value).abs() < Decimal::new(1, 10));
+                            }
+                            // Calendar Month vs UCUM 'mo' and Calendar Year vs UCUM 'a' are not directly comparable → empty
+                            (crate::core::CalendarUnit::Month, "mo")
+                            | (crate::core::CalendarUnit::Year, "a") => {
+                                return None;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
                 // Use the quantity utilities for exact equality comparison
                 match quantity_utils::are_quantities_equal(*lv, lu, lc, *rv, ru, rc) {
                     Ok(result) => Some(result),

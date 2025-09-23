@@ -61,27 +61,14 @@ impl PureFunctionEvaluator for ConvertsToQuantityFunctionEvaluator {
         for value in input {
             let can_convert = match &value {
                 FhirPathValue::String(s, _, _) => {
-                    // Test if string can be parsed as Quantity
-                    // A quantity string format is typically: "value unit" or just "value"
-                    if s.trim().parse::<f64>().is_ok() {
-                        true // Can be converted as a unitless quantity
-                    } else {
-                        // Check for "value unit" format
-                        let parts: Vec<&str> = s.split_whitespace().collect();
-                        if parts.len() == 2 {
-                            if parts[0].parse::<f64>().is_ok() {
-                                true // First part is a valid number
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        }
-                    }
+                    // Use strict FHIRPath-aware string→Quantity parser
+                    crate::evaluator::quantity_utils::parse_string_to_quantity_value(s)
+                        .is_some()
                 }
                 FhirPathValue::Integer(_, _, _) => true, // Numbers can be converted to quantities
                 FhirPathValue::Decimal(_, _, _) => true, // Decimals can be converted to quantities
                 FhirPathValue::Quantity { .. } => true,  // Already a Quantity
+                FhirPathValue::Boolean(_, _, _) => true,  // Booleans are considered convertible per spec
                 _ => false, // Other types cannot be converted to Quantity
             };
 

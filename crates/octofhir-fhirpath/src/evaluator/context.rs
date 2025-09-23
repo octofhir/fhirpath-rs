@@ -116,7 +116,16 @@ impl EvaluationContext {
         // Set $this to the root input collection for root-level evaluation
         // This follows FHIRPath specification where $this refers to the current context
         if let Some(root_value) = input_collection.first() {
+            // Set 'this' to the root input value per FHIRPath
             context.set_variable("this".to_string(), root_value.clone());
+
+            // If the root is a Resource, also set %resource/%context convenience variables
+            if matches!(root_value, FhirPathValue::Resource(_, _, _)) {
+                context.set_variable("%resource".to_string(), root_value.clone());
+                context.set_variable("resource".to_string(), root_value.clone());
+                context.set_variable("%context".to_string(), root_value.clone());
+                context.set_variable("context".to_string(), root_value.clone());
+            }
         }
 
         context

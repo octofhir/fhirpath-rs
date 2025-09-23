@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
@@ -65,7 +66,45 @@ impl GreaterThanOperatorEvaluator {
         Arc::new(Self::new())
     }
 
+    /// Try to parse a string as a temporal value
+    fn try_parse_string_as_temporal(&self, s: &str) -> Option<FhirPathValue> {
+        if let Some(date) = PrecisionDate::parse(s) {
+            return Some(FhirPathValue::date(date));
+        }
+        if let Some(datetime) = PrecisionDateTime::parse(s) {
+            return Some(FhirPathValue::datetime(datetime));
+        }
+        if let Some(time) = PrecisionTime::parse(s) {
+            return Some(FhirPathValue::time(time));
+        }
+        None
+    }
+
+    /// Check if a value is a temporal type
+    fn is_temporal(&self, value: &FhirPathValue) -> bool {
+        matches!(
+            value,
+            FhirPathValue::Date(_, _, _) | FhirPathValue::DateTime(_, _, _) | FhirPathValue::Time(_, _, _)
+        )
+    }
+
     fn compare_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<bool> {
+        // Handle string-to-temporal conversions
+        match (left, right) {
+            // String vs temporal types - try to parse string as temporal
+            (FhirPathValue::String(s, _, _), temporal) if self.is_temporal(temporal) => {
+                if let Some(parsed) = self.try_parse_string_as_temporal(s) {
+                    return self.compare_values(&parsed, temporal);
+                }
+            }
+            (temporal, FhirPathValue::String(s, _, _)) if self.is_temporal(temporal) => {
+                if let Some(parsed) = self.try_parse_string_as_temporal(s) {
+                    return self.compare_values(temporal, &parsed);
+                }
+            }
+            _ => {}
+        }
+
         match (left, right) {
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => Some(l > r),
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => Some(l > r),
@@ -100,6 +139,25 @@ impl GreaterThanOperatorEvaluator {
                     Some(std::cmp::Ordering::Greater) => Some(true),
                     Some(_) => Some(false), // Equal or Less
                     None => None,           // Uncertain due to precision differences
+                }
+            }
+            // Cross-type temporal comparisons: DateTime vs Date by comparing date components
+            (FhirPathValue::DateTime(l, _, _), FhirPathValue::Date(r, _, _)) => {
+                let l_date = l.date();
+                match l_date.partial_cmp(r) {
+                    Some(std::cmp::Ordering::Greater) => Some(true),
+                    Some(std::cmp::Ordering::Less) => Some(false),
+                    Some(std::cmp::Ordering::Equal) => None, // Same day, time unknown
+                    None => None,
+                }
+            }
+            (FhirPathValue::Date(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
+                let r_date = r.date();
+                match l.partial_cmp(&r_date) {
+                    Some(std::cmp::Ordering::Greater) => Some(true),
+                    Some(std::cmp::Ordering::Less) => Some(false),
+                    Some(std::cmp::Ordering::Equal) => None, // Same day, time unknown
+                    None => None,
                 }
             }
             // Quantity comparison (with unit conversion)

@@ -69,17 +69,28 @@ impl ResolveFunctionEvaluator {
         context: &EvaluationContext,
     ) -> Option<std::sync::Arc<serde_json::Value>> {
         // Determine the appropriate root for resolution.
-        // Prefer %resource, then %context, then $this/this, finally fall back to input root.
-        let root_candidate = context
-            .get_variable("%resource")
-            .or_else(|| context.get_variable("resource"))
-            .or_else(|| context.get_variable("%context"))
-            .or_else(|| context.get_variable("context"))
-            .or_else(|| context.get_variable("$this"))
-            .or_else(|| context.get_variable("this"))
-            .or_else(|| context.input_collection().first().cloned());
+        // Prefer variables that actually hold a Resource, walking parent scopes via get_variable.
+        let mut root_resource_opt: Option<FhirPathValue> = None;
+        let var_names = ["%resource", "resource", "%context", "context", "this", "$this"];
+        for name in var_names {
+            if let Some(v) = context.get_variable(name) {
+                if matches!(v, FhirPathValue::Resource(_, _, _)) {
+                    root_resource_opt = Some(v);
+                    break;
+                }
+            }
+        }
+        // Fall back to finding any Resource in the current input collection
+        if root_resource_opt.is_none() {
+            for v in context.input_collection().iter() {
+                if matches!(v, FhirPathValue::Resource(_, _, _)) {
+                    root_resource_opt = Some(v.clone());
+                    break;
+                }
+            }
+        }
 
-        if let Some(root_resource) = root_candidate {
+        if let Some(root_resource) = root_resource_opt {
             // Create a single-item collection containing the root resource
             let root_collection = crate::core::Collection::from(vec![root_resource]);
 
