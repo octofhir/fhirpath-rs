@@ -348,7 +348,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             // Property access and method calls - precedence 11
             postfix(
                 11,
-                just('.').ignore_then(identifier_parser()).then(
+                just('.').padded().ignore_then(identifier_parser()).then(
                     expr.clone()
                         .separated_by(just(',').padded())
                         .collect::<Vec<_>>()

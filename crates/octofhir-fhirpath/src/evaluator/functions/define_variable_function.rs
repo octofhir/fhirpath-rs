@@ -79,8 +79,10 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
             ));
         }
 
-        // Evaluate the variable name
-        let name_result = evaluator.evaluate(&args[0], context).await?;
+        // Evaluate the variable name in an isolated nested scope so that variables defined
+        // inside the name expression do not leak into other parameters or the outer scope.
+        let name_ctx = context.nest();
+        let name_result = evaluator.evaluate(&args[0], &name_ctx).await?;
         let name_values: Vec<FhirPathValue> = name_result.value.iter().cloned().collect();
 
         if name_values.len() != 1 {
@@ -105,6 +107,19 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0057,
                 "defineVariable function name cannot be empty".to_string(),
+            ));
+        }
+
+        // Reserved/system variables that cannot be overridden
+        let is_reserved = matches!(variable_name.as_str(),
+            "this" | "$this" | "index" | "$index" | "total" | "$total" |
+            "context" | "%context" | "resource" | "%resource" | "terminologies" |
+            "sct" | "loinc"
+        ) || variable_name.starts_with("vs-") || variable_name.starts_with("ext-");
+        if is_reserved {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0058,
+                format!("Variable name '{variable_name}' is reserved and cannot be redefined"),
             ));
         }
 
@@ -148,10 +163,11 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
             context.set_variable(variable_name, variable_value);
         } else {
             // Two-parameter form: defineVariable(name, value) - evaluate value expression
-            // Create child context with current input as focus for value evaluation
+            // Evaluate the value expression in an isolated child scope based on the current input
             let child_context =
                 context.create_child_context(crate::core::Collection::from(input.clone()));
-            let value_result = evaluator.evaluate(&args[1], &child_context).await?;
+            let value_ctx = child_context.nest();
+            let value_result = evaluator.evaluate(&args[1], &value_ctx).await?;
 
             let variable_value = if value_result.value.is_empty() {
                 FhirPathValue::Empty

@@ -271,7 +271,7 @@ fn fhirpath_parser<'a>()
             ),
             postfix(
                 12,
-                just('.').ignore_then(identifier_parser()).then(
+                just('.').padded().ignore_then(identifier_parser()).then(
                     expr.clone()
                         .separated_by(just(',').padded())
                         .collect::<Vec<_>>()

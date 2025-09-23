@@ -5,6 +5,7 @@
 //! optionally during analysis parsing mode without affecting fast parsing performance.
 
 use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
 
 use crate::ast::{
     AnalysisMetadata, BinaryOperationNode, BinaryOperator, ExpressionAnalysis, ExpressionNode,
@@ -25,16 +26,35 @@ pub struct SemanticAnalyzer {
     is_chain_head: bool,
     /// Expression text for span calculation
     expression_text: Option<String>,
+    /// Stack of variable scopes for defineVariable() analysis
+    var_scopes: Vec<HashSet<String>>, 
+    /// Reserved/system variable names that cannot be user-defined
+    reserved_vars: HashSet<String>,
 }
 
 impl SemanticAnalyzer {
     /// Create new semantic analyzer
     pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+        // Initialize reserved/system variables that cannot be user-defined
+        let mut reserved: HashSet<String> = [
+            "this", "$this", "index", "$index", "total", "$total",
+            "context", "%context", "resource", "%resource", "terminologies",
+            "sct", "loinc"
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        // Patterns like vs-*, ext-* are handled separately
+        let mut scopes = Vec::new();
+        scopes.push(HashSet::new());
+
         Self {
             model_provider,
             input_type: None,
             is_chain_head: true,
             expression_text: None,
+            var_scopes: scopes,
+            reserved_vars: reserved,
         }
     }
 
@@ -47,6 +67,9 @@ impl SemanticAnalyzer {
         // Initialize context if provided
         self.input_type = context_type;
         self.is_chain_head = true;
+        // Reset variable scopes for a new analysis
+        self.var_scopes.clear();
+        self.var_scopes.push(HashSet::new());
 
         let mut analysis = ExpressionAnalysis::success(None);
 
@@ -160,6 +183,64 @@ impl SemanticAnalyzer {
     > {
         Box::pin(async move {
             let result = match node {
+                ExpressionNode::Union(union_node) => {
+                    // Isolate variable scopes across union branches
+                    let snapshot_before = self.var_scopes.clone();
+                    // Left
+                    self.var_scopes = snapshot_before.clone();
+                    let _ = self.analyze_node(&union_node.left, analysis).await?;
+                    // Right
+                    self.var_scopes = snapshot_before.clone();
+                    let _ = self.analyze_node(&union_node.right, analysis).await?;
+                    // Restore
+                    self.var_scopes = snapshot_before;
+                    Ok(AnalysisMetadata::new())
+                }
+                ExpressionNode::Variable(var) => {
+                    // Analyze variable reference: treat non-system names as user or environment variables
+                    let var_name = var.name.as_str();
+                    // Normalize: strip leading '%' if present
+                    let base = if let Some(stripped) = var_name.strip_prefix('%') { stripped } else { var_name };
+
+                    // Recognize system variables that are always valid
+                    let is_system = matches!(base, "this" | "index" | "total");
+                    if is_system {
+                        return Ok(AnalysisMetadata::new());
+                    }
+
+                    // Known environment variables and patterns
+                    let is_env = base == "sct"
+                        || base == "loinc"
+                        || base == "terminologies"
+                        || base == "context"
+                        || base == "resource"
+                        || base.starts_with("vs-")
+                        || base.starts_with("ext-");
+
+                    if !is_env {
+                        // Check user-defined variables in current scopes
+                        let found = self
+                            .var_scopes
+                            .iter()
+                            .rev()
+                            .any(|scope| scope.contains(base));
+                        if !found {
+                            analysis.success = false;
+                            analysis.add_diagnostic(Diagnostic {
+                                severity: DiagnosticSeverity::Error,
+                                code: DiagnosticCode {
+                                    code: "UNDEFINED_VARIABLE".to_string(),
+                                    namespace: Some("fhirpath".to_string()),
+                                },
+                                message: format!("Undefined variable: %{}", base),
+                                location: var.location.clone(),
+                                related: vec![],
+                            });
+                        }
+                    }
+
+                    Ok(AnalysisMetadata::new())
+                }
                 ExpressionNode::Identifier(identifier) => {
                     self.analyze_identifier(identifier, analysis).await
                 }
@@ -332,9 +413,27 @@ impl SemanticAnalyzer {
         binary_op: &BinaryOperationNode,
         analysis: &mut ExpressionAnalysis,
     ) -> Result<AnalysisMetadata, FhirPathError> {
-        // First, analyze the left and right operands
-        let _left_metadata = self.analyze_node(&binary_op.left, analysis).await?;
-        let _right_metadata = self.analyze_node(&binary_op.right, analysis).await?;
+        // Special scoping rules for union (|): variables defined on one branch must not leak
+        // into the other branch, nor to the outer scope past the union.
+        if binary_op.operator == BinaryOperator::Union {
+            // Snapshot current variable scopes
+            let snapshot_before = self.var_scopes.clone();
+
+            // Analyze left with isolated scopes based on snapshot_before
+            self.var_scopes = snapshot_before.clone();
+            let _left_metadata = self.analyze_node(&binary_op.left, analysis).await?;
+
+            // Analyze right with isolated scopes based on snapshot_before (not left's)
+            self.var_scopes = snapshot_before.clone();
+            let _right_metadata = self.analyze_node(&binary_op.right, analysis).await?;
+
+            // Restore original scopes so nothing from either branch escapes
+            self.var_scopes = snapshot_before;
+        } else {
+            // Default behavior: analyze both operands in current scope
+            let _left_metadata = self.analyze_node(&binary_op.left, analysis).await?;
+            let _right_metadata = self.analyze_node(&binary_op.right, analysis).await?;
+        }
 
         // Check for semantic errors in addition operations
         if binary_op.operator == BinaryOperator::Add {
@@ -540,13 +639,59 @@ impl SemanticAnalyzer {
             }
         }
 
-        // Analyze function arguments recursively
-        for arg in &func_call.arguments {
-            // Set context for analyzing arguments - they are not at chain head
+        // Analyze function arguments recursively with isolated parameter scopes
+        for (i, arg) in func_call.arguments.iter().enumerate() {
             let prev_chain_head = self.is_chain_head;
             self.is_chain_head = true; // Arguments start their own chains
+            // Snapshot current scopes and analyze argument
+            let snapshot = self.var_scopes.clone();
             let _arg_metadata = self.analyze_node(arg, analysis).await?;
+            // Restore scopes so parameters don't collide
+            self.var_scopes = snapshot;
             self.is_chain_head = prev_chain_head;
+        }
+
+        // defineVariable-specific semantic checks: add variable to current scope when name is literal
+        if func_call.name == "defineVariable" {
+            if let Some(first_arg) = func_call.arguments.get(0) {
+                if let ExpressionNode::Literal(lit) = first_arg {
+                    if let LiteralValue::String(var_name) = &lit.value {
+                        let base = var_name.as_str();
+                        // Reserved names check
+                        let is_reserved = self.reserved_vars.contains(base)
+                            || base.starts_with("vs-")
+                            || base.starts_with("ext-");
+                        if is_reserved {
+                            analysis.success = false;
+                            analysis.add_diagnostic(Diagnostic {
+                                severity: DiagnosticSeverity::Error,
+                                code: DiagnosticCode { code: "RESERVED_VARIABLE".to_string(), namespace: Some("fhirpath".to_string()) },
+                                message: format!("Variable name '{base}' is reserved and cannot be redefined"),
+                                location: first_arg.location().cloned(),
+                                related: vec![],
+                            });
+                        } else {
+                            // Duplicate in current scope?
+                            if let Some(current) = self.var_scopes.last() {
+                                if current.contains(base) {
+                                    analysis.success = false;
+                                    analysis.add_diagnostic(Diagnostic {
+                                        severity: DiagnosticSeverity::Error,
+                                        code: DiagnosticCode { code: "VARIABLE_REDEFINITION".to_string(), namespace: Some("fhirpath".to_string()) },
+                                        message: format!("Variable '{base}' is already defined in this scope"),
+                                        location: first_arg.location().cloned(),
+                                        related: vec![],
+                                    });
+                                }
+                            }
+                            // Insert into current scope for subsequent chain
+                            if let Some(current) = self.var_scopes.last_mut() {
+                                current.insert(base.to_string());
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Ok(AnalysisMetadata::new())
@@ -607,10 +752,52 @@ impl SemanticAnalyzer {
             }
         }
 
-        // Analyze any other method arguments
+        // Analyze any other method arguments with isolated scopes
         for arg in &method_call.arguments {
             self.is_chain_head = true; // Arguments start their own chains
+            let snapshot = self.var_scopes.clone();
             let _arg_metadata = self.analyze_node(arg, analysis).await?;
+            self.var_scopes = snapshot; // Restore to prevent leakage out of argument bodies
+        }
+
+        // defineVariable-specific handling for method calls
+        if method_call.method == "defineVariable" {
+            if let Some(first_arg) = method_call.arguments.get(0) {
+                if let ExpressionNode::Literal(lit) = first_arg {
+                    if let LiteralValue::String(var_name) = &lit.value {
+                        let base = var_name.as_str();
+                        let is_reserved = self.reserved_vars.contains(base)
+                            || base.starts_with("vs-")
+                            || base.starts_with("ext-");
+                        if is_reserved {
+                            analysis.success = false;
+                            analysis.add_diagnostic(Diagnostic {
+                                severity: DiagnosticSeverity::Error,
+                                code: DiagnosticCode { code: "RESERVED_VARIABLE".to_string(), namespace: Some("fhirpath".to_string()) },
+                                message: format!("Variable name '{base}' is reserved and cannot be redefined"),
+                                location: first_arg.location().cloned(),
+                                related: vec![],
+                            });
+                        } else {
+                            if let Some(current) = self.var_scopes.last() {
+                                if current.contains(base) {
+                                    analysis.success = false;
+                                    analysis.add_diagnostic(Diagnostic {
+                                        severity: DiagnosticSeverity::Error,
+                                        code: DiagnosticCode { code: "VARIABLE_REDEFINITION".to_string(), namespace: Some("fhirpath".to_string()) },
+                                        message: format!("Variable '{base}' is already defined in this scope"),
+                                        location: first_arg.location().cloned(),
+                                        related: vec![],
+                                    });
+                                }
+                            }
+                            if let Some(current) = self.var_scopes.last_mut() {
+                                current.insert(base.to_string());
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         self.is_chain_head = prev_chain_head;

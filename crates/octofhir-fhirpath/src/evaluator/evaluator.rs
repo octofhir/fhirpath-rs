@@ -2439,14 +2439,11 @@ impl Evaluator {
                 context
             };
 
-            if should_evaluate_as_expression {
-                // Evaluate the expression in the selected context
-                let arg_result = self.evaluate_node(arg, eval_ctx).await?;
-                evaluated_args.push(arg_result.value.values().to_vec());
-            } else {
-                let arg_result = self.evaluate_node(arg, eval_ctx).await?;
-                evaluated_args.push(arg_result.value.values().to_vec());
-            }
+            // Evaluate each argument in an isolated nested scope so variables defined
+            // within one argument do not collide with or leak into other arguments.
+            let nested_ctx = eval_ctx.nest();
+            let arg_result = self.evaluate_node(arg, &nested_ctx).await?;
+            evaluated_args.push(arg_result.value.values().to_vec());
         }
 
         // Call the pure function with pre-evaluated arguments
@@ -2479,23 +2476,14 @@ impl Evaluator {
                 .map(|param| param.is_expression)
                 .unwrap_or(true); // Default to true for backward compatibility
 
-            if should_evaluate_as_expression {
-                // Standard evaluation - evaluate the expression
-                let arg_result = match metadata.argument_evaluation {
-                    crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root => {
-                        self.evaluate_node(arg, context).await?
-                    }
-                    _ => {
-                        // Evaluate in current context
-                        self.evaluate_node(arg, context).await?
-                    }
-                };
-                evaluated_args.push(arg_result.value.values().to_vec());
-            } else {
-                // Evaluate in current context
-                let arg_result = self.evaluate_node(arg, context).await?;
-                evaluated_args.push(arg_result.value.values().to_vec());
-            }
+            // Evaluate each argument in an isolated nested scope so variables defined
+            // within one argument do not collide with or leak into other arguments.
+            let nested_ctx = match metadata.argument_evaluation {
+                crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root => context.nest(),
+                _ => context.nest(),
+            };
+            let arg_result = self.evaluate_node(arg, &nested_ctx).await?;
+            evaluated_args.push(arg_result.value.values().to_vec());
         }
 
         // Call the provider pure function with pre-evaluated arguments and context for providers
