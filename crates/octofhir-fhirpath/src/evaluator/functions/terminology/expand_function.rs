@@ -157,6 +157,13 @@ impl ProviderPureFunctionEvaluator for ExpandFunctionEvaluator {
         args: Vec<Vec<FhirPathValue>>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
+        // Enforce that terminology functions are only callable on %terminologies
+        if !(input.len() == 1 && is_terminologies_variable(&input[0])) {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0055,
+                "expand function must be called on %terminologies".to_string(),
+            ));
+        }
         if args.len() > 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -191,29 +198,37 @@ impl ProviderPureFunctionEvaluator for ExpandFunctionEvaluator {
             .await
         {
             Ok(expansion_result) => {
-                // Convert expansion result to FhirPathValue collection
-                let mut codings = Vec::new();
+                // Build a ValueSet resource with expansion.contains as expected by tests/spec
+                let mut vs = serde_json::Map::new();
+                vs.insert(
+                    "resourceType".to_string(),
+                    serde_json::Value::String("ValueSet".to_string()),
+                );
 
-                // Create Coding FhirPathValues for each concept in the expansion
+                let mut expansion = serde_json::Map::new();
+                let mut contains_array = Vec::new();
+
                 for concept in expansion_result.contains {
-                    // Create a Coding resource from the concept
-                    let mut coding = serde_json::Map::new();
-
+                    let mut contains = serde_json::Map::new();
                     if let Some(system) = concept.system {
-                        coding.insert("system".to_string(), serde_json::Value::String(system));
+                        contains.insert("system".to_string(), serde_json::Value::String(system));
                     }
-
-                    coding.insert("code".to_string(), serde_json::Value::String(concept.code));
-
+                    contains.insert("code".to_string(), serde_json::Value::String(concept.code));
                     if let Some(display) = concept.display {
-                        coding.insert("display".to_string(), serde_json::Value::String(display));
+                        contains.insert("display".to_string(), serde_json::Value::String(display));
                     }
-
-                    codings.push(FhirPathValue::resource(serde_json::Value::Object(coding)));
+                    contains_array.push(serde_json::Value::Object(contains));
                 }
 
+                expansion.insert(
+                    "contains".to_string(),
+                    serde_json::Value::Array(contains_array),
+                );
+                vs.insert("expansion".to_string(), serde_json::Value::Object(expansion));
+
+                let vs_value = FhirPathValue::resource(serde_json::Value::Object(vs));
                 Ok(EvaluationResult {
-                    value: crate::core::Collection::from(codings),
+                    value: crate::core::Collection::from(vec![vs_value]),
                 })
             }
             Err(e) => Err(FhirPathError::evaluation_error(

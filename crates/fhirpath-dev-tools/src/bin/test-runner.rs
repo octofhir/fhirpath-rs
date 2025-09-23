@@ -226,21 +226,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         engine = engine.with_validation_provider(validation_provider);
     }
 
-    // Skip terminology provider for TerminologyTests to avoid network dependencies
-    // Those tests should be handled with mock responses
-    if test_suite.name != "TerminologyTests" {
-        // Use real terminology provider (tx.fhir.org) for integration tests
-        let tx_base = match fhir_version.as_str() {
-            "r6" => "https://tx.fhir.org/r6",
-            "r5" => "https://tx.fhir.org/r5",
-            "r4b" => "https://tx.fhir.org/r4b",
-            _ => "https://tx.fhir.org/r4",
-        };
-        if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base.to_string()) {
-            let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> =
-                std::sync::Arc::new(tx);
-            engine = engine.with_terminology_provider(tx_arc.clone());
-        }
+    // Attach HttpTerminologyProvider (tx.fhir.org) for terminology-enabled tests and tools
+    // Per guidelines, dev-tools must use HttpTerminologyProvider
+    let tx_base = match fhir_version.as_str() {
+        "r6" => "https://tx.fhir.org/r6",
+        "r5" => "https://tx.fhir.org/r5",
+        "r4b" => "https://tx.fhir.org/r4b",
+        _ => "https://tx.fhir.org/r4",
+    };
+    if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base.to_string()) {
+        let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> =
+            std::sync::Arc::new(tx);
+        engine = engine.with_terminology_provider(tx_arc.clone());
     }
     let engine_time = engine_start.elapsed();
     println!("✅ FhirPathEngine created in {}ms", engine_time.as_millis());

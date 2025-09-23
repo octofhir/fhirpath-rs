@@ -211,7 +211,7 @@ impl LazyFunctionEvaluator for MemberOfFunctionEvaluator {
         // Test membership for each coding
         for (system, code) in codings {
             match terminology_provider
-                .validate_code_vs(&value_set_url, system.as_deref(), &code, None)
+                .validate_code_vs(&code, system.as_deref(), &value_set_url, None)
                 .await
             {
                 Ok(validation_result) => {

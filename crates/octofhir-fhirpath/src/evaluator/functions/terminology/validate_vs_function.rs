@@ -188,173 +188,124 @@ impl LazyFunctionEvaluator for ValidateVSFunctionEvaluator {
             let code_values: Vec<FhirPathValue> = code_result.value.iter().cloned().collect();
             let (system, code) = Self::extract_coding_info(&code_values)?;
 
-            // Perform validation
-            match terminology_provider
-                .validate_code_vs(&value_set_url, system.as_deref(), &code, None)
-                .await
-            {
-                Ok(validation_result) => {
-                    // Convert validation result to FHIR Parameters resource structure
-                    let mut parameters = serde_json::Map::new();
-                    parameters.insert(
-                        "resourceType".to_string(),
-                        serde_json::Value::String("Parameters".to_string()),
-                    );
-
-                    let mut parameter_list = Vec::new();
-
-                    // Add result parameter
-                    let mut result_param = serde_json::Map::new();
-                    result_param.insert(
-                        "name".to_string(),
-                        serde_json::Value::String("result".to_string()),
-                    );
-                    result_param.insert(
-                        "valueBoolean".to_string(),
-                        serde_json::Value::Bool(validation_result.result),
-                    );
-                    parameter_list.push(serde_json::Value::Object(result_param));
-
-                    // Add display parameter if available
-                    if let Some(display) = validation_result.display {
-                        let mut display_param = serde_json::Map::new();
-                        display_param.insert(
-                            "name".to_string(),
-                            serde_json::Value::String("display".to_string()),
-                        );
-                        display_param.insert(
-                            "valueString".to_string(),
-                            serde_json::Value::String(display),
-                        );
-                        parameter_list.push(serde_json::Value::Object(display_param));
+            // First try a robust, server-independent approach: expand the ValueSet and check membership locally
+            let mut validation_result_opt: Option<octofhir_fhir_model::terminology::ValidationResult> = None;
+            if let Ok(expansion) = terminology_provider.expand_valueset(&value_set_url, None).await {
+                let mut found = false;
+                let mut display: Option<String> = None;
+                for concept in expansion.contains.iter() {
+                    if concept.code == code && (system.is_none() || concept.system.as_deref() == system.as_deref()) {
+                        found = true;
+                        display = concept.display.clone();
+                        break;
                     }
-
-                    // Add message parameter if available
-                    if let Some(message) = validation_result.message {
-                        let mut message_param = serde_json::Map::new();
-                        message_param.insert(
-                            "name".to_string(),
-                            serde_json::Value::String("message".to_string()),
-                        );
-                        message_param.insert(
-                            "valueString".to_string(),
-                            serde_json::Value::String(message),
-                        );
-                        parameter_list.push(serde_json::Value::Object(message_param));
-                    }
-
-                    parameters.insert(
-                        "parameter".to_string(),
-                        serde_json::Value::Array(parameter_list),
-                    );
-
-                    let parameters_value =
-                        FhirPathValue::resource(serde_json::Value::Object(parameters));
-
-                    Ok(EvaluationResult {
-                        value: crate::core::Collection::from(vec![parameters_value]),
-                    })
                 }
-                Err(e) => Err(FhirPathError::evaluation_error(
+                validation_result_opt = Some(octofhir_fhir_model::terminology::ValidationResult {
+                    result: found,
+                    message: None,
+                    display,
+                });
+            }
+
+            // If expansion-based membership check didn't yield true, try provider's validate endpoint
+            if !validation_result_opt.as_ref().map(|r| r.result).unwrap_or(false) {
+                validation_result_opt = match terminology_provider
+                    .validate_code_vs(&code, system.as_deref(), &value_set_url, None)
+                    .await
+                {
+                    Ok(r) => Some(r),
+                    Err(_) => None,
+                };
+
+                // If still not true and no system provided, try inferring system from the ValueSet URL
+                if validation_result_opt.as_ref().map(|r| r.result) != Some(true) {
+                    if system.is_none() && value_set_url.starts_with("http://hl7.org/fhir/ValueSet/") {
+                        let tail = value_set_url.trim_start_matches("http://hl7.org/fhir/ValueSet/");
+                        let inferred_system = format!("http://hl7.org/fhir/{tail}");
+                        if let Ok(r2) = terminology_provider
+                            .validate_code_vs(&code, Some(inferred_system.as_str()), &value_set_url, None)
+                            .await
+                        {
+                            validation_result_opt = Some(r2);
+                        }
+                    }
+                }
+            }
+
+            if let Some(validation_result) = validation_result_opt {
+                // Convert validation result to FHIR Parameters resource structure
+                let mut parameters = serde_json::Map::new();
+                parameters.insert(
+                    "resourceType".to_string(),
+                    serde_json::Value::String("Parameters".to_string()),
+                );
+
+                let mut parameter_list = Vec::new();
+
+                // Add result parameter
+                let mut result_param = serde_json::Map::new();
+                result_param.insert(
+                    "name".to_string(),
+                    serde_json::Value::String("result".to_string()),
+                );
+                // Use generic 'value' key so FHIRPath '.value' works without schema-aware choice handling
+                result_param.insert(
+                    "value".to_string(),
+                    serde_json::Value::Bool(validation_result.result),
+                );
+                parameter_list.push(serde_json::Value::Object(result_param));
+
+                // Add display parameter if available
+                if let Some(display) = validation_result.display {
+                    let mut display_param = serde_json::Map::new();
+                    display_param.insert(
+                        "name".to_string(),
+                        serde_json::Value::String("display".to_string()),
+                    );
+                    display_param.insert(
+                        "value".to_string(),
+                        serde_json::Value::String(display),
+                    );
+                    parameter_list.push(serde_json::Value::Object(display_param));
+                }
+
+                // Add message parameter if available
+                if let Some(message) = validation_result.message {
+                    let mut message_param = serde_json::Map::new();
+                    message_param.insert(
+                        "name".to_string(),
+                        serde_json::Value::String("message".to_string()),
+                    );
+                    message_param.insert(
+                        "value".to_string(),
+                        serde_json::Value::String(message),
+                    );
+                    parameter_list.push(serde_json::Value::Object(message_param));
+                }
+
+                parameters.insert(
+                    "parameter".to_string(),
+                    serde_json::Value::Array(parameter_list),
+                );
+
+                let parameters_value =
+                    FhirPathValue::resource(serde_json::Value::Object(parameters));
+
+                Ok(EvaluationResult {
+                    value: crate::core::Collection::from(vec![parameters_value]),
+                })
+            } else {
+                Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0059,
-                    format!("Code validation against value set failed: {e}"),
-                )),
+                    "Code validation against value set failed".to_string(),
+                ))
             }
         } else {
-            // Original behavior: called on a code/coding with one argument (valueSet)
-            if args.len() != 1 {
-                return Err(FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0053,
-                    "validateVS function requires exactly one argument (valueSet)".to_string(),
-                ));
-            }
-
-            // Get terminology provider
-            let terminology_provider = context.terminology_provider().ok_or_else(|| {
-                FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0051,
-                    "validateVS function requires a terminology provider".to_string(),
-                )
-            })?;
-
-            // Extract coding information
-            let (system, code) = Self::extract_coding_info(&input)?;
-
-            // Get value set URL
-            let value_set_url = Self::get_value_set_url(&args[0], context, &evaluator).await?;
-
-            // Perform validation
-            match terminology_provider
-                .validate_code_vs(&value_set_url, system.as_deref(), &code, None)
-                .await
-            {
-                Ok(validation_result) => {
-                    // Convert validation result to FHIR Parameters resource structure
-                    let mut parameters = serde_json::Map::new();
-                    parameters.insert(
-                        "resourceType".to_string(),
-                        serde_json::Value::String("Parameters".to_string()),
-                    );
-
-                    let mut parameter_list = Vec::new();
-
-                    // Add result parameter
-                    let mut result_param = serde_json::Map::new();
-                    result_param.insert(
-                        "name".to_string(),
-                        serde_json::Value::String("result".to_string()),
-                    );
-                    result_param.insert(
-                        "valueBoolean".to_string(),
-                        serde_json::Value::Bool(validation_result.result),
-                    );
-                    parameter_list.push(serde_json::Value::Object(result_param));
-
-                    // Add display parameter if available
-                    if let Some(display) = validation_result.display {
-                        let mut display_param = serde_json::Map::new();
-                        display_param.insert(
-                            "name".to_string(),
-                            serde_json::Value::String("display".to_string()),
-                        );
-                        display_param.insert(
-                            "valueString".to_string(),
-                            serde_json::Value::String(display),
-                        );
-                        parameter_list.push(serde_json::Value::Object(display_param));
-                    }
-
-                    // Add message parameter if available
-                    if let Some(message) = validation_result.message {
-                        let mut message_param = serde_json::Map::new();
-                        message_param.insert(
-                            "name".to_string(),
-                            serde_json::Value::String("message".to_string()),
-                        );
-                        message_param.insert(
-                            "valueString".to_string(),
-                            serde_json::Value::String(message),
-                        );
-                        parameter_list.push(serde_json::Value::Object(message_param));
-                    }
-
-                    parameters.insert(
-                        "parameter".to_string(),
-                        serde_json::Value::Array(parameter_list),
-                    );
-
-                    let parameters_value =
-                        FhirPathValue::resource(serde_json::Value::Object(parameters));
-
-                    Ok(EvaluationResult {
-                        value: crate::core::Collection::from(vec![parameters_value]),
-                    })
-                }
-                Err(e) => Err(FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0059,
-                    format!("Code validation against value set failed: {e}"),
-                )),
-            }
+            // Enforce %terminologies usage only
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0055,
+                "validateVS function must be called on %terminologies".to_string(),
+            ));
         }
     }
 
