@@ -62,13 +62,12 @@ impl PureFunctionEvaluator for ConvertsToQuantityFunctionEvaluator {
             let can_convert = match &value {
                 FhirPathValue::String(s, _, _) => {
                     // Use strict FHIRPath-aware string→Quantity parser
-                    crate::evaluator::quantity_utils::parse_string_to_quantity_value(s)
-                        .is_some()
+                    crate::evaluator::quantity_utils::parse_string_to_quantity_value(s).is_some()
                 }
                 FhirPathValue::Integer(_, _, _) => true, // Numbers can be converted to quantities
                 FhirPathValue::Decimal(_, _, _) => true, // Decimals can be converted to quantities
                 FhirPathValue::Quantity { .. } => true,  // Already a Quantity
-                FhirPathValue::Boolean(_, _, _) => true,  // Booleans are considered convertible per spec
+                FhirPathValue::Boolean(_, _, _) => true, // Booleans are considered convertible per spec
                 _ => false, // Other types cannot be converted to Quantity
             };
 

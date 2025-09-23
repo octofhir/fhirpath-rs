@@ -115,11 +115,8 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
                                 singleton: Some(true),
                             };
                             let json = serde_json::json!({ "url": ext.url });
-                            let extension_value = FhirPathValue::Resource(
-                                Arc::new(json),
-                                type_info,
-                                None,
-                            );
+                            let extension_value =
+                                FhirPathValue::Resource(Arc::new(json), type_info, None);
                             matching_extensions.push(extension_value);
                         }
                     }

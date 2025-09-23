@@ -71,7 +71,14 @@ impl ResolveFunctionEvaluator {
         // Determine the appropriate root for resolution.
         // Prefer variables that actually hold a Resource, walking parent scopes via get_variable.
         let mut root_resource_opt: Option<FhirPathValue> = None;
-        let var_names = ["%resource", "resource", "%context", "context", "this", "$this"];
+        let var_names = [
+            "%resource",
+            "resource",
+            "%context",
+            "context",
+            "this",
+            "$this",
+        ];
         for name in var_names {
             if let Some(v) = context.get_variable(name) {
                 if matches!(v, FhirPathValue::Resource(_, _, _)) {

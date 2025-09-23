@@ -6,12 +6,12 @@
 use std::sync::Arc;
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
-use octofhir_ucum::find_unit;
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
+use octofhir_ucum::find_unit;
 
 /// ToString function evaluator
 pub struct ToStringFunctionEvaluator {
@@ -85,7 +85,13 @@ impl PureFunctionEvaluator for ToStringFunctionEvaluator {
                     // Format time as FHIR time string using Display implementation
                     format!("{time}")
                 }
-                FhirPathValue::Quantity { value, unit, ucum_unit, calendar_unit, .. } => {
+                FhirPathValue::Quantity {
+                    value,
+                    unit,
+                    ucum_unit,
+                    calendar_unit,
+                    ..
+                } => {
                     // Format Quantity according to FHIRPath rules:
                     // - UCUM units are rendered with single quotes: 1 'wk'
                     // - Calendar units are rendered as plain words: 1 week

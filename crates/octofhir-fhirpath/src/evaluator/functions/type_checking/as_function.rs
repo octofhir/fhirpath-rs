@@ -138,10 +138,7 @@ impl AsFunctionEvaluator {
                     FhirPathValue::String(_, type_info, _) => {
                         // For FHIR primitives, only allow actual FHIR.string to be treated as string
                         if type_info.namespace.as_deref() == Some("FHIR") {
-                            let actual = type_info
-                                .name
-                                .as_deref()
-                                .unwrap_or(&type_info.type_name);
+                            let actual = type_info.name.as_deref().unwrap_or(&type_info.type_name);
                             if actual.eq_ignore_ascii_case("string") {
                                 Some(value.clone())
                             } else {

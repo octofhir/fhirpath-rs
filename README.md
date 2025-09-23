@@ -114,6 +114,8 @@ See CLI.md for full options and output formats.
 
 ## Spec Compliance
 
+As of 2025-09-23, this implementation passes 100% of the official FHIRPath test suite (114 suites, 1118 tests). See TEST_COVERAGE.md for the full report.
+
 ✅ **Fully Supported (100%)**
 - Path navigation and filtering
 - Collection operations (`where`, `select`, `first`, `last`, `count`, etc.)

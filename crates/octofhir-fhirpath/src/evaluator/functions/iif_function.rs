@@ -113,7 +113,8 @@ impl LazyFunctionEvaluator for IifFunctionEvaluator {
         // Create a child context for evaluation that sets input to the function receiver
         // and $this to the receiver item when singleton
         let evaluation_context = {
-            let child_context = context.create_child_context(crate::core::Collection::from(input.clone()));
+            let child_context =
+                context.create_child_context(crate::core::Collection::from(input.clone()));
             if input.len() == 1 {
                 child_context.set_variable("$this".to_string(), input[0].clone());
             }

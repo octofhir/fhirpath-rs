@@ -77,10 +77,8 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
         let original_input = input.clone();
         let mut current_items = input;
         // Track type tags for decision about seed placement
-        let seed_type_tags: std::collections::HashSet<&'static str> = original_input
-            .iter()
-            .map(|v| Self::type_tag(v))
-            .collect();
+        let seed_type_tags: std::collections::HashSet<&'static str> =
+            original_input.iter().map(|v| Self::type_tag(v)).collect();
         let mut produced_type_tags: std::collections::HashSet<&'static str> = Default::default();
 
         // Track original items to avoid infinite loops
@@ -109,10 +107,17 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
 
         // Safety: detect simple arithmetic on non-numeric $this that would silently yield empty
         if self.is_simple_arithmetic_on_this(repeat_expr) {
-            let has_non_numeric_seed = original_input.iter().any(|v| !matches!(
-                v,
-                FhirPathValue::Integer(_,_,_) | FhirPathValue::Decimal(_,_,_) | FhirPathValue::Quantity{..} | FhirPathValue::Date(_,_,_) | FhirPathValue::DateTime(_,_,_) | FhirPathValue::Time(_,_,_)
-            ));
+            let has_non_numeric_seed = original_input.iter().any(|v| {
+                !matches!(
+                    v,
+                    FhirPathValue::Integer(_, _, _)
+                        | FhirPathValue::Decimal(_, _, _)
+                        | FhirPathValue::Quantity { .. }
+                        | FhirPathValue::Date(_, _, _)
+                        | FhirPathValue::DateTime(_, _, _)
+                        | FhirPathValue::Time(_, _, _)
+                )
+            });
             if has_non_numeric_seed {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0061,
@@ -186,16 +191,18 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
         }
 
         // Place seeds only for numeric/temporal/quantity sequences; never include seeds for complex/object traversals
-        let eligible_seed_types: std::collections::HashSet<&'static str> = [
-            "Integer", "Decimal", "Date", "DateTime", "Time", "Quantity",
-        ]
-        .into_iter()
-        .collect();
-        let seeds_all_eligible = seed_type_tags.iter().all(|t| eligible_seed_types.contains(t));
+        let eligible_seed_types: std::collections::HashSet<&'static str> =
+            ["Integer", "Decimal", "Date", "DateTime", "Time", "Quantity"]
+                .into_iter()
+                .collect();
+        let seeds_all_eligible = seed_type_tags
+            .iter()
+            .all(|t| eligible_seed_types.contains(t));
         let produced_all_eligible = produced_type_tags
             .iter()
             .all(|t| eligible_seed_types.contains(t));
-        let allow_seed_inclusion = seeds_all_eligible && produced_all_eligible && !produced_type_tags.is_empty();
+        let allow_seed_inclusion =
+            seeds_all_eligible && produced_all_eligible && !produced_type_tags.is_empty();
 
         if allow_seed_inclusion {
             // Seeds first, followed by discovered items (without duplicates)
@@ -207,7 +214,7 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
                     final_values.push(item);
                 }
             }
-            final_values.extend(result_values.into_iter());
+            final_values.extend(result_values);
             Ok(EvaluationResult {
                 value: crate::core::Collection::from(final_values),
             })
@@ -261,8 +268,10 @@ impl RepeatFunctionEvaluator {
                     return false;
                 }
                 // $this on one side and the other side does not reference $this
-                let left_is_this = matches!(*bin.left.clone(), EN::Variable(ref v) if v.name == "this");
-                let right_is_this = matches!(*bin.right.clone(), EN::Variable(ref v) if v.name == "this");
+                let left_is_this =
+                    matches!(*bin.left.clone(), EN::Variable(ref v) if v.name == "this");
+                let right_is_this =
+                    matches!(*bin.right.clone(), EN::Variable(ref v) if v.name == "this");
                 if left_is_this ^ right_is_this {
                     // Additionally require the other side to be a literal to avoid flagging complex expressions
                     let other_is_literal = if left_is_this {

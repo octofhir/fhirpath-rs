@@ -111,11 +111,23 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
         }
 
         // Reserved/system variables that cannot be overridden
-        let is_reserved = matches!(variable_name.as_str(),
-            "this" | "$this" | "index" | "$index" | "total" | "$total" |
-            "context" | "%context" | "resource" | "%resource" | "terminologies" |
-            "sct" | "loinc"
-        ) || variable_name.starts_with("vs-") || variable_name.starts_with("ext-");
+        let is_reserved = matches!(
+            variable_name.as_str(),
+            "this"
+                | "$this"
+                | "index"
+                | "$index"
+                | "total"
+                | "$total"
+                | "context"
+                | "%context"
+                | "resource"
+                | "%resource"
+                | "terminologies"
+                | "sct"
+                | "loinc"
+        ) || variable_name.starts_with("vs-")
+            || variable_name.starts_with("ext-");
         if is_reserved {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0058,

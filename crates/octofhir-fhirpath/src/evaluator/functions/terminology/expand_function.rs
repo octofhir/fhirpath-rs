@@ -224,7 +224,10 @@ impl ProviderPureFunctionEvaluator for ExpandFunctionEvaluator {
                     "contains".to_string(),
                     serde_json::Value::Array(contains_array),
                 );
-                vs.insert("expansion".to_string(), serde_json::Value::Object(expansion));
+                vs.insert(
+                    "expansion".to_string(),
+                    serde_json::Value::Object(expansion),
+                );
 
                 let vs_value = FhirPathValue::resource(serde_json::Value::Object(vs));
                 Ok(EvaluationResult {

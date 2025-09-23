@@ -84,7 +84,9 @@ impl GreaterThanOperatorEvaluator {
     fn is_temporal(&self, value: &FhirPathValue) -> bool {
         matches!(
             value,
-            FhirPathValue::Date(_, _, _) | FhirPathValue::DateTime(_, _, _) | FhirPathValue::Time(_, _, _)
+            FhirPathValue::Date(_, _, _)
+                | FhirPathValue::DateTime(_, _, _)
+                | FhirPathValue::Time(_, _, _)
         )
     }
 

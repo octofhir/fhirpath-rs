@@ -53,7 +53,11 @@ pub fn compute_numeric_boundaries(
             } else {
                 // Increasing precision – use half-step at the intrinsic scale,
                 // but remember the requested scale for optional padding
-                (NumericMode::DefaultWithRequested, original_scale, Some(p_u32))
+                (
+                    NumericMode::DefaultWithRequested,
+                    original_scale,
+                    Some(p_u32),
+                )
             }
         }
     };

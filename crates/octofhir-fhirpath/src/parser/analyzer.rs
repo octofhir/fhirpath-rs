@@ -4,8 +4,8 @@
 //! with type information, path tracking, and validation. It's designed to be used
 //! optionally during analysis parsing mode without affecting fast parsing performance.
 
+use std::collections::HashSet;
 use std::sync::Arc;
-use std::collections::{HashMap, HashSet};
 
 use crate::ast::{
     AnalysisMetadata, BinaryOperationNode, BinaryOperator, ExpressionAnalysis, ExpressionNode,
@@ -27,7 +27,7 @@ pub struct SemanticAnalyzer {
     /// Expression text for span calculation
     expression_text: Option<String>,
     /// Stack of variable scopes for defineVariable() analysis
-    var_scopes: Vec<HashSet<String>>, 
+    var_scopes: Vec<HashSet<String>>,
     /// Reserved/system variable names that cannot be user-defined
     reserved_vars: HashSet<String>,
 }
@@ -36,17 +36,26 @@ impl SemanticAnalyzer {
     /// Create new semantic analyzer
     pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
         // Initialize reserved/system variables that cannot be user-defined
-        let mut reserved: HashSet<String> = [
-            "this", "$this", "index", "$index", "total", "$total",
-            "context", "%context", "resource", "%resource", "terminologies",
-            "sct", "loinc"
+        let reserved: HashSet<String> = [
+            "this",
+            "$this",
+            "index",
+            "$index",
+            "total",
+            "$total",
+            "context",
+            "%context",
+            "resource",
+            "%resource",
+            "terminologies",
+            "sct",
+            "loinc",
         ]
         .iter()
         .map(|s| s.to_string())
         .collect();
         // Patterns like vs-*, ext-* are handled separately
-        let mut scopes = Vec::new();
-        scopes.push(HashSet::new());
+        let scopes = vec![HashSet::new()];
 
         Self {
             model_provider,
@@ -200,7 +209,11 @@ impl SemanticAnalyzer {
                     // Analyze variable reference: treat non-system names as user or environment variables
                     let var_name = var.name.as_str();
                     // Normalize: strip leading '%' if present
-                    let base = if let Some(stripped) = var_name.strip_prefix('%') { stripped } else { var_name };
+                    let base = if let Some(stripped) = var_name.strip_prefix('%') {
+                        stripped
+                    } else {
+                        var_name
+                    };
 
                     // Recognize system variables that are always valid
                     let is_system = matches!(base, "this" | "index" | "total");
@@ -640,7 +653,7 @@ impl SemanticAnalyzer {
         }
 
         // Analyze function arguments recursively with isolated parameter scopes
-        for (i, arg) in func_call.arguments.iter().enumerate() {
+        for arg in func_call.arguments.iter() {
             let prev_chain_head = self.is_chain_head;
             self.is_chain_head = true; // Arguments start their own chains
             // Snapshot current scopes and analyze argument
@@ -653,7 +666,7 @@ impl SemanticAnalyzer {
 
         // defineVariable-specific semantic checks: add variable to current scope when name is literal
         if func_call.name == "defineVariable" {
-            if let Some(first_arg) = func_call.arguments.get(0) {
+            if let Some(first_arg) = func_call.arguments.first() {
                 if let ExpressionNode::Literal(lit) = first_arg {
                     if let LiteralValue::String(var_name) = &lit.value {
                         let base = var_name.as_str();
@@ -665,8 +678,13 @@ impl SemanticAnalyzer {
                             analysis.success = false;
                             analysis.add_diagnostic(Diagnostic {
                                 severity: DiagnosticSeverity::Error,
-                                code: DiagnosticCode { code: "RESERVED_VARIABLE".to_string(), namespace: Some("fhirpath".to_string()) },
-                                message: format!("Variable name '{base}' is reserved and cannot be redefined"),
+                                code: DiagnosticCode {
+                                    code: "RESERVED_VARIABLE".to_string(),
+                                    namespace: Some("fhirpath".to_string()),
+                                },
+                                message: format!(
+                                    "Variable name '{base}' is reserved and cannot be redefined"
+                                ),
                                 location: first_arg.location().cloned(),
                                 related: vec![],
                             });
@@ -677,8 +695,13 @@ impl SemanticAnalyzer {
                                     analysis.success = false;
                                     analysis.add_diagnostic(Diagnostic {
                                         severity: DiagnosticSeverity::Error,
-                                        code: DiagnosticCode { code: "VARIABLE_REDEFINITION".to_string(), namespace: Some("fhirpath".to_string()) },
-                                        message: format!("Variable '{base}' is already defined in this scope"),
+                                        code: DiagnosticCode {
+                                            code: "VARIABLE_REDEFINITION".to_string(),
+                                            namespace: Some("fhirpath".to_string()),
+                                        },
+                                        message: format!(
+                                            "Variable '{base}' is already defined in this scope"
+                                        ),
                                         location: first_arg.location().cloned(),
                                         related: vec![],
                                     });
@@ -762,7 +785,7 @@ impl SemanticAnalyzer {
 
         // defineVariable-specific handling for method calls
         if method_call.method == "defineVariable" {
-            if let Some(first_arg) = method_call.arguments.get(0) {
+            if let Some(first_arg) = method_call.arguments.first() {
                 if let ExpressionNode::Literal(lit) = first_arg {
                     if let LiteralValue::String(var_name) = &lit.value {
                         let base = var_name.as_str();
@@ -773,8 +796,13 @@ impl SemanticAnalyzer {
                             analysis.success = false;
                             analysis.add_diagnostic(Diagnostic {
                                 severity: DiagnosticSeverity::Error,
-                                code: DiagnosticCode { code: "RESERVED_VARIABLE".to_string(), namespace: Some("fhirpath".to_string()) },
-                                message: format!("Variable name '{base}' is reserved and cannot be redefined"),
+                                code: DiagnosticCode {
+                                    code: "RESERVED_VARIABLE".to_string(),
+                                    namespace: Some("fhirpath".to_string()),
+                                },
+                                message: format!(
+                                    "Variable name '{base}' is reserved and cannot be redefined"
+                                ),
                                 location: first_arg.location().cloned(),
                                 related: vec![],
                             });
@@ -784,8 +812,13 @@ impl SemanticAnalyzer {
                                     analysis.success = false;
                                     analysis.add_diagnostic(Diagnostic {
                                         severity: DiagnosticSeverity::Error,
-                                        code: DiagnosticCode { code: "VARIABLE_REDEFINITION".to_string(), namespace: Some("fhirpath".to_string()) },
-                                        message: format!("Variable '{base}' is already defined in this scope"),
+                                        code: DiagnosticCode {
+                                            code: "VARIABLE_REDEFINITION".to_string(),
+                                            namespace: Some("fhirpath".to_string()),
+                                        },
+                                        message: format!(
+                                            "Variable '{base}' is already defined in this scope"
+                                        ),
                                         location: first_arg.location().cloned(),
                                         related: vec![],
                                     });

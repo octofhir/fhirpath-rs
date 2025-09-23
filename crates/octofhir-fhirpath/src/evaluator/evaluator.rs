@@ -148,8 +148,13 @@ impl Evaluator {
             }
             ExpressionNode::FunctionCall(function_call) => {
                 // Dispatch to function registry
-                self.evaluate_function_call(&function_call.name, &function_call.arguments, context, None)
-                    .await
+                self.evaluate_function_call(
+                    &function_call.name,
+                    &function_call.arguments,
+                    context,
+                    None,
+                )
+                .await
             }
             ExpressionNode::IndexAccess(index_access) => {
                 // Evaluate collection first, then apply index
@@ -176,14 +181,13 @@ impl Evaluator {
                 let object_result =
                     Box::pin(self.evaluate_node_inner(&method_call.object, context)).await?;
 
-                self
-                    .evaluate_function_call(
-                        &method_call.method,
-                        &method_call.arguments,
-                        context,
-                        Some(object_result.value.values().to_vec()),
-                    )
-                    .await
+                self.evaluate_function_call(
+                    &method_call.method,
+                    &method_call.arguments,
+                    context,
+                    Some(object_result.value.values().to_vec()),
+                )
+                .await
             }
             ExpressionNode::Collection(collection_node) => {
                 // Evaluate collection literal
@@ -424,7 +428,12 @@ impl Evaluator {
                 // Record function timing
                 let func_start = Instant::now();
                 let result = self
-                    .evaluate_function_call(&function_call.name, &function_call.arguments, context, None)
+                    .evaluate_function_call(
+                        &function_call.name,
+                        &function_call.arguments,
+                        context,
+                        None,
+                    )
                     .await;
                 let func_time = func_start.elapsed();
                 collector.record_function_timing(&function_call.name, func_time);
@@ -996,27 +1005,22 @@ impl Evaluator {
                         };
 
                         // Parse optional URL argument if provided: extension('...')
-                        let url_filter: Option<String> = if identifier.starts_with("extension(")
-                            && identifier.ends_with(')')
-                        {
-                            let inner = &identifier[10..identifier.len() - 1];
-                            let trimmed = inner.trim().trim_matches('\'').trim_matches('"');
-                            if !trimmed.is_empty() {
-                                Some(trimmed.to_string())
+                        let url_filter: Option<String> =
+                            if identifier.starts_with("extension(") && identifier.ends_with(')') {
+                                let inner = &identifier[10..identifier.len() - 1];
+                                let trimmed = inner.trim().trim_matches('\'').trim_matches('"');
+                                if !trimmed.is_empty() {
+                                    Some(trimmed.to_string())
+                                } else {
+                                    None
+                                }
                             } else {
                                 None
-                            }
-                        } else {
-                            None
-                        };
+                            };
 
                         if let Some(pe) = item.wrapped_primitive_element() {
                             for ext in &pe.extensions {
-                                if url_filter
-                                    .as_ref()
-                                    .map(|u| u == &ext.url)
-                                    .unwrap_or(true)
-                                {
+                                if url_filter.as_ref().map(|u| u == &ext.url).unwrap_or(true) {
                                     // Build minimal JSON for extension with URL so exists() works
                                     let json = serde_json::json!({
                                         "url": ext.url
@@ -1337,37 +1341,38 @@ impl Evaluator {
                 let type_suffix = &choice_property[base_property.len()..];
 
                 // Get type info from ModelProvider if available
-                let base_info = if let Ok(Some(type_info)) = self.model_provider.get_type(type_suffix).await {
-                    type_info
-                } else {
-                    // Fallback type info - handle common FHIR primitive type mappings
-                    let mapped_type = match type_suffix {
-                        "String" => "string",
-                        "Integer" => "integer",
-                        "Decimal" => "decimal",
-                        "Boolean" => "boolean",
-                        "Date" => "date",
-                        "DateTime" => "dateTime",
-                        "Time" => "time",
-                        "Uri" => "uri",
-                        "Url" => "url",
-                        "Canonical" => "canonical",
-                        "Code" => "code",
-                        "Id" => "id",
-                        "Markdown" => "markdown",
-                        "Uuid" => "uuid",
-                        "Oid" => "oid",
-                        _ => type_suffix,
-                    };
+                let base_info =
+                    if let Ok(Some(type_info)) = self.model_provider.get_type(type_suffix).await {
+                        type_info
+                    } else {
+                        // Fallback type info - handle common FHIR primitive type mappings
+                        let mapped_type = match type_suffix {
+                            "String" => "string",
+                            "Integer" => "integer",
+                            "Decimal" => "decimal",
+                            "Boolean" => "boolean",
+                            "Date" => "date",
+                            "DateTime" => "dateTime",
+                            "Time" => "time",
+                            "Uri" => "uri",
+                            "Url" => "url",
+                            "Canonical" => "canonical",
+                            "Code" => "code",
+                            "Id" => "id",
+                            "Markdown" => "markdown",
+                            "Uuid" => "uuid",
+                            "Oid" => "oid",
+                            _ => type_suffix,
+                        };
 
-                    crate::core::model_provider::TypeInfo {
-                        type_name: mapped_type.to_string(),
-                        singleton: Some(!property_value.is_array()),
-                        namespace: Some("FHIR".to_string()),
-                        name: Some(mapped_type.to_lowercase()),
-                        is_empty: Some(false),
-                    }
-                };
+                        crate::core::model_provider::TypeInfo {
+                            type_name: mapped_type.to_string(),
+                            singleton: Some(!property_value.is_array()),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some(mapped_type.to_lowercase()),
+                            is_empty: Some(false),
+                        }
+                    };
 
                 // Normalize primitives to FHIR namespace with canonical lowercase names
                 let choice_type_info = {
@@ -1927,7 +1932,7 @@ impl Evaluator {
                         let s = datetime_str;
                         // Accept years like 2012, 2012-05, 2012-05-06
                         let bytes = s.as_bytes();
-                        let is_digit = |c: u8| c >= b'0' && c <= b'9';
+                        let is_digit = |c: u8| c.is_ascii_digit();
                         if bytes.len() == 4 {
                             bytes.iter().all(|b| is_digit(*b))
                         } else if bytes.len() >= 7 && s.chars().nth(4) == Some('-') {
@@ -1955,7 +1960,9 @@ impl Evaluator {
                     } else {
                         Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0054,
-                            format!("Invalid instant format (expected full dateTime with time): {datetime_str}"),
+                            format!(
+                                "Invalid instant format (expected full dateTime with time): {datetime_str}"
+                            ),
                         ))
                     }
                 } else {
@@ -2293,8 +2300,8 @@ impl Evaluator {
             let metadata = wrapper.metadata();
 
             // Determine input values (method calls can override input)
-            let input_values: Vec<FhirPathValue> = input_override
-                .unwrap_or_else(|| context.input_collection().values().to_vec());
+            let input_values: Vec<FhirPathValue> =
+                input_override.unwrap_or_else(|| context.input_collection().values().to_vec());
 
             // Check null propagation strategy against the actual function input (supports method calls)
             use crate::evaluator::function_registry::NullPropagationStrategy;
@@ -2313,12 +2320,7 @@ impl Evaluator {
                 ) => {
                     // Pure function - pre-evaluate arguments and call simple interface
                     return self
-                        .evaluate_pure_function(
-                            pure_evaluator,
-                            arguments,
-                            context,
-                            input_values,
-                        )
+                        .evaluate_pure_function(pure_evaluator, arguments, context, input_values)
                         .await;
                 }
                 crate::evaluator::function_registry::FunctionEvaluatorWrapper::ProviderPure(
@@ -2341,12 +2343,7 @@ impl Evaluator {
                     let async_evaluator = AsyncNodeEvaluator::new(self);
 
                     lazy_evaluator
-                        .evaluate(
-                            input_values,
-                            context,
-                            arguments.to_vec(),
-                            async_evaluator,
-                        )
+                        .evaluate(input_values, context, arguments.to_vec(), async_evaluator)
                         .await
                 }
                 crate::evaluator::function_registry::FunctionEvaluatorWrapper::Standard(
@@ -2421,7 +2418,7 @@ impl Evaluator {
 
         for (i, arg) in arguments.iter().enumerate() {
             // Get parameter metadata to check if this should be evaluated as an expression
-            let should_evaluate_as_expression = metadata
+            let _should_evaluate_as_expression = metadata
                 .signature
                 .parameters
                 .get(i)
@@ -2430,8 +2427,11 @@ impl Evaluator {
 
             // Determine which context to use for this argument
             let use_receiver_ctx = receiver_context.is_some()
-                && !self.expr_has_identifier_or_property(arg)
-                && !matches!(metadata.argument_evaluation, crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root);
+                && !Self::expr_has_identifier_or_property(arg)
+                && !matches!(
+                    metadata.argument_evaluation,
+                    crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root
+                );
 
             let eval_ctx: &EvaluationContext = if use_receiver_ctx {
                 receiver_context.as_ref().unwrap()
@@ -2447,9 +2447,7 @@ impl Evaluator {
         }
 
         // Call the pure function with pre-evaluated arguments
-        evaluator
-            .evaluate(input_values, evaluated_args)
-            .await
+        evaluator.evaluate(input_values, evaluated_args).await
     }
 
     /// Evaluate a provider-dependent pure function (terminology, model, or trace provider needed)
@@ -2469,7 +2467,7 @@ impl Evaluator {
 
         for (i, arg) in arguments.iter().enumerate() {
             // Get parameter metadata to check if this should be evaluated as an expression
-            let should_evaluate_as_expression = metadata
+            let _should_evaluate_as_expression = metadata
                 .signature
                 .parameters
                 .get(i)
@@ -2479,7 +2477,9 @@ impl Evaluator {
             // Evaluate each argument in an isolated nested scope so variables defined
             // within one argument do not collide with or leak into other arguments.
             let nested_ctx = match metadata.argument_evaluation {
-                crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root => context.nest(),
+                crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root => {
+                    context.nest()
+                }
                 _ => context.nest(),
             };
             let arg_result = self.evaluate_node(arg, &nested_ctx).await?;
@@ -2488,72 +2488,44 @@ impl Evaluator {
 
         // Call the provider pure function with pre-evaluated arguments and context for providers
         evaluator
-            .evaluate(
-                input_values,
-                evaluated_args,
-                context,
-            )
+            .evaluate(input_values, evaluated_args, context)
             .await
-    }
-
-    /// Check if null propagation should occur based on function metadata
-    fn should_propagate_null(
-        &self,
-        context: &EvaluationContext,
-        metadata: &crate::evaluator::function_registry::FunctionMetadata,
-    ) -> bool {
-        use crate::evaluator::function_registry::NullPropagationStrategy;
-
-        match metadata.null_propagation {
-            NullPropagationStrategy::None => false,
-            NullPropagationStrategy::Focus => context.input_collection().is_empty(),
-            NullPropagationStrategy::Arguments => {
-                // For now, we don't pre-evaluate arguments to check if they're empty
-                // This would require more complex logic
-                false
-            }
-            NullPropagationStrategy::Custom => false, // Let function handle
-        }
     }
 
     // Heuristic to detect if an argument expression references identifiers or properties
     // If it does not, we allow evaluating it against the method receiver context
-    fn expr_has_identifier_or_property(&self, expr: &crate::ast::ExpressionNode) -> bool {
+    fn expr_has_identifier_or_property(expr: &crate::ast::ExpressionNode) -> bool {
         use crate::ast::ExpressionNode as EN;
         match expr {
             EN::Identifier(_) => true,
             EN::PropertyAccess(_) => true,
             EN::Variable(_) => true,
             EN::MethodCall(m) => {
-                self.expr_has_identifier_or_property(&m.object)
-                    || m
-                        .arguments
+                Self::expr_has_identifier_or_property(&m.object)
+                    || m.arguments
                         .iter()
-                        .any(|a| self.expr_has_identifier_or_property(a))
+                        .any(Self::expr_has_identifier_or_property)
             }
             EN::FunctionCall(f) => f
                 .arguments
                 .iter()
-                .any(|a| self.expr_has_identifier_or_property(a)),
+                .any(Self::expr_has_identifier_or_property),
             EN::BinaryOperation(b) => {
-                self.expr_has_identifier_or_property(&b.left)
-                    || self.expr_has_identifier_or_property(&b.right)
+                Self::expr_has_identifier_or_property(&b.left)
+                    || Self::expr_has_identifier_or_property(&b.right)
             }
-            EN::UnaryOperation(u) => self.expr_has_identifier_or_property(&u.operand),
+            EN::UnaryOperation(u) => Self::expr_has_identifier_or_property(&u.operand),
             EN::IndexAccess(i) => {
-                self.expr_has_identifier_or_property(&i.object)
-                    || self.expr_has_identifier_or_property(&i.index)
+                Self::expr_has_identifier_or_property(&i.object)
+                    || Self::expr_has_identifier_or_property(&i.index)
             }
-            EN::Collection(c) => c
-                .elements
-                .iter()
-                .any(|e| self.expr_has_identifier_or_property(e)),
-            EN::Parenthesized(e) => self.expr_has_identifier_or_property(e),
-            EN::TypeCheck(t) => self.expr_has_identifier_or_property(&t.expression),
-            EN::TypeCast(t) => self.expr_has_identifier_or_property(&t.expression),
+            EN::Collection(c) => c.elements.iter().any(Self::expr_has_identifier_or_property),
+            EN::Parenthesized(e) => Self::expr_has_identifier_or_property(e),
+            EN::TypeCheck(t) => Self::expr_has_identifier_or_property(&t.expression),
+            EN::TypeCast(t) => Self::expr_has_identifier_or_property(&t.expression),
             EN::Union(u) => {
-                self.expr_has_identifier_or_property(&u.left)
-                    || self.expr_has_identifier_or_property(&u.right)
+                Self::expr_has_identifier_or_property(&u.left)
+                    || Self::expr_has_identifier_or_property(&u.right)
             }
             EN::Literal(_) => false,
             _ => false,

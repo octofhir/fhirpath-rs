@@ -82,8 +82,10 @@ impl RepeatAllFunctionEvaluator {
                 if !is_arith {
                     return false;
                 }
-                let left_is_this = matches!(*bin.left.clone(), EN::Variable(ref v) if v.name == "this");
-                let right_is_this = matches!(*bin.right.clone(), EN::Variable(ref v) if v.name == "this");
+                let left_is_this =
+                    matches!(*bin.left.clone(), EN::Variable(ref v) if v.name == "this");
+                let right_is_this =
+                    matches!(*bin.right.clone(), EN::Variable(ref v) if v.name == "this");
                 if left_is_this ^ right_is_this {
                     let other_is_literal = if left_is_this {
                         matches!(*bin.right.clone(), EN::Literal(_))
@@ -172,10 +174,17 @@ impl LazyFunctionEvaluator for RepeatAllFunctionEvaluator {
 
         // Safety: detect simple arithmetic on non-numeric $this that would silently yield empty
         if self.is_simple_arithmetic_on_this(projection_expr) {
-            let has_non_numeric_seed = input.iter().any(|v| !matches!(
-                v,
-                FhirPathValue::Integer(_,_,_) | FhirPathValue::Decimal(_,_,_) | FhirPathValue::Quantity{..} | FhirPathValue::Date(_,_,_) | FhirPathValue::DateTime(_,_,_) | FhirPathValue::Time(_,_,_)
-            ));
+            let has_non_numeric_seed = input.iter().any(|v| {
+                !matches!(
+                    v,
+                    FhirPathValue::Integer(_, _, _)
+                        | FhirPathValue::Decimal(_, _, _)
+                        | FhirPathValue::Quantity { .. }
+                        | FhirPathValue::Date(_, _, _)
+                        | FhirPathValue::DateTime(_, _, _)
+                        | FhirPathValue::Time(_, _, _)
+                )
+            });
             if has_non_numeric_seed {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0061,
@@ -269,7 +278,6 @@ impl RepeatAllFunctionEvaluator {
 
             // Add current item to results (repeatAll includes all items, even duplicates)
             results.push(current_item.clone());
-
 
             // Only expand if we haven't seen this exact item at this depth (prevents immediate cycles)
             let item_key = format!("{item_hash}@{depth}");

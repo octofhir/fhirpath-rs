@@ -48,14 +48,22 @@ pub fn parse_string_to_quantity_value(s: &str) -> Option<FhirPathValue> {
     let unit_lc = unit_part.to_ascii_lowercase();
     // Accept singular/plural full words only
     let accepted = [
-        "millisecond", "milliseconds",
-        "second", "seconds",
-        "minute", "minutes",
-        "hour", "hours",
-        "day", "days",
-        "week", "weeks",
-        "month", "months",
-        "year", "years",
+        "millisecond",
+        "milliseconds",
+        "second",
+        "seconds",
+        "minute",
+        "minutes",
+        "hour",
+        "hours",
+        "day",
+        "days",
+        "week",
+        "weeks",
+        "month",
+        "months",
+        "year",
+        "years",
     ];
 
     if accepted.contains(&unit_lc.as_str()) {

@@ -256,10 +256,12 @@ impl LazyFunctionEvaluator for TranslateFunctionEvaluator {
                     let mut concept_value = serde_json::Map::new();
                     concept_value.insert("code".to_string(), serde_json::Value::String(code));
                     if let Some(system) = system_opt {
-                        concept_value.insert("system".to_string(), serde_json::Value::String(system));
+                        concept_value
+                            .insert("system".to_string(), serde_json::Value::String(system));
                     }
                     if let Some(display) = display_opt {
-                        concept_value.insert("display".to_string(), serde_json::Value::String(display));
+                        concept_value
+                            .insert("display".to_string(), serde_json::Value::String(display));
                     }
 
                     concept_part.insert(
@@ -277,7 +279,8 @@ impl LazyFunctionEvaluator for TranslateFunctionEvaluator {
                     serde_json::Value::Array(parameter_list),
                 );
 
-                let parameters_value = FhirPathValue::resource(serde_json::Value::Object(parameters));
+                let parameters_value =
+                    FhirPathValue::resource(serde_json::Value::Object(parameters));
                 EvaluationResult {
                     value: crate::core::Collection::from(vec![parameters_value]),
                 }
@@ -289,16 +292,17 @@ impl LazyFunctionEvaluator for TranslateFunctionEvaluator {
             {
                 Ok(translation_result) => {
                     // If provider returned no targets, apply a minimal fallback for known core maps
-                    if translation_result.targets.is_empty() || !translation_result.success {
-                        if concept_map_url.contains("cm-address-use-v2") && code == "home" {
-                            // Map FHIR address-use 'home' to v2 'H'
-                            let result = build_parameters_from_targets(
-                                true,
-                                None,
-                                vec![("H".to_string(), None, None)],
-                            );
-                            return Ok(result);
-                        }
+                    if (translation_result.targets.is_empty() || !translation_result.success)
+                        && concept_map_url.contains("cm-address-use-v2")
+                        && code == "home"
+                    {
+                        // Map FHIR address-use 'home' to v2 'H'
+                        let result = build_parameters_from_targets(
+                            true,
+                            None,
+                            vec![("H".to_string(), None, None)],
+                        );
+                        return Ok(result);
                     }
 
                     // Convert translation result to FHIR Parameters resource structure

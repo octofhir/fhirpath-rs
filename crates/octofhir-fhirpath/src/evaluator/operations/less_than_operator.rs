@@ -300,9 +300,19 @@ impl OperationEvaluator for LessThanOperatorEvaluator {
         let right_value = right.first().unwrap();
 
         // Detect invalid numeric vs string comparison and raise execution error
-        let is_numeric = matches!(left_value, FhirPathValue::Integer(_, _, _) | FhirPathValue::Decimal(_, _, _) | FhirPathValue::Quantity { .. })
-            || matches!(right_value, FhirPathValue::Integer(_, _, _) | FhirPathValue::Decimal(_, _, _) | FhirPathValue::Quantity { .. });
-        let is_string_pair = matches!(left_value, FhirPathValue::String(_, _, _)) || matches!(right_value, FhirPathValue::String(_, _, _));
+        let is_numeric = matches!(
+            left_value,
+            FhirPathValue::Integer(_, _, _)
+                | FhirPathValue::Decimal(_, _, _)
+                | FhirPathValue::Quantity { .. }
+        ) || matches!(
+            right_value,
+            FhirPathValue::Integer(_, _, _)
+                | FhirPathValue::Decimal(_, _, _)
+                | FhirPathValue::Quantity { .. }
+        );
+        let is_string_pair = matches!(left_value, FhirPathValue::String(_, _, _))
+            || matches!(right_value, FhirPathValue::String(_, _, _));
         if is_numeric && is_string_pair {
             return Err(crate::core::FhirPathError::evaluation_error(
                 crate::core::error_code::FP0051,

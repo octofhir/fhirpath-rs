@@ -181,7 +181,9 @@ impl IsFunctionEvaluator {
             }
             "string" | "FHIR.string" => {
                 match value {
-                    FhirPathValue::String(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR") => {
+                    FhirPathValue::String(_, type_info, _)
+                        if type_info.namespace.as_deref() == Some("FHIR") =>
+                    {
                         let actual = type_info.name.as_deref().unwrap_or(&type_info.type_name);
                         matches!(
                             actual,
@@ -215,18 +217,15 @@ impl IsFunctionEvaluator {
             }
 
             // FHIR.uri is a supertype for uri-like primitives
-            "uri" | "FHIR.uri" => {
-                match value {
-                    FhirPathValue::String(_, type_info, _) if type_info.namespace.as_deref() == Some("FHIR") => {
-                        let actual = type_info.name.as_deref().unwrap_or(&type_info.type_name);
-                        matches!(
-                            actual,
-                            "uri" | "url" | "canonical" | "uuid" | "oid"
-                        )
-                    }
-                    _ => false,
+            "uri" | "FHIR.uri" => match value {
+                FhirPathValue::String(_, type_info, _)
+                    if type_info.namespace.as_deref() == Some("FHIR") =>
+                {
+                    let actual = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+                    matches!(actual, "uri" | "url" | "canonical" | "uuid" | "oid")
                 }
-            }
+                _ => false,
+            },
 
             // Quantity (modeled as System type in our implementation)
             "Quantity" | "System.Quantity" => {
@@ -296,7 +295,11 @@ impl IsFunctionEvaluator {
             }
             FhirPathValue::Quantity { .. } => ("System".to_string(), "Quantity".to_string()),
             FhirPathValue::Resource(_, type_info, _) => {
-                let name = type_info.name.as_deref().unwrap_or(&type_info.type_name).to_string();
+                let name = type_info
+                    .name
+                    .as_deref()
+                    .unwrap_or(&type_info.type_name)
+                    .to_string();
                 ("FHIR".to_string(), name)
             }
             FhirPathValue::Collection(_) => ("System".to_string(), "Collection".to_string()),

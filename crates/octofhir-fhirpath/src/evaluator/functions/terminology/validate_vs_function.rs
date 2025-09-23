@@ -189,12 +189,19 @@ impl LazyFunctionEvaluator for ValidateVSFunctionEvaluator {
             let (system, code) = Self::extract_coding_info(&code_values)?;
 
             // First try a robust, server-independent approach: expand the ValueSet and check membership locally
-            let mut validation_result_opt: Option<octofhir_fhir_model::terminology::ValidationResult> = None;
-            if let Ok(expansion) = terminology_provider.expand_valueset(&value_set_url, None).await {
+            let mut validation_result_opt: Option<
+                octofhir_fhir_model::terminology::ValidationResult,
+            > = None;
+            if let Ok(expansion) = terminology_provider
+                .expand_valueset(&value_set_url, None)
+                .await
+            {
                 let mut found = false;
                 let mut display: Option<String> = None;
                 for concept in expansion.contains.iter() {
-                    if concept.code == code && (system.is_none() || concept.system.as_deref() == system.as_deref()) {
+                    if concept.code == code
+                        && (system.is_none() || concept.system.as_deref() == system.as_deref())
+                    {
                         found = true;
                         display = concept.display.clone();
                         break;
@@ -208,26 +215,33 @@ impl LazyFunctionEvaluator for ValidateVSFunctionEvaluator {
             }
 
             // If expansion-based membership check didn't yield true, try provider's validate endpoint
-            if !validation_result_opt.as_ref().map(|r| r.result).unwrap_or(false) {
-                validation_result_opt = match terminology_provider
+            if !validation_result_opt
+                .as_ref()
+                .map(|r| r.result)
+                .unwrap_or(false)
+            {
+                validation_result_opt = terminology_provider
                     .validate_code_vs(&code, system.as_deref(), &value_set_url, None)
                     .await
-                {
-                    Ok(r) => Some(r),
-                    Err(_) => None,
-                };
+                    .ok();
 
                 // If still not true and no system provided, try inferring system from the ValueSet URL
-                if validation_result_opt.as_ref().map(|r| r.result) != Some(true) {
-                    if system.is_none() && value_set_url.starts_with("http://hl7.org/fhir/ValueSet/") {
-                        let tail = value_set_url.trim_start_matches("http://hl7.org/fhir/ValueSet/");
-                        let inferred_system = format!("http://hl7.org/fhir/{tail}");
-                        if let Ok(r2) = terminology_provider
-                            .validate_code_vs(&code, Some(inferred_system.as_str()), &value_set_url, None)
-                            .await
-                        {
-                            validation_result_opt = Some(r2);
-                        }
+                if validation_result_opt.as_ref().map(|r| r.result) != Some(true)
+                    && system.is_none()
+                    && value_set_url.starts_with("http://hl7.org/fhir/ValueSet/")
+                {
+                    let tail = value_set_url.trim_start_matches("http://hl7.org/fhir/ValueSet/");
+                    let inferred_system = format!("http://hl7.org/fhir/{tail}");
+                    if let Ok(r2) = terminology_provider
+                        .validate_code_vs(
+                            &code,
+                            Some(inferred_system.as_str()),
+                            &value_set_url,
+                            None,
+                        )
+                        .await
+                    {
+                        validation_result_opt = Some(r2);
                     }
                 }
             }
@@ -262,10 +276,7 @@ impl LazyFunctionEvaluator for ValidateVSFunctionEvaluator {
                         "name".to_string(),
                         serde_json::Value::String("display".to_string()),
                     );
-                    display_param.insert(
-                        "value".to_string(),
-                        serde_json::Value::String(display),
-                    );
+                    display_param.insert("value".to_string(), serde_json::Value::String(display));
                     parameter_list.push(serde_json::Value::Object(display_param));
                 }
 
@@ -276,10 +287,7 @@ impl LazyFunctionEvaluator for ValidateVSFunctionEvaluator {
                         "name".to_string(),
                         serde_json::Value::String("message".to_string()),
                     );
-                    message_param.insert(
-                        "value".to_string(),
-                        serde_json::Value::String(message),
-                    );
+                    message_param.insert("value".to_string(), serde_json::Value::String(message));
                     parameter_list.push(serde_json::Value::Object(message_param));
                 }
 

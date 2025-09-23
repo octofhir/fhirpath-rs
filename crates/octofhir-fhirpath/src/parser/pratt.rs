@@ -474,8 +474,10 @@ fn fhirpath_parser<'a>()
         // Layer 4: Low precedence logical operators (and, xor, or, implies)
         with_medium_precedence.pratt((
             // Type operators - precedence 3.5 (lower than membership, same as XOR but evaluated first)
-            infix(left(3), just("is").padded(), |left, _, right, _| {
-                match right {
+            infix(
+                left(3),
+                just("is").padded(),
+                |left, _, right, _| match right {
                     ExpressionNode::Identifier(ident) => ExpressionNode::TypeCheck(TypeCheckNode {
                         expression: Box::new(left),
                         target_type: ident.name,
@@ -504,10 +506,12 @@ fn fhirpath_parser<'a>()
                         right: Box::new(other),
                         location: None,
                     }),
-                }
-            }),
-            infix(left(3), just("as").padded(), |left, _, right, _| {
-                match right {
+                },
+            ),
+            infix(
+                left(3),
+                just("as").padded(),
+                |left, _, right, _| match right {
                     ExpressionNode::Identifier(ident) => ExpressionNode::TypeCast(TypeCastNode {
                         expression: Box::new(left),
                         target_type: ident.name,
@@ -536,8 +540,8 @@ fn fhirpath_parser<'a>()
                         right: Box::new(other),
                         location: None,
                     }),
-                }
-            }),
+                },
+            ),
             // Logical AND - precedence 4
             infix(left(4), just("and").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
