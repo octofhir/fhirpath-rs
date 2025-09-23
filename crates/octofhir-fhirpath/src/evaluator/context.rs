@@ -30,6 +30,8 @@ pub struct EvaluationContext {
     /// Parent context for variable scoping
     /// Variables are resolved by checking current scope, then walking parent chain
     parent_context: Option<Box<EvaluationContext>>,
+    /// Shared cache for resolved references to avoid repeated cloning and scanning
+    resolution_cache: std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>>,
 }
 
 /// Helper to create well-known environment variables following FHIR specification
@@ -111,6 +113,7 @@ impl EvaluationContext {
                 lock_free_map
             },
             parent_context: None,
+            resolution_cache: std::sync::Arc::new(LockFreeHashMap::new()),
         };
 
         // Set $this to the root input collection for root-level evaluation
@@ -182,6 +185,7 @@ impl EvaluationContext {
                 lock_free_map
             },
             parent_context: None, // Independent context has no parent
+            resolution_cache: self.resolution_cache.clone(),
         }
     }
 
@@ -195,6 +199,7 @@ impl EvaluationContext {
             trace_provider: self.trace_provider.clone(),
             variables: LockFreeHashMap::new(), // Empty variables in nested scope
             parent_context: Some(Box::new(self.clone())), // Parent chain
+            resolution_cache: self.resolution_cache.clone(),
         }
     }
 
@@ -208,6 +213,7 @@ impl EvaluationContext {
             trace_provider: self.trace_provider.clone(),
             variables: LockFreeHashMap::new(), // Empty variables for child context
             parent_context: Some(Box::new(self.clone())), // Set parent to inherit variables
+            resolution_cache: self.resolution_cache.clone(),
         }
     }
 
@@ -262,6 +268,11 @@ impl EvaluationContext {
     pub fn trace_provider(&self) -> Option<&SharedTraceProvider> {
         self.trace_provider.as_ref()
     }
+
+    /// Get the shared resolution cache used by resolve() and other reference operations
+    pub fn resolution_cache(&self) -> &std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>> {
+        &self.resolution_cache
+    }
 }
 
 /// Clone implementation for EvaluationContext
@@ -284,6 +295,7 @@ impl Clone for EvaluationContext {
                 new_map
             },
             parent_context: self.parent_context.clone(),
+            resolution_cache: self.resolution_cache.clone(),
         }
     }
 }

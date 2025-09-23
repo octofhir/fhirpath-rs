@@ -68,6 +68,22 @@ impl ResolveFunctionEvaluator {
         reference: &str,
         context: &EvaluationContext,
     ) -> Option<std::sync::Arc<serde_json::Value>> {
+        // Build cache key based on reference form
+        let cache_key = if let Some(stripped) = reference.strip_prefix('#') {
+            format!("contained:{}", stripped)
+        } else if reference.contains('/') {
+            // e.g., "Patient/123"
+            format!("bundle:{}", reference)
+        } else {
+            // simple id referring to contained
+            format!("contained:{}", reference)
+        };
+
+        // Fast path: check shared resolution cache
+        if let Some(cached) = context.resolution_cache().pin().get(&cache_key) {
+            return Some(cached.clone());
+        }
+
         // Determine the appropriate root for resolution.
         // Prefer variables that actually hold a Resource, walking parent scopes via get_variable.
         let mut root_resource_opt: Option<FhirPathValue> = None;
@@ -97,7 +113,7 @@ impl ResolveFunctionEvaluator {
             }
         }
 
-        if let Some(root_resource) = root_resource_opt {
+        let result = if let Some(root_resource) = root_resource_opt {
             // Create a single-item collection containing the root resource
             let root_collection = crate::core::Collection::from(vec![root_resource]);
 
@@ -114,7 +130,17 @@ impl ResolveFunctionEvaluator {
             }
         } else {
             None
+        };
+
+        // Populate cache on hit
+        if let Some(ref arc_json) = result {
+            context
+                .resolution_cache()
+                .pin()
+                .insert(cache_key, arc_json.clone());
         }
+
+        result
     }
 
     /// Resolve contained resource reference and return the resolved JSON

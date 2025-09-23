@@ -89,31 +89,39 @@ bench:
     @echo "=================================="
     @echo "📊 Running comprehensive benchmark suite..."
     @echo "This tests tokenizer, parser, and evaluator across complexity levels"
-    cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench benchmark --run
+    cargo run --package fhirpath-dev-tools --bin fhirpath-bench benchmark --run
     @echo "✅ Benchmark complete! Results show ops/sec for each operation."
 
 bench-simple:
     @echo "🟢 Running Simple Expression Benchmarks"
-    cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench profile "Patient.active"
+    cargo run --package fhirpath-dev-tools --bin fhirpath-bench profile "Patient.active"
 
 bench-medium:
     @echo "🟡 Running Medium Expression Benchmarks"
-    cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench profile "Patient.name.where(use = 'official').family"
+    cargo run --package fhirpath-dev-tools --bin fhirpath-bench profile "Patient.name.where(use = 'official').family"
 
 bench-complex:
     @echo "🔴 Running Complex Expression Benchmarks"
-    cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench profile "Bundle.entry.resource.count()" --bundle
+    cargo run --package fhirpath-dev-tools --bin fhirpath-bench profile "Bundle.entry.resource.count()" --bundle
+
+# Profile the problematic resolve().count() expression with Bundle and generate a flamegraph
+profile-slow:
+    @echo "🔥 Profiling slow expression with flamegraph (Bundle)..."
+    cargo run --package fhirpath-dev-tools --bin fhirpath-bench \
+      profile "Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()" \
+      --bundle --iterations 200 --flame --freq 99 --output ./profile_output
+    @echo "✅ Profile complete. See profile_output/profile_results.txt and flamegraph_*.svg"
 
 bench-report:
     @echo "📄 Generating Benchmark Report"
     @echo "=============================="
-    cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench benchmark --run --output benchmark.md
+    cargo run --package fhirpath-dev-tools --bin fhirpath-bench benchmark --run --output benchmark.md
     @echo "✅ Benchmark report generated: benchmark.md"
 
 bench-list:
     @echo "📋 Available Benchmark Expressions"
     @echo "=================================="
-    cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench list
+    cargo run --package fhirpath-dev-tools --bin fhirpath-bench list
 
 
 bench-full: bench bench-report
@@ -160,7 +168,7 @@ docs-preview:
 profile EXPRESSION *ARGS:
     @echo "🔍 Profiling Expression: {{EXPRESSION}}"
     @echo "======================================="
-    cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench profile "{{EXPRESSION}}" {{ARGS}}
+    cargo run --package fhirpath-dev-tools --bin fhirpath-bench profile "{{EXPRESSION}}" {{ARGS}}
     @echo "✅ Profiling complete! Check ./profile_output/ for results"
 
 profile-patient EXPRESSION:

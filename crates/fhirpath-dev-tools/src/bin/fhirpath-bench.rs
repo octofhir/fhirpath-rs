@@ -4,6 +4,9 @@ use octofhir_fhir_model::FhirVersion;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+// Memory and system info
+use sysinfo::{System, Pid};
+
 /// Format numbers in human-friendly format (K, M, etc.)
 fn format_ops_per_sec(ops_per_sec: f64) -> String {
     if ops_per_sec >= 1_000_000.0 {
@@ -25,11 +28,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Profile a FHIRPath expression and generate flamegraph
+    /// Profile a FHIRPath expression and optionally generate a flamegraph
     Profile {
         /// FHIRPath expression to profile
         expression: String,
-        /// Output directory for flamegraph files
+        /// Output directory for profile artifacts (results + flamegraph)
         #[arg(short, long, default_value = "./profile_output")]
         output: PathBuf,
         /// Number of iterations for profiling
@@ -38,6 +41,12 @@ enum Commands {
         /// Use bundle data instead of patient data
         #[arg(short, long)]
         bundle: bool,
+        /// Generate a CPU flamegraph using pprof
+        #[arg(long, default_value_t = false)]
+        flame: bool,
+        /// Sampling frequency (Hz) for pprof (only if --flame)
+        #[arg(long, default_value_t = 99)]
+        freq: i32,
     },
     /// Generate benchmark.md file with results
     Benchmark {
@@ -196,13 +205,18 @@ async fn main() -> Result<()> {
             output,
             iterations,
             bundle,
+            flame,
+            freq,
         } => {
             println!("Profiling expression: {expression}");
             println!("Output directory: {}", output.display());
             println!("Iterations: {iterations}");
             println!("Using {} data", if bundle { "bundle" } else { "patient" });
+            if flame {
+                println!("Flamegraph: enabled (freq={} Hz)", freq);
+            }
 
-            profile_expression(&expression, output, iterations, bundle).await?;
+            profile_expression(&expression, output, iterations, bundle, flame, freq).await?;
         }
         Commands::Benchmark { output, run } => {
             if run {
@@ -228,6 +242,8 @@ async fn profile_expression(
     output_dir: PathBuf,
     iterations: usize,
     use_bundle: bool,
+    flame: bool,
+    freq: i32,
 ) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirschema::EmbeddedSchemaProvider;
@@ -253,7 +269,27 @@ async fn profile_expression(
 
     println!("Running {iterations} iterations...");
 
-    // Simple profiling - just measure time for now
+    // Optional CPU profiling
+    let mut flamegraph_path: Option<PathBuf> = None;
+    let do_flame = if flame && cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        eprintln!("⚠️  Skipping flamegraph on macOS aarch64 due to known profiler instability. Use Linux for flamegraphs.");
+        false
+    } else {
+        flame
+    };
+    let profiler = if do_flame {
+        match pprof::ProfilerGuard::new(freq) {
+            Ok(guard) => Some(guard),
+            Err(e) => {
+                eprintln!("Failed to start pprof profiler: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Measure timing
     let start = std::time::Instant::now();
     for i in 0..iterations {
         if i % 100 == 0 && i > 0 {
@@ -274,6 +310,42 @@ async fn profile_expression(
     }
     let duration = start.elapsed();
 
+    // Generate flamegraph if enabled
+    if let Some(guard) = profiler {
+        use std::fs::File;
+        // Sanitize file name
+        fn sanitize_for_filename(s: &str) -> String {
+            let mut out = String::with_capacity(s.len());
+            for ch in s.chars() {
+                if ch.is_ascii_alphanumeric() {
+                    out.push(ch);
+                } else {
+                    out.push('_');
+                }
+            }
+            // Limit length
+            if out.len() > 120 { out.truncate(120); }
+            out
+        }
+        let fname = format!("flamegraph_{}.svg", sanitize_for_filename(expression));
+        let path = output_dir.join(fname);
+        match guard.report().build() {
+            Ok(report) => {
+                match File::create(&path) {
+                    Ok(mut file) => {
+                        if let Err(e) = report.flamegraph(&mut file) {
+                            eprintln!("Failed to write flamegraph: {e}");
+                        } else {
+                            flamegraph_path = Some(path);
+                        }
+                    }
+                    Err(e) => eprintln!("Failed to create flamegraph file: {e}"),
+                }
+            }
+            Err(e) => eprintln!("Failed to build pprof report: {e}"),
+        }
+    }
+
     let avg_time_ms = duration.as_millis() as f64 / iterations as f64;
     let ops_per_sec = iterations as f64 / duration.as_secs_f64();
 
@@ -281,10 +353,11 @@ async fn profile_expression(
     println!("Total time: {:.2}s", duration.as_secs_f64());
     println!("Average time per iteration: {avg_time_ms:.2}ms");
     println!("Operations per second: {}", format_ops_per_sec(ops_per_sec));
+    if let Some(ref p) = flamegraph_path { println!("Flamegraph written to: {}", p.display()); }
 
     // Write results to file
     let results_file = output_dir.join("profile_results.txt");
-    let results_content = format!(
+    let mut results_content = format!(
         "Expression: {}\n\
          Iterations: {}\n\
          Data type: {}\n\
@@ -298,6 +371,7 @@ async fn profile_expression(
         avg_time_ms,
         format_ops_per_sec(ops_per_sec)
     );
+    if let Some(p) = &flamegraph_path { results_content.push_str(&format!("Flamegraph: {}\n", p.display())); }
 
     fs::write(&results_file, results_content)?;
     println!("Results written to: {}", results_file.display());
@@ -330,6 +404,42 @@ fn list_expressions() {
     println!("  fhirpath-bench profile \"Bundle.entry.resource.count()\" --bundle");
 }
 
+fn get_rss_bytes() -> Option<u64> {
+    let mut sys = System::new();
+    sys.refresh_processes();
+    let pid = Pid::from_u32(std::process::id());
+    sys.process(pid).map(|p| p.memory() as u64 * 1024)
+}
+
+fn format_bytes(bytes: u64) -> String {
+    const KB: f64 = 1024.0;
+    const MB: f64 = KB * 1024.0;
+    const GB: f64 = MB * 1024.0;
+    let b = bytes as f64;
+    if b >= GB {
+        format!("{:.2} GiB", b / GB)
+    } else if b >= MB {
+        format!("{:.2} MiB", b / MB)
+    } else if b >= KB {
+        format!("{:.2} KiB", b / KB)
+    } else {
+        format!("{} B", bytes)
+    }
+}
+
+fn parse_ops_value(s: &str) -> Option<f64> {
+    // expects like "35.0K ops/sec" or "1234 ops/sec"
+    let s = s.trim();
+    let num_part = s.split_whitespace().next()?;
+    if let Some(stripped) = num_part.strip_suffix('K') {
+        stripped.parse::<f64>().ok().map(|v| v * 1_000.0)
+    } else if let Some(stripped) = num_part.strip_suffix('M') {
+        stripped.parse::<f64>().ok().map(|v| v * 1_000_000.0)
+    } else {
+        num_part.parse::<f64>().ok()
+    }
+}
+
 async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirpath::parse_expression;
@@ -339,6 +449,7 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
     use std::time::Instant;
 
     println!("Running benchmarks directly...");
+    let mem_start = get_rss_bytes();
     let start = Instant::now();
 
     let expressions = BenchmarkExpressions::default();
@@ -406,12 +517,14 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
         data: &serde_json::Value,
         engine: &FhirPathEngine,
         model_provider: Arc<dyn octofhir_fhir_model::ModelProvider>,
+        record_memory: bool,
     ) -> Vec<String> {
         let mut bench_results = Vec::new();
         println!("  Running {name} benchmarks...");
 
         for expr in expressions {
             let iterations = 100; // Fewer iterations for evaluation (more expensive)
+            let mem_before = if record_memory { get_rss_bytes() } else { None };
             let start_time = Instant::now();
 
             for _ in 0..iterations {
@@ -432,7 +545,22 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
             let elapsed = start_time.elapsed();
             let ops_per_sec = (iterations as f64) / elapsed.as_secs_f64();
 
-            bench_results.push(format!("  - `{expr}`: {}", format_ops_per_sec(ops_per_sec)));
+            let mem_suffix = if record_memory {
+                if let (Some(ms), Some(me)) = (mem_before, get_rss_bytes()) {
+                    let delta = me.saturating_sub(ms);
+                    format!(" (ΔRSS: {})", format_bytes(delta))
+                } else {
+                    " (ΔRSS: n/a)".to_string()
+                }
+            } else {
+                String::new()
+            };
+
+            bench_results.push(format!(
+                "  - `{expr}`: {}{}",
+                format_ops_per_sec(ops_per_sec),
+                mem_suffix
+            ));
         }
 
         bench_results
@@ -468,6 +596,7 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
             &patient_data,
             &engine,
             model_provider.clone(),
+            false,
         )
         .await,
     );
@@ -478,6 +607,7 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
             &patient_data,
             &engine,
             model_provider.clone(),
+            false,
         )
         .await,
     );
@@ -488,6 +618,7 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
             &bundle_data,
             &engine,
             model_provider.clone(),
+            true,
         )
         .await,
     );
@@ -495,9 +626,11 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
     let duration = start.elapsed();
     println!("Benchmarks completed in {:.2}s", duration.as_secs_f64());
 
+    let mem_end = get_rss_bytes();
+
     // Generate markdown content with actual results
     let benchmark_output = results.join("\n");
-    let markdown_content = parse_and_format_results(&benchmark_output);
+    let markdown_content = parse_and_format_results(&benchmark_output, mem_start.zip(mem_end));
 
     fs::write(output_path, markdown_content)?;
     println!("Benchmark results written to: {}", output_path.display());
@@ -505,8 +638,116 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn parse_and_format_results(benchmark_output: &str) -> String {
+fn parse_and_format_results(benchmark_output: &str, mem_start_end: Option<(u64, u64)>) -> String {
+    use std::collections::{HashMap, HashSet};
+
     let expressions = BenchmarkExpressions::default();
+
+    let simple: HashSet<&'static str> = expressions.simple.iter().copied().collect();
+    let medium: HashSet<&'static str> = expressions.medium.iter().copied().collect();
+    let complex: HashSet<&'static str> = expressions.complex.iter().copied().collect();
+
+    // Accumulators: (section, category) -> (sum ops, count)
+    let mut sums: HashMap<(&str, &str), (f64, usize)> = HashMap::new();
+
+    // Rows for the complex evaluation memory table: (expr, ops_fmt, mem_fmt)
+    let mut complex_eval_rows: Vec<(String, String, String)> = Vec::new();
+
+    // Current section tracker
+    let mut section = ""; // "Tokenize" | "Parse" | "Evaluate"
+
+    for raw in benchmark_output.lines() {
+        let l = raw.trim();
+        if l.starts_with("## ") {
+            if l.contains("Tokenization") {
+                section = "Tokenize";
+            } else if l.contains("Parsing") {
+                section = "Parse";
+            } else if l.contains("Evaluation") {
+                section = "Evaluate";
+            }
+            continue;
+        }
+
+        // Benchmark entry lines look like: "- `expr`: 12.3K ops/sec (ΔRSS: 4.2 MiB)"
+        if !(l.contains('`') && l.contains("ops/sec")) {
+            continue;
+        }
+
+        // Extract expression between backticks
+        let expr = if let Some(start) = l.find('`') {
+            if let Some(end_rel) = l[start + 1..].find('`') {
+                &l[start + 1..start + 1 + end_rel]
+            } else {
+                continue;
+            }
+        } else {
+            continue;
+        };
+
+        // Extract ops/sec numeric value (for averaging) and format string
+        let ops_str = l.rsplit_once(':').map(|(_, rhs)| rhs.trim()).unwrap_or("");
+        let ops = parse_ops_value(ops_str).unwrap_or(0.0);
+        let ops_fmt = format_ops_per_sec(ops);
+
+        let category = if simple.contains(expr) {
+            "Simple"
+        } else if medium.contains(expr) {
+            "Medium"
+        } else if complex.contains(expr) {
+            "Complex"
+        } else {
+            "Unknown"
+        };
+
+        // Update averages
+        let key = (section, category);
+        let entry = sums.entry(key).or_insert((0.0, 0));
+        entry.0 += ops;
+        entry.1 += 1;
+
+        // Capture complex evaluation memory rows
+        if section == "Evaluate" && category == "Complex" {
+            let mem_fmt = if let Some(tail) = l.split("ΔRSS:").nth(1) {
+                tail.trim().trim_end_matches(')').to_string()
+            } else {
+                "n/a".to_string()
+            };
+            complex_eval_rows.push((expr.to_string(), ops_fmt.clone(), mem_fmt));
+        }
+    }
+
+    let avg = |sec: &str, cat: &str| -> String {
+        if let Some((sum, cnt)) = sums.get(&(sec, cat)) {
+            if *cnt > 0 {
+                return format_ops_per_sec(sum / *cnt as f64);
+            }
+        }
+        "-".to_string()
+    };
+
+    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    let tool_ver = env!("CARGO_PKG_VERSION");
+
+    let (mem_start_s, mem_end_s, mem_delta_s) = if let Some((ms, me)) = mem_start_end {
+        let delta = me.saturating_sub(ms);
+        (format_bytes(ms), format_bytes(me), format_bytes(delta))
+    } else {
+        ("n/a".to_string(), "n/a".to_string(), "n/a".to_string())
+    };
+
+    // Build complex evaluation memory table (if we have rows)
+    let complex_mem_table = if complex_eval_rows.is_empty() {
+        String::new()
+    } else {
+        let mut s = String::from("\n## Complex Evaluation Memory by Expression\n\n| Expression | Ops/sec | ΔRSS |\n|------------|---------|------|\n");
+        for (expr, ops_fmt, mem_fmt) in complex_eval_rows {
+            s.push_str(&format!("| `{}` | {} | {} |\n", expr, ops_fmt, mem_fmt));
+        }
+        s
+    };
 
     format!(
         r#"# FHIRPath-rs Benchmark Results
@@ -519,6 +760,12 @@ This benchmark suite measures the performance of FHIRPath-rs library across thre
 - **Tokenization**: Converting FHIRPath expressions into tokens
 - **Parsing**: Building AST from tokens  
 - **Evaluation**: Executing expressions against FHIR data
+
+## Environment
+- Tool: fhirpath-bench v{}
+- OS/Arch: {} / {}
+- CPU cores: {}
+- FHIR Schema: R5
 
 ## Expression Categories
 
@@ -544,15 +791,20 @@ Bundle operations and resolve() calls:
 
 | Category | Operation | Avg Ops/sec | Notes |
 |----------|-----------|-------------|--------|
-| Simple   | Tokenize  | -           | Basic expressions |
-| Simple   | Parse     | -           | Basic expressions |
-| Simple   | Evaluate  | -           | Basic expressions |
-| Medium   | Tokenize  | -           | Filtered queries |
-| Medium   | Parse     | -           | Filtered queries |
-| Medium   | Evaluate  | -           | Filtered queries |
-| Complex  | Tokenize  | -           | Bundle operations |
-| Complex  | Parse     | -           | Bundle operations |
-| Complex  | Evaluate  | -           | Bundle operations |
+| Simple   | Tokenize  | {} | Basic expressions |
+| Simple   | Parse     | {} | Basic expressions |
+| Simple   | Evaluate  | {} | Basic expressions |
+| Medium   | Tokenize  | {} | Filtered queries |
+| Medium   | Parse     | {} | Filtered queries |
+| Medium   | Evaluate  | {} | Filtered queries |
+| Complex  | Tokenize  | {} | Bundle operations |
+| Complex  | Parse     | {} | Bundle operations |
+| Complex  | Evaluate  | {} | Bundle operations |
+{}
+## Memory
+- RSS at start: {}
+- RSS at end: {}
+- RSS delta: {}
 
 ## Usage
 
@@ -573,6 +825,10 @@ fhirpath-bench benchmark --run --output benchmark.md
 ```
 "#,
         chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"),
+        tool_ver,
+        os,
+        arch,
+        cores,
         expressions
             .simple
             .iter()
@@ -592,6 +848,19 @@ fhirpath-bench benchmark --run --output benchmark.md
             .collect::<Vec<_>>()
             .join("\n"),
         benchmark_output,
+        avg("Tokenize", "Simple"),
+        avg("Parse", "Simple"),
+        avg("Evaluate", "Simple"),
+        avg("Tokenize", "Medium"),
+        avg("Parse", "Medium"),
+        avg("Evaluate", "Medium"),
+        avg("Tokenize", "Complex"),
+        avg("Parse", "Complex"),
+        avg("Evaluate", "Complex"),
+        complex_mem_table,
+        mem_start_s,
+        mem_end_s,
+        mem_delta_s,
     )
 }
 

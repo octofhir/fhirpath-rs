@@ -23,7 +23,7 @@ name = "test-coverage"
 path = "src/bin/test-coverage.rs"
 
 [[bin]]
-name = "octofhir-fhirpath-bench"
+name = "fhirpath-bench"
 path = "src/bin/fhirpath-bench.rs"
 
 [[bin]]
@@ -49,3 +49,5 @@ clap = { workspace = true }
 chrono = { workspace = true }
 quick-xml = { workspace = true }
 roxmltree = "0.20"
+sysinfo = "0.30"
+pprof = { version = "0.13", features = ["flamegraph"] }
