@@ -50,17 +50,21 @@ impl NegateOperatorEvaluator {
             FhirPathValue::Quantity {
                 value,
                 unit,
+                code,
+                system,
                 ucum_unit,
                 calendar_unit,
                 primitive_element,
                 type_info,
             } => Ok(FhirPathValue::Quantity {
-                value: -value,
+                value: -*value,
                 unit: unit.clone(),
+                code: code.clone(),
+                system: system.clone(),
                 ucum_unit: ucum_unit.clone(),
                 calendar_unit: *calendar_unit,
-                primitive_element: primitive_element.clone(),
                 type_info: type_info.clone(),
+                primitive_element: primitive_element.clone(),
             }),
 
             _ => Err(crate::core::FhirPathError::evaluation_error(

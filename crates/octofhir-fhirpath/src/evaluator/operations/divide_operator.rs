@@ -91,6 +91,8 @@ impl DivideOperatorEvaluator {
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lc,
+                    system: ls,
                     ..
                 },
                 FhirPathValue::Integer(r, _, _),
@@ -102,15 +104,19 @@ impl DivideOperatorEvaluator {
                     ));
                 }
                 let right_decimal = Decimal::from(*r);
-                Ok(Some(FhirPathValue::quantity(
+                Ok(Some(FhirPathValue::quantity_with_components(
                     *lv / right_decimal,
                     lu.clone(),
+                    lc.clone(),
+                    ls.clone(),
                 )))
             }
             (
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lc,
+                    system: ls,
                     ..
                 },
                 FhirPathValue::Decimal(r, _, _),
@@ -121,7 +127,12 @@ impl DivideOperatorEvaluator {
                         "Division by zero".to_string(),
                     ));
                 }
-                Ok(Some(FhirPathValue::quantity(*lv / *r, lu.clone())))
+                Ok(Some(FhirPathValue::quantity_with_components(
+                    *lv / *r,
+                    lu.clone(),
+                    lc.clone(),
+                    ls.clone(),
+                )))
             }
 
             // Quantity / Quantity = Decimal (unitless) or Quantity (with unit division)
@@ -129,11 +140,15 @@ impl DivideOperatorEvaluator {
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lc,
+                    system: ls,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    code: rc,
+                    system: rs,
                     ..
                 },
             ) => {
@@ -146,9 +161,11 @@ impl DivideOperatorEvaluator {
 
                 // If same units, result is quantity with unit "1" (dimensionless)
                 if lu == ru {
-                    Ok(Some(FhirPathValue::quantity(
+                    Ok(Some(FhirPathValue::quantity_with_components(
                         *lv / *rv,
                         Some("1".to_string()),
+                        None,
+                        None,
                     )))
                 } else {
                     // TODO: Implement proper unit division using UCUM
@@ -159,7 +176,12 @@ impl DivideOperatorEvaluator {
                         (None, Some(r)) => Some(format!("1/{r}")),
                         (Some(l), Some(r)) => Some(format!("{l}/{r}")),
                     };
-                    Ok(Some(FhirPathValue::quantity(*lv / *rv, combined_unit)))
+                    Ok(Some(FhirPathValue::quantity_with_components(
+                        *lv / *rv,
+                        combined_unit,
+                        lc.clone().or_else(|| rc.clone()),
+                        ls.clone().or_else(|| rs.clone()),
+                    )))
                 }
             }
 

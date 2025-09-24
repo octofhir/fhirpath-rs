@@ -63,6 +63,7 @@ impl ServerRegistry {
             let engine_start = std::time::Instant::now();
             let eval_engine =
                 FhirPathEngine::new(function_registry.clone(), model_provider_arc.clone()).await?;
+
             let engine_time = engine_start.elapsed();
             info!("📊 Engine for {} created in {:?}", version, engine_time);
 

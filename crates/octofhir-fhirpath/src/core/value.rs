@@ -94,20 +94,20 @@ pub mod utils {
             .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
             .unwrap_or_default();
 
-        // For quantity comparisons, use the "code" field (UCUM) for calculations
-        // The "unit" field is for human display but "code" is canonical for math
-        let unit = obj
+        let unit_display = obj
+            .get("unit")
+            .and_then(|u| u.as_str())
+            .map(|s| s.to_string());
+        let code = obj
             .get("code")
             .and_then(|c| c.as_str())
-            .map(|s| s.to_string())
-            .or_else(|| {
-                // Fallback to unit if no code field
-                obj.get("unit")
-                    .and_then(|u| u.as_str())
-                    .map(|s| s.to_string())
-            });
+            .map(|s| s.to_string());
+        let system = obj
+            .get("system")
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string());
 
-        FhirPathValue::quantity(value, unit)
+        FhirPathValue::quantity_with_components(value, unit_display, code, system)
     }
 
     /// Convert a JsonValue to a FhirPathValue

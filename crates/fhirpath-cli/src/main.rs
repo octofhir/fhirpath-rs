@@ -30,6 +30,7 @@ use std::fs;
 use std::process;
 use std::sync::Arc;
 use std::time::Instant;
+use tokio::runtime::Builder;
 
 /// Create a shared EmbeddedModelProvider instance for all commands
 async fn create_shared_model_provider() -> anyhow::Result<Arc<EmbeddedModelProvider>> {
@@ -166,11 +167,22 @@ fn convert_diagnostic_to_ariadne(
     }
 }
 
-#[tokio::main]
-async fn main() {
-    // Setup human-panic for better error messages
+fn main() {
     human_panic::setup_panic!();
 
+    let runtime = Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(8 * 1024 * 1024)
+        .build()
+        .expect("Failed to build Tokio runtime");
+
+    if let Err(err) = runtime.block_on(async_main()) {
+        eprintln!("❌ {err}");
+        process::exit(1);
+    }
+}
+
+async fn async_main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     // Create shared model provider for all commands
@@ -354,6 +366,8 @@ async fn main() {
             .await;
         }
     }
+
+    Ok(())
 }
 
 async fn handle_evaluate(

@@ -46,59 +46,20 @@ impl StandardResponseBuilder {
 
         timing_parts.push(FhirPathLabResponseParameter {
             name: "parse".to_string(),
-            extension: None,
-            value_string: None,
-            value_code: None,
             value_decimal: Some(parse_time.as_secs_f64() * 1000.0),
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         });
 
         timing_parts.push(FhirPathLabResponseParameter {
             name: "evaluation".to_string(),
-            extension: None,
-            value_string: None,
-            value_code: None,
             value_decimal: Some(eval_time.as_secs_f64() * 1000.0),
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         });
 
         timing_parts.push(FhirPathLabResponseParameter {
             name: "total".to_string(),
-            extension: None,
-            value_string: None,
-            value_code: None,
             value_decimal: Some(total_time.as_secs_f64() * 1000.0),
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         });
 
         self.response.add_complex_parameter("timing", timing_parts);
@@ -131,79 +92,27 @@ impl StandardResponseBuilder {
 
         error_parts.push(FhirPathLabResponseParameter {
             name: "severity".to_string(),
-            extension: None,
-            value_string: None,
             value_code: Some("error".to_string()),
-            value_decimal: None,
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         });
 
         error_parts.push(FhirPathLabResponseParameter {
             name: "code".to_string(),
-            extension: None,
-            value_string: None,
             value_code: Some(error_code.to_string()),
-            value_decimal: None,
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         });
 
         error_parts.push(FhirPathLabResponseParameter {
             name: "message".to_string(),
-            extension: None,
             value_string: Some(error_message.to_string()),
-            value_code: None,
-            value_decimal: None,
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         });
 
         if let Some(details_text) = details {
             error_parts.push(FhirPathLabResponseParameter {
                 name: "details".to_string(),
-                extension: None,
                 value_string: Some(details_text),
-                value_code: None,
-                value_decimal: None,
-                value_boolean: None,
-                value_integer: None,
-                value_uri: None,
-                value_date_time: None,
-                value_date: None,
-                value_human_name: None,
-                value_identifier: None,
-                value_address: None,
-                value_contact_point: None,
-                resource: None,
-                part: None,
+                ..Default::default()
             });
         }
 
@@ -218,40 +127,14 @@ impl StandardResponseBuilder {
 
         metadata_parts.push(FhirPathLabResponseParameter {
             name: "fhirVersion".to_string(),
-            extension: None,
             value_string: Some(fhir_version.to_string()),
-            value_code: None,
-            value_decimal: None,
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         });
 
         metadata_parts.push(FhirPathLabResponseParameter {
             name: "engineReused".to_string(),
-            extension: None,
             value_string: Some(engine_reused.to_string()),
-            value_code: None,
-            value_decimal: None,
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         });
 
         self.response
@@ -263,21 +146,8 @@ impl StandardResponseBuilder {
     pub fn with_evaluator(mut self, evaluator_name: &str) -> Self {
         let evaluator_part = vec![FhirPathLabResponseParameter {
             name: "evaluator".to_string(),
-            extension: None,
             value_string: Some(evaluator_name.to_string()),
-            value_code: None,
-            value_decimal: None,
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
-            part: None,
+            ..Default::default()
         }];
 
         self.response
@@ -294,184 +164,67 @@ impl StandardResponseBuilder {
     fn add_result_parameter(&mut self, value: JsonValue) {
         let result_parts = match &value {
             JsonValue::String(s) => {
-                // Check if this looks like a FHIR primitive type
-                if self.is_fhir_code(s) {
+                // Without concrete TypeInfo here, default to valueString. Code-like strings are
+                // handled in higher-level handlers that have access to TypeInfo.
+                vec![FhirPathLabResponseParameter {
+                    name: "string".to_string(),
+                    value_string: Some(s.clone()),
+                    ..Default::default()
+                }]
+            }
+            JsonValue::Number(n) => {
+                if let Some(i) = n.as_i64() {
                     vec![FhirPathLabResponseParameter {
-                        name: "code".to_string(),
-                        extension: None,
-                        value_string: None,
-                        value_code: Some(s.clone()),
-                        value_decimal: None,
-                        value_boolean: None,
-                        value_integer: None,
-                        value_uri: None,
-                        value_date_time: None,
-                        value_date: None,
-                        value_human_name: None,
-                        value_identifier: None,
-                        value_address: None,
-                        value_contact_point: None,
-                        resource: None,
-                        part: None,
+                        name: "integer".to_string(),
+                        value_integer: Some(i as i32),
+                        ..Default::default()
                     }]
                 } else {
                     vec![FhirPathLabResponseParameter {
-                        name: "string".to_string(),
-                        extension: None,
-                        value_string: Some(s.clone()),
-                        value_code: None,
-                        value_decimal: None,
-                        value_boolean: None,
-                        value_integer: None,
-                        value_uri: None,
-                        value_date_time: None,
-                        value_date: None,
-                        value_human_name: None,
-                        value_identifier: None,
-                        value_address: None,
-                        value_contact_point: None,
-                        resource: None,
-                        part: None,
+                        name: "decimal".to_string(),
+                        value_decimal: n.as_f64(),
+                        ..Default::default()
                     }]
                 }
-            }
-            JsonValue::Number(n) => {
-                vec![FhirPathLabResponseParameter {
-                    name: "decimal".to_string(),
-                    extension: None,
-                    value_string: None,
-                    value_code: None,
-                    value_decimal: n.as_f64(),
-                    value_boolean: None,
-                    value_integer: None,
-                    value_uri: None,
-                    value_date_time: None,
-                    value_date: None,
-                    value_human_name: None,
-                    value_identifier: None,
-                    value_address: None,
-                    value_contact_point: None,
-                    resource: None,
-                    part: None,
-                }]
             }
             JsonValue::Bool(b) => {
                 vec![FhirPathLabResponseParameter {
                     name: "boolean".to_string(),
-                    extension: None,
-                    value_string: Some(b.to_string()),
-                    value_code: None,
-                    value_decimal: None,
-                    value_boolean: None,
-                    value_integer: None,
-                    value_uri: None,
-                    value_date_time: None,
-                    value_date: None,
-                    value_human_name: None,
-                    value_identifier: None,
-                    value_address: None,
-                    value_contact_point: None,
-                    resource: None,
-                    part: None,
+                    value_boolean: Some(*b),
+                    ..Default::default()
                 }]
             }
             JsonValue::Object(obj) => {
-                // Check for FHIR complex types
+                // Heuristics for common FHIR complex types
                 if self.is_fhir_human_name(obj) {
                     vec![FhirPathLabResponseParameter {
                         name: "humanName".to_string(),
-                        extension: None,
-                        value_string: None,
-                        value_code: None,
-                        value_decimal: None,
-                        value_boolean: None,
-                        value_integer: None,
-                        value_uri: None,
-                        value_date_time: None,
-                        value_date: None,
                         value_human_name: Some(value.clone()),
-                        value_identifier: None,
-                        value_address: None,
-                        value_contact_point: None,
-                        resource: None,
-                        part: None,
+                        ..Default::default()
                     }]
                 } else if self.is_fhir_identifier(obj) {
                     vec![FhirPathLabResponseParameter {
                         name: "identifier".to_string(),
-                        extension: None,
-                        value_string: None,
-                        value_code: None,
-                        value_decimal: None,
-                        value_boolean: None,
-                        value_integer: None,
-                        value_uri: None,
-                        value_date_time: None,
-                        value_date: None,
-                        value_human_name: None,
                         value_identifier: Some(value.clone()),
-                        value_address: None,
-                        value_contact_point: None,
-                        resource: None,
-                        part: None,
+                        ..Default::default()
                     }]
                 } else if self.is_fhir_address(obj) {
                     vec![FhirPathLabResponseParameter {
                         name: "address".to_string(),
-                        extension: None,
-                        value_string: None,
-                        value_code: None,
-                        value_decimal: None,
-                        value_boolean: None,
-                        value_integer: None,
-                        value_uri: None,
-                        value_date_time: None,
-                        value_date: None,
-                        value_human_name: None,
-                        value_identifier: None,
                         value_address: Some(value.clone()),
-                        value_contact_point: None,
-                        resource: None,
-                        part: None,
+                        ..Default::default()
                     }]
                 } else if self.is_fhir_contact_point(obj) {
                     vec![FhirPathLabResponseParameter {
                         name: "contactPoint".to_string(),
-                        extension: None,
-                        value_string: None,
-                        value_code: None,
-                        value_decimal: None,
-                        value_boolean: None,
-                        value_integer: None,
-                        value_uri: None,
-                        value_date_time: None,
-                        value_date: None,
-                        value_human_name: None,
-                        value_identifier: None,
-                        value_address: None,
                         value_contact_point: Some(value.clone()),
-                        resource: None,
-                        part: None,
+                        ..Default::default()
                     }]
                 } else {
-                    // Generic resource/object
                     vec![FhirPathLabResponseParameter {
                         name: "resource".to_string(),
-                        extension: None,
-                        value_string: None,
-                        value_code: None,
-                        value_decimal: None,
-                        value_boolean: None,
-                        value_integer: None,
-                        value_uri: None,
-                        value_date_time: None,
-                        value_date: None,
-                        value_human_name: None,
-                        value_identifier: None,
-                        value_address: None,
-                        value_contact_point: None,
                         resource: Some(value.clone()),
-                        part: None,
+                        ..Default::default()
                     }]
                 }
             }
@@ -479,42 +232,16 @@ impl StandardResponseBuilder {
                 // Arrays and other types as resources
                 vec![FhirPathLabResponseParameter {
                     name: "resource".to_string(),
-                    extension: None,
-                    value_string: None,
-                    value_code: None,
-                    value_decimal: None,
-                    value_boolean: None,
-                    value_integer: None,
-                    value_uri: None,
-                    value_date_time: None,
-                    value_date: None,
-                    value_human_name: None,
-                    value_identifier: None,
-                    value_address: None,
-                    value_contact_point: None,
                     resource: Some(value.clone()),
-                    part: None,
+                    ..Default::default()
                 }]
             }
         };
 
         let result_param = FhirPathLabResponseParameter {
             name: "result".to_string(),
-            extension: None,
-            value_string: None,
-            value_code: None,
-            value_decimal: None,
-            value_boolean: None,
-            value_integer: None,
-            value_uri: None,
-            value_date_time: None,
-            value_date: None,
-            value_human_name: None,
-            value_identifier: None,
-            value_address: None,
-            value_contact_point: None,
-            resource: None,
             part: Some(result_parts),
+            ..Default::default()
         };
 
         self.response.parameter.push(result_param);

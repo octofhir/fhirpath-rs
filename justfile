@@ -561,7 +561,7 @@ server-port PORT *ARGS:
 server-dev *ARGS:
     @echo "🧪 Starting FHIRPath Lab API Server (Development Mode)"
     @echo "===================================================="
-    @echo "🔗 Server: http://localhost:8080"
+    @echo "🔗 Server: http://localhost:8084"
     @echo "🌐 CORS: Enabled for all origins"
     @echo "⚠️  Use only for development - CORS allows any origin"
     @echo "🚀 Starting server..."
@@ -580,10 +580,10 @@ server-test:
     curl -s http://localhost:8080/version | head -10 || echo "❌ Server not running"
     @echo ""
     @echo "💡 FHIRPath Lab API endpoints available at:"
-    @echo "   POST http://localhost:8080/r4    (FHIR R4)"
-    @echo "   POST http://localhost:8080/r4b   (FHIR R4B)"
-    @echo "   POST http://localhost:8080/r5    (FHIR R5)"
-    @echo "   POST http://localhost:8080/r6    (FHIR R6)"
+    @echo "   POST http://localhost:8084/r4    (FHIR R4)"
+    @echo "   POST http://localhost:8084/r4b   (FHIR R4B)"
+    @echo "   POST http://localhost:8084/r5    (FHIR R5)"
+    @echo "   POST http://localhost:8084/r6    (FHIR R6)"
     @echo "curl -X POST http://localhost:8080/r4/evaluate \\"
     @echo "  -H 'Content-Type: application/json' \\"
     @echo "  -d '{\"expression\": \"Patient.name.given\", \"resource\": {\"resourceType\": \"Patient\", \"name\": [{\"given\": [\"John\"]}]}}'"
@@ -644,20 +644,8 @@ server-stop:
 # Quick server health check
 server-ping:
     @echo "🏥 Checking server health..."
-    @curl -s http://localhost:8080/health >/dev/null && echo "✅ Server is running" || echo "❌ Server is not responding"
+    @curl -s http://localhost:8084/health >/dev/null && echo "✅ Server is running" || echo "❌ Server is not responding"
 
-# Performance test the server endpoints
-server-perf:
-    @echo "⚡ Performance testing server endpoints"
-    @echo "======================================"
-    @echo "🔍 Testing health endpoint performance..."
-    @echo "GET /health:"
-    @time curl -s http://localhost:8080/health >/dev/null || echo "❌ Server not running"
-    @echo ""
-    @echo "GET /version:"
-    @time curl -s http://localhost:8080/version >/dev/null || echo "❌ Server not running"
-    @echo ""
-    @echo "💡 Note: FHIRPath Lab POST endpoints temporarily disabled during development"
 
 # Code coverage with tarpaulin
 coverage:

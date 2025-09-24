@@ -295,32 +295,40 @@ impl OutputFormatter for PrettyFormatter {
 }
 
 fn get_fhir_type_name(value: &FhirPathValue) -> String {
+    // Prefer the embedded TypeInfo's type_name for all variants, and include namespace when available
+    let type_name = value.display_type_name();
     match value {
-        FhirPathValue::String(_, _, _) => "String".to_string(),
-        FhirPathValue::Integer(_, _, _) => "Integer".to_string(),
-        FhirPathValue::Decimal(_, _, _) => "Decimal".to_string(),
-        FhirPathValue::Boolean(_, _, _) => "Boolean".to_string(),
-        FhirPathValue::Date(_, _, _) => "Date".to_string(),
-        FhirPathValue::DateTime(_, _, _) => "DateTime".to_string(),
-        FhirPathValue::Time(_, _, _) => "Time".to_string(),
-        FhirPathValue::Quantity { .. } => "Quantity".to_string(),
-        FhirPathValue::Collection(_) => "Collection".to_string(),
-        // Resource variant was consolidated into Json - handled above
-        // JsonValue variant was consolidated into Json - removed
-        // TypeInfoObject variant doesn't exist anymore
-        FhirPathValue::Empty => "Empty".to_string(),
-        // Id variant doesn't exist anymore
-        // Base64Binary variant doesn't exist anymore
-        // Uri variant doesn't exist anymore
-        // Url variant doesn't exist anymore
-        FhirPathValue::Resource(_json, type_info, _) => {
-            // Use the TypeInfo's name if available
-            if let Some(ref name) = type_info.name {
-                name.clone()
+        FhirPathValue::Boolean(_, type_info, _)
+        | FhirPathValue::Integer(_, type_info, _)
+        | FhirPathValue::Decimal(_, type_info, _)
+        | FhirPathValue::String(_, type_info, _)
+        | FhirPathValue::Date(_, type_info, _)
+        | FhirPathValue::DateTime(_, type_info, _)
+        | FhirPathValue::Time(_, type_info, _) => {
+            if let Some(ns) = &type_info.namespace {
+                format!("{ns}.{type_name}")
             } else {
-                type_info.type_name.clone()
+                type_name
             }
-        } // No more separate case for None metadata
+        }
+        FhirPathValue::Quantity { type_info, .. } => {
+            let name = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+            if let Some(ns) = &type_info.namespace {
+                format!("{ns}.{name}")
+            } else {
+                name.to_string()
+            }
+        }
+        FhirPathValue::Resource(_json, type_info, _) => {
+            let name = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+            if let Some(ns) = &type_info.namespace {
+                format!("{ns}.{name}")
+            } else {
+                name.to_string()
+            }
+        }
+        FhirPathValue::Collection(_) => "Collection".to_string(),
+        FhirPathValue::Empty => "Empty".to_string(),
     }
 }
 

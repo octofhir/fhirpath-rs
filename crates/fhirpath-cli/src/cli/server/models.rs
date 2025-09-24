@@ -1,10 +1,10 @@
 //! Request and response models for the FHIRPath HTTP server
 
 use octofhir_fhirpath::FhirPathValue;
-use octofhir_ucum::precision::NumericOps;
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
+use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::time::Duration;
 
 // ===== EVALUATION MODELS =====
@@ -228,7 +228,7 @@ pub struct FhirPathLabResponse {
 }
 
 /// Response parameter in FHIR Parameters resource
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 pub struct FhirPathLabResponseParameter {
     /// Parameter name
     pub name: String,
@@ -250,15 +250,54 @@ pub struct FhirPathLabResponseParameter {
     /// Integer value (for integer results)
     #[serde(rename = "valueInteger", skip_serializing_if = "Option::is_none")]
     pub value_integer: Option<i32>,
-    /// URI value (for URI results)
+    /// URI value (for uri type results)
     #[serde(rename = "valueUri", skip_serializing_if = "Option::is_none")]
     pub value_uri: Option<String>,
+    /// URL value (for url type results)
+    #[serde(rename = "valueUrl", skip_serializing_if = "Option::is_none")]
+    pub value_url: Option<String>,
+    /// Canonical value (for canonical type results)
+    #[serde(rename = "valueCanonical", skip_serializing_if = "Option::is_none")]
+    pub value_canonical: Option<String>,
+    /// Id value (for id type results)
+    #[serde(rename = "valueId", skip_serializing_if = "Option::is_none")]
+    pub value_id: Option<String>,
+    /// OID value (for oid type results)
+    #[serde(rename = "valueOid", skip_serializing_if = "Option::is_none")]
+    pub value_oid: Option<String>,
+    /// UUID value (for uuid type results)
+    #[serde(rename = "valueUuid", skip_serializing_if = "Option::is_none")]
+    pub value_uuid: Option<String>,
+    /// Markdown value (for markdown type results)
+    #[serde(rename = "valueMarkdown", skip_serializing_if = "Option::is_none")]
+    pub value_markdown: Option<String>,
+    /// Time value (for time results)
+    #[serde(rename = "valueTime", skip_serializing_if = "Option::is_none")]
+    pub value_time: Option<String>,
     /// DateTime value (for dateTime results)
     #[serde(rename = "valueDateTime", skip_serializing_if = "Option::is_none")]
     pub value_date_time: Option<String>,
     /// Date value (for date results)
     #[serde(rename = "valueDate", skip_serializing_if = "Option::is_none")]
     pub value_date: Option<String>,
+    /// Quantity value
+    #[serde(rename = "valueQuantity", skip_serializing_if = "Option::is_none")]
+    pub value_quantity: Option<JsonValue>,
+    /// Coding value
+    #[serde(rename = "valueCoding", skip_serializing_if = "Option::is_none")]
+    pub value_coding: Option<JsonValue>,
+    /// CodeableConcept value
+    #[serde(
+        rename = "valueCodeableConcept",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub value_codeable_concept: Option<JsonValue>,
+    /// Period value
+    #[serde(rename = "valuePeriod", skip_serializing_if = "Option::is_none")]
+    pub value_period: Option<JsonValue>,
+    /// Reference value
+    #[serde(rename = "valueReference", skip_serializing_if = "Option::is_none")]
+    pub value_reference: Option<JsonValue>,
     /// HumanName value (for HumanName results)
     #[serde(rename = "valueHumanName", skip_serializing_if = "Option::is_none")]
     pub value_human_name: Option<JsonValue>,
@@ -373,8 +412,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -395,8 +446,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -418,8 +481,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -449,8 +524,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -470,8 +557,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -496,8 +595,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -516,8 +627,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -545,8 +668,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -598,8 +733,20 @@ impl FhirPathLabResponse {
                 value_boolean: None,
                 value_integer: None,
                 value_uri: None,
+                value_url: None,
+                value_canonical: None,
+                value_id: None,
+                value_oid: None,
+                value_uuid: None,
+                value_markdown: None,
+                value_time: None,
                 value_date_time: None,
                 value_date: None,
+                value_quantity: None,
+                value_coding: None,
+                value_codeable_concept: None,
+                value_period: None,
+                value_reference: None,
                 value_human_name: None,
                 value_identifier: None,
                 value_address: None,
@@ -622,8 +769,20 @@ impl FhirPathLabResponse {
             value_boolean: None,
             value_integer: None,
             value_uri: None,
+            value_url: None,
+            value_canonical: None,
+            value_id: None,
+            value_oid: None,
+            value_uuid: None,
+            value_markdown: None,
+            value_time: None,
             value_date_time: None,
             value_date: None,
+            value_quantity: None,
+            value_coding: None,
+            value_codeable_concept: None,
+            value_period: None,
+            value_reference: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -784,32 +943,54 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
         FhirPathValue::Boolean(b, _, _) => JsonValue::Bool(b),
         FhirPathValue::String(s, _, _) => JsonValue::String(s),
         FhirPathValue::Integer(i, _, _) => JsonValue::Number(serde_json::Number::from(i)),
-        FhirPathValue::Decimal(d, _, _) => {
-            // Convert decimal to JSON number, handling precision
-            if let Ok(f) = d.to_string().parse::<f64>() {
-                JsonValue::Number(
-                    serde_json::Number::from_f64(f).unwrap_or_else(|| serde_json::Number::from(0)),
-                )
-            } else {
-                JsonValue::String(d.to_string())
-            }
-        }
+        FhirPathValue::Decimal(d, _, _) => decimal_to_json_value(&d),
         FhirPathValue::DateTime(dt, _, _) => JsonValue::String(dt.to_string()),
         FhirPathValue::Date(d, _, _) => JsonValue::String(d.to_string()),
         FhirPathValue::Time(t, _, _) => JsonValue::String(t.to_string()),
         FhirPathValue::Quantity {
             value,
             unit,
+            code,
+            system,
             ucum_unit,
             calendar_unit: _,
             type_info: _,
             primitive_element: _,
         } => {
-            // Serialize quantity as object
-            serde_json::json!({
-                "value": value.to_f64(),
-                "unit": unit.or(ucum_unit.map(|u| format!("{:?}", u))),
-            })
+            let mut obj = JsonMap::new();
+            obj.insert("value".to_string(), decimal_to_json_value(&value));
+
+            if let Some(unit_str) = unit {
+                obj.insert("unit".to_string(), JsonValue::String(unit_str));
+            }
+
+            if let Some(system_str) = system {
+                obj.insert("system".to_string(), JsonValue::String(system_str));
+            }
+
+            if let Some(code_str) = code {
+                obj.insert("code".to_string(), JsonValue::String(code_str));
+            }
+
+            if let Some(ucum) = ucum_unit {
+                if !obj.contains_key("system") {
+                    obj.insert(
+                        "system".to_string(),
+                        JsonValue::String("http://unitsofmeasure.org".to_string()),
+                    );
+                }
+                if !obj.contains_key("code") {
+                    obj.insert("code".to_string(), JsonValue::String(ucum.code.to_string()));
+                }
+                if !obj.contains_key("unit") {
+                    obj.insert(
+                        "unit".to_string(),
+                        JsonValue::String(ucum.display_name.to_string()),
+                    );
+                }
+            }
+
+            JsonValue::Object(obj)
         }
         FhirPathValue::Collection(collection) => {
             let items: Vec<JsonValue> = collection
@@ -823,6 +1004,18 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
             resource.as_ref().clone()
         }
         FhirPathValue::Empty => JsonValue::Array(vec![]), // Empty collection
+    }
+}
+
+pub fn decimal_to_json_value(decimal: &rust_decimal::Decimal) -> JsonValue {
+    let mut decimal_str = decimal.normalize().to_string();
+    if decimal_str.contains(',') {
+        decimal_str = decimal_str.replace(',', ".");
+    }
+
+    match serde_json::Number::from_str(&decimal_str) {
+        Ok(number) => JsonValue::Number(number),
+        Err(_) => JsonValue::String(decimal_str),
     }
 }
 

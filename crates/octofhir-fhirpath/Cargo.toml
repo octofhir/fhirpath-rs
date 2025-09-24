@@ -43,6 +43,7 @@ log = { workspace = true }
 papaya = { workspace = true }
 octofhir-ucum = { workspace = true }
 uuid = { workspace = true }
+tracing = { workspace = true }
 chumsky = { version = "0.10", features = ["pratt"] }
 ariadne = "0.5.1"
 tabled = "0.20"
@@ -58,6 +59,7 @@ thiserror = { workspace = true }
 once_cell = { workspace = true }
 urlencoding = "2.1"
 html-escape = "0.2"
+stacker = "0.1"
 
 # Async dependencies
 async-trait = { workspace = true }

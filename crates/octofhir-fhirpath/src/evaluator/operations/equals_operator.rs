@@ -48,20 +48,24 @@ impl EqualsOperatorEvaluator {
             serde_json::Value::String(s) => s.parse::<f64>().ok()?,
             _ => return None,
         };
-        let unit = json.get("unit").and_then(|u| u.as_str()).unwrap_or("");
-        let _system = json.get("system").and_then(|s| s.as_str()).unwrap_or("");
-        let code = json.get("code").and_then(|c| c.as_str()).unwrap_or("");
+        let unit_display = json
+            .get("unit")
+            .and_then(|u| u.as_str())
+            .map(|s| s.to_string());
+        let system = json
+            .get("system")
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string());
+        let code = json
+            .get("code")
+            .and_then(|c| c.as_str())
+            .map(|s| s.to_string());
 
-        // Prefer code over unit if available
-        let unit_str = if !code.is_empty() { code } else { unit };
-
-        Some(FhirPathValue::quantity(
+        Some(FhirPathValue::quantity_with_components(
             rust_decimal::Decimal::from_f64_retain(value)?,
-            if unit_str.is_empty() {
-                None
-            } else {
-                Some(unit_str.to_string())
-            },
+            unit_display,
+            code,
+            system,
         ))
     }
 

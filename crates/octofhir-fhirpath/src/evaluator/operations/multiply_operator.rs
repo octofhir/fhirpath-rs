@@ -68,51 +68,83 @@ impl MultiplyOperatorEvaluator {
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lc,
+                    system: ls,
                     ..
                 },
                 FhirPathValue::Integer(r, _, _),
             ) => {
                 let right_decimal = Decimal::from(*r);
-                Some(FhirPathValue::quantity(*lv * right_decimal, lu.clone()))
+                Some(FhirPathValue::quantity_with_components(
+                    *lv * right_decimal,
+                    lu.clone(),
+                    lc.clone(),
+                    ls.clone(),
+                ))
             }
             (
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lc,
+                    system: ls,
                     ..
                 },
                 FhirPathValue::Decimal(r, _, _),
-            ) => Some(FhirPathValue::quantity(*lv * *r, lu.clone())),
+            ) => Some(FhirPathValue::quantity_with_components(
+                *lv * *r,
+                lu.clone(),
+                lc.clone(),
+                ls.clone(),
+            )),
             (
                 FhirPathValue::Integer(l, _, _),
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    code: rc,
+                    system: rs,
                     ..
                 },
             ) => {
                 let left_decimal = Decimal::from(*l);
-                Some(FhirPathValue::quantity(left_decimal * *rv, ru.clone()))
+                Some(FhirPathValue::quantity_with_components(
+                    left_decimal * *rv,
+                    ru.clone(),
+                    rc.clone(),
+                    rs.clone(),
+                ))
             }
             (
                 FhirPathValue::Decimal(l, _, _),
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    code: rc,
+                    system: rs,
                     ..
                 },
-            ) => Some(FhirPathValue::quantity(*l * *rv, ru.clone())),
+            ) => Some(FhirPathValue::quantity_with_components(
+                *l * *rv,
+                ru.clone(),
+                rc.clone(),
+                rs.clone(),
+            )),
 
             // Quantity * Quantity = Quantity (with unit combination)
             (
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lc,
+                    system: ls,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    code: rc,
+                    system: rs,
                     ..
                 },
             ) => {
@@ -124,7 +156,12 @@ impl MultiplyOperatorEvaluator {
                     (None, Some(r)) => Some(r.clone()),
                     (Some(l), Some(r)) => Some(format!("{l}.{r}")),
                 };
-                Some(FhirPathValue::quantity(*lv * *rv, combined_unit))
+                Some(FhirPathValue::quantity_with_components(
+                    *lv * *rv,
+                    combined_unit,
+                    lc.clone().or_else(|| rc.clone()),
+                    ls.clone().or_else(|| rs.clone()),
+                ))
             }
 
             // Invalid combinations

@@ -149,6 +149,8 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
             FhirPathValue::Quantity {
                 value,
                 unit,
+                code,
+                system,
                 ucum_unit,
                 calendar_unit,
                 type_info,
@@ -159,6 +161,8 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
                     FhirPathValue::Quantity {
                         value: adjusted,
                         unit: unit.clone(),
+                        code: code.clone(),
+                        system: system.clone(),
                         ucum_unit: ucum_unit.clone(),
                         calendar_unit: *calendar_unit,
                         type_info: type_info.clone(),

@@ -306,8 +306,12 @@ pub enum FhirPathValue {
     Quantity {
         /// The numeric value of the quantity
         value: Decimal,
-        /// The unit of measurement (e.g., "mg", "kg/m2")
+        /// Human-readable unit string (FHIR `unit`)
         unit: Option<String>,
+        /// Canonical unit code (FHIR `code`)
+        code: Option<String>,
+        /// System URI (FHIR `system`)
+        system: Option<String>,
         /// Parsed UCUM unit for calculations (cached for performance)
         ucum_unit: Option<Arc<UnitRecord>>,
         /// Calendar unit for non-UCUM time units (year, month, week, day)
@@ -616,12 +620,16 @@ impl FhirPathValue {
             Self::Quantity {
                 value,
                 unit,
+                code,
+                system,
                 ucum_unit,
                 calendar_unit,
                 ..
             } => Self::Quantity {
                 value,
                 unit,
+                code,
+                system,
                 ucum_unit,
                 calendar_unit,
                 type_info,
@@ -653,12 +661,16 @@ impl FhirPathValue {
             Self::Quantity {
                 value,
                 unit,
+                code,
+                system,
                 ucum_unit,
                 calendar_unit,
                 ..
             } => Self::Quantity {
                 value: *value,
                 unit: unit.clone(),
+                code: code.clone(),
+                system: system.clone(),
                 ucum_unit: ucum_unit.clone(),
                 calendar_unit: *calendar_unit,
                 type_info: default_type_info,
@@ -695,17 +707,55 @@ impl FhirPathValue {
     /// Get the display type name, using TypeInfo when available for Resources
     pub fn display_type_name(&self) -> String {
         match self {
-            Self::Boolean(_, _, _) => "Boolean".to_string(),
-            Self::Integer(_, _, _) => "Integer".to_string(),
-            Self::Decimal(_, _, _) => "Decimal".to_string(),
-            Self::String(_, _, _) => "String".to_string(),
-            Self::Date(_, _, _) => "Date".to_string(),
-            Self::DateTime(_, _, _) => "DateTime".to_string(),
-            Self::Time(_, _, _) => "Time".to_string(),
-            Self::Quantity { .. } => "Quantity".to_string(),
+            // For all primitive variants, prefer the embedded TypeInfo's type_name.
+            // This allows FHIR primitive subtypes (e.g., 'code') to be displayed instead of generic 'String'.
+            Self::Boolean(_, type_info, _) => type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
+            Self::Integer(_, type_info, _) => type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
+            Self::Decimal(_, type_info, _) => type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
+            Self::String(_, type_info, _) => type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
+            Self::Date(_, type_info, _) => type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
+            Self::DateTime(_, type_info, _) => type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
+            Self::Time(_, type_info, _) => type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
+            Self::Quantity { type_info, .. } => type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
             Self::Resource(_, type_info, _) => {
-                // Use the corrected type_name from TypeInfo for display
-                type_info.type_name.clone()
+                // Use the corrected specific name if present (e.g., HumanName), otherwise type_name
+                type_info
+                    .name
+                    .as_deref()
+                    .unwrap_or(&type_info.type_name)
+                    .to_string()
             }
             Self::Collection(_) => "Collection".to_string(),
             Self::Empty => "empty".to_string(),
@@ -908,17 +958,41 @@ impl FhirPathValue {
         Self::Resource(Arc::new(data), type_info, None)
     }
 
-    /// Create a quantity value with UCUM unit parsing and default TypeInfo
-    pub fn quantity(value: Decimal, unit: Option<String>) -> Self {
-        let (ucum_unit, calendar_unit) = if let Some(ref unit_str) = unit {
-            // Try parsing as calendar unit first (year, month, week, day)
+    /// Create a quantity value with full component control
+    pub fn quantity_with_components(
+        value: Decimal,
+        unit: Option<String>,
+        code: Option<String>,
+        system: Option<String>,
+    ) -> Self {
+        let mut resolved_system = system;
+
+        let (ucum_unit, calendar_unit) = if let Some(ref code_str) = code {
+            if let Some(cal_unit) = CalendarUnit::from_str(code_str) {
+                (None, Some(cal_unit))
+            } else {
+                match find_unit(code_str) {
+                    Some(ucum) => {
+                        if resolved_system.is_none() {
+                            resolved_system = Some("http://unitsofmeasure.org".to_string());
+                        }
+                        (Some(Arc::new(ucum.clone())), None)
+                    }
+                    None => (None, None),
+                }
+            }
+        } else if let Some(ref unit_str) = unit {
             if let Some(cal_unit) = CalendarUnit::from_str(unit_str) {
                 (None, Some(cal_unit))
             } else {
-                // Try parsing as UCUM unit
                 match find_unit(unit_str) {
-                    Some(ucum) => (Some(Arc::new(ucum.clone())), None),
-                    None => (None, None), // Invalid unit, keep as string only
+                    Some(ucum) => {
+                        if resolved_system.is_none() {
+                            resolved_system = Some("http://unitsofmeasure.org".to_string());
+                        }
+                        (Some(Arc::new(ucum.clone())), None)
+                    }
+                    None => (None, None),
                 }
             }
         } else {
@@ -936,6 +1010,8 @@ impl FhirPathValue {
         Self::Quantity {
             value,
             unit,
+            code,
+            system: resolved_system,
             ucum_unit,
             calendar_unit,
             type_info,
@@ -943,34 +1019,14 @@ impl FhirPathValue {
         }
     }
 
+    /// Create a quantity value with UCUM unit parsing and default TypeInfo
+    pub fn quantity(value: Decimal, unit: Option<String>) -> Self {
+        Self::quantity_with_components(value, unit.clone(), unit, None)
+    }
+
     /// Create a quantity value for quoted units (UCUM only, no calendar units)
     pub fn quoted_quantity(value: Decimal, unit: Option<String>) -> Self {
-        let (ucum_unit, calendar_unit) = if let Some(ref unit_str) = unit {
-            // For quoted units, only try UCUM parsing, not calendar units
-            match find_unit(unit_str) {
-                Some(ucum) => (Some(Arc::new(ucum.clone())), None),
-                None => (None, None), // Invalid unit, keep as string only
-            }
-        } else {
-            (None, None)
-        };
-
-        let type_info = TypeInfo {
-            type_name: "Quantity".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Quantity".to_string()),
-            is_empty: Some(false),
-        };
-
-        Self::Quantity {
-            value,
-            unit,
-            ucum_unit,
-            calendar_unit,
-            type_info,
-            primitive_element: None,
-        }
+        Self::quantity_with_components(value, unit.clone(), unit, None)
     }
 
     /// Create a quantity value with explicit calendar unit
@@ -986,6 +1042,8 @@ impl FhirPathValue {
         Self::Quantity {
             value,
             unit: Some(calendar_unit.to_string()),
+            code: Some(calendar_unit.to_string()),
+            system: None,
             ucum_unit: None,
             calendar_unit: Some(calendar_unit),
             type_info,
@@ -1204,7 +1262,13 @@ impl FhirPathValue {
             Self::Date(date, _, _) => JsonValue::String(date.to_string()),
             Self::DateTime(dt, _, _) => JsonValue::String(dt.to_string()),
             Self::Time(time, _, _) => JsonValue::String(time.to_string()),
-            Self::Quantity { value, unit, .. } => {
+            Self::Quantity {
+                value,
+                unit,
+                code,
+                system,
+                ..
+            } => {
                 let mut map = serde_json::Map::new();
                 if let Ok(f) = value.to_string().parse::<f64>() {
                     if let Some(n) = serde_json::Number::from_f64(f) {
@@ -1217,6 +1281,12 @@ impl FhirPathValue {
                 }
                 if let Some(unit) = unit {
                     map.insert("unit".to_string(), JsonValue::String(unit.clone()));
+                }
+                if let Some(code) = code {
+                    map.insert("code".to_string(), JsonValue::String(code.clone()));
+                }
+                if let Some(system) = system {
+                    map.insert("system".to_string(), JsonValue::String(system.clone()));
                 }
                 JsonValue::Object(map)
             }
@@ -1247,12 +1317,16 @@ impl FhirPathValue {
             Self::Quantity {
                 value,
                 unit,
+                code,
+                system,
                 ucum_unit,
                 calendar_unit,
                 ..
             } => Self::Quantity {
                 value: *value,
                 unit: unit.clone(),
+                code: code.clone(),
+                system: system.clone(),
                 ucum_unit: ucum_unit.clone(),
                 calendar_unit: *calendar_unit,
                 type_info: new_type_info,

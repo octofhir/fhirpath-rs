@@ -75,9 +75,20 @@ impl PureFunctionEvaluator for AbsFunctionEvaluator {
         let result = match &input[0] {
             FhirPathValue::Integer(i, _, _) => FhirPathValue::integer(i.abs()),
             FhirPathValue::Decimal(d, _, _) => FhirPathValue::decimal(d.abs()),
-            FhirPathValue::Quantity { value, unit, .. } => {
+            FhirPathValue::Quantity {
+                value,
+                unit,
+                code,
+                system,
+                ..
+            } => {
                 // Support absolute value for quantities
-                FhirPathValue::quantity(value.abs(), unit.clone())
+                FhirPathValue::quantity_with_components(
+                    value.abs(),
+                    unit.clone(),
+                    code.clone(),
+                    system.clone(),
+                )
             }
             _ => {
                 return Err(FhirPathError::evaluation_error(

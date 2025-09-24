@@ -22,7 +22,12 @@ pub fn parse_string_to_quantity_value(s: &str) -> Option<FhirPathValue> {
     // 1) Plain number → unitless quantity
     if let Ok(v) = trimmed.parse::<f64>() {
         let dec = rust_decimal::Decimal::from_f64_retain(v)?;
-        return Some(FhirPathValue::quantity(dec, Some("1".to_string())));
+        return Some(FhirPathValue::quantity_with_components(
+            dec,
+            Some("1".to_string()),
+            None,
+            None,
+        ));
     }
 
     // 2) Split into two parts (number and unit)
@@ -584,7 +589,12 @@ pub fn multiply_quantities(
         }
     };
 
-    Ok(FhirPathValue::quantity(result_value, result_unit))
+    Ok(FhirPathValue::quantity_with_components(
+        result_value,
+        result_unit.clone(),
+        result_unit,
+        None,
+    ))
 }
 
 /// Divide two quantities, handling unit combination
@@ -622,7 +632,12 @@ pub fn divide_quantities(
         }
     };
 
-    Ok(FhirPathValue::quantity(result_value, result_unit))
+    Ok(FhirPathValue::quantity_with_components(
+        result_value,
+        result_unit.clone(),
+        result_unit,
+        None,
+    ))
 }
 
 #[cfg(test)]

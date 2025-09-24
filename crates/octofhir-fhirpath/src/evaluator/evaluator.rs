@@ -694,9 +694,12 @@ impl Evaluator {
             LiteralValue::Date(date) => Ok(FhirPathValue::date(date.clone())),
             LiteralValue::DateTime(datetime) => Ok(FhirPathValue::datetime(datetime.clone())),
             LiteralValue::Time(time) => Ok(FhirPathValue::time(time.clone())),
-            LiteralValue::Quantity { value, unit } => {
-                Ok(FhirPathValue::quantity(*value, unit.clone()))
-            }
+            LiteralValue::Quantity { value, unit } => Ok(FhirPathValue::quantity_with_components(
+                *value,
+                unit.clone(),
+                unit.clone(),
+                None,
+            )),
         }
     }
 
@@ -1747,32 +1750,41 @@ impl Evaluator {
         let code = json.get("code").and_then(|c| c.as_str()).unwrap_or("");
         let system = json.get("system").and_then(|s| s.as_str()).unwrap_or("");
 
-        // Determine the best unit representation - prefer unit over code for display
-        let unit_str = if !unit.is_empty() {
-            // Prefer unit (human-readable display)
-            unit
+        // Determine display unit (prefer human-readable unit)
+        let display_unit = if !unit.is_empty() {
+            Some(unit.to_string())
         } else if !code.is_empty() {
-            // Fall back to code if unit is not available
-            code
+            Some(code.to_string())
         } else {
-            // No unit information
-            ""
+            None
         };
 
-        // Handle common UCUM unit normalizations if possible
-        let normalized_unit =
-            if system == "http://unitsofmeasure.org" || self.looks_like_ucum_unit(unit_str) {
-                self.normalize_ucum_unit(unit_str)
-            } else {
-                unit_str.to_string()
-            };
+        // Determine canonical code/system for UCUM handling
+        let mut canonical_code = if !code.is_empty() {
+            Some(code.to_string())
+        } else {
+            None
+        };
 
-        Some(FhirPathValue::quantity(
+        let unit_for_detection = if !code.is_empty() { code } else { unit };
+        if canonical_code.is_none()
+            && (system == "http://unitsofmeasure.org"
+                || self.looks_like_ucum_unit(unit_for_detection))
+        {
+            let normalized = self.normalize_ucum_unit(unit_for_detection);
+            if !normalized.is_empty() {
+                canonical_code = Some(normalized);
+            }
+        }
+
+        Some(FhirPathValue::quantity_with_components(
             rust_decimal::Decimal::from_f64_retain(value)?,
-            if normalized_unit.is_empty() {
+            display_unit,
+            canonical_code,
+            if system.is_empty() {
                 None
             } else {
-                Some(normalized_unit)
+                Some(system.to_string())
             },
         ))
     }

@@ -69,14 +69,21 @@ impl PureFunctionEvaluator for ToQuantityFunctionEvaluator {
             }
             FhirPathValue::Integer(i, _, _) => {
                 // Convert integer to dimensionless quantity with unit '1'
-                Some(FhirPathValue::quantity(
+                Some(FhirPathValue::quantity_with_components(
                     Decimal::from(*i),
                     Some("1".to_string()),
+                    None,
+                    None,
                 ))
             }
             FhirPathValue::Decimal(d, _, _) => {
                 // Convert decimal to dimensionless quantity with unit '1'
-                Some(FhirPathValue::quantity(*d, Some("1".to_string())))
+                Some(FhirPathValue::quantity_with_components(
+                    *d,
+                    Some("1".to_string()),
+                    None,
+                    None,
+                ))
             }
             FhirPathValue::String(s, _, _) => {
                 // Use strict FHIRPath-aware parser for string quantities

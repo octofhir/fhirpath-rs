@@ -67,17 +67,26 @@ impl AddOperatorEvaluator {
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lc,
+                    system: ls,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    code: rc,
+                    system: rs,
                     ..
                 },
             ) => {
                 if lu == ru {
                     // Same units - simple addition
-                    Some(FhirPathValue::quantity(*lv + *rv, lu.clone()))
+                    Some(FhirPathValue::quantity_with_components(
+                        *lv + *rv,
+                        lu.clone(),
+                        lc.clone().or_else(|| rc.clone()),
+                        ls.clone().or_else(|| rs.clone()),
+                    ))
                 } else {
                     // Different units - would need UCUM conversion
                     // TODO: Integrate with octofhir_ucum library for unit conversion
