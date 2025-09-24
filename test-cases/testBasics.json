@@ -18,6 +18,13 @@
       "tags": [
         "r5-xml",
         "testBasics"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
       ]
     },
     {
@@ -46,6 +53,13 @@
       "tags": [
         "r5-xml",
         "testBasics"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
       ]
     },
     {
@@ -63,6 +77,13 @@
       "tags": [
         "r5-xml",
         "testBasics"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
       ]
     },
     {
@@ -93,6 +114,13 @@
       "tags": [
         "r5-xml",
         "testBasics"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
       ]
     },
     {

@@ -14,6 +14,9 @@
       "tags": [
         "r5-xml",
         "testIndexOf"
+      ],
+      "outputTypes": [
+        "integer"
       ]
     },
     {
@@ -27,6 +30,9 @@
       "tags": [
         "r5-xml",
         "testIndexOf"
+      ],
+      "outputTypes": [
+        "integer"
       ]
     },
     {
@@ -40,6 +46,9 @@
       "tags": [
         "r5-xml",
         "testIndexOf"
+      ],
+      "outputTypes": [
+        "integer"
       ]
     },
     {
@@ -53,6 +62,9 @@
       "tags": [
         "r5-xml",
         "testIndexOf"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -66,6 +78,9 @@
       "tags": [
         "r5-xml",
         "testIndexOf"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -79,6 +94,9 @@
       "tags": [
         "r5-xml",
         "testIndexOf"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     }
   ]

@@ -46,19 +46,25 @@ impl StandardResponseBuilder {
 
         timing_parts.push(FhirPathLabResponseParameter {
             name: "parse".to_string(),
-            value_decimal: Some(parse_time.as_secs_f64() * 1000.0),
+            value_decimal: Some(DecimalRepresentation::from_f64(
+                parse_time.as_secs_f64() * 1000.0,
+            )),
             ..Default::default()
         });
 
         timing_parts.push(FhirPathLabResponseParameter {
             name: "evaluation".to_string(),
-            value_decimal: Some(eval_time.as_secs_f64() * 1000.0),
+            value_decimal: Some(DecimalRepresentation::from_f64(
+                eval_time.as_secs_f64() * 1000.0,
+            )),
             ..Default::default()
         });
 
         timing_parts.push(FhirPathLabResponseParameter {
             name: "total".to_string(),
-            value_decimal: Some(total_time.as_secs_f64() * 1000.0),
+            value_decimal: Some(DecimalRepresentation::from_f64(
+                total_time.as_secs_f64() * 1000.0,
+            )),
             ..Default::default()
         });
 
@@ -182,7 +188,7 @@ impl StandardResponseBuilder {
                 } else {
                     vec![FhirPathLabResponseParameter {
                         name: "decimal".to_string(),
-                        value_decimal: n.as_f64(),
+                        value_decimal: n.as_f64().map(DecimalRepresentation::from_f64),
                         ..Default::default()
                     }]
                 }
@@ -245,15 +251,6 @@ impl StandardResponseBuilder {
         };
 
         self.response.parameter.push(result_param);
-    }
-
-    /// Check if a string looks like a FHIR code
-    fn is_fhir_code(&self, s: &str) -> bool {
-        // Simple heuristic: codes are typically short and contain no spaces
-        s.len() < 50
-            && !s.contains(' ')
-            && s.chars()
-                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
     }
 
     /// Check if an object is a FHIR HumanName

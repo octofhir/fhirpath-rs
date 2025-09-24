@@ -13,6 +13,9 @@
       "tags": [
         "r5-xml",
         "Precision"
+      ],
+      "outputTypes": [
+        "integer"
       ]
     },
     {
@@ -25,6 +28,9 @@
       "tags": [
         "r5-xml",
         "Precision"
+      ],
+      "outputTypes": [
+        "integer"
       ]
     },
     {
@@ -37,6 +43,9 @@
       "tags": [
         "r5-xml",
         "Precision"
+      ],
+      "outputTypes": [
+        "integer"
       ]
     },
     {
@@ -49,6 +58,9 @@
       "tags": [
         "r5-xml",
         "Precision"
+      ],
+      "outputTypes": [
+        "integer"
       ]
     },
     {
@@ -61,6 +73,9 @@
       "tags": [
         "r5-xml",
         "Precision"
+      ],
+      "outputTypes": [
+        "integer"
       ]
     },
     {
@@ -74,6 +89,9 @@
       "tags": [
         "r5-xml",
         "Precision"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     }
   ]

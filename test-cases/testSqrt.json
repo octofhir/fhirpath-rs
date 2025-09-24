@@ -14,6 +14,9 @@
       "tags": [
         "r5-xml",
         "testSqrt"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -38,6 +41,9 @@
       "tags": [
         "r5-xml",
         "testSqrt"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     }
   ]

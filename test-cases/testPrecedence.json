@@ -28,6 +28,9 @@
       "tags": [
         "r5-xml",
         "testPrecedence"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -41,6 +44,9 @@
       "tags": [
         "r5-xml",
         "testPrecedence"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -54,6 +60,9 @@
       "tags": [
         "r5-xml",
         "testPrecedence"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -67,6 +76,9 @@
       "tags": [
         "r5-xml",
         "testPrecedence"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -80,6 +92,9 @@
       "tags": [
         "r5-xml",
         "testPrecedence"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     }
   ]

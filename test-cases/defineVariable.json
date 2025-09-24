@@ -15,7 +15,10 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "simplest variable"
+      "description": "simplest variable",
+      "outputTypes": [
+        "string"
+      ]
     },
     {
       "name": "defineVariable2",
@@ -30,7 +33,11 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "simple use of a variable"
+      "description": "simple use of a variable",
+      "outputTypes": [
+        "string",
+        "string"
+      ]
     },
     {
       "name": "defineVariable3",
@@ -44,7 +51,10 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "simple use of a variable 2 selects"
+      "description": "simple use of a variable 2 selects",
+      "outputTypes": [
+        "string"
+      ]
     },
     {
       "name": "defineVariable4",
@@ -60,7 +70,12 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "use of a variable in separate contexts"
+      "description": "use of a variable in separate contexts",
+      "outputTypes": [
+        "string",
+        "string",
+        "string"
+      ]
     },
     {
       "name": "defineVariable5",
@@ -74,7 +89,10 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "use of a variable in separate contexts defined in 2 but used in 1"
+      "description": "use of a variable in separate contexts defined in 2 but used in 1",
+      "outputTypes": [
+        "string"
+      ]
     },
     {
       "name": "defineVariable6",
@@ -89,7 +107,11 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "use of different variables in different contexts"
+      "description": "use of different variables in different contexts",
+      "outputTypes": [
+        "string",
+        "string"
+      ]
     },
     {
       "name": "defineVariable7",
@@ -104,7 +126,11 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "2 vars, one unused"
+      "description": "2 vars, one unused",
+      "outputTypes": [
+        "boolean",
+        "string"
+      ]
     },
     {
       "name": "defineVariable8",
@@ -119,7 +145,11 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "CompositeVariableUse"
+      "description": "CompositeVariableUse",
+      "outputTypes": [
+        "string",
+        "string"
+      ]
     },
     {
       "name": "defineVariable9",
@@ -190,7 +220,12 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "sequence of variable definitions tweak"
+      "description": "sequence of variable definitions tweak",
+      "outputTypes": [
+        "string",
+        "string",
+        "string"
+      ]
     },
     {
       "name": "defineVariable14",
@@ -205,7 +240,11 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "sequence of variable definitions original"
+      "description": "sequence of variable definitions original",
+      "outputTypes": [
+        "boolean",
+        "string"
+      ]
     },
     {
       "name": "defineVariable15",
@@ -220,7 +259,11 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "multi-tree vars valid"
+      "description": "multi-tree vars valid",
+      "outputTypes": [
+        "string",
+        "string"
+      ]
     },
     {
       "name": "defineVariable16",
@@ -261,7 +304,10 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "realistic example with conceptmap"
+      "description": "realistic example with conceptmap",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "defineVariable19",
@@ -276,7 +322,10 @@
         "defineVariable"
       ],
       "description": "defineVariable in function parameters (1)",
-      "skipStaticCheck": true
+      "skipStaticCheck": true,
+      "outputTypes": [
+        "string"
+      ]
     },
     {
       "name": "dvParametersDontColide",
@@ -290,7 +339,10 @@
         "r5-xml",
         "defineVariable"
       ],
-      "description": "defineVariable in function parameters (2)"
+      "description": "defineVariable in function parameters (2)",
+      "outputTypes": [
+        "string"
+      ]
     },
     {
       "name": "dvUsageOutsideScopeThrows",

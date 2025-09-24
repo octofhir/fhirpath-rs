@@ -9,8 +9,10 @@ use crate::cli::server::{
     error::{ServerError, ServerResult},
     version::ServerFhirVersion,
 };
+use octofhir_fhir_model::{HttpTerminologyProvider, TerminologyProvider, provider::ModelProvider};
 use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::{FunctionRegistry, create_function_registry};
+use octofhir_fhirschema::create_validation_provider_from_embedded;
 use papaya::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -61,8 +63,20 @@ impl ServerRegistry {
 
             // Create evaluation engine
             let engine_start = std::time::Instant::now();
-            let eval_engine =
+            let mut eval_engine =
                 FhirPathEngine::new(function_registry.clone(), model_provider_arc.clone()).await?;
+
+            if let Ok(validation_provider) = create_validation_provider_from_embedded(
+                model_provider_arc.clone() as Arc<dyn ModelProvider>,
+            )
+            .await
+            {
+                eval_engine = eval_engine.with_validation_provider(validation_provider);
+            }
+
+            if let Some(tx_provider) = create_default_terminology_provider(version) {
+                eval_engine = eval_engine.with_terminology_provider(tx_provider);
+            }
 
             let engine_time = engine_start.elapsed();
             info!("📊 Engine for {} created in {:?}", version, engine_time);
@@ -135,8 +149,20 @@ impl ServerRegistry {
                 message: format!("FHIR version {version} not supported"),
             })?;
 
-        let engine =
+        let mut engine =
             FhirPathEngine::new(self.function_registry.clone(), model_provider.clone()).await?;
+
+        if let Ok(validation_provider) = create_validation_provider_from_embedded(
+            model_provider.clone() as Arc<dyn ModelProvider>,
+        )
+        .await
+        {
+            engine = engine.with_validation_provider(validation_provider);
+        }
+
+        if let Some(tx_provider) = create_default_terminology_provider(version) {
+            engine = engine.with_terminology_provider(tx_provider);
+        }
 
         let creation_time = start_time.elapsed();
         Ok((engine, creation_time))
@@ -173,6 +199,29 @@ async fn create_model_provider_for_version(
             // R6 uses R5 schema for now since R6 is still in development
             warn!("FHIR R6 is using R5 schema as R6 is still in development");
             Ok(crate::EmbeddedModelProvider::r5())
+        }
+    }
+}
+
+fn create_default_terminology_provider(
+    version: ServerFhirVersion,
+) -> Option<Arc<dyn TerminologyProvider>> {
+    let tx_path = match version {
+        ServerFhirVersion::R4 => "r4",
+        ServerFhirVersion::R4B => "r4b",
+        ServerFhirVersion::R5 => "r5",
+        ServerFhirVersion::R6 => "r6",
+    };
+
+    let tx_url = format!("https://tx.fhir.org/{tx_path}");
+    match HttpTerminologyProvider::new(tx_url) {
+        Ok(provider) => Some(Arc::new(provider) as Arc<dyn TerminologyProvider>),
+        Err(error) => {
+            warn!(
+                "Failed to create default terminology provider for {}: {}",
+                version, error
+            );
+            None
         }
     }
 }

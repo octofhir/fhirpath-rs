@@ -14,6 +14,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -27,6 +30,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -40,6 +46,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -53,6 +62,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -77,6 +89,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "date"
       ]
     },
     {
@@ -90,6 +105,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "date"
       ]
     },
     {
@@ -103,6 +121,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -116,6 +137,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -129,6 +153,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -142,6 +169,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -155,6 +185,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -168,6 +201,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -181,6 +217,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "date"
       ]
     },
     {
@@ -194,6 +233,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "date"
       ]
     },
     {
@@ -207,6 +249,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "date"
       ]
     },
     {
@@ -220,6 +265,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "date"
       ]
     },
     {
@@ -233,6 +281,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "date"
       ]
     },
     {
@@ -259,6 +310,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "date"
       ]
     },
     {
@@ -298,6 +352,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -311,6 +368,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -324,6 +384,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -337,6 +400,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -350,6 +416,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
       ]
     },
     {
@@ -376,6 +445,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "time"
       ]
     },
     {
@@ -389,6 +461,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "time"
       ]
     },
     {
@@ -402,6 +477,9 @@
       "tags": [
         "r5-xml",
         "testPlus"
+      ],
+      "outputTypes": [
+        "time"
       ]
     },
     {

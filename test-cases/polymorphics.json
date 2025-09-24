@@ -14,6 +14,9 @@
       "tags": [
         "r5-xml",
         "polymorphics"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -22,11 +25,16 @@
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [
-        true
+        false
       ],
       "tags": [
         "r5-xml",
         "polymorphics"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "outputTypes": [
+        "boolean"
       ]
     }
   ]

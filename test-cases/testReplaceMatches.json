@@ -14,6 +14,9 @@
       "tags": [
         "r5-xml",
         "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "string"
       ]
     },
     {
@@ -27,6 +30,9 @@
       "tags": [
         "r5-xml",
         "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "string"
       ]
     },
     {
@@ -40,6 +46,9 @@
       "tags": [
         "r5-xml",
         "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "string"
       ]
     },
     {
@@ -53,6 +62,9 @@
       "tags": [
         "r5-xml",
         "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -66,6 +78,9 @@
       "tags": [
         "r5-xml",
         "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -79,6 +94,9 @@
       "tags": [
         "r5-xml",
         "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -92,6 +110,9 @@
       "tags": [
         "r5-xml",
         "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "string"
       ]
     }
   ]

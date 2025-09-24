@@ -16,6 +16,7 @@
 //!
 //! Usage: cargo run --bin test-runner <test_file.json>
 
+use fhirpath_dev_tools::test_support::{TestSuite, compare_results, verify_output_types};
 use octofhir_fhir_model::FhirVersion;
 use octofhir_fhirpath::core::trace::create_cli_provider;
 use octofhir_fhirschema::create_validation_provider_from_embedded;
@@ -26,39 +27,6 @@ use std::path::Path;
 use std::process;
 use std::sync::Arc;
 use std::time::Duration;
-
-/// A single test case within a test suite
-#[derive(serde::Deserialize)]
-#[allow(dead_code)]
-struct TestCase {
-    pub name: String,
-    pub expression: String,
-    #[serde(default)]
-    pub input: Option<Value>,
-    pub inputfile: Option<String>,
-    pub expected: Value,
-    #[serde(default)]
-    pub tags: Vec<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default, alias = "expectError", alias = "expecterror")]
-    pub expecterror: Option<bool>,
-    #[serde(default)]
-    pub predicate: Option<bool>,
-    #[serde(default, alias = "invalidKind")]
-    pub invalidkind: Option<String>,
-}
-
-/// A test suite containing multiple test cases
-#[derive(serde::Deserialize)]
-struct TestSuite {
-    pub name: String,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub source: Option<String>,
-    pub tests: Vec<TestCase>,
-}
 
 fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>> {
     let specs_dir = Path::new("test-cases/input");
@@ -71,76 +39,6 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
 
 /// Compare expected result with actual result
 /// Simplified comparison with proper handling of FHIRPath collection semantics
-fn compare_results(expected: &Value, actual: &octofhir_fhirpath::Collection) -> bool {
-    // Convert actual to JSON for uniform comparison
-    let actual_json = match serde_json::to_value(actual) {
-        Ok(json) => json,
-        Err(_) => return false,
-    };
-
-    // Direct comparison first - handles most cases
-    if expected == &actual_json {
-        return true;
-    }
-
-    // FHIRPath collection handling: expected single value should match [single_value]
-    match (expected, &actual_json) {
-        // Test expects single value, actual is collection with one item
-        (expected_single, actual_json) if actual_json.is_array() => {
-            if let Some(actual_arr) = actual_json.as_array() {
-                if actual_arr.len() == 1 {
-                    expected_single == &actual_arr[0]
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-        // Test expects array, actual is single value (shouldn't happen with new spec compliance but handle it)
-        (expected, actual_single) if expected.is_array() => {
-            if let Some(expected_arr) = expected.as_array() {
-                if expected_arr.len() == 1 {
-                    &expected_arr[0] == actual_single
-                } else {
-                    expected == actual_single
-                }
-            } else {
-                false
-            }
-        }
-        // Both empty
-        (expected, actual_json) if expected.is_array() && actual_json.is_null() => {
-            if let Some(expected_arr) = expected.as_array() {
-                expected_arr.is_empty()
-            } else {
-                false
-            }
-        }
-        (expected, actual_json) if expected.is_null() && actual_json.is_array() => {
-            if let Some(actual_arr) = actual_json.as_array() {
-                actual_arr.is_empty()
-            } else {
-                false
-            }
-        }
-        // Test expects array with single item, actual is single primitive
-        (expected, actual_single) if expected.is_array() => {
-            if let Some(expected_arr) = expected.as_array() {
-                if expected_arr.len() == 1 {
-                    &expected_arr[0] == actual_single
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-        // Default: no match
-        _ => false,
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -267,8 +165,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         // Check for semantic errors first if test expects an error (before consuming input_data)
-        if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
-            if let Some(ref invalid_kind) = test_case.invalidkind {
+        if test_case.expect_error.is_some() && test_case.expect_error.unwrap() {
+            if let Some(ref invalid_kind) = test_case.invalid_kind {
                 if invalid_kind == "semantic" {
                     // Extract context type from input data if available
                     let context_type = if input_data != Value::Null {
@@ -355,7 +253,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "⚠️ TIMEOUT after {}ms (limit: {timeout_ms}ms)",
                     eval_time.as_millis()
                 );
-                if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
+                if test_case.expect_error.is_some() && test_case.expect_error.unwrap() {
                     println!("✅ PASS");
                     passed += 1;
                     continue;
@@ -369,7 +267,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match inner {
                     Ok(eval_result) => eval_result.value, // Extract FhirPathValue from EvaluationResult
                     Err(e) => {
-                        if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
+                        if test_case.expect_error.is_some() && test_case.expect_error.unwrap() {
                             println!("✅ PASS");
                             passed += 1;
                             continue;
@@ -383,7 +281,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         // Check if test expects an error but we got a result
-        if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
+        if test_case.expect_error.is_some() && test_case.expect_error.unwrap() {
             println!("❌ FAIL: Expected error but got result");
             failed += 1;
             continue;
@@ -401,6 +299,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             result
         };
+
+        if !test_case.output_types.is_empty() {
+            if let Err(mismatch) = verify_output_types(&test_case.output_types, &final_result) {
+                println!("❌ FAIL: Type mismatch");
+                println!("   Expected types: {:?}", mismatch.expected);
+                println!("   Actual types:   {:?}", mismatch.actual);
+                failed += 1;
+                continue;
+            }
+        }
 
         // Compare results
         if compare_results(&test_case.expected, &final_result) {

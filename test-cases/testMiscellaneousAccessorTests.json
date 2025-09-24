@@ -16,7 +16,10 @@
         "testMiscellaneousAccessorTests"
       ],
       "description": "Extract birthDate",
-      "predicate": false
+      "predicate": false,
+      "outputTypes": [
+        "date"
+      ]
     },
     {
       "name": "testPatientHasBirthDate",
@@ -31,7 +34,10 @@
         "testMiscellaneousAccessorTests"
       ],
       "description": "patient has a birthDate",
-      "predicate": true
+      "predicate": true,
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testPatientTelecomTypes",
@@ -48,7 +54,13 @@
         "r5-xml",
         "testMiscellaneousAccessorTests"
       ],
-      "description": "patient telecom types"
+      "description": "patient telecom types",
+      "outputTypes": [
+        "code",
+        "code",
+        "code",
+        "code"
+      ]
     }
   ]
 }

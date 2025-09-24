@@ -14,6 +14,9 @@
       "tags": [
         "r5-xml",
         "from-Zulip"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -29,7 +32,10 @@
         "from-Zulip"
       ],
       "expectError": true,
-      "invalidKind": "execution"
+      "invalidKind": "execution",
+      "outputTypes": [
+        "boolean"
+      ]
     }
   ]
 }

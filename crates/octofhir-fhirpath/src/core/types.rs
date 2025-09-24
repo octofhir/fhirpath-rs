@@ -625,16 +625,25 @@ impl FhirPathValue {
                 ucum_unit,
                 calendar_unit,
                 ..
-            } => Self::Quantity {
-                value,
-                unit,
-                code,
-                system,
-                ucum_unit,
-                calendar_unit,
-                type_info,
-                primitive_element,
-            },
+            } => {
+                // Ensure system field has default value for UCUM units when not already set
+                let resolved_system = if system.is_none() && ucum_unit.is_some() {
+                    Some("http://unitsofmeasure.org".to_string())
+                } else {
+                    system
+                };
+
+                Self::Quantity {
+                    value,
+                    unit,
+                    code,
+                    system: resolved_system,
+                    ucum_unit,
+                    calendar_unit,
+                    type_info,
+                    primitive_element,
+                }
+            }
             other => other, // Collection and Empty don't change
         }
     }
@@ -666,16 +675,25 @@ impl FhirPathValue {
                 ucum_unit,
                 calendar_unit,
                 ..
-            } => Self::Quantity {
-                value: *value,
-                unit: unit.clone(),
-                code: code.clone(),
-                system: system.clone(),
-                ucum_unit: ucum_unit.clone(),
-                calendar_unit: *calendar_unit,
-                type_info: default_type_info,
-                primitive_element: None,
-            },
+            } => {
+                // Ensure system field has default value for UCUM units when not already set
+                let resolved_system = if system.is_none() && ucum_unit.is_some() {
+                    Some("http://unitsofmeasure.org".to_string())
+                } else {
+                    system.clone()
+                };
+
+                Self::Quantity {
+                    value: *value,
+                    unit: unit.clone(),
+                    code: code.clone(),
+                    system: resolved_system,
+                    ucum_unit: ucum_unit.clone(),
+                    calendar_unit: *calendar_unit,
+                    type_info: default_type_info,
+                    primitive_element: None,
+                }
+            }
             other => other.clone(),
         }
     }
@@ -1322,16 +1340,25 @@ impl FhirPathValue {
                 ucum_unit,
                 calendar_unit,
                 ..
-            } => Self::Quantity {
-                value: *value,
-                unit: unit.clone(),
-                code: code.clone(),
-                system: system.clone(),
-                ucum_unit: ucum_unit.clone(),
-                calendar_unit: *calendar_unit,
-                type_info: new_type_info,
-                primitive_element: None,
-            },
+            } => {
+                // Ensure system field has default value for UCUM units when not already set
+                let resolved_system = if system.is_none() && ucum_unit.is_some() {
+                    Some("http://unitsofmeasure.org".to_string())
+                } else {
+                    system.clone()
+                };
+
+                Self::Quantity {
+                    value: *value,
+                    unit: unit.clone(),
+                    code: code.clone(),
+                    system: resolved_system,
+                    ucum_unit: ucum_unit.clone(),
+                    calendar_unit: *calendar_unit,
+                    type_info: new_type_info,
+                    primitive_element: None,
+                }
+            }
             Self::Resource(json, _, primitive) => {
                 Self::Resource(json.clone(), new_type_info, primitive.clone())
             }

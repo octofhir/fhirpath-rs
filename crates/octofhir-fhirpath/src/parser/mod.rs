@@ -853,6 +853,55 @@ mod tests {
     }
 
     #[test]
+    fn test_analysis_mode_supports_xor() {
+        let expr = "({} xor false).empty()";
+
+        let fast_result = parse_with_mode(expr, ParsingMode::Fast);
+        assert!(fast_result.success, "fast parser should succeed");
+
+        let analysis_result = parse_with_mode(expr, ParsingMode::Analysis);
+        assert!(analysis_result.success, "analysis parser should succeed");
+
+        let fast_ast = fast_result.ast.as_ref().map(|ast| format!("{:?}", ast));
+        let analysis_ast = analysis_result.ast.as_ref().map(|ast| format!("{:?}", ast));
+        assert_eq!(fast_ast, analysis_ast, "ASTs should match between modes");
+    }
+
+    #[test]
+    fn test_analysis_mode_xor_precedence() {
+        let expr = "true xor false and true";
+
+        let analysis_result = parse_with_mode(expr, ParsingMode::Analysis);
+        assert!(
+            analysis_result.success,
+            "analysis parser should succeed for xor precedence test"
+        );
+
+        let ast = analysis_result
+            .ast
+            .expect("analysis parser should produce AST");
+        if let ExpressionNode::BinaryOperation(node) = ast {
+            assert_eq!(node.operator, crate::ast::BinaryOperator::Xor);
+        } else {
+            panic!("expected binary operation root node");
+        }
+    }
+
+    #[test]
+    fn test_analysis_mode_equivalence_operators() {
+        let expr = "name.take(2).given !~ name.take(2).last().given | name.take(2).first().given";
+
+        let fast_result = parse_with_mode(expr, ParsingMode::Fast);
+        assert!(fast_result.success, "fast parser should succeed");
+
+        let analysis_result = parse_with_mode(expr, ParsingMode::Analysis);
+        assert!(
+            analysis_result.success,
+            "analysis parser should accept equivalence operators"
+        );
+    }
+
+    #[test]
     fn test_error_handling_differences() {
         let invalid_expr = "Patient.name(unclosed_paren";
 

@@ -26,6 +26,10 @@
       "tags": [
         "r5-xml",
         "testDollar"
+      ],
+      "outputTypes": [
+        "string",
+        "string"
       ]
     },
     {
@@ -41,6 +45,11 @@
       "tags": [
         "r5-xml",
         "testDollar"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string"
       ]
     },
     {

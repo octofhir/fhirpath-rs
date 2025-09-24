@@ -14,6 +14,9 @@
       "tags": [
         "r5-xml",
         "testObservations"
+      ],
+      "outputTypes": [
+        "string"
       ]
     },
     {
@@ -27,6 +30,11 @@
       "tags": [
         "r5-xml",
         "testObservations"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "outputTypes": [
+        "string"
       ]
     },
     {
@@ -40,6 +48,9 @@
       "tags": [
         "r5-xml",
         "testObservations"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -53,6 +64,9 @@
       "tags": [
         "r5-xml",
         "testObservations"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -77,6 +91,9 @@
       "tags": [
         "r5-xml",
         "testObservations"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -90,6 +107,9 @@
       "tags": [
         "r5-xml",
         "testObservations"
+      ],
+      "outputTypes": [
+        "string"
       ]
     },
     {
@@ -103,6 +123,9 @@
       "tags": [
         "r5-xml",
         "testObservations"
+      ],
+      "outputTypes": [
+        "string"
       ]
     },
     {

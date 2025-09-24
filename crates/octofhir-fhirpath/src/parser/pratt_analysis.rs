@@ -5,7 +5,7 @@
 //! is essential. Uses Chumsky 0.10's Rich error types for detailed diagnostics.
 
 use chumsky::error::{Rich, RichReason};
-use chumsky::pratt::{infix, left, postfix, prefix};
+use chumsky::pratt::{infix, left, postfix, prefix, right};
 use chumsky::prelude::*;
 
 use super::combinators::{
@@ -107,6 +107,19 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
 
         // Pratt parser with essential operators (reduced to fit Chumsky limits)
         atom.pratt((
+            // Logical IMPLIES - precedence 0 (right-associative)
+            infix(
+                right(0),
+                text::keyword("implies").padded(),
+                |left, _, right, _| {
+                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::Implies,
+                        right: Box::new(right),
+                        location: None,
+                    })
+                },
+            ),
             // Logical OR - precedence 1
             infix(
                 left(1),
@@ -120,9 +133,22 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Logical AND - precedence 2
+            // Logical XOR - precedence 2 (between AND and OR)
             infix(
                 left(2),
+                text::keyword("xor").padded(),
+                |left, _, right, _| {
+                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::Xor,
+                        right: Box::new(right),
+                        location: None,
+                    })
+                },
+            ),
+            // Logical AND - precedence 3
+            infix(
+                left(3),
                 text::keyword("and").padded(),
                 |left, _, right, _| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -133,9 +159,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Collection membership operators - precedence 4 (matching main parser)
+            // Collection membership operators - precedence 5 (matching fast parser ordering)
             infix(
-                left(4),
+                left(5),
                 text::keyword("in").padded(),
                 |left, _, right, _| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -147,7 +173,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                 },
             ),
             infix(
-                left(4),
+                left(5),
                 text::keyword("contains").padded(),
                 |left, _, right, _| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -158,10 +184,12 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Equality - precedence 3
+            // Equality and equivalence - precedence 4
             infix(
-                left(3),
+                left(4),
                 choice((
+                    just("!~"),
+                    just("~"),
                     just("="),
                     just("=="),
                     just("!="),
@@ -171,6 +199,8 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                 .padded(),
                 |left, op: &str, right, _| {
                     let operator = match op {
+                        "!~" => BinaryOperator::NotEquivalent,
+                        "~" => BinaryOperator::Equivalent,
                         "=" | "==" => BinaryOperator::Equal,
                         "!=" | "<>" | "≠" => BinaryOperator::NotEqual,
                         _ => BinaryOperator::Equal, // fallback
@@ -183,9 +213,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Comparisons - precedence 4
+            // Comparisons - precedence 6
             infix(
-                left(4),
+                left(6),
                 choice((
                     just("<="),
                     just(">="),
@@ -211,9 +241,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Type operations - precedence 5
+            // Type operations - precedence 7
             infix(
-                left(5),
+                left(7),
                 choice((text::keyword("is"), text::keyword("as"))).padded(),
                 |left, op: &str, right, _| {
                     if op == "is" {
@@ -250,17 +280,17 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     }
                 },
             ),
-            // Union - precedence 6
-            infix(left(6), just("|").padded(), |left, _, right, _| {
+            // Union - precedence 8
+            infix(left(8), just("|").padded(), |left, _, right, _| {
                 ExpressionNode::Union(UnionNode {
                     left: Box::new(left),
                     right: Box::new(right),
                     location: None,
                 })
             }),
-            // Additive - precedence 7
+            // Additive - precedence 9
             infix(
-                left(7),
+                left(9),
                 choice((just("+"), just("-"), just("&"))).padded(),
                 |left, op: &str, right, _| {
                     let operator = match op {
@@ -277,9 +307,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Multiplicative - precedence 8
+            // Multiplicative - precedence 10
             infix(
-                left(8),
+                left(10),
                 choice((
                     just("*"),
                     just("/"),
@@ -304,9 +334,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Unary operators - precedence 9
+            // Unary operators - precedence 11
             prefix(
-                9,
+                11,
                 choice((
                     just("-"),
                     just("+"),
@@ -332,9 +362,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     }
                 },
             ),
-            // Indexing - precedence 10
+            // Indexing - precedence 12
             postfix(
-                10,
+                12,
                 expr.clone()
                     .delimited_by(just('[').padded(), just(']').padded()),
                 |expr, index, _| {
@@ -345,9 +375,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Property access and method calls - precedence 11
+            // Property access and method calls - precedence 13
             postfix(
-                11,
+                13,
                 just('.').padded().ignore_then(identifier_parser()).then(
                     expr.clone()
                         .separated_by(just(',').padded())
@@ -797,6 +827,39 @@ mod tests {
         assert!(
             result.ast.is_some(),
             "Should produce AST for valid expression"
+        );
+    }
+
+    #[test]
+    fn test_implies_operator_parses() {
+        let result = parse_for_analysis("(false implies true) = true");
+        assert!(
+            !result.has_errors,
+            "Analysis parser should accept the implies operator"
+        );
+        assert!(result.ast.is_some(), "AST should be produced for implies");
+    }
+
+    #[test]
+    fn test_string_literal_method_chain_parses() {
+        let result = parse_for_analysis("'1'.type().namespace = 'System'");
+        assert!(
+            !result.has_errors,
+            "String literal method chaining should parse in analysis mode"
+        );
+        assert!(result.ast.is_some(), "AST should exist for method chain");
+    }
+
+    #[test]
+    fn test_concatenation_with_collection_parses() {
+        let result = parse_for_analysis("'1' & {} = '1'");
+        assert!(
+            !result.has_errors,
+            "Concatenation with collection should parse in analysis mode"
+        );
+        assert!(
+            result.ast.is_some(),
+            "AST should exist for concatenation expression"
         );
     }
 

@@ -25,88 +25,20 @@ use std::path::{Path, PathBuf};
 
 // Integration test runner functionality
 mod integration_test_runner {
+    use fhirpath_dev_tools::test_support::{
+        TestCase, TestSuite, TypeMismatch, compare_results, verify_output_types,
+    };
     use octofhir_fhir_model::FhirVersion;
     use octofhir_fhirpath::FhirPathValue;
     use octofhir_fhirpath::ModelProvider;
     use octofhir_fhirpath::core::trace::create_cli_provider;
     use octofhir_fhirpath::{Collection, FhirPathEngine, create_function_registry};
     use octofhir_fhirschema::create_validation_provider_from_embedded;
-    use serde::{Deserialize, Serialize};
-    use serde_json::Value;
+    use serde_json::{Value, json};
     use std::collections::HashMap;
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
-
-    /// A single test case within a test suite
-    #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct TestCase {
-        /// Test name
-        pub name: String,
-        /// FHIRPath expression to evaluate
-        pub expression: String,
-        /// Input data (usually null, uses inputfile instead)
-        #[serde(default, deserialize_with = "deserialize_nullable_input")]
-        pub input: Option<Value>,
-        /// File containing input data
-        pub inputfile: Option<String>,
-        /// Expected result
-        pub expected: Value,
-        /// Test tags for categorization
-        #[serde(default)]
-        pub tags: Vec<String>,
-        /// Optional description
-        #[serde(default)]
-        pub description: Option<String>,
-
-        /// Expression is expected to error (parse or evaluation)
-        #[serde(rename = "expectError", alias = "expecterror")]
-        pub expect_error: Option<bool>,
-
-        /// Mark test disabled/skipped
-        #[serde(default)]
-        pub disabled: Option<bool>,
-
-        /// For metadata only (not used in execution)
-        #[serde(default)]
-        pub predicate: Option<bool>,
-
-        /// Skip static check metadata from XML (kept for reference)
-        #[serde(rename = "skipStaticCheck")]
-        pub skip_static_check: Option<bool>,
-
-        /// Invalid kind from XML: syntax|semantic|execution (reference only)
-        #[serde(rename = "invalidKind")]
-        pub invalid_kind: Option<String>,
-
-        /// Expression mode (e.g., strict) from XML
-        #[serde(default)]
-        pub mode: Option<String>,
-    }
-
-    /// Custom deserializer to handle "input": null as Some(Value::Null) instead of None
-    fn deserialize_nullable_input<'de, D>(deserializer: D) -> Result<Option<Value>, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let opt = Option::<Value>::deserialize(deserializer)?;
-        Ok(opt.or(Some(Value::Null)))
-    }
-
-    /// A test suite containing multiple test cases
-    #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct TestSuite {
-        /// Suite name
-        pub name: String,
-        /// Suite description
-        #[serde(default)]
-        pub description: Option<String>,
-        /// Source of the tests
-        #[serde(default)]
-        pub source: Option<String>,
-        /// List of test cases
-        pub tests: Vec<TestCase>,
-    }
 
     /// Result of running a single test
     #[derive(Debug, Clone, PartialEq)]
@@ -301,82 +233,6 @@ mod integration_test_runner {
         /// Convert expected JSON value to FhirPathValue for comparison
         fn convert_expected_value(&self, expected: &Value) -> FhirPathValue {
             FhirPathValue::json_value(expected.clone())
-        }
-
-        /// Compare actual collection result with expected result
-        /// Matches the test-runner comparison logic exactly  
-        fn compare_results_collection(
-            &self,
-            actual: &octofhir_fhirpath::Collection,
-            expected: &Value,
-        ) -> bool {
-            // Convert actual to JSON for uniform comparison
-            let actual_normalized = match serde_json::to_value(actual) {
-                Ok(json) => json,
-                Err(_) => return false,
-            };
-
-            // Direct comparison first - handles most cases
-            if expected == &actual_normalized {
-                return true;
-            }
-
-            // FHIRPath collection handling: expected single value should match [single_value]
-            match (expected, &actual_normalized) {
-                // Test expects single value, actual is collection with one item
-                (expected_single, actual_json) if actual_json.is_array() => {
-                    if let Some(actual_arr) = actual_json.as_array() {
-                        if actual_arr.len() == 1 {
-                            expected_single == &actual_arr[0]
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                }
-                // Test expects array, actual is single value (shouldn't happen with new spec compliance but handle it)
-                (expected, actual_single) if expected.is_array() => {
-                    if let Some(expected_arr) = expected.as_array() {
-                        if expected_arr.len() == 1 {
-                            &expected_arr[0] == actual_single
-                        } else {
-                            expected == actual_single
-                        }
-                    } else {
-                        false
-                    }
-                }
-                // Both empty
-                (expected, actual_json) if expected.is_array() && actual_json.is_null() => {
-                    if let Some(expected_arr) = expected.as_array() {
-                        expected_arr.is_empty()
-                    } else {
-                        false
-                    }
-                }
-                (expected, actual_json) if expected.is_null() && actual_json.is_array() => {
-                    if let Some(actual_arr) = actual_json.as_array() {
-                        actual_arr.is_empty()
-                    } else {
-                        false
-                    }
-                }
-                // Test expects array with single item, actual is single primitive
-                (expected, actual_single) if expected.is_array() => {
-                    if let Some(expected_arr) = expected.as_array() {
-                        if expected_arr.len() == 1 {
-                            &expected_arr[0] == actual_single
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                }
-                // Default: no match
-                _ => false,
-            }
         }
 
         /// Compare actual result with expected result
@@ -593,6 +449,20 @@ mod integration_test_runner {
                 };
             }
 
+            if !test.output_types.is_empty() {
+                if let Err(TypeMismatch { expected, actual }) =
+                    verify_output_types(&test.output_types, &result)
+                {
+                    return TestResult::Failed {
+                        expected: json!({"values": test.expected.clone(), "types": expected}),
+                        actual: json!({
+                            "values": serde_json::to_value(&result).unwrap_or_default(),
+                            "types": actual,
+                        }),
+                    };
+                }
+            }
+
             if self.verbose {
                 println!("Result: {result:?}");
                 println!(
@@ -602,7 +472,7 @@ mod integration_test_runner {
             }
 
             // Compare results using the entire collection (matches test-runner behavior)
-            if self.compare_results_collection(&result, &test.expected) {
+            if compare_results(&test.expected, &result) {
                 TestResult::Passed
             } else {
                 // Convert actual result to JSON for display

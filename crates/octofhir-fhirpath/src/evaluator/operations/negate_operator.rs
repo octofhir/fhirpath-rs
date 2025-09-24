@@ -56,16 +56,25 @@ impl NegateOperatorEvaluator {
                 calendar_unit,
                 primitive_element,
                 type_info,
-            } => Ok(FhirPathValue::Quantity {
-                value: -*value,
-                unit: unit.clone(),
-                code: code.clone(),
-                system: system.clone(),
-                ucum_unit: ucum_unit.clone(),
-                calendar_unit: *calendar_unit,
-                type_info: type_info.clone(),
-                primitive_element: primitive_element.clone(),
-            }),
+            } => {
+                // Ensure system field has default value for UCUM units when not already set
+                let resolved_system = if system.is_none() && ucum_unit.is_some() {
+                    Some("http://unitsofmeasure.org".to_string())
+                } else {
+                    system.clone()
+                };
+
+                Ok(FhirPathValue::Quantity {
+                    value: -*value,
+                    unit: unit.clone(),
+                    code: code.clone(),
+                    system: resolved_system,
+                    ucum_unit: ucum_unit.clone(),
+                    calendar_unit: *calendar_unit,
+                    type_info: type_info.clone(),
+                    primitive_element: primitive_element.clone(),
+                })
+            }
 
             _ => Err(crate::core::FhirPathError::evaluation_error(
                 crate::core::error_code::FP0055,

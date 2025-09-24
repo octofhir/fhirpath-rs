@@ -38,6 +38,8 @@ struct JsonTestCase {
     invalid_kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     mode: Option<String>,
+    #[serde(rename = "outputTypes", skip_serializing_if = "Option::is_none")]
+    output_types: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,6 +127,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
     let mut current_expect_error = false;
     let mut _current_output_type: Option<String> = None;
     let mut current_expected: Vec<Value> = Vec::new();
+    let mut current_output_types: Vec<String> = Vec::new();
     let mut current_disabled: Option<bool> = None;
     let mut current_predicate: Option<bool> = None;
     let mut current_skip_static: Option<bool> = None;
@@ -168,6 +171,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         current_expression.clear();
                         current_expect_error = false;
                         current_expected.clear();
+                        current_output_types.clear();
                         current_disabled = None;
                         current_predicate = None;
                         current_skip_static = None;
@@ -229,6 +233,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                             .into_owned();
                         let ty = _current_output_type.as_deref().unwrap_or("string");
                         current_expected.push(xml_text_to_value(ty, &out_text));
+                        current_output_types.push(ty.to_string());
                         _current_output_type = None;
                     }
                     _ => {}
@@ -258,6 +263,11 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                                 skip_static_check: current_skip_static,
                                 invalid_kind: current_invalid_kind.clone(),
                                 mode: current_expr_mode.clone(),
+                                output_types: if current_output_types.is_empty() {
+                                    None
+                                } else {
+                                    Some(current_output_types.clone())
+                                },
                             };
 
                             if let Some(suite) = groups.get_mut(&current_group_name) {

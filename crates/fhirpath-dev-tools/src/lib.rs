@@ -20,8 +20,10 @@
 //! including test runners, coverage analysis, and benchmarking tools.
 
 pub mod common;
+pub mod test_support;
 
 // Re-export common functionality
 pub use common::*;
+pub use test_support::*;
 // Re-export model providers from fhirschema crate
 pub use octofhir_fhirschema::model_provider::EmbeddedSchemaProvider;

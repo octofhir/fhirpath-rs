@@ -158,11 +158,19 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
             } => match compute_numeric_boundaries(*value, precision_value) {
                 Ok(boundary) => {
                     let adjusted = apply_requested_scale(boundary.high, boundary.requested_scale);
+
+                    // Ensure system field has default value for UCUM units when not already set
+                    let resolved_system = if system.is_none() && ucum_unit.is_some() {
+                        Some("http://unitsofmeasure.org".to_string())
+                    } else {
+                        system.clone()
+                    };
+
                     FhirPathValue::Quantity {
                         value: adjusted,
                         unit: unit.clone(),
                         code: code.clone(),
-                        system: system.clone(),
+                        system: resolved_system,
                         ucum_unit: ucum_unit.clone(),
                         calendar_unit: *calendar_unit,
                         type_info: type_info.clone(),

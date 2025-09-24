@@ -1899,9 +1899,28 @@ impl Evaluator {
             wrapped
         });
 
+        // Preserve primitive typing when we fall back to unknown metadata. For
+        // real FHIR primitives (e.g., contained.id) prefer the declared FHIR
+        // primitive type. For synthetic structures like TypeInfo, fall back to
+        // the runtime System type so reflection APIs surface strings.
+        let mut effective_type_info = type_info.clone();
+        if effective_type_info.type_name == "Unknown"
+            && effective_type_info.namespace.as_deref() == Some("FHIR")
+        {
+            if let Some(ref name) = effective_type_info.name {
+                if crate::typing::is_primitive_type(name) {
+                    effective_type_info.type_name = name.clone();
+                } else {
+                    effective_type_info = base_value.type_info().clone();
+                }
+            } else {
+                effective_type_info = base_value.type_info().clone();
+            }
+        }
+
         Ok(FhirPathValue::wrap_value(
             base_value,
-            type_info.clone(),
+            effective_type_info,
             wrapped_primitive,
         ))
     }

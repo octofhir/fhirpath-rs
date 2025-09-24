@@ -15,7 +15,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort2",
@@ -29,7 +32,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort3",
@@ -43,7 +49,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort4",
@@ -57,7 +66,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort5",
@@ -71,7 +83,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort6",
@@ -85,7 +100,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort7",
@@ -99,7 +117,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort8",
@@ -113,7 +134,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort9",
@@ -127,7 +151,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     },
     {
       "name": "testSort10",
@@ -141,7 +168,10 @@
         "r5-xml",
         "testSort"
       ],
-      "description": "Prototype definition - not part of spec yet"
+      "description": "Prototype definition - not part of spec yet",
+      "outputTypes": [
+        "boolean"
+      ]
     }
   ]
 }

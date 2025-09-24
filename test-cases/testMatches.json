@@ -13,6 +13,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -25,6 +28,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -37,6 +43,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -49,6 +58,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -61,6 +73,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -73,6 +88,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -85,6 +103,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -97,6 +118,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -109,6 +133,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -121,6 +148,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -133,6 +163,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -145,6 +178,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -157,6 +193,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -169,6 +208,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -181,6 +223,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -193,6 +238,9 @@
       "tags": [
         "r5-xml",
         "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     }
   ]

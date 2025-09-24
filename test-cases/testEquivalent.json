@@ -14,6 +14,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -27,6 +30,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -40,6 +46,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -53,6 +62,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -66,6 +78,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -79,6 +94,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -92,6 +110,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -105,6 +126,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -118,6 +142,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -131,6 +158,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -144,6 +174,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -157,6 +190,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -170,6 +206,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -183,6 +222,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -196,6 +238,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -209,6 +254,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -222,6 +270,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -235,6 +286,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -248,6 +302,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -261,6 +318,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -274,6 +334,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -287,6 +350,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -300,6 +366,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     },
     {
@@ -313,6 +382,9 @@
       "tags": [
         "r5-xml",
         "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
       ]
     }
   ]

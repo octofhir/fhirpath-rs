@@ -159,5 +159,5 @@ The fhirpath-rs implementation currently passes approximately **100.0% of all FH
 
 ---
 
-*Report generated on: 2025-09-24 15:02:37*
+*Report generated on: 2025-09-24 19:23:57*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*

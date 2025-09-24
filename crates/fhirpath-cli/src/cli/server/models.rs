@@ -1,6 +1,7 @@
 //! Request and response models for the FHIRPath HTTP server
 
 use octofhir_fhirpath::FhirPathValue;
+use serde::ser::{Serialize as SerSerialize, Serializer};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::collections::HashMap;
@@ -243,7 +244,7 @@ pub struct FhirPathLabResponseParameter {
     pub value_code: Option<String>,
     /// Decimal value (for timing metrics)
     #[serde(rename = "valueDecimal", skip_serializing_if = "Option::is_none")]
-    pub value_decimal: Option<f64>,
+    pub value_decimal: Option<DecimalRepresentation>,
     /// Boolean value (for boolean results)
     #[serde(rename = "valueBoolean", skip_serializing_if = "Option::is_none")]
     pub value_boolean: Option<bool>,
@@ -377,7 +378,10 @@ impl FhirPathLabRequest {
             }
         }
 
-        let expression = expression.ok_or("Missing required 'expression' parameter")?;
+        let expression = expression
+            .ok_or("Missing required 'expression' parameter")?
+            .trim()
+            .to_string();
         let resource = resource.ok_or("Missing required 'resource' parameter")?;
 
         Ok(ParsedFhirPathLabRequest {
@@ -726,7 +730,7 @@ impl FhirPathLabResponse {
                 },
                 value_code: None,
                 value_decimal: if value.is_number() {
-                    value.as_f64()
+                    value.as_f64().map(DecimalRepresentation::from_f64)
                 } else {
                     None
                 },
@@ -1008,14 +1012,48 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
 }
 
 pub fn decimal_to_json_value(decimal: &rust_decimal::Decimal) -> JsonValue {
-    let mut decimal_str = decimal.normalize().to_string();
-    if decimal_str.contains(',') {
-        decimal_str = decimal_str.replace(',', ".");
-    }
+    let decimal_str = canonical_decimal_string(decimal);
 
     match serde_json::Number::from_str(&decimal_str) {
         Ok(number) => JsonValue::Number(number),
         Err(_) => JsonValue::String(decimal_str),
+    }
+}
+
+fn canonical_decimal_string(decimal: &rust_decimal::Decimal) -> String {
+    let mut decimal_str = decimal.to_string();
+    if decimal_str.contains(',') {
+        decimal_str = decimal_str.replace(',', ".");
+    }
+    decimal_str
+}
+
+/// Representation for FHIR decimal values allowing precise string preservation
+#[derive(Debug, Clone)]
+pub enum DecimalRepresentation {
+    Float(f64),
+    Canonical(String),
+}
+
+impl DecimalRepresentation {
+    pub fn from_f64(value: f64) -> Self {
+        Self::Float(value)
+    }
+
+    pub fn from_decimal(decimal: &rust_decimal::Decimal) -> Self {
+        Self::Canonical(canonical_decimal_string(decimal))
+    }
+}
+
+impl SerSerialize for DecimalRepresentation {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Float(value) => serializer.serialize_f64(*value),
+            Self::Canonical(text) => serializer.serialize_str(text),
+        }
     }
 }
 
