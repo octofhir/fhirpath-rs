@@ -327,31 +327,32 @@ async fn main() {
                 &cli,
             )
             .await;
-        } // Commands::Tui {
-          //     ref input,
-          //     ref variables,
-          //     ref config,
-          //     ref theme,
-          //     no_mouse,
-          //     no_syntax_highlighting,
-          //     no_auto_completion,
-          //     performance_monitoring,
-          //     check_terminal,
-          // } => {
-          //     handle_tui(
-          //         input.as_deref(),
-          //         variables,
-          //         config.as_deref(),
-          //         theme,
-          //         no_mouse,
-          //         no_syntax_highlighting,
-          //         no_auto_completion,
-          //         performance_monitoring,
-          //         check_terminal,
-          //         &cli,
-          //     )
-          //     .await;
-          // }
+        }
+        Commands::Tui {
+            ref input,
+            ref variables,
+            ref config,
+            ref theme,
+            no_mouse,
+            no_syntax_highlighting,
+            no_auto_completion,
+            performance_monitoring,
+            check_terminal,
+        } => {
+            handle_tui(
+                input.as_deref(),
+                variables,
+                config.as_deref(),
+                theme,
+                no_mouse,
+                no_syntax_highlighting,
+                no_auto_completion,
+                performance_monitoring,
+                check_terminal,
+                &cli,
+            )
+            .await;
+        }
     }
 }
 
@@ -939,7 +940,6 @@ async fn handle_repl(
     cli: &Cli,
 ) {
     use fhirpath_cli::cli::repl::{ReplConfig, start_repl};
-    use serde_json::Value as JsonValue;
     use std::path::PathBuf;
 
     // Create shared model provider matching the pattern from other commands
@@ -1822,7 +1822,7 @@ async fn try_show_operator(
 }
 
 // Handle the TUI command
-/* async fn handle_tui(
+async fn handle_tui(
     input: Option<&str>,
     variables: &[String],
     config_path: Option<&str>,
@@ -1835,7 +1835,6 @@ async fn try_show_operator(
     _cli: &Cli,
 ) {
     use fhirpath_cli::tui::{TuiConfig, check_terminal_capabilities, start_tui};
-    use serde_json::Value as JsonValue;
 
     // Check terminal capabilities if requested
     if check_terminal {
@@ -1855,7 +1854,8 @@ async fn try_show_operator(
     }
 
     // Create ModelProvider
-    let model_provider = std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::new(FhirVersion::R4));
+    let model_provider =
+        std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::new(FhirVersion::R4));
 
     // Load configuration
     let mut config = if let Some(config_path) = config_path {
@@ -1963,4 +1963,3 @@ fn load_resource_from_input(input: &str) -> anyhow::Result<JsonValue> {
         serde_json::from_str(&content).context("Failed to parse file content as JSON")
     }
 }
-*/

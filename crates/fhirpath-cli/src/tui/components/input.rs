@@ -50,10 +50,22 @@ impl InputPanel {
     pub fn get_expression(&self) -> String {
         self.text_area.lines().join("")
     }
+
+    /// Clear all text in the input area
+    pub fn clear_text(&mut self) {
+        // Reinitialize the text area to ensure a clean state
+        let mut new_area = TextArea::default();
+        new_area.set_placeholder_text("Enter FHIRPath expression...");
+        self.text_area = new_area;
+    }
 }
 
 impl TuiComponent for InputPanel {
     fn render(&mut self, frame: &mut Frame, area: Rect, state: &AppState, theme: &TuiTheme) {
+        use ratatui::style::{Modifier, Style};
+        use ratatui::text::{Line, Span};
+        use ratatui::widgets::{Block, Borders, Clear, List, ListItem};
+
         let is_focused = state.focused_panel == PanelType::Input;
         let block = utils::create_panel_block("Input", PanelType::Input, is_focused, theme);
 
@@ -65,17 +77,167 @@ impl TuiComponent for InputPanel {
         }
 
         frame.render_widget(&self.text_area, area);
+
+        // Render completion popup if focused and completions are available
+        if is_focused && !state.completions.is_empty() {
+            let visible = state.completions.len().min(8);
+            let popup_height = visible as u16 + 2; // include borders
+            let popup_width = area.width.saturating_sub(4).min(60);
+            let popup_x = area.x + 2;
+            let popup_y = area
+                .y
+                .saturating_add(area.height.saturating_sub(popup_height + 1));
+            let popup_area = Rect {
+                x: popup_x,
+                y: popup_y,
+                width: popup_width,
+                height: popup_height,
+            };
+
+            // Clear background to avoid overlapping artifacts
+            frame.render_widget(Clear, popup_area);
+
+            let highlight_style = Style::default()
+                .bg(theme.colors.selected_background)
+                .fg(theme.colors.selected_text)
+                .add_modifier(Modifier::BOLD);
+
+            let items: Vec<ListItem> = state
+                .completions
+                .iter()
+                .take(visible)
+                .enumerate()
+                .map(|(index, completion)| {
+                    let is_selected = index == state.selected_completion;
+                    let title_span = Span::styled(
+                        completion.display.clone(),
+                        if is_selected {
+                            highlight_style
+                        } else {
+                            Style::default().fg(theme.colors.normal_text)
+                        },
+                    );
+
+                    let mut lines = vec![Line::from(vec![title_span])];
+
+                    if is_selected {
+                        if let Some(doc) = completion.documentation.as_deref() {
+                            let doc_line = Line::from(vec![Span::styled(
+                                doc,
+                                Style::default()
+                                    .fg(theme.colors.disabled_text)
+                                    .add_modifier(Modifier::ITALIC),
+                            )]);
+                            lines.push(doc_line);
+                        }
+                    }
+
+                    ListItem::new(lines)
+                })
+                .collect();
+
+            let list = List::new(items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Completions ")
+                    .border_style(Style::default().fg(theme.colors.focused_border)),
+            );
+
+            frame.render_widget(list, popup_area);
+        }
     }
 
     fn handle_key_event(&mut self, key: KeyEvent, state: &mut AppState) -> ComponentResult {
         use crossterm::event::{KeyCode, KeyModifiers};
+
+        // If completion list is visible, handle navigation/selection first
+        if !state.completions.is_empty() {
+            match (key.code, key.modifiers) {
+                (KeyCode::Up, KeyModifiers::NONE) => {
+                    if state.selected_completion > 0 {
+                        state.selected_completion -= 1;
+                    } else if !state.completions.is_empty() {
+                        state.selected_completion = state.completions.len().saturating_sub(1);
+                    }
+                    return ComponentResult::Handled;
+                }
+                (KeyCode::Down, KeyModifiers::NONE) => {
+                    if state.selected_completion + 1 < state.completions.len() {
+                        state.selected_completion += 1;
+                    } else {
+                        state.selected_completion = 0;
+                    }
+                    return ComponentResult::Handled;
+                }
+                (KeyCode::Enter, KeyModifiers::NONE) => {
+                    if let Some(item) = state.completions.get(state.selected_completion) {
+                        // Insert completion text at the end by simulating typing
+                        for ch in item.text.chars() {
+                            let input = tui_textarea::Input {
+                                key: tui_textarea::Key::Char(ch),
+                                ctrl: false,
+                                alt: false,
+                                shift: false,
+                            };
+                            self.text_area.input(input);
+                        }
+                        state.current_expression = self.get_expression();
+                    }
+                    // Clear completions after insertion
+                    state.completions.clear();
+                    return ComponentResult::Handled;
+                }
+                (KeyCode::Tab, KeyModifiers::NONE) => {
+                    if let Some(item) = state.completions.get(state.selected_completion) {
+                        for ch in item.text.chars() {
+                            let input = tui_textarea::Input {
+                                key: tui_textarea::Key::Char(ch),
+                                ctrl: false,
+                                alt: false,
+                                shift: false,
+                            };
+                            self.text_area.input(input);
+                        }
+                        state.current_expression = self.get_expression();
+                    }
+                    state.completions.clear();
+                    return ComponentResult::Handled;
+                }
+                (KeyCode::BackTab, KeyModifiers::SHIFT) | (KeyCode::Tab, KeyModifiers::SHIFT) => {
+                    if state.selected_completion > 0 {
+                        state.selected_completion -= 1;
+                    } else if !state.completions.is_empty() {
+                        state.selected_completion = state.completions.len() - 1;
+                    }
+                    return ComponentResult::Handled;
+                }
+                (KeyCode::PageUp, KeyModifiers::NONE) => {
+                    state.selected_completion = 0;
+                    return ComponentResult::Handled;
+                }
+                (KeyCode::PageDown, KeyModifiers::NONE) => {
+                    if !state.completions.is_empty() {
+                        state.selected_completion = state.completions.len() - 1;
+                    }
+                    return ComponentResult::Handled;
+                }
+                (KeyCode::Esc, KeyModifiers::NONE) => {
+                    state.completions.clear();
+                    return ComponentResult::Handled;
+                }
+                _ => {}
+            }
+        }
 
         match (key.code, key.modifiers) {
             (KeyCode::Enter, KeyModifiers::NONE) => {
                 state.current_expression = self.get_expression();
                 ComponentResult::ExecuteExpression
             }
-            (KeyCode::Char(' '), KeyModifiers::CONTROL) => ComponentResult::ShowCompletions,
+            (KeyCode::Char(' '), KeyModifiers::CONTROL) => {
+                state.current_expression = self.get_expression();
+                ComponentResult::ShowCompletions
+            }
             _ => {
                 // Forward all other keys to the textarea for text input
                 // Create input event for tui_textarea, using raw event conversion
@@ -146,10 +308,11 @@ impl TuiComponent for InputPanel {
                 // Apply the input to the text area
                 self.text_area.input(input);
 
-                // Update the current expression in state
-                state.current_expression = self.get_expression();
+                // Update the current expression in state and propagate the change
+                let expression = self.get_expression();
+                state.current_expression = expression.clone();
 
-                ComponentResult::Handled
+                ComponentResult::UpdateExpression(expression)
             }
         }
     }

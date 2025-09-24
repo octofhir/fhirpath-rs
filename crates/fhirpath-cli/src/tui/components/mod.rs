@@ -190,6 +190,11 @@ impl ComponentManager {
         }
     }
 
+    /// Clear the input panel contents
+    pub fn clear_input(&mut self) {
+        self.input.clear_text();
+    }
+
     /// Update all components
     pub async fn update_all(&mut self, state: &mut AppState) -> Result<()> {
         // Update components (most are stateless, but some may need periodic updates)
@@ -401,8 +406,17 @@ pub mod utils {
             theme.colors.unfocused_border
         };
 
+        let badge = match panel_type {
+            PanelType::Input => "IN",
+            PanelType::Output => "OUT",
+            PanelType::Diagnostics => "DIAG",
+            PanelType::Variables => "VAR",
+            PanelType::History => "HIS",
+            PanelType::Help => "HELP",
+        };
+
         Block::default()
-            .title(format!(" {} ", title))
+            .title(format!(" [{}] {} ", badge, title))
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .border_style(Style::default().fg(border_color))

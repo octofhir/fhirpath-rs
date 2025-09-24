@@ -22,7 +22,7 @@ use std::io::Stdout;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use crossterm::event::{self, Event, MouseEvent};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;
@@ -40,6 +40,8 @@ use super::themes::TuiTheme;
 use octofhir_fhirpath::core::ModelProvider;
 use octofhir_fhirpath::diagnostics::{AriadneDiagnostic, DiagnosticEngine};
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
+
+use crate::tui::utils::completion_engine::{CompletionContext, CompletionEngine};
 
 /// Main TUI application state and event loop manager
 pub struct TuiApp {
@@ -62,11 +64,18 @@ pub struct TuiApp {
     /// FHIRPath evaluation engine
     engine: FhirPathEngine,
 
+    /// Model provider and function registry for completions
+    _model_provider: Arc<dyn ModelProvider>,
+    _function_registry: Arc<octofhir_fhirpath::FunctionRegistry>,
+
+    /// Completion engine
+    completion_engine: CompletionEngine,
+
     /// Static analyzer for real-time validation
     // analyzer: StaticAnalyzer, // Removed
 
     /// Diagnostic engine for error formatting
-    diagnostic_engine: DiagnosticEngine,
+    _diagnostic_engine: DiagnosticEngine,
 
     /// Terminal interface
     terminal: Terminal<CrosstermBackend<Stdout>>,
@@ -104,6 +113,8 @@ pub enum AppMode {
     Export,
     /// Full-screen diagnostics view
     DiagnosticsDetail,
+    /// File path prompt overlay to load a resource
+    FilePrompt,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,6 +153,8 @@ pub struct AppState {
 
     /// Auto-completion suggestions
     pub completions: Vec<CompletionItem>,
+    /// Selected completion index (if any)
+    pub selected_completion: usize,
 
     /// Whether real-time validation is enabled
     pub live_validation: bool,
@@ -151,6 +164,9 @@ pub struct AppState {
 
     /// Currently selected menu command (when in Menu mode)
     pub selected_menu_command: MenuCommand,
+
+    /// File path prompt buffer (when in FilePrompt mode)
+    pub file_prompt_buffer: String,
 }
 
 /// Historical evaluation entry
@@ -205,6 +221,10 @@ impl TuiApp {
         let engine = FhirPathEngine::new(registry.clone(), model_provider.clone()).await?;
         // let analyzer = StaticAnalyzer::new(registry, model_provider); // Removed
 
+        // Initialize completion engine
+        let completion_engine =
+            CompletionEngine::new(model_provider.clone(), registry.clone()).await?;
+
         // Create diagnostic engine with theme support
         let diagnostic_engine =
             DiagnosticEngine::with_colors(config.theme.diagnostic_colors.clone());
@@ -226,9 +246,11 @@ impl TuiApp {
             diagnostics: Vec::new(),
             evaluation_history: Vec::new(),
             completions: Vec::new(),
+            selected_completion: 0,
             live_validation: config.features.real_time_validation,
             performance: PerformanceMetrics::default(),
             selected_menu_command: MenuCommand::Evaluate,
+            file_prompt_buffer: String::new(),
         };
 
         Ok(Self {
@@ -240,13 +262,17 @@ impl TuiApp {
             event_handler,
             engine,
             // analyzer,
-            diagnostic_engine,
+            _diagnostic_engine: diagnostic_engine,
             terminal,
             state,
             config: config.clone(),
             theme: config.theme,
             should_quit: false,
             last_render: Instant::now(),
+            // New fields
+            _model_provider: model_provider,
+            _function_registry: registry,
+            completion_engine,
         })
     }
 
@@ -284,6 +310,12 @@ impl TuiApp {
                             AppMode::Menu => {
                                 if self.handle_menu_key(key_event).await? {
                                     break;
+                                }
+                            }
+                            AppMode::FilePrompt => {
+                                if self.handle_file_prompt_key(key_event).await? {
+                                    // returning true exits app; we want only to exit prompt
+                                    // convert to not exiting main loop
                                 }
                             }
                             _ => {
@@ -354,19 +386,40 @@ impl TuiApp {
             }
             ComponentResult::ExitApp => Ok(true),
             ComponentResult::ExecuteExpression => {
+                self.state.completions.clear();
+                self.state.selected_completion = 0;
                 self.execute_current_expression().await?;
                 self.analyze_current_expression().await?;
                 Ok(false)
             }
             ComponentResult::UpdateExpression(expr) => {
+                let previous_expression = self.state.current_expression.clone();
                 self.state.current_expression = expr;
                 if self.state.live_validation {
                     self.analyze_current_expression().await?;
                 }
+
+                if self.config.features.auto_completion {
+                    let should_refresh = !self.state.completions.is_empty()
+                        || Self::should_auto_open_completions(
+                            &previous_expression,
+                            &self.state.current_expression,
+                        );
+
+                    if should_refresh {
+                        self.update_completions().await?;
+                    } else if self.state.current_expression.is_empty() {
+                        self.state.completions.clear();
+                    }
+                }
                 Ok(false)
             }
             ComponentResult::ShowCompletions => {
-                // TODO: Implement completions
+                if self.config.features.auto_completion {
+                    self.update_completions().await?;
+                } else {
+                    self.state.completions.clear();
+                }
                 Ok(false)
             }
             ComponentResult::LoadResource(path) => {
@@ -377,27 +430,27 @@ impl TuiApp {
                 // Parse the value as FhirPathValue
                 if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&value) {
                     let fhirpath_value = match json_value {
-                        serde_json::Value::String(s) => FhirPathValue::String(s.into(), None, None),
+                        serde_json::Value::String(s) => FhirPathValue::string(s),
                         serde_json::Value::Number(n) => {
                             if let Some(i) = n.as_i64() {
-                                FhirPathValue::Integer(i, None, None)
+                                FhirPathValue::integer(i)
                             } else if let Some(f) = n.as_f64() {
-                                FhirPathValue::Decimal(
-                                    Decimal::try_from(f).unwrap_or_else(|_| Decimal::from(0)), None, None
+                                FhirPathValue::decimal(
+                                    Decimal::try_from(f).unwrap_or_else(|_| Decimal::from(0)),
                                 )
                             } else {
-                                FhirPathValue::String(value.into(), None, None)
+                                FhirPathValue::string(value)
                             }
                         }
-                        serde_json::Value::Bool(b) => FhirPathValue::Boolean(b, None, None),
-                        _ => FhirPathValue::String(value.into(), None, None),
+                        serde_json::Value::Bool(b) => FhirPathValue::boolean(b),
+                        _ => FhirPathValue::string(value),
                     };
                     self.state.variables.insert(name, fhirpath_value);
                 } else {
                     // Fallback to string value
                     self.state
                         .variables
-                        .insert(name, FhirPathValue::String(value.into(), None, None));
+                        .insert(name, FhirPathValue::string(value));
                 }
                 Ok(false)
             }
@@ -465,6 +518,29 @@ impl TuiApp {
                 self.update_completions().await?;
                 Ok(false)
             }
+            TuiAction::ClearInput => {
+                self.components.clear_input();
+                self.state.current_expression.clear();
+                self.state.completions.clear();
+                Ok(false)
+            }
+            TuiAction::ToggleHelp => {
+                self.mode = if self.mode == AppMode::Help {
+                    AppMode::Normal
+                } else {
+                    AppMode::Help
+                };
+                Ok(false)
+            }
+            TuiAction::ToggleSettings => {
+                // Use settings toggle to open the menu until settings panel is implemented
+                self.mode = if self.mode == AppMode::Menu {
+                    AppMode::Normal
+                } else {
+                    AppMode::Menu
+                };
+                Ok(false)
+            }
             _ => Ok(false),
         }
     }
@@ -484,8 +560,14 @@ impl TuiApp {
                 // Create evaluation context with resource
                 let context_collection = octofhir_fhirpath::Collection::single(resource.clone());
                 let embedded_provider = octofhir_fhir_model::EmptyModelProvider;
-                let mut eval_context =
-                    octofhir_fhirpath::EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
+                let eval_context = octofhir_fhirpath::EvaluationContext::new(
+                    context_collection,
+                    std::sync::Arc::new(embedded_provider),
+                    None,
+                    None,
+                    None,
+                )
+                .await;
 
                 // Set variables if any
                 for (name, value) in &self.state.variables {
@@ -493,12 +575,12 @@ impl TuiApp {
                 }
 
                 // Parse and evaluate
-                let parse_result = octofhir_fhirpath::parser::parse_with_mode(
+                let _parse_result = octofhir_fhirpath::parser::parse_with_mode(
                     &expression,
                     octofhir_fhirpath::parser::ParsingMode::Analysis,
                 );
-                if parse_result.success && parse_result.ast.is_some() {
-                    let ast = parse_result.ast.unwrap();
+                if _parse_result.success && _parse_result.ast.is_some() {
+                    let ast = _parse_result.ast.unwrap();
                     self.engine.evaluate_ast(&ast, &eval_context).await
                 } else {
                     Err(octofhir_fhirpath::core::FhirPathError::parse_error(
@@ -513,8 +595,14 @@ impl TuiApp {
                 // Create empty evaluation context
                 let context_collection = octofhir_fhirpath::Collection::empty();
                 let embedded_provider = octofhir_fhir_model::EmptyModelProvider;
-                let mut eval_context =
-                    octofhir_fhirpath::EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
+                let eval_context = octofhir_fhirpath::EvaluationContext::new(
+                    context_collection,
+                    std::sync::Arc::new(embedded_provider),
+                    None,
+                    None,
+                    None,
+                )
+                .await;
 
                 // Set variables if any
                 for (name, value) in &self.state.variables {
@@ -522,12 +610,12 @@ impl TuiApp {
                 }
 
                 // Parse and evaluate
-                let parse_result = octofhir_fhirpath::parser::parse_with_mode(
+                let _parse_result = octofhir_fhirpath::parser::parse_with_mode(
                     &expression,
                     octofhir_fhirpath::parser::ParsingMode::Analysis,
                 );
-                if parse_result.success && parse_result.ast.is_some() {
-                    let ast = parse_result.ast.unwrap();
+                if _parse_result.success && _parse_result.ast.is_some() {
+                    let ast = _parse_result.ast.unwrap();
                     self.engine.evaluate_ast(&ast, &eval_context).await
                 } else {
                     Err(octofhir_fhirpath::core::FhirPathError::parse_error(
@@ -592,7 +680,7 @@ impl TuiApp {
         let start_time = Instant::now();
 
         // Parse first to get AST for analysis
-        let parse_result = octofhir_fhirpath::parser::parse_with_mode(
+        let _parse_result = octofhir_fhirpath::parser::parse_with_mode(
             &self.state.current_expression,
             octofhir_fhirpath::parser::ParsingMode::Analysis,
         );
@@ -649,23 +737,23 @@ impl TuiApp {
     /// Convert JSON value to FhirPathValue
     fn json_to_fhirpath_value(&self, json: &serde_json::Value) -> FhirPathValue {
         match json {
-            serde_json::Value::Null => FhirPathValue::String("null".to_string().into(), None, None),
-            serde_json::Value::Bool(b) => FhirPathValue::Boolean(*b, None, None),
+            serde_json::Value::Null => FhirPathValue::string("null"),
+            serde_json::Value::Bool(b) => FhirPathValue::boolean(*b),
             serde_json::Value::Number(n) => {
                 if let Some(i) = n.as_i64() {
-                    FhirPathValue::Integer(i, None, None)
+                    FhirPathValue::integer(i)
                 } else if let Some(f) = n.as_f64() {
-                    FhirPathValue::Decimal(
-                        Decimal::try_from(f).unwrap_or_else(|_| Decimal::from(0)), None, None
+                    FhirPathValue::decimal(
+                        Decimal::try_from(f).unwrap_or_else(|_| Decimal::from(0)),
                     )
                 } else {
-                    FhirPathValue::String(n.to_string().into(), None, None)
+                    FhirPathValue::string(n.to_string())
                 }
             }
-            serde_json::Value::String(s) => FhirPathValue::String(s.clone().into(), None, None),
+            serde_json::Value::String(s) => FhirPathValue::string(s.clone()),
             serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
                 // For complex objects, create a Resource value
-                FhirPathValue::Resource(std::sync::Arc::new(json.clone()), None, None)
+                FhirPathValue::resource(json.clone())
             }
         }
     }
@@ -674,8 +762,20 @@ impl TuiApp {
     async fn handle_global_key(&mut self, key: crossterm::event::KeyEvent) -> Result<bool> {
         use crossterm::event::{KeyCode, KeyModifiers};
 
+        if self.state.focused_panel == PanelType::Input && !self.state.completions.is_empty() {
+            match (key.code, key.modifiers) {
+                (KeyCode::Tab, KeyModifiers::NONE)
+                | (KeyCode::BackTab, KeyModifiers::SHIFT)
+                | (KeyCode::Tab, KeyModifiers::SHIFT) => {
+                    // Allow the input component to process the key (cycle completions)
+                    return Ok(false);
+                }
+                _ => {}
+            }
+        }
+
         match (key.code, key.modifiers) {
-            // F2 or Alt+M to open menu
+            // F2 or Alt+M to open menu overlay
             (KeyCode::F(2), KeyModifiers::NONE) | (KeyCode::Char('m'), KeyModifiers::ALT) => {
                 self.mode = AppMode::Menu;
                 Ok(false)
@@ -694,17 +794,9 @@ impl TuiApp {
                 self.mode = AppMode::Normal;
                 Ok(false)
             }
-            _ => Ok(false),
-        }
-    }
-
-    /// Handle menu navigation keys
-    async fn handle_menu_key(&mut self, key: crossterm::event::KeyEvent) -> Result<bool> {
-        use crossterm::event::{KeyCode, KeyModifiers};
-
-        match (key.code, key.modifiers) {
-            // Arrow keys for menu navigation
-            (KeyCode::Up, KeyModifiers::NONE) => {
+            (KeyCode::Char('['), KeyModifiers::NONE)
+            | (KeyCode::Char('p'), KeyModifiers::NONE)
+            | (KeyCode::Char('k'), KeyModifiers::NONE) => {
                 self.state.selected_menu_command = match self.state.selected_menu_command {
                     MenuCommand::Evaluate => MenuCommand::Exit,
                     MenuCommand::Analyze => MenuCommand::Evaluate,
@@ -715,7 +807,88 @@ impl TuiApp {
                 };
                 Ok(false)
             }
-            (KeyCode::Down, KeyModifiers::NONE) => {
+            (KeyCode::Char(']'), KeyModifiers::NONE)
+            | (KeyCode::Char('n'), KeyModifiers::NONE)
+            | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+                self.state.selected_menu_command = match self.state.selected_menu_command {
+                    MenuCommand::Evaluate => MenuCommand::Analyze,
+                    MenuCommand::Analyze => MenuCommand::CheckSyntax,
+                    MenuCommand::CheckSyntax => MenuCommand::Documentation,
+                    MenuCommand::Documentation => MenuCommand::LoadFile,
+                    MenuCommand::LoadFile => MenuCommand::Exit,
+                    MenuCommand::Exit => MenuCommand::Evaluate,
+                };
+                Ok(false)
+            }
+            // Alt+Enter to execute the currently selected bottom menu command
+            (KeyCode::Enter, modifiers)
+                if modifiers.contains(KeyModifiers::ALT)
+                    || modifiers.contains(KeyModifiers::CONTROL)
+                    || modifiers.contains(KeyModifiers::SUPER) =>
+            {
+                match self.state.selected_menu_command {
+                    MenuCommand::Evaluate => {
+                        self.mode = AppMode::Normal;
+                        self.state.focused_panel = PanelType::Input;
+                        if !self.state.current_expression.is_empty() {
+                            self.execute_current_expression().await.ok();
+                        }
+                    }
+                    MenuCommand::Analyze | MenuCommand::CheckSyntax => {
+                        self.mode = AppMode::Normal;
+                        if !self.state.current_expression.is_empty() {
+                            self.analyze_current_expression().await.ok();
+                        }
+                        self.state.focused_panel = PanelType::Diagnostics;
+                    }
+                    MenuCommand::Documentation => {
+                        self.mode = AppMode::Help;
+                        self.state.focused_panel = PanelType::Help;
+                    }
+                    MenuCommand::LoadFile => {
+                        self.mode = AppMode::FilePrompt;
+                        self.state.file_prompt_buffer.clear();
+                    }
+                    MenuCommand::Exit => {
+                        self.should_quit = true;
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// Handle menu navigation keys
+    async fn handle_menu_key(&mut self, key: crossterm::event::KeyEvent) -> Result<bool> {
+        use crossterm::event::{KeyCode, KeyModifiers};
+
+        match (key.code, key.modifiers) {
+            // Arrow keys for menu navigation
+            (KeyCode::Up, KeyModifiers::NONE)
+            | (KeyCode::Left, KeyModifiers::NONE)
+            | (KeyCode::Char('k'), KeyModifiers::NONE)
+            | (KeyCode::Char('p'), KeyModifiers::NONE)
+            | (KeyCode::Char('['), KeyModifiers::NONE)
+            | (KeyCode::BackTab, KeyModifiers::SHIFT)
+            | (KeyCode::Tab, KeyModifiers::SHIFT) => {
+                self.state.selected_menu_command = match self.state.selected_menu_command {
+                    MenuCommand::Evaluate => MenuCommand::Exit,
+                    MenuCommand::Analyze => MenuCommand::Evaluate,
+                    MenuCommand::CheckSyntax => MenuCommand::Analyze,
+                    MenuCommand::Documentation => MenuCommand::CheckSyntax,
+                    MenuCommand::LoadFile => MenuCommand::Documentation,
+                    MenuCommand::Exit => MenuCommand::LoadFile,
+                };
+                Ok(false)
+            }
+            (KeyCode::Down, KeyModifiers::NONE)
+            | (KeyCode::Right, KeyModifiers::NONE)
+            | (KeyCode::Tab, KeyModifiers::NONE)
+            | (KeyCode::Char('j'), KeyModifiers::NONE)
+            | (KeyCode::Char('n'), KeyModifiers::NONE)
+            | (KeyCode::Char(']'), KeyModifiers::NONE) => {
                 self.state.selected_menu_command = match self.state.selected_menu_command {
                     MenuCommand::Evaluate => MenuCommand::Analyze,
                     MenuCommand::Analyze => MenuCommand::CheckSyntax,
@@ -752,8 +925,9 @@ impl TuiApp {
                         self.state.focused_panel = PanelType::Help;
                     }
                     MenuCommand::LoadFile => {
-                        // TODO: Implement file picker or input dialog
-                        self.mode = AppMode::Normal;
+                        // Enter file prompt mode
+                        self.mode = AppMode::FilePrompt;
+                        self.state.file_prompt_buffer.clear();
                     }
                     MenuCommand::Exit => {
                         return Ok(true);
@@ -797,10 +971,52 @@ impl TuiApp {
 
     /// Update auto-completion suggestions
     async fn update_completions(&mut self) -> Result<()> {
-        // This would integrate with the existing completion system
-        // For now, just clear completions
-        self.state.completions.clear();
+        // Build completion context using current expression and cursor at end
+        let expression = self.state.current_expression.clone();
+        let cursor = expression.len();
+
+        let current_resource_type = self
+            .state
+            .current_resource
+            .as_ref()
+            .map(|value| value.display_type_name());
+
+        let context = CompletionContext {
+            expression,
+            cursor_position: cursor,
+            current_resource_type,
+            preceding_path: Vec::new(),
+        };
+
+        // Get completions from engine
+        let mut completions = self
+            .completion_engine
+            .get_completions(context, &self.state)
+            .await
+            .unwrap_or_default();
+
+        let max_items = self.config.performance.max_completions;
+        if completions.len() > max_items {
+            completions.truncate(max_items);
+        }
+
+        self.state.completions = completions;
+        self.state.selected_completion = 0;
         Ok(())
+    }
+
+    fn should_auto_open_completions(previous: &str, current: &str) -> bool {
+        if current.len() <= previous.len() {
+            return false;
+        }
+
+        let last_char = current.chars().last().unwrap_or_default();
+
+        match last_char {
+            '.' | '%' | '(' => true,
+            ' ' => previous.ends_with('.') || previous.ends_with(')') || previous.ends_with('%'),
+            _ => false,
+        }
     }
 
     /// Render a frame
@@ -826,14 +1042,54 @@ impl TuiApp {
             // Render status line manually here to avoid borrowing issues
             Self::render_status_line_static(frame, chunks.status_line, mode, state, theme);
 
-            // Render menu overlay if in menu mode
+            // Render menu: overlay when in Menu mode, otherwise render as sidebar always
             if mode == AppMode::Menu {
                 Self::render_menu_overlay(frame, state, theme);
+            } else {
+                Self::render_menu_bottom_bar(frame, state, theme);
+            }
+
+            // Render file prompt overlay
+            if mode == AppMode::FilePrompt {
+                Self::render_file_prompt_overlay(frame, state, theme);
             }
         })?;
 
         self.state.performance.last_render_time = Some(render_start.elapsed());
         Ok(())
+    }
+
+    /// Handle file prompt key events
+    async fn handle_file_prompt_key(&mut self, key: crossterm::event::KeyEvent) -> Result<bool> {
+        use crossterm::event::{KeyCode, KeyModifiers};
+
+        match (key.code, key.modifiers) {
+            (KeyCode::Enter, KeyModifiers::NONE) => {
+                let path = self.state.file_prompt_buffer.trim().to_string();
+                if !path.is_empty() {
+                    if let Err(e) = self.load_resource_from_file(&path).await {
+                        eprintln!("Failed to load file '{}': {}", path, e);
+                    }
+                }
+                // Exit prompt mode regardless of success
+                self.mode = AppMode::Normal;
+                Ok(false)
+            }
+            (KeyCode::Esc, KeyModifiers::NONE) => {
+                self.mode = AppMode::Normal;
+                Ok(false)
+            }
+            (KeyCode::Backspace, KeyModifiers::NONE) => {
+                self.state.file_prompt_buffer.pop();
+                Ok(false)
+            }
+            (KeyCode::Char(c), _) => {
+                // Append typed character to buffer
+                self.state.file_prompt_buffer.push(c);
+                Ok(false)
+            }
+            _ => Ok(false),
+        }
     }
 
     /// Render the status line (static version for use in closures)
@@ -856,17 +1112,28 @@ impl TuiApp {
             AppMode::History => "HISTORY",
             AppMode::Export => "EXPORT",
             AppMode::DiagnosticsDetail => "DIAGNOSTICS",
+            AppMode::FilePrompt => "FILE",
         };
 
         let panel_text = format!("{:?}", state.focused_panel);
 
         let key_hints = match state.focused_panel {
-            PanelType::Input => "Enter:Execute | Ctrl+Space:Complete | Tab:Next Panel",
-            PanelType::Output => "↑↓:Scroll | Tab:Next Panel",
-            PanelType::Diagnostics => "↑↓:Select | Enter:Details | Tab:Next Panel",
-            PanelType::Variables => "↑↓:Select | Enter:Edit | Del:Remove | Tab:Next Panel",
-            PanelType::History => "↑↓:Select | Enter:Load | Del:Remove | Tab:Next Panel",
-            PanelType::Help => "↑↓:Scroll | Esc:Close | Tab:Next Panel",
+            PanelType::Input => {
+                "Enter:Execute | Ctrl+Space:Complete | Tab:Next Panel | Alt+←/→:Menu | Alt+Enter:Run"
+            }
+            PanelType::Output => "↑↓:Scroll | Tab:Next Panel | Alt+←/→:Menu | Alt+Enter:Run",
+            PanelType::Diagnostics => {
+                "↑↓:Select | Enter:Details | Tab:Next Panel | Alt+←/→:Menu | Alt+Enter:Run"
+            }
+            PanelType::Variables => {
+                "↑↓:Select | Enter:Edit | Del:Remove | Tab:Next Panel | Alt+←/→:Menu | Alt+Enter:Run"
+            }
+            PanelType::History => {
+                "↑↓:Select | Enter:Load | Del:Remove | Tab:Next Panel | Alt+←/→:Menu | Alt+Enter:Run"
+            }
+            PanelType::Help => {
+                "↑↓:Scroll | Esc:Close | Tab:Next Panel | Alt+←/→:Menu | Alt+Enter:Run"
+            }
         };
 
         let status_line = Line::from(vec![
@@ -891,11 +1158,6 @@ impl TuiApp {
         let paragraph = Paragraph::new(status_line).block(Block::default().borders(Borders::TOP));
 
         frame.render_widget(paragraph, area);
-    }
-
-    /// Render the status line (instance method for compatibility)
-    fn render_status_line(&self, frame: &mut Frame, area: Rect) {
-        Self::render_status_line_static(frame, area, self.mode, &self.state, &self.theme);
     }
 
     /// Render the menu overlay
@@ -970,6 +1232,99 @@ impl TuiApp {
 
         frame.render_widget(instructions, instruction_area);
     }
+
+    /// Render the file path prompt overlay
+    fn render_file_prompt_overlay(frame: &mut Frame, state: &AppState, theme: &TuiTheme) {
+        use ratatui::layout::Alignment;
+        use ratatui::style::Style;
+        use ratatui::text::Span;
+        use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+
+        let area = frame.area();
+        let popup_area = centered_rect(60, 20, area);
+
+        frame.render_widget(Clear, popup_area);
+
+        let title = Block::default()
+            .title(" Load Resource File ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.colors.focused_border));
+
+        let path_display = if state.file_prompt_buffer.is_empty() {
+            String::from("Enter file path...")
+        } else {
+            format!("{}", state.file_prompt_buffer)
+        };
+
+        let paragraph = Paragraph::new(Span::raw(path_display))
+            .block(title)
+            .alignment(Alignment::Left);
+
+        frame.render_widget(paragraph, popup_area);
+    }
+
+    /// Render a persistent bottom horizontal menu bar (always visible in normal mode)
+    fn render_menu_bottom_bar(frame: &mut Frame, state: &AppState, theme: &TuiTheme) {
+        use ratatui::style::{Color, Modifier, Style};
+        use ratatui::text::{Line, Span};
+        use ratatui::widgets::{Clear, Paragraph};
+
+        let area = frame.area();
+        if area.height < 2 || area.width == 0 {
+            return; // Not enough space for a bottom bar above status line
+        }
+
+        // Place the bar just above the status line (which is the last row)
+        let bar_y = area.y + area.height.saturating_sub(2);
+        let bar_area = Rect {
+            x: area.x,
+            y: bar_y,
+            width: area.width,
+            height: 1,
+        };
+
+        // Clear the bar area to avoid overlap with panels
+        frame.render_widget(Clear, bar_area);
+
+        // Define menu items
+        let menu_items = [
+            ("1", "Evaluate", MenuCommand::Evaluate),
+            ("2", "Analyze", MenuCommand::Analyze),
+            ("3", "Check Syntax", MenuCommand::CheckSyntax),
+            ("4", "Documentation", MenuCommand::Documentation),
+            ("5", "Load File", MenuCommand::LoadFile),
+            ("6", "Exit", MenuCommand::Exit),
+        ];
+
+        // Build a horizontal line of spans with separators
+        let mut spans: Vec<Span> = Vec::new();
+        for (idx, (key, label, command)) in menu_items.iter().enumerate() {
+            if idx > 0 {
+                spans.push(Span::styled(
+                    " | ",
+                    Style::default().fg(theme.colors.normal_text),
+                ));
+            }
+
+            let is_selected = *command == state.selected_menu_command;
+            let item_style = if is_selected {
+                Style::default()
+                    .bg(theme.colors.focused_border)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.colors.normal_text)
+            };
+
+            spans.push(Span::styled(format!("{}:", key), item_style));
+            spans.push(Span::styled(format!(" {} ", label), item_style));
+        }
+
+        let line = Line::from(spans);
+        let paragraph = Paragraph::new(line);
+
+        frame.render_widget(paragraph, bar_area);
+    }
 }
 
 /// Helper function to create a centered rect
@@ -1025,7 +1380,7 @@ impl TuiApp {
         // Try to parse as JSON first, otherwise treat as string
         let parsed_value = match serde_json::from_str::<JsonValue>(value) {
             Ok(json_value) => octofhir_fhirpath::FhirPathValue::resource(json_value),
-            Err(_) => octofhir_fhirpath::FhirPathValue::String(value.to_string().into()),
+            Err(_) => octofhir_fhirpath::FhirPathValue::string(value.to_string()),
         };
         self.state.variables.insert(name.to_string(), parsed_value);
         Ok(())
@@ -1076,9 +1431,11 @@ impl Default for AppState {
             diagnostics: Vec::new(),
             evaluation_history: Vec::new(),
             completions: Vec::new(),
+            selected_completion: 0,
             live_validation: true,
             performance: PerformanceMetrics::default(),
             selected_menu_command: MenuCommand::Evaluate,
+            file_prompt_buffer: String::new(),
         }
     }
 }

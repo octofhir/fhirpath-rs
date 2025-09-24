@@ -20,12 +20,12 @@
 //! FHIRPath CLI Library
 
 pub mod cli;
-// pub mod tui; // Commented out temporarily - will return later
+pub mod tui;
 
 // Re-export CLI functionality
 pub use cli::*;
 // Re-export TUI functionality
-// pub use tui::*; // Commented out temporarily
+pub use tui::*;
 // Re-export model providers
 pub use octofhir_fhir_model::EmptyModelProvider;
 pub use octofhir_fhirschema::EmbeddedSchemaProvider as EmbeddedModelProvider;

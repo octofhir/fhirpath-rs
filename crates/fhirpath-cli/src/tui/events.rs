@@ -326,7 +326,12 @@ impl Default for KeyBindings {
         );
         bindings.bind_global(
             KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE),
-            TuiAction::ToggleSettings,
+            TuiAction::ToggleMode(AppMode::Menu),
+        );
+        // Alternative shortcut for menu per docs
+        bindings.bind_global(
+            KeyEvent::new(KeyCode::Char('m'), KeyModifiers::ALT),
+            TuiAction::ToggleMode(AppMode::Menu),
         );
 
         // Input panel bindings
@@ -374,16 +379,6 @@ impl Default for KeyBindings {
             PanelType::Input,
             KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
             TuiAction::CursorEnd,
-        );
-        bindings.bind_panel(
-            PanelType::Input,
-            KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
-            TuiAction::DeleteChar,
-        );
-        bindings.bind_panel(
-            PanelType::Input,
-            KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
-            TuiAction::Backspace,
         );
 
         // Output panel bindings
@@ -503,7 +498,6 @@ impl Default for KeyBindings {
 /// Parse a key string like "Ctrl+C" into a KeyEvent
 fn parse_key_string(key_str: &str) -> anyhow::Result<KeyEvent> {
     let mut modifiers = KeyModifiers::NONE;
-    let mut key_code = KeyCode::Char(' ');
 
     let parts: Vec<&str> = key_str.split('+').collect();
 
@@ -517,7 +511,7 @@ fn parse_key_string(key_str: &str) -> anyhow::Result<KeyEvent> {
     }
 
     let key_part = parts.last().unwrap();
-    key_code = match key_part.to_lowercase().as_str() {
+    let key_code = match key_part.to_lowercase().as_str() {
         "enter" => KeyCode::Enter,
         "tab" => KeyCode::Tab,
         "space" => KeyCode::Char(' '),

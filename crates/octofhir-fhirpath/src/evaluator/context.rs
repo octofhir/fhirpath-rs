@@ -270,7 +270,9 @@ impl EvaluationContext {
     }
 
     /// Get the shared resolution cache used by resolve() and other reference operations
-    pub fn resolution_cache(&self) -> &std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>> {
+    pub fn resolution_cache(
+        &self,
+    ) -> &std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>> {
         &self.resolution_cache
     }
 }

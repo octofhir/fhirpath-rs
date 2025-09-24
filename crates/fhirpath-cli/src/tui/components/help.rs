@@ -27,7 +27,7 @@ use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;
 use crate::tui::themes::TuiTheme;
 
-use octofhir_fhirpath::registry::FunctionRegistry;
+use octofhir_fhirpath::FunctionRegistry;
 
 /// Help panel for displaying documentation and keybindings
 pub struct HelpPanel {

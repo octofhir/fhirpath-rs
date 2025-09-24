@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 // Memory and system info
-use sysinfo::{System, Pid};
+use sysinfo::{Pid, System};
 
 /// Format numbers in human-friendly format (K, M, etc.)
 fn format_ops_per_sec(ops_per_sec: f64) -> String {
@@ -272,7 +272,9 @@ async fn profile_expression(
     // Optional CPU profiling
     let mut flamegraph_path: Option<PathBuf> = None;
     let do_flame = if flame && cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-        eprintln!("⚠️  Skipping flamegraph on macOS aarch64 due to known profiler instability. Use Linux for flamegraphs.");
+        eprintln!(
+            "⚠️  Skipping flamegraph on macOS aarch64 due to known profiler instability. Use Linux for flamegraphs."
+        );
         false
     } else {
         flame
@@ -324,24 +326,24 @@ async fn profile_expression(
                 }
             }
             // Limit length
-            if out.len() > 120 { out.truncate(120); }
+            if out.len() > 120 {
+                out.truncate(120);
+            }
             out
         }
         let fname = format!("flamegraph_{}.svg", sanitize_for_filename(expression));
         let path = output_dir.join(fname);
         match guard.report().build() {
-            Ok(report) => {
-                match File::create(&path) {
-                    Ok(mut file) => {
-                        if let Err(e) = report.flamegraph(&mut file) {
-                            eprintln!("Failed to write flamegraph: {e}");
-                        } else {
-                            flamegraph_path = Some(path);
-                        }
+            Ok(report) => match File::create(&path) {
+                Ok(mut file) => {
+                    if let Err(e) = report.flamegraph(&mut file) {
+                        eprintln!("Failed to write flamegraph: {e}");
+                    } else {
+                        flamegraph_path = Some(path);
                     }
-                    Err(e) => eprintln!("Failed to create flamegraph file: {e}"),
                 }
-            }
+                Err(e) => eprintln!("Failed to create flamegraph file: {e}"),
+            },
             Err(e) => eprintln!("Failed to build pprof report: {e}"),
         }
     }
@@ -353,7 +355,9 @@ async fn profile_expression(
     println!("Total time: {:.2}s", duration.as_secs_f64());
     println!("Average time per iteration: {avg_time_ms:.2}ms");
     println!("Operations per second: {}", format_ops_per_sec(ops_per_sec));
-    if let Some(ref p) = flamegraph_path { println!("Flamegraph written to: {}", p.display()); }
+    if let Some(ref p) = flamegraph_path {
+        println!("Flamegraph written to: {}", p.display());
+    }
 
     // Write results to file
     let results_file = output_dir.join("profile_results.txt");
@@ -371,7 +375,9 @@ async fn profile_expression(
         avg_time_ms,
         format_ops_per_sec(ops_per_sec)
     );
-    if let Some(p) = &flamegraph_path { results_content.push_str(&format!("Flamegraph: {}\n", p.display())); }
+    if let Some(p) = &flamegraph_path {
+        results_content.push_str(&format!("Flamegraph: {}\n", p.display()));
+    }
 
     fs::write(&results_file, results_content)?;
     println!("Results written to: {}", results_file.display());
@@ -726,7 +732,9 @@ fn parse_and_format_results(benchmark_output: &str, mem_start_end: Option<(u64, 
         "-".to_string()
     };
 
-    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
     let tool_ver = env!("CARGO_PKG_VERSION");
@@ -742,7 +750,9 @@ fn parse_and_format_results(benchmark_output: &str, mem_start_end: Option<(u64, 
     let complex_mem_table = if complex_eval_rows.is_empty() {
         String::new()
     } else {
-        let mut s = String::from("\n## Complex Evaluation Memory by Expression\n\n| Expression | Ops/sec | ΔRSS |\n|------------|---------|------|\n");
+        let mut s = String::from(
+            "\n## Complex Evaluation Memory by Expression\n\n| Expression | Ops/sec | ΔRSS |\n|------------|---------|------|\n",
+        );
         for (expr, ops_fmt, mem_fmt) in complex_eval_rows {
             s.push_str(&format!("| `{}` | {} | {} |\n", expr, ops_fmt, mem_fmt));
         }

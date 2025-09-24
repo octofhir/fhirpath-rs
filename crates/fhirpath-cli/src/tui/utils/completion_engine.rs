@@ -1,16 +1,19 @@
 //! Context-aware completion engine for FHIRPath expressions
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 // use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
+use octofhir_fhirpath::FhirPathValue;
+use octofhir_fhirpath::FunctionRegistry;
 use octofhir_fhirpath::core::ModelProvider;
-use octofhir_fhirpath::registry::FunctionRegistry;
+use serde_json::Value as JsonValue;
 
 use crate::tui::app::{AppState, CompletionItem, CompletionKind};
 
 /// Context-aware completion engine
 pub struct CompletionEngine {
-    model_provider: Arc<dyn ModelProvider>,
+    _model_provider: Arc<dyn ModelProvider>,
     function_registry: Option<Arc<FunctionRegistry>>,
     // analyzer: Arc<StaticAnalyzer>, // Removed
     cache: CompletionCache,
@@ -41,7 +44,7 @@ impl CompletionEngine {
         // analyzer: Arc<StaticAnalyzer>, // Removed
     ) -> anyhow::Result<Self> {
         let mut engine = Self {
-            model_provider,
+            _model_provider: model_provider,
             function_registry: Some(function_registry),
             // analyzer,
             cache: CompletionCache::default(),
@@ -70,7 +73,7 @@ impl CompletionEngine {
                 completions.extend(self.get_function_completions(&context).await?);
             }
             CompletionType::Property => {
-                completions.extend(self.get_property_completions(&context).await?);
+                completions.extend(self.get_property_completions(&context, state).await?);
             }
             CompletionType::ResourceType => {
                 completions.extend(self.get_resource_type_completions(&context).await?);
@@ -84,7 +87,7 @@ impl CompletionEngine {
             CompletionType::Mixed => {
                 // Provide all types of completions, ranked by relevance
                 completions.extend(self.get_function_completions(&context).await?);
-                completions.extend(self.get_property_completions(&context).await?);
+                completions.extend(self.get_property_completions(&context, state).await?);
                 completions.extend(self.get_variable_completions(&context, state));
             }
         }
@@ -101,15 +104,26 @@ impl CompletionEngine {
         context: &CompletionContext,
     ) -> anyhow::Result<CompletionType> {
         let text_before_cursor = &context.expression[..context.cursor_position];
+        let trimmed = text_before_cursor.trim_end();
 
-        if text_before_cursor.ends_with('.') {
+        if trimmed.is_empty() {
+            return Ok(CompletionType::ResourceType);
+        }
+
+        if trimmed.ends_with('.') {
             Ok(CompletionType::Property)
-        } else if text_before_cursor.contains('(') && !text_before_cursor.ends_with(')') {
+        } else if trimmed.contains('(') && !trimmed.ends_with(')') {
             Ok(CompletionType::Function)
-        } else if text_before_cursor.ends_with('%') {
+        } else if trimmed.ends_with('%') {
             Ok(CompletionType::Variable)
-        } else if text_before_cursor.is_empty() || text_before_cursor.ends_with(' ') {
-            Ok(CompletionType::Mixed)
+        } else if text_before_cursor.ends_with(' ') {
+            Ok(CompletionType::Keyword)
+        } else if self
+            .get_partial_word(context)
+            .chars()
+            .all(|c| c.is_ascii_uppercase())
+        {
+            Ok(CompletionType::ResourceType)
         } else {
             Ok(CompletionType::Mixed)
         }
@@ -125,21 +139,42 @@ impl CompletionEngine {
 
     /// Get property completions
     async fn get_property_completions(
-        &self,
+        &mut self,
         context: &CompletionContext,
+        state: &AppState,
     ) -> anyhow::Result<Vec<CompletionItem>> {
-        let resource_type = context
-            .current_resource_type
-            .as_deref()
-            .unwrap_or("Resource");
+        let mut completions = Vec::new();
+        let mut seen = HashSet::new();
+        let partial = self.get_partial_word(context).to_lowercase();
 
-        if let Some(cached) = self.cache.properties.get(resource_type) {
-            return Ok(cached.clone());
+        if let Some(resource) = state.current_resource.as_ref() {
+            self.collect_properties_from_value(resource, &partial, &mut completions, &mut seen);
+
+            if let FhirPathValue::Resource(_, type_info, _) = resource {
+                if !completions.is_empty() {
+                    self.cache
+                        .properties
+                        .insert(type_info.type_name.clone(), completions.clone());
+                }
+            }
         }
 
-        // This would integrate with the ModelProvider to get actual properties
-        // For now, return empty list
-        Ok(Vec::new())
+        if completions.is_empty() {
+            if let Some(resource_type) = context.current_resource_type.as_deref() {
+                if let Some(cached) = self.cache.properties.get(resource_type) {
+                    completions.extend(
+                        cached
+                            .iter()
+                            .filter(|item| {
+                                partial.is_empty() || item.text.to_lowercase().starts_with(&partial)
+                            })
+                            .cloned(),
+                    );
+                }
+            }
+        }
+
+        Ok(completions)
     }
 
     /// Get resource type completions
@@ -244,12 +279,12 @@ impl CompletionEngine {
         if let Some(registry) = &self.function_registry {
             let functions = registry.list_functions();
 
-            for function in functions {
+            for name in functions {
                 let completion = CompletionItem {
-                    text: format!("{}()", function.name),
-                    display: format!("{}() - {}", function.name, function.description),
+                    text: format!("{}()", name),
+                    display: format!("{}()", name),
                     kind: CompletionKind::Function,
-                    documentation: Some(function.description.clone()),
+                    documentation: None,
                     insert_range: None,
                 };
                 self.cache.functions.push(completion);
@@ -302,6 +337,68 @@ impl CompletionEngine {
                 insert_range: None,
             };
             self.cache.keywords.push(completion);
+        }
+    }
+
+    fn collect_properties_from_value(
+        &self,
+        value: &FhirPathValue,
+        partial: &str,
+        completions: &mut Vec<CompletionItem>,
+        seen: &mut HashSet<String>,
+    ) {
+        match value {
+            FhirPathValue::Resource(json, type_info, _) => {
+                if let JsonValue::Object(map) = json.as_ref() {
+                    for (key, child) in map.iter() {
+                        let key_lower = key.to_lowercase();
+                        if !partial.is_empty() && !key_lower.starts_with(partial) {
+                            continue;
+                        }
+                        if !seen.insert(key.clone()) {
+                            continue;
+                        }
+
+                        let documentation = format!(
+                            "Property '{}' on {} ({})",
+                            key,
+                            type_info.type_name,
+                            Self::describe_json_value(child)
+                        );
+
+                        completions.push(CompletionItem {
+                            text: key.clone(),
+                            display: format!("{} · {}", key, type_info.type_name),
+                            kind: CompletionKind::Property,
+                            documentation: Some(documentation),
+                            insert_range: None,
+                        });
+                    }
+                }
+            }
+            FhirPathValue::Collection(collection) => {
+                for nested in collection.values() {
+                    self.collect_properties_from_value(nested, partial, completions, seen);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn describe_json_value(value: &JsonValue) -> &'static str {
+        match value {
+            JsonValue::Null => "null",
+            JsonValue::Bool(_) => "boolean",
+            JsonValue::Number(_) => "number",
+            JsonValue::String(_) => "string",
+            JsonValue::Array(_) => "array",
+            JsonValue::Object(obj) => {
+                if obj.contains_key("resourceType") {
+                    "resource"
+                } else {
+                    "object"
+                }
+            }
         }
     }
 }
