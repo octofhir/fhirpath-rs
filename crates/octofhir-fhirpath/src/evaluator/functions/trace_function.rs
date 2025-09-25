@@ -324,8 +324,8 @@ mod tests {
     #[test]
     fn format_trace_value_limits_depth() {
         let value = deep_collection(16);
-        let formatted = format_trace_value(&value, 0);
-        assert!(formatted.contains("[max depth]") || formatted.contains("Collection[..."));
+        let formatted = format_trace_value(&value, 7);
+        assert!(formatted.contains("[max depth]") || formatted.contains("Collection[...]"));
     }
 
     #[test]

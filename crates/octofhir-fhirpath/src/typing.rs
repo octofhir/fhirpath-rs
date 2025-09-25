@@ -450,7 +450,9 @@ impl TypeResolverFactory {
     }
 
     /// Create a type resolution context with caching
-    pub fn create_context(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> TypeResolutionContext {
+    pub fn create_context(
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
+    ) -> TypeResolutionContext {
         let resolver = Self::create(model_provider);
         TypeResolutionContext::new(resolver)
     }

@@ -213,7 +213,7 @@ async fn main() -> Result<()> {
             println!("Iterations: {iterations}");
             println!("Using {} data", if bundle { "bundle" } else { "patient" });
             if flame {
-                println!("Flamegraph: enabled (freq={} Hz)", freq);
+                println!("Flamegraph: enabled (freq={freq} Hz)");
             }
 
             profile_expression(&expression, output, iterations, bundle, flame, freq).await?;
@@ -414,7 +414,7 @@ fn get_rss_bytes() -> Option<u64> {
     let mut sys = System::new();
     sys.refresh_processes();
     let pid = Pid::from_u32(std::process::id());
-    sys.process(pid).map(|p| p.memory() as u64 * 1024)
+    sys.process(pid).map(|p| p.memory() * 1024)
 }
 
 fn format_bytes(bytes: u64) -> String {
@@ -429,7 +429,7 @@ fn format_bytes(bytes: u64) -> String {
     } else if b >= KB {
         format!("{:.2} KiB", b / KB)
     } else {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     }
 }
 
@@ -754,7 +754,7 @@ fn parse_and_format_results(benchmark_output: &str, mem_start_end: Option<(u64, 
             "\n## Complex Evaluation Memory by Expression\n\n| Expression | Ops/sec | ΔRSS |\n|------------|---------|------|\n",
         );
         for (expr, ops_fmt, mem_fmt) in complex_eval_rows {
-            s.push_str(&format!("| `{}` | {} | {} |\n", expr, ops_fmt, mem_fmt));
+            s.push_str(&format!("| `{expr}` | {ops_fmt} | {mem_fmt} |\n"));
         }
         s
     };

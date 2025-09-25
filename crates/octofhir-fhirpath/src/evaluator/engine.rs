@@ -193,11 +193,9 @@ impl FhirPathEngine {
         let ast = parser::parse_ast(expression)?;
 
         // Evaluate using the real evaluator
-        let result = self.evaluate_ast(&ast, context).await;
-
         // Server logs evaluation outcome; engine remains silent
 
-        result
+        self.evaluate_ast(&ast, context).await
     }
 
     /// Evaluate AST directly
@@ -221,11 +219,9 @@ impl FhirPathEngine {
         let ast = parser::parse_ast(expression)?;
 
         // Evaluate with metadata using the real evaluator
-        let result = self.evaluate_ast_with_metadata(&ast, context).await;
-
         // Server logs evaluation outcome; engine remains silent
 
-        result
+        self.evaluate_ast_with_metadata(&ast, context).await
     }
 
     /// Evaluate AST with metadata

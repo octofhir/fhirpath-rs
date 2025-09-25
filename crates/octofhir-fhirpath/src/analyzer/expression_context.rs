@@ -61,7 +61,10 @@ impl ExpressionContext {
     }
 
     /// Create a new context with a model provider
-    pub fn with_model_provider(mut self, model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
+    pub fn with_model_provider(
+        mut self,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
+    ) -> Self {
         self.model_provider = Some(model_provider);
         self
     }

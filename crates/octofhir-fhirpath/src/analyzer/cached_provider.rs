@@ -228,7 +228,9 @@ pub mod cache_utils {
     use super::*;
 
     /// Create a high-performance cached provider for real-time usage
-    pub fn create_realtime_cached_provider(inner: Arc<dyn ModelProvider + Send + Sync>) -> CachedModelProvider {
+    pub fn create_realtime_cached_provider(
+        inner: Arc<dyn ModelProvider + Send + Sync>,
+    ) -> CachedModelProvider {
         CachedModelProviderBuilder::new()
             .ttl(Duration::from_secs(300)) // 5 minutes
             .auto_cleanup(true)
@@ -237,7 +239,9 @@ pub mod cache_utils {
     }
 
     /// Create a long-term cached provider for batch processing
-    pub fn create_batch_cached_provider(inner: Arc<dyn ModelProvider + Send + Sync>) -> CachedModelProvider {
+    pub fn create_batch_cached_provider(
+        inner: Arc<dyn ModelProvider + Send + Sync>,
+    ) -> CachedModelProvider {
         CachedModelProviderBuilder::new()
             .ttl(Duration::from_secs(3600)) // 1 hour
             .auto_cleanup(false)
@@ -245,7 +249,9 @@ pub mod cache_utils {
     }
 
     /// Create a minimal cache for testing
-    pub fn create_test_cached_provider(inner: Arc<dyn ModelProvider + Send + Sync>) -> CachedModelProvider {
+    pub fn create_test_cached_provider(
+        inner: Arc<dyn ModelProvider + Send + Sync>,
+    ) -> CachedModelProvider {
         CachedModelProviderBuilder::new()
             .ttl(Duration::from_secs(10)) // 10 seconds
             .auto_cleanup(false)

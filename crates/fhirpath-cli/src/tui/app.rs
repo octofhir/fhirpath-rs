@@ -1253,7 +1253,7 @@ impl TuiApp {
         let path_display = if state.file_prompt_buffer.is_empty() {
             String::from("Enter file path...")
         } else {
-            format!("{}", state.file_prompt_buffer)
+            state.file_prompt_buffer.to_string()
         };
 
         let paragraph = Paragraph::new(Span::raw(path_display))

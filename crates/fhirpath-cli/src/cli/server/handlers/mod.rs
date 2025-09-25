@@ -10,10 +10,10 @@ use crate::cli::server::{
 };
 use octofhir_fhir_model::{HttpTerminologyProvider, TerminologyProvider, TypeInfo};
 use octofhir_fhirpath::diagnostics::DiagnosticSeverity;
+use octofhir_fhirpath::evaluator::EvaluationContext;
 use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode, parse_with_semantic_analysis};
 use octofhir_fhirpath::{Collection, FhirPathValue};
 use serde_json::Value as JsonValue;
-use octofhir_fhirpath::evaluator::EvaluationContext;
 
 use crate::cli::ast::{add_type_information, convert_ast_to_lab_format, extract_resource_type};
 use axum::{
@@ -265,7 +265,6 @@ async fn fhirpath_lab_handler_impl(
     request: FhirPathLabRequest,
     version: ServerFhirVersion,
 ) -> ServerResult<Json<serde_json::Value>> {
-
     let total_start = Instant::now();
 
     info!("🔍 FHIRPath Lab API request for FHIR {}", version);
@@ -301,7 +300,6 @@ async fn fhirpath_lab_handler_impl(
             return Ok(Json(serde_json::to_value(error_response).unwrap()));
         }
     };
-
 
     let engine = engine_arc.lock_owned().await;
     let model_provider_arc = engine.get_model_provider();
@@ -565,10 +563,11 @@ async fn fhirpath_lab_handler_impl(
                 };
 
             let semantic_result = parse_with_semantic_analysis(
-                    &parsed_request.expression,
-                    model_provider_arc,
-                    context_type,
-            ).await;
+                &parsed_request.expression,
+                model_provider_arc,
+                context_type,
+            )
+            .await;
 
             let semantic_errors: Vec<_> = semantic_result
                 .analysis
@@ -849,7 +848,7 @@ fn resolve_type_name(type_info: &octofhir_fhir_model::TypeInfo) -> String {
     }
 
     let raw = &type_info.type_name;
-    raw.split(['.', ':']).last().unwrap_or(raw).to_string()
+    raw.split(['.', ':']).next_back().unwrap_or(raw).to_string()
 }
 
 /// Create a simple result parameter from FhirPathValue
