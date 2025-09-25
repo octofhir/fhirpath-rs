@@ -1,0 +1,801 @@
+{
+  "name": "boolean_operations",
+  "description": "Boolean logic operation tests including and, or, xor, implies operations",
+  "source": "fhir-test-cases r5",
+  "category": "boolean",
+  "tests": [
+    {
+      "name": "testBooleanLogicAnd1",
+      "expression": "(true and true) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with both true"
+    },
+    {
+      "name": "testBooleanLogicAnd2",
+      "expression": "(true and false) = false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with true and false"
+    },
+    {
+      "name": "testBooleanLogicAnd3",
+      "expression": "(true and {}).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with true and empty collection"
+    },
+    {
+      "name": "testBooleanLogicAnd4",
+      "expression": "(false and true) = false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with false and true"
+    },
+    {
+      "name": "testBooleanLogicAnd5",
+      "expression": "(false and false) = false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with both false"
+    },
+    {
+      "name": "testBooleanLogicAnd6",
+      "expression": "(false and {}) = false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with false and empty collection"
+    },
+    {
+      "name": "testBooleanLogicAnd7",
+      "expression": "({} and true).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with empty collection and true"
+    },
+    {
+      "name": "testBooleanLogicAnd8",
+      "expression": "({} and false) = false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with empty collection and false"
+    },
+    {
+      "name": "testBooleanLogicAnd9",
+      "expression": "({} and {}).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicAnd"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_and",
+      "description": "Boolean AND with both empty collections"
+    },
+    {
+      "name": "testBooleanLogicOr1",
+      "expression": "(true or true) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with both true"
+    },
+    {
+      "name": "testBooleanLogicOr2",
+      "expression": "(true or false) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with true and false"
+    },
+    {
+      "name": "testBooleanLogicOr3",
+      "expression": "(true or {}) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with true and empty collection"
+    },
+    {
+      "name": "testBooleanLogicOr4",
+      "expression": "(false or true) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with false and true"
+    },
+    {
+      "name": "testBooleanLogicOr5",
+      "expression": "(false or false) = false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with both false"
+    },
+    {
+      "name": "testBooleanLogicOr6",
+      "expression": "(false or {}).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with false and empty collection"
+    },
+    {
+      "name": "testBooleanLogicOr7",
+      "expression": "({} or true) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with empty collection and true"
+    },
+    {
+      "name": "testBooleanLogicOr8",
+      "expression": "({} or false).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with empty collection and false"
+    },
+    {
+      "name": "testBooleanLogicOr9",
+      "expression": "({} or {}).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_or",
+      "description": "Boolean OR with both empty collections"
+    },
+    {
+      "name": "testBooleanLogicXOr1",
+      "expression": "(true xor true) = false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with both true"
+    },
+    {
+      "name": "testBooleanLogicXOr2",
+      "expression": "(true xor false) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with true and false"
+    },
+    {
+      "name": "testBooleanLogicXOr3",
+      "expression": "(true xor {}).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with true and empty collection"
+    },
+    {
+      "name": "testBooleanLogicXOr4",
+      "expression": "(false xor true) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with false and true"
+    },
+    {
+      "name": "testBooleanLogicXOr5",
+      "expression": "(false xor false) = false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with both false"
+    },
+    {
+      "name": "testBooleanLogicXOr6",
+      "expression": "(false xor {}).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with false and empty collection"
+    },
+    {
+      "name": "testBooleanLogicXOr7",
+      "expression": "({} xor true).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with empty collection and true"
+    },
+    {
+      "name": "testBooleanLogicXOr8",
+      "expression": "({} xor false).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with empty collection and false"
+    },
+    {
+      "name": "testBooleanLogicXOr9",
+      "expression": "({} xor {}).empty()",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanLogicXOr"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_xor",
+      "description": "Boolean XOR with both empty collections"
+    },
+    {
+      "name": "testBooleanImplies1",
+      "expression": "(true implies true) = true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with both true"
+    },
+    {
+      "name": "testBooleanImplies2",
+      "expression": "(true implies false) = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with true and false"
+    },
+    {
+      "name": "testBooleanImplies3",
+      "expression": "(true implies {}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with true and empty collection"
+    },
+    {
+      "name": "testBooleanImplies4",
+      "expression": "(false implies true) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with false and true"
+    },
+    {
+      "name": "testBooleanImplies5",
+      "expression": "(false implies false) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with both false"
+    },
+    {
+      "name": "testBooleanImplies6",
+      "expression": "(false implies {}) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with false and empty collection"
+    },
+    {
+      "name": "testBooleanImplies7",
+      "expression": "({} implies true) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with empty collection and true"
+    },
+    {
+      "name": "testBooleanImplies8",
+      "expression": "({} implies false).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with empty collection and false"
+    },
+    {
+      "name": "testBooleanImplies9",
+      "expression": "({} implies {}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "logical_implies",
+      "description": "Boolean IMPLIES with both empty collections"
+    },
+    {
+      "name": "testCollectionBoolean1",
+      "expression": "iif(1 | 2 | 3, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "subcategory": "conditional",
+      "description": "iif function with multi-element collection (semantic error)"
+    },
+    {
+      "name": "testCollectionBoolean2",
+      "expression": "iif({}, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conditional",
+      "description": "iif function with empty collection condition"
+    },
+    {
+      "name": "testCollectionBoolean3",
+      "expression": "iif(true, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conditional",
+      "description": "iif function with true condition"
+    },
+    {
+      "name": "testCollectionBoolean4",
+      "expression": "iif({} | true, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conditional",
+      "description": "iif function with union condition"
+    },
+    {
+      "name": "testCollectionBoolean5",
+      "expression": "iif(true, true, 1/0)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conditional",
+      "description": "iif function short-circuit evaluation (true branch)"
+    },
+    {
+      "name": "testCollectionBoolean6",
+      "expression": "iif(false, 1/0, true)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conditional",
+      "description": "iif function short-circuit evaluation (false branch)"
+    },
+    {
+      "name": "from-zulip-1",
+      "expression": "(true and 'foo').empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "from-Zulip"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "boolean",
+      "subcategory": "logical_and",
+      "description": "boolean and with string operand"
+    },
+    {
+      "name": "from-zulip-2",
+      "expression": "(true | 'foo').allTrue()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "from-Zulip"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "boolean",
+      "subcategory": "logical_or",
+      "description": "boolean or with string operand (execution error)"
+    }
+  ]
+}

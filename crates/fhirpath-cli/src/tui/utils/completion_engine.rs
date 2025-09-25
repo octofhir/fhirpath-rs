@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 use octofhir_fhirpath::FhirPathValue;
 use octofhir_fhirpath::FunctionRegistry;
 use octofhir_fhirpath::core::ModelProvider;
@@ -148,7 +147,7 @@ impl CompletionEngine {
         let partial = self.get_partial_word(context).to_lowercase();
 
         if let Some(resource) = state.current_resource.as_ref() {
-            self.collect_properties_from_value(resource, &partial, &mut completions, &mut seen);
+            Self::collect_properties_from_value(resource, &partial, &mut completions, &mut seen);
 
             if let FhirPathValue::Resource(_, type_info, _) = resource {
                 if !completions.is_empty() {
@@ -226,7 +225,7 @@ impl CompletionEngine {
     }
 
     /// Rank completions by relevance
-    fn rank_completions(&self, completions: &mut Vec<CompletionItem>, context: &CompletionContext) {
+    fn rank_completions(&self, completions: &mut [CompletionItem], context: &CompletionContext) {
         let partial = self.get_partial_word(context);
 
         completions.sort_by(|a, b| {
@@ -243,7 +242,7 @@ impl CompletionEngine {
         let text_before_cursor = &context.expression[..context.cursor_position];
         text_before_cursor
             .split(|c: char| !c.is_alphanumeric() && c != '_')
-            .last()
+            .next_back()
             .unwrap_or("")
             .to_string()
     }
@@ -341,7 +340,6 @@ impl CompletionEngine {
     }
 
     fn collect_properties_from_value(
-        &self,
         value: &FhirPathValue,
         partial: &str,
         completions: &mut Vec<CompletionItem>,
@@ -378,7 +376,7 @@ impl CompletionEngine {
             }
             FhirPathValue::Collection(collection) => {
                 for nested in collection.values() {
-                    self.collect_properties_from_value(nested, partial, completions, seen);
+                    Self::collect_properties_from_value(nested, partial, completions, seen);
                 }
             }
             _ => {}

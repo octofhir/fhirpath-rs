@@ -37,6 +37,11 @@ pub struct TestCase {
     pub mode: Option<String>,
     #[serde(rename = "outputTypes", default)]
     pub output_types: Vec<String>,
+    // New fields for organized test structure
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subcategory: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -47,6 +52,9 @@ pub struct TestSuite {
     #[serde(default)]
     pub source: Option<String>,
     pub tests: Vec<TestCase>,
+    // New fields for organized test structure
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
 }
 
 pub fn normalize_type_name(name: &str) -> String {

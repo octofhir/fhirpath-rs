@@ -1,5 +1,4 @@
-//! ToDate function implementation (stub)
-//! TODO: Complete implementation
+//! ToDate function implementation
 
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;

@@ -1,0 +1,49 @@
+{
+  "name": "integration_tests",
+  "category": "other",
+  "subcategory": "fhir_resources",
+  "description": "Integration tests for FHIR resources, inheritance, and extensions",
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testObservation1",
+      "expression": "Observation.value.exists()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "integration_tests"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "fhir_resources"
+    },
+    {
+      "name": "testPatientName",
+      "expression": "Patient.name.given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Jim",
+        "Peter",
+        "James"
+      ],
+      "tags": [
+        "integration_tests"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "fhir_resources"
+    }
+  ]
+}

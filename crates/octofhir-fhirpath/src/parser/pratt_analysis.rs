@@ -425,7 +425,7 @@ pub fn analysis_parser_with_recovery<'a>()
     analysis_parser()
 }
 
-/// Strip comments and normalize whitespace from input (shared from pratt.rs)
+/// Strip comments and normalize whitespace from input (synchronized with pratt.rs)
 fn preprocess_input(input: &str) -> String {
     let mut result = String::new();
     let mut chars = input.chars().peekable();
@@ -454,9 +454,10 @@ fn preprocess_input(input: &str) -> String {
                     Some('/') => {
                         // Single-line comment - skip to end of line
                         chars.next(); // consume the second /
+                        result.push(' '); // Add space where comment was
                         for c in chars.by_ref() {
                             if c == '\n' || c == '\r' {
-                                result.push(' '); // Replace comment with space
+                                result.push(' '); // Replace newline with space
                                 break;
                             }
                         }
@@ -464,29 +465,60 @@ fn preprocess_input(input: &str) -> String {
                     Some('*') => {
                         // Multi-line comment - skip to */
                         chars.next(); // consume the *
+                        result.push(' '); // Add space where comment started
                         let mut prev_char = '\0';
+                        let mut comment_closed = false;
                         for c in chars.by_ref() {
                             if prev_char == '*' && c == '/' {
-                                result.push(' '); // Replace comment with space
-                                break;
+                                comment_closed = true;
+                                break; // End of comment
                             }
                             prev_char = c;
+                        }
+                        // Check if comment was properly closed
+                        if !comment_closed {
+                            return "UNTERMINATED_COMMENT_ERROR".to_string();
                         }
                     }
                     _ => result.push(ch),
                 }
             }
+            // Normalize newlines and tabs to spaces outside of strings
+            '\n' | '\t' => result.push(' '),
             _ => result.push(ch),
         }
     }
 
-    result
+    // Trim and collapse multiple whitespaces
+    result.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// Parse expression for analysis with comprehensive error recovery
 pub fn parse_for_analysis(input: &str) -> AnalysisResult {
     // Preprocess to remove comments
     let cleaned_input = preprocess_input(input);
+
+    // Check for preprocessing errors
+    if cleaned_input == "UNTERMINATED_COMMENT_ERROR" {
+        use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
+        let diagnostic = Diagnostic {
+            severity: DiagnosticSeverity::Error,
+            code: DiagnosticCode {
+                code: "FP0001".to_string(),
+                namespace: Some("fhirpath".to_string()),
+            },
+            message: "Unterminated multi-line comment: found '/*' but missing closing '*/'"
+                .to_string(),
+            location: None,
+            related: Vec::new(),
+        };
+        return AnalysisResult {
+            ast: None,
+            diagnostics: vec![diagnostic],
+            has_errors: true,
+        };
+    }
+
     let parser = analysis_parser_with_recovery();
 
     // Main parsing attempt

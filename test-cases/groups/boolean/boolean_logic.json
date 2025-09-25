@@ -1,0 +1,57 @@
+{
+  "name": "boolean_logic",
+  "category": "boolean",
+  "subcategory": "operators",
+  "description": "Boolean logic operations including operators, comparison, and conditional functions",
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testBooleanLogicAnd1",
+      "expression": "true and true",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "boolean_logic"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "operators"
+    },
+    {
+      "name": "testBooleanLogicOr1",
+      "expression": "true or false",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "boolean_logic"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "operators"
+    },
+    {
+      "name": "testEquality1",
+      "expression": "1 = 1",
+      "input": {},
+      "inputfile": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "boolean_logic"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "comparison"
+    }
+  ]
+}

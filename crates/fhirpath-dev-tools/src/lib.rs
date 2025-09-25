@@ -20,6 +20,7 @@
 //! including test runners, coverage analysis, and benchmarking tools.
 
 pub mod common;
+pub mod metadata;
 pub mod test_support;
 
 // Re-export common functionality

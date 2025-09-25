@@ -577,10 +577,8 @@ pub mod utils {
         // Simplified color blending
         if ratio <= 0.0 {
             color1
-        } else if ratio >= 1.0 {
-            color2
         } else {
-            color2 // Simplified - just return the second color
+            color2 // Simplified - just return the second color for any ratio > 0
         }
     }
 

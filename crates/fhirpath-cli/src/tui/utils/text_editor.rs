@@ -123,7 +123,7 @@ impl TextEditor {
                     .text
                     .chars()
                     .nth(pos)
-                    .map_or(false, |c| c.is_whitespace())
+                    .is_some_and(|c| c.is_whitespace())
             {
                 pos -= 1;
             }
@@ -134,7 +134,7 @@ impl TextEditor {
                     .text
                     .chars()
                     .nth(pos - 1)
-                    .map_or(false, |c| c.is_alphanumeric())
+                    .is_some_and(|c| c.is_alphanumeric())
             {
                 pos -= 1;
             }

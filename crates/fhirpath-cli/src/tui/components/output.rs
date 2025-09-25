@@ -362,13 +362,12 @@ impl OutputPanel {
                 .map(|u| format!("{} {}", value, u))
                 .unwrap_or_else(|| value.to_string()),
             FhirPathValue::Resource(json, type_info, _) => {
-                let summary = json
+                json
                     .as_object()
                     .and_then(|obj| obj.get("id"))
                     .and_then(|id| id.as_str())
                     .map(|id| format!("{}#{}", type_info.type_name, id))
-                    .unwrap_or_else(|| type_info.type_name.clone());
-                summary
+                    .unwrap_or_else(|| type_info.type_name.clone())
             }
             FhirPathValue::Collection(collection) => {
                 format!("[{} items]", collection.len())

@@ -16,7 +16,7 @@
 
 use clap::Parser;
 use fhirpath_cli::EmbeddedModelProvider;
-use fhirpath_cli::cli::output::{EvaluationOutput, FormatterFactory, OutputMetadata, ParseOutput};
+use fhirpath_cli::cli::output::{EvaluationOutput, FormatterFactory, OutputMetadata};
 use fhirpath_cli::cli::{Cli, Commands, RegistryCommands, RegistryShowTarget, RegistryTarget};
 use octofhir_fhir_model::HttpTerminologyProvider;
 use octofhir_fhir_model::provider::FhirVersion;
@@ -741,110 +741,6 @@ async fn handle_evaluate(
     }
 }
 
-#[allow(dead_code)]
-fn handle_parse(
-    expression: &str,
-    cli: &Cli,
-    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
-) {
-    use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
-    use std::io::stderr;
-    let parse_result = parse_with_mode(expression, ParsingMode::Fast);
-
-    let output = if parse_result.success {
-        ParseOutput {
-            success: true,
-            ast: parse_result.ast,
-            error: None,
-            expression: expression.to_string(),
-            metadata: OutputMetadata {
-                cache_hits: 0,
-                ast_nodes: 1, // TODO: Count AST nodes properly
-                memory_used: 0,
-            },
-        }
-    } else {
-        // Report rich diagnostics with proper spans
-        let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
-        let source_id = handler.add_source("expression".to_string(), expression.to_string());
-
-        // Report all diagnostics from the parser (with proper spans)
-        if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
-            let ariadne_diagnostics: Vec<_> = parse_result
-                .diagnostics
-                .iter()
-                .map(convert_diagnostic_to_ariadne)
-                .collect();
-            handler
-                .report_diagnostics(&ariadne_diagnostics, source_id, &mut stderr())
-                .unwrap_or_default();
-        }
-
-        // Collect all error codes and positions from diagnostics
-        let error_details: Vec<String> = parse_result
-            .diagnostics
-            .iter()
-            .map(|d| {
-                if let Some(location) = &d.location {
-                    format!("{} at {}:{}", d.code.code, location.line, location.column)
-                } else {
-                    d.code.code.clone()
-                }
-            })
-            .collect();
-
-        let error_message = if error_details.is_empty() {
-            "Parse failed".to_string()
-        } else {
-            format!("{}: Parse failed", error_details.join(", "))
-        };
-
-        // Convert first error to FhirPathError for output structure
-        let error = parse_result.into_result().err().unwrap_or_else(|| {
-            octofhir_fhirpath::core::FhirPathError::parse_error(
-                octofhir_fhirpath::core::error_code::FP0001,
-                &error_message,
-                expression,
-                None,
-            )
-        });
-
-        ParseOutput {
-            success: false,
-            ast: None,
-            error: Some(error),
-            expression: expression.to_string(),
-            metadata: OutputMetadata::default(),
-        }
-    };
-
-    match formatter.format_parse(&output) {
-        Ok(formatted) => {
-            println!("{formatted}");
-            if !output.success {
-                process::exit(1);
-            }
-        }
-        Err(e) => {
-            // Create diagnostic handler for error reporting
-            let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
-            let source_id = handler.add_source("expression".to_string(), expression.to_string());
-
-            let diagnostic = handler.create_diagnostic_from_error(
-                octofhir_fhirpath::core::error_code::FP0001,
-                format!("Error formatting parse output: {e}"),
-                0..expression.len(),
-                Some("Check output format configuration".to_string()),
-            );
-
-            handler
-                .report_diagnostic(&diagnostic, source_id, &mut stderr())
-                .unwrap_or_default();
-            process::exit(1);
-        }
-    }
-}
-
 async fn handle_validate(
     expression: &str,
     cli: &Cli,
@@ -1387,43 +1283,6 @@ fn extract_resource_type_from_expression(
     None
 }
 
-/// Calculate span from diagnostic message by finding tokens in expression
-#[allow(dead_code)]
-fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::ops::Range<usize>> {
-    // Extract resource type or property name from message
-    if message.contains("Unknown resource type: '") {
-        // Extract resource type name from message like "Unknown resource type: 'Pat'"
-        let start_marker = "Unknown resource type: '";
-        let end_marker = "'";
-        if let Some(start) = message.find(start_marker) {
-            let name_start = start + start_marker.len();
-            if let Some(name_end) = message[name_start..].find(end_marker) {
-                let resource_name = &message[name_start..name_start + name_end];
-                // Find this resource name in the expression
-                if let Some(pos) = expression.find(resource_name) {
-                    return Some(pos..pos + resource_name.len());
-                }
-            }
-        }
-    } else if message.contains("Cannot validate property '") {
-        // Extract property name from message like "Cannot validate property 'name' on unknown type"
-        let start_marker = "Cannot validate property '";
-        let end_marker = "'";
-        if let Some(start) = message.find(start_marker) {
-            let name_start = start + start_marker.len();
-            if let Some(name_end) = message[name_start..].find(end_marker) {
-                let property_name = &message[name_start..name_start + name_end];
-                // Find this property name in the expression (usually after a dot)
-                if let Some(pos) = expression.find(&format!(".{property_name}")) {
-                    return Some(pos + 1..pos + 1 + property_name.len());
-                }
-            }
-        }
-    }
-
-    None
-}
-
 /// Handle registry commands for functions and operators
 async fn handle_registry(command: &RegistryCommands, cli: &Cli) {
     use fhirpath_cli::cli::output::FormatterFactory;
@@ -1836,6 +1695,7 @@ async fn try_show_operator(
 }
 
 // Handle the TUI command
+#[allow(clippy::too_many_arguments)]
 async fn handle_tui(
     input: Option<&str>,
     variables: &[String],
@@ -1860,7 +1720,7 @@ async fn handle_tui(
                 return;
             }
             Err(e) => {
-                eprintln!("❌ Terminal capabilities check failed: {}", e);
+                eprintln!("❌ Terminal capabilities check failed: {e}");
                 eprintln!("   Consider using a larger terminal or different terminal emulator");
                 process::exit(1);
             }
@@ -1876,21 +1736,18 @@ async fn handle_tui(
         match TuiConfig::load_from_file(config_path) {
             Ok(config) => config,
             Err(e) => {
-                eprintln!("Warning: Failed to load config from {}: {}", config_path, e);
+                eprintln!("Warning: Failed to load config from {config_path}: {e}");
                 eprintln!("Using default configuration");
                 TuiConfig::default()
             }
         }
     } else {
-        match TuiConfig::load_with_fallbacks() {
-            Ok(config) => config,
-            Err(_) => TuiConfig::default(),
-        }
+        TuiConfig::load_with_fallbacks().unwrap_or_default()
     };
 
     // Apply command-line overrides
     if let Err(e) = config.set_theme(theme) {
-        eprintln!("Warning: {}", e);
+        eprintln!("Warning: {e}");
         eprintln!("Using default theme");
     }
 
@@ -1917,8 +1774,7 @@ async fn handle_tui(
             initial_variables.push((name.to_string(), value.to_string()));
         } else {
             eprintln!(
-                "Warning: Invalid variable format '{}', expected 'name=value'",
-                var
+                "Warning: Invalid variable format '{var}', expected 'name=value'"
             );
         }
     }
@@ -1929,8 +1785,7 @@ async fn handle_tui(
             Ok(resource) => Some(resource),
             Err(e) => {
                 eprintln!(
-                    "Warning: Failed to load resource from '{}': {}",
-                    input_path, e
+                    "Warning: Failed to load resource from '{input_path}': {e}"
                 );
                 None
             }
@@ -1959,7 +1814,7 @@ async fn handle_tui(
 
     // Start the TUI
     if let Err(e) = start_tui(model_provider, config, initial_resource, initial_variables).await {
-        eprintln!("TUI error: {}", e);
+        eprintln!("TUI error: {e}");
         process::exit(1);
     }
 }

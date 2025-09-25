@@ -16,10 +16,6 @@ pub mod choice_type_analyzer;
 pub mod diagnostic_builder;
 pub mod diagnostic_template_registry;
 
-// Temporarily disabled experimental modules with failing tests
-// mod diagnostic_enhancement_tests;
-// mod integration_tests;
-// mod type_analysis_integration_tests;
 pub mod expression_context;
 pub mod function_analyzer;
 pub mod hierarchy_analyzer;
@@ -59,11 +55,3 @@ pub use type_analyzer::{
 pub use union_analyzer::{
     AnalysisResult as UnionAnalysisResult, UnionOperation, UnionTypeAnalyzer,
 };
-
-// Experimental test modules temporarily disabled
-// #[cfg(test)]
-// mod integration_tests;
-// #[cfg(test)]
-// mod type_analysis_integration_tests;
-// #[cfg(test)]
-// mod diagnostic_enhancement_tests;

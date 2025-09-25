@@ -48,49 +48,9 @@
     }
   ],
   "id": "example",
-  "resourceType": "Observation",
   "status": "final",
   "subject": {
     "reference": "Patient/example"
-  },
-  "text": {
-    "div": {
-      "p": [
-        {
-          "b": {}
-        },
-        {
-          "b": {}
-        },
-        {
-          "b": {}
-        },
-        {
-          "b": {},
-          "span": {}
-        },
-        {
-          "b": {},
-          "span": {}
-        },
-        {
-          "a": {},
-          "b": {}
-        },
-        {
-          "a": {},
-          "b": {}
-        },
-        {
-          "b": {}
-        },
-        {
-          "b": {},
-          "span": {}
-        }
-      ]
-    },
-    "status": "generated"
   },
   "valueQuantity": {
     "code": "[lb_av]",

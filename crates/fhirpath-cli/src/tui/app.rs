@@ -36,7 +36,6 @@ use super::events::{EventHandler, KeyBindings, TuiAction};
 use super::layout::{LayoutManager, PanelType};
 use super::themes::TuiTheme;
 
-// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 use octofhir_fhirpath::core::ModelProvider;
 use octofhir_fhirpath::diagnostics::{AriadneDiagnostic, DiagnosticEngine};
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
@@ -72,7 +71,6 @@ pub struct TuiApp {
     completion_engine: CompletionEngine,
 
     /// Static analyzer for real-time validation
-    // analyzer: StaticAnalyzer, // Removed
 
     /// Diagnostic engine for error formatting
     _diagnostic_engine: DiagnosticEngine,
@@ -219,7 +217,6 @@ impl TuiApp {
         // Create engine and analyzer
         let registry = Arc::new(octofhir_fhirpath::create_function_registry());
         let engine = FhirPathEngine::new(registry.clone(), model_provider.clone()).await?;
-        // let analyzer = StaticAnalyzer::new(registry, model_provider); // Removed
 
         // Initialize completion engine
         let completion_engine =

@@ -229,13 +229,13 @@ impl KeyBindings {
 
     /// Get global action for key event
     pub fn get_global_action(&self, key: &KeyEvent) -> Option<TuiAction> {
-        let wrapper = KeyEventWrapper::from(key.clone());
+        let wrapper = KeyEventWrapper::from(*key);
         self.global.get(&wrapper).cloned()
     }
 
     /// Get panel-specific action for key event
     pub fn get_panel_action(&self, key: &KeyEvent, panel: PanelType) -> Option<TuiAction> {
-        let wrapper = KeyEventWrapper::from(key.clone());
+        let wrapper = KeyEventWrapper::from(*key);
         self.panel_bindings
             .get(&panel)
             .and_then(|bindings| bindings.get(&wrapper))
@@ -244,7 +244,7 @@ impl KeyBindings {
 
     /// Get mode-specific action for key event
     pub fn get_mode_action(&self, key: &KeyEvent, mode: AppMode) -> Option<TuiAction> {
-        let wrapper = KeyEventWrapper::from(key.clone());
+        let wrapper = KeyEventWrapper::from(*key);
         self.mode_bindings
             .get(&mode)
             .and_then(|bindings| bindings.get(&wrapper))
@@ -262,7 +262,7 @@ impl KeyBindings {
         let wrapper = KeyEventWrapper::from(key);
         self.panel_bindings
             .entry(panel)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(wrapper, action);
     }
 
@@ -271,7 +271,7 @@ impl KeyBindings {
         let wrapper = KeyEventWrapper::from(key);
         self.mode_bindings
             .entry(mode)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(wrapper, action);
     }
 

@@ -1,0 +1,3777 @@
+{
+  "name": "comparison_operations",
+  "description": "Comparison operation tests including greater than, less than, equality, equivalence operations",
+  "source": "fhir-test-cases r5",
+  "category": "comparison",
+  "tests": [
+    {
+      "name": "testGreaterThan1",
+      "expression": "1 > 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with integers where first operand is less than second"
+    },
+    {
+      "name": "testGreaterThan2",
+      "expression": "1.0 > 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with decimals where first operand is less than second"
+    },
+    {
+      "name": "testGreaterThan3",
+      "expression": "'a' > 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with strings where first operand is less than second alphabetically"
+    },
+    {
+      "name": "testGreaterThan4",
+      "expression": "'A' > 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with case-sensitive string comparison"
+    },
+    {
+      "name": "testGreaterThan5",
+      "expression": "@2014-12-12 > @2014-12-13",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with dates where first date is earlier than second"
+    },
+    {
+      "name": "testGreaterThan6",
+      "expression": "@2014-12-13T12:00:00 > @2014-12-13T12:00:01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with datetime values where first is earlier than second"
+    },
+    {
+      "name": "testGreaterThan7",
+      "expression": "@T12:00:00 > @T14:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with time values where first time is earlier than second"
+    },
+    {
+      "name": "testGreaterThan8",
+      "expression": "1 > 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equal integers"
+    },
+    {
+      "name": "testGreaterThan9",
+      "expression": "1.0 > 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equal decimals"
+    },
+    {
+      "name": "testGreaterThan10",
+      "expression": "'a' > 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equal strings"
+    },
+    {
+      "name": "testGreaterThan11",
+      "expression": "'A' > 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equal uppercase strings"
+    },
+    {
+      "name": "testGreaterThan12",
+      "expression": "@2014-12-12 > @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equal dates"
+    },
+    {
+      "name": "testGreaterThan13",
+      "expression": "@2014-12-13T12:00:00 > @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equal datetime values"
+    },
+    {
+      "name": "testGreaterThan14",
+      "expression": "@T12:00:00 > @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equal time values"
+    },
+    {
+      "name": "testGreaterThan15",
+      "expression": "2 > 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with integers where first operand is greater than second"
+    },
+    {
+      "name": "testGreaterThan16",
+      "expression": "1.1 > 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with decimals where first operand is greater than second"
+    },
+    {
+      "name": "testGreaterThan17",
+      "expression": "'b' > 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with strings where first operand is greater than second alphabetically"
+    },
+    {
+      "name": "testGreaterThan18",
+      "expression": "'B' > 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with uppercase strings where first is greater than second"
+    },
+    {
+      "name": "testGreaterThan19",
+      "expression": "@2014-12-13 > @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with dates where first date is later than second"
+    },
+    {
+      "name": "testGreaterThan20",
+      "expression": "@2014-12-13T12:00:01 > @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with datetime values where first is later than second"
+    },
+    {
+      "name": "testGreaterThan21",
+      "expression": "@T12:00:01 > @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with time values where first time is later than second"
+    },
+    {
+      "name": "testGreaterThan22",
+      "expression": "Observation.value > 100 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with quantity values"
+    },
+    {
+      "name": "testGreaterThan23",
+      "expression": "@2018-03 > @2018-03-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with different precision dates resulting in empty collection"
+    },
+    {
+      "name": "testGreaterThan24",
+      "expression": "@2018-03-01T10:30 > @2018-03-01T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with different precision datetime values resulting in empty collection"
+    },
+    {
+      "name": "testGreaterThan25",
+      "expression": "@T10:30 > @T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with different precision time values resulting in empty collection"
+    },
+    {
+      "name": "testGreaterThan26",
+      "expression": "@2018-03-01T10:30:00 > @2018-03-01T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equivalent datetime values with different precision"
+    },
+    {
+      "name": "testGreaterThan27",
+      "expression": "@T10:30:00 > @T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with equivalent time values with different precision"
+    },
+    {
+      "name": "testGreaterThanEmpty1",
+      "expression": "1 > {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with value compared to empty collection"
+    },
+    {
+      "name": "testGreaterThanEmpty2",
+      "expression": "{} > 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with empty collection compared to value"
+    },
+    {
+      "name": "testGreaterThanEmpty3",
+      "expression": "{} > {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than operator with empty collections"
+    },
+    {
+      "name": "testGreatorOrEqual1",
+      "expression": "1 >= 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with integers where first operand is less than second"
+    },
+    {
+      "name": "testGreatorOrEqual2",
+      "expression": "1.0 >= 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with decimals where first operand is less than second"
+    },
+    {
+      "name": "testGreatorOrEqual3",
+      "expression": "'a' >= 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with strings where first operand is less than second alphabetically"
+    },
+    {
+      "name": "testGreatorOrEqual4",
+      "expression": "'A' >= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with case-sensitive string comparison"
+    },
+    {
+      "name": "testGreatorOrEqual5",
+      "expression": "@2014-12-12 >= @2014-12-13",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with dates where first date is earlier than second"
+    },
+    {
+      "name": "testGreatorOrEqual6",
+      "expression": "@2014-12-13T12:00:00 >= @2014-12-13T12:00:01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with datetime values where first is earlier than second"
+    },
+    {
+      "name": "testGreatorOrEqual7",
+      "expression": "@T12:00:00 >= @T14:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with time values where first time is earlier than second"
+    },
+    {
+      "name": "testGreatorOrEqual8",
+      "expression": "1 >= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equal integers"
+    },
+    {
+      "name": "testGreatorOrEqual9",
+      "expression": "1.0 >= 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equal decimals"
+    },
+    {
+      "name": "testGreatorOrEqual10",
+      "expression": "'a' >= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equal strings"
+    },
+    {
+      "name": "testGreatorOrEqual11",
+      "expression": "'A' >= 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equal uppercase strings"
+    },
+    {
+      "name": "testGreatorOrEqual12",
+      "expression": "@2014-12-12 >= @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equal dates"
+    },
+    {
+      "name": "testGreatorOrEqual13",
+      "expression": "@2014-12-13T12:00:00 >= @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equal datetime values"
+    },
+    {
+      "name": "testGreatorOrEqual14",
+      "expression": "@T12:00:00 >= @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equal time values"
+    },
+    {
+      "name": "testGreatorOrEqual15",
+      "expression": "2 >= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with integers where first operand is greater than second"
+    },
+    {
+      "name": "testGreatorOrEqual16",
+      "expression": "1.1 >= 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with decimals where first operand is greater than second"
+    },
+    {
+      "name": "testGreatorOrEqual17",
+      "expression": "'b' >= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with strings where first operand is greater than second alphabetically"
+    },
+    {
+      "name": "testGreatorOrEqual18",
+      "expression": "'B' >= 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with uppercase strings where first is greater than second"
+    },
+    {
+      "name": "testGreatorOrEqual19",
+      "expression": "@2014-12-13 >= @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with dates where first date is later than second"
+    },
+    {
+      "name": "testGreatorOrEqual20",
+      "expression": "@2014-12-13T12:00:01 >= @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with datetime values where first is later than second"
+    },
+    {
+      "name": "testGreatorOrEqual21",
+      "expression": "@T12:00:01 >= @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with time values where first time is later than second"
+    },
+    {
+      "name": "testGreatorOrEqual22",
+      "expression": "Observation.value >= 100 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with quantity values"
+    },
+    {
+      "name": "testGreatorOrEqual23",
+      "expression": "@2018-03 >= @2018-03-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with different precision dates resulting in empty collection"
+    },
+    {
+      "name": "testGreatorOrEqual24",
+      "expression": "@2018-03-01T10:30 >= @2018-03-01T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with different precision datetime values resulting in empty collection"
+    },
+    {
+      "name": "testGreatorOrEqual25",
+      "expression": "@T10:30 >= @T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with different precision time values resulting in empty collection"
+    },
+    {
+      "name": "testGreatorOrEqual26",
+      "expression": "@2018-03-01T10:30:00 >= @2018-03-01T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equivalent datetime values with different precision"
+    },
+    {
+      "name": "testGreatorOrEqual27",
+      "expression": "@T10:30:00 >= @T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with equivalent time values with different precision"
+    },
+    {
+      "name": "testGreatorOrEqualEmpty1",
+      "expression": "1 >= {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with value compared to empty collection"
+    },
+    {
+      "name": "testGreatorOrEqualEmpty2",
+      "expression": "{} >= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with empty collection compared to value"
+    },
+    {
+      "name": "testGreatorOrEqualEmpty3",
+      "expression": "{} >= {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test greater than or equal operator with empty collections"
+    },
+    {
+      "name": "testLessThan1",
+      "expression": "1 < 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with integers where first operand is less than second"
+    },
+    {
+      "name": "testLessThan2",
+      "expression": "1.0 < 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with decimals where first operand is less than second"
+    },
+    {
+      "name": "testLessThan3",
+      "expression": "'a' < 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with strings where first operand is less than second alphabetically"
+    },
+    {
+      "name": "testLessThan4",
+      "expression": "'A' < 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with case-sensitive string comparison"
+    },
+    {
+      "name": "testLessThan5",
+      "expression": "@2014-12-12 < @2014-12-13",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with dates where first date is earlier than second"
+    },
+    {
+      "name": "testLessThan6",
+      "expression": "@2014-12-13T12:00:00 < @2014-12-13T12:00:01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with datetime values where first is earlier than second"
+    },
+    {
+      "name": "testLessThan7",
+      "expression": "@T12:00:00 < @T14:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with time values where first time is earlier than second"
+    },
+    {
+      "name": "testLessThan8",
+      "expression": "1 < 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equal integers"
+    },
+    {
+      "name": "testLessThan9",
+      "expression": "1.0 < 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equal decimals"
+    },
+    {
+      "name": "testLessThan10",
+      "expression": "'a' < 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equal strings"
+    },
+    {
+      "name": "testLessThan11",
+      "expression": "'A' < 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equal uppercase strings"
+    },
+    {
+      "name": "testLessThan12",
+      "expression": "@2014-12-12 < @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equal dates"
+    },
+    {
+      "name": "testLessThan13",
+      "expression": "@2014-12-13T12:00:00 < @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equal datetime values"
+    },
+    {
+      "name": "testLessThan14",
+      "expression": "@T12:00:00 < @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equal time values"
+    },
+    {
+      "name": "testLessThan15",
+      "expression": "2 < 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with integers where first operand is greater than second"
+    },
+    {
+      "name": "testLessThan16",
+      "expression": "1.1 < 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with decimals where first operand is greater than second"
+    },
+    {
+      "name": "testLessThan17",
+      "expression": "'b' < 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with strings where first operand is greater than second alphabetically"
+    },
+    {
+      "name": "testLessThan18",
+      "expression": "'B' < 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with uppercase strings where first is greater than second"
+    },
+    {
+      "name": "testLessThan19",
+      "expression": "@2014-12-13 < @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with dates where first date is later than second"
+    },
+    {
+      "name": "testLessThan20",
+      "expression": "@2014-12-13T12:00:01 < @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with datetime values where first is later than second"
+    },
+    {
+      "name": "testLessThan21",
+      "expression": "@T12:00:01 < @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with time values where first time is later than second"
+    },
+    {
+      "name": "testLessThan22",
+      "expression": "Observation.value < 200 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with quantity values"
+    },
+    {
+      "name": "testLessThan23",
+      "expression": "@2018-03 < @2018-03-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with different precision dates resulting in empty collection"
+    },
+    {
+      "name": "testLessThan24",
+      "expression": "@2018-03-01T10:30 < @2018-03-01T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with different precision datetime values resulting in empty collection"
+    },
+    {
+      "name": "testLessThan25",
+      "expression": "@T10:30 < @T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with different precision time values resulting in empty collection"
+    },
+    {
+      "name": "testLessThan26",
+      "expression": "@2018-03-01T10:30:00 < @2018-03-01T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equivalent datetime values with different precision"
+    },
+    {
+      "name": "testLessThan27",
+      "expression": "@T10:30:00 < @T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with equivalent time values with different precision"
+    },
+    {
+      "name": "testLessThanEmpty1",
+      "expression": "1 < {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with value compared to empty collection"
+    },
+    {
+      "name": "testLessThanEmpty2",
+      "expression": "{} < 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with empty collection compared to value"
+    },
+    {
+      "name": "testLessThanEmpty3",
+      "expression": "{} < {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than operator with empty collections"
+    },
+    {
+      "name": "testLessOrEqual1",
+      "expression": "1 <= 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with integers where first operand is less than second"
+    },
+    {
+      "name": "testLessOrEqual2",
+      "expression": "1.0 <= 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with decimals where first operand is less than second"
+    },
+    {
+      "name": "testLessOrEqual3",
+      "expression": "'a' <= 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with strings where first operand is less than second alphabetically"
+    },
+    {
+      "name": "testLessOrEqual4",
+      "expression": "'A' <= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with case-sensitive string comparison"
+    },
+    {
+      "name": "testLessOrEqual5",
+      "expression": "@2014-12-12 <= @2014-12-13",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with dates where first date is earlier than second"
+    },
+    {
+      "name": "testLessOrEqual6",
+      "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with datetime values where first is earlier than second"
+    },
+    {
+      "name": "testLessOrEqual7",
+      "expression": "@T12:00:00 <= @T14:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with time values where first time is earlier than second"
+    },
+    {
+      "name": "testLessOrEqual8",
+      "expression": "1 <= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equal integers"
+    },
+    {
+      "name": "testLessOrEqual9",
+      "expression": "1.0 <= 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equal decimals"
+    },
+    {
+      "name": "testLessOrEqual10",
+      "expression": "'a' <= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equal strings"
+    },
+    {
+      "name": "testLessOrEqual11",
+      "expression": "'A' <= 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equal uppercase strings"
+    },
+    {
+      "name": "testLessOrEqual12",
+      "expression": "@2014-12-12 <= @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equal dates"
+    },
+    {
+      "name": "testLessOrEqual13",
+      "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equal datetime values"
+    },
+    {
+      "name": "testLessOrEqual14",
+      "expression": "@T12:00:00 <= @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equal time values"
+    },
+    {
+      "name": "testLessOrEqual15",
+      "expression": "2 <= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with integers where first operand is greater than second"
+    },
+    {
+      "name": "testLessOrEqual16",
+      "expression": "1.1 <= 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with decimals where first operand is greater than second"
+    },
+    {
+      "name": "testLessOrEqual17",
+      "expression": "'b' <= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with strings where first operand is greater than second alphabetically"
+    },
+    {
+      "name": "testLessOrEqual18",
+      "expression": "'B' <= 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with uppercase strings where first is greater than second"
+    },
+    {
+      "name": "testLessOrEqual19",
+      "expression": "@2014-12-13 <= @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with dates where first date is later than second"
+    },
+    {
+      "name": "testLessOrEqual20",
+      "expression": "@2014-12-13T12:00:01 <= @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with datetime values where first is later than second"
+    },
+    {
+      "name": "testLessOrEqual21",
+      "expression": "@T12:00:01 <= @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with time values where first time is later than second"
+    },
+    {
+      "name": "testLessOrEqual22",
+      "expression": "Observation.value <= 200 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with quantity values"
+    },
+    {
+      "name": "testLessOrEqual23",
+      "expression": "@2018-03 <= @2018-03-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with different precision dates resulting in empty collection"
+    },
+    {
+      "name": "testLessOrEqual24",
+      "expression": "@2018-03-01T10:30 <= @2018-03-01T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with different precision datetime values resulting in empty collection"
+    },
+    {
+      "name": "testLessOrEqual25",
+      "expression": "@T10:30 <= @T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with different precision time values resulting in empty collection"
+    },
+    {
+      "name": "testLessOrEqual26",
+      "expression": "@2018-03-01T10:30:00  <= @2018-03-01T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equivalent datetime values with different precision"
+    },
+    {
+      "name": "testLessOrEqual27",
+      "expression": "@T10:30:00 <= @T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with equivalent time values with different precision"
+    },
+    {
+      "name": "testLessOrEqualEmpty1",
+      "expression": "1 <= {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with value compared to empty collection"
+    },
+    {
+      "name": "testLessOrEqualEmpty2",
+      "expression": "{} <= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with empty collection compared to value"
+    },
+    {
+      "name": "testLessOrEqualEmpty3",
+      "expression": "{} <= {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessOrEqual"
+      ],
+      "subcategory": "relational",
+      "description": "Test less than or equal operator with empty collections"
+    },
+    {
+      "name": "testEquality1",
+      "expression": "1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with equal integers"
+    },
+    {
+      "name": "testEquality2",
+      "expression": "{} = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with empty collections"
+    },
+    {
+      "name": "testEquality3",
+      "expression": "true = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with boolean compared to empty collection"
+    },
+    {
+      "name": "testEquality4",
+      "expression": "(1) = (1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with parenthesized equal integers"
+    },
+    {
+      "name": "testEquality5",
+      "expression": "(1 | 2) = (1 | 2)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with equal collections of two elements"
+    },
+    {
+      "name": "testEquality6",
+      "expression": "(1 | 2 | 3) = (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with equal collections of three elements"
+    },
+    {
+      "name": "testEquality7",
+      "expression": "(1 | 1) = (1 | 2 | {})",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with different collections including empty element"
+    },
+    {
+      "name": "testEquality8",
+      "expression": "1 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with unequal integers"
+    },
+    {
+      "name": "testEquality9",
+      "expression": "'a' = 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with equal strings"
+    },
+    {
+      "name": "testEquality10",
+      "expression": "'a' = 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with case-sensitive string comparison"
+    },
+    {
+      "name": "testEquality11",
+      "expression": "'a' = 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with unequal strings"
+    },
+    {
+      "name": "testEquality12",
+      "expression": "1.1 = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with equal decimals"
+    },
+    {
+      "name": "testEquality13",
+      "expression": "1.1 = 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with unequal decimals"
+    },
+    {
+      "name": "testEquality14",
+      "expression": "1.10 = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with equivalent decimals of different precision"
+    },
+    {
+      "name": "testEquality15",
+      "expression": "0 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with zero values"
+    },
+    {
+      "name": "testEquality16",
+      "expression": "0.0 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with decimal zero and integer zero"
+    },
+    {
+      "name": "testEquality17",
+      "expression": "@2012-04-15 = @2012-04-15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with equal dates"
+    },
+    {
+      "name": "testEquality18",
+      "expression": "@2012-04-15 = @2012-04-16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with unequal dates"
+    },
+    {
+      "name": "testEquality19",
+      "expression": "@2012-04-15 = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with date and datetime of different precision"
+    },
+    {
+      "name": "testEquality20",
+      "expression": "@2012-04-15T15:00:00 = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with unequal datetime values"
+    },
+    {
+      "name": "testEquality21",
+      "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with equivalent datetime values of different precision"
+    },
+    {
+      "name": "testEquality22",
+      "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with datetime values differing by milliseconds"
+    },
+    {
+      "name": "testEquality23",
+      "expression": "@2012-04-15T15:00:00Z = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "description": "This could be impacted by the timezone of the engine running the test",
+      "subcategory": "equality"
+    },
+    {
+      "name": "testEquality24",
+      "expression": "@2012-04-15T15:00:00+02:00 = @2012-04-15T16:00:00+03:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with timezone-equivalent datetime values"
+    },
+    {
+      "name": "testEquality25",
+      "expression": "name = name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with identical path expressions"
+    },
+    {
+      "name": "testEquality26",
+      "expression": "name.take(2) = name.take(2).first() | name.take(2).last()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with collection and its reconstructed equivalent"
+    },
+    {
+      "name": "testEquality27",
+      "expression": "name.take(2) = name.take(2).last() | name.take(2).first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with collection and its reordered version"
+    },
+    {
+      "name": "testEquality28",
+      "expression": "Observation.value = 185 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test equality operator with quantity values"
+    },
+    {
+      "name": "testNEquality1",
+      "expression": "1 != 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with equal integers"
+    },
+    {
+      "name": "testNEquality2",
+      "expression": "{} != {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with empty collections"
+    },
+    {
+      "name": "testNEquality3",
+      "expression": "1 != 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with unequal integers"
+    },
+    {
+      "name": "testNEquality4",
+      "expression": "'a' != 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with equal strings"
+    },
+    {
+      "name": "testNEquality5",
+      "expression": "'a' != 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with unequal strings"
+    },
+    {
+      "name": "testNEquality6",
+      "expression": "1.1 != 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with equal decimals"
+    },
+    {
+      "name": "testNEquality7",
+      "expression": "1.1 != 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with unequal decimals"
+    },
+    {
+      "name": "testNEquality8",
+      "expression": "1.10 != 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with equivalent decimals of different precision"
+    },
+    {
+      "name": "testNEquality9",
+      "expression": "0 != 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with zero values"
+    },
+    {
+      "name": "testNEquality10",
+      "expression": "0.0 != 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with decimal zero and integer zero"
+    },
+    {
+      "name": "testNEquality11",
+      "expression": "@2012-04-15 != @2012-04-15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with equal dates"
+    },
+    {
+      "name": "testNEquality12",
+      "expression": "@2012-04-15 != @2012-04-16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with unequal dates"
+    },
+    {
+      "name": "testNEquality13",
+      "expression": "@2012-04-15 != @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with date and datetime of different precision"
+    },
+    {
+      "name": "testNEquality14",
+      "expression": "@2012-04-15T15:00:00 != @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with unequal datetime values"
+    },
+    {
+      "name": "testNEquality15",
+      "expression": "@2012-04-15T15:30:31 != @2012-04-15T15:30:31.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with equivalent datetime values of different precision"
+    },
+    {
+      "name": "testNEquality16",
+      "expression": "@2012-04-15T15:30:31 != @2012-04-15T15:30:31.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with datetime values differing by milliseconds"
+    },
+    {
+      "name": "testNEquality17",
+      "expression": "@2012-04-15T15:00:00Z != @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with timezone datetime comparison"
+    },
+    {
+      "name": "testNEquality18",
+      "expression": "@2012-04-15T15:00:00+02:00 != @2012-04-15T16:00:00+03:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with timezone-equivalent datetime values"
+    },
+    {
+      "name": "testNEquality19",
+      "expression": "name != name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with identical path expressions"
+    },
+    {
+      "name": "testNEquality20",
+      "expression": "name.take(2) != name.take(2).first() | name.take(2).last()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with collection and its reconstructed equivalent"
+    },
+    {
+      "name": "testNEquality21",
+      "expression": "name.take(2) != name.take(2).last() | name.take(2).first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with collection and its reordered version"
+    },
+    {
+      "name": "testNEquality22",
+      "expression": "(1.2 / 1.8).round(2) != 0.6666667",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with rounded calculation result and unequal value"
+    },
+    {
+      "name": "testNEquality23",
+      "expression": "(1.2 / 1.8).round(2) != 0.67",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with rounded calculation result and equal value"
+    },
+    {
+      "name": "testNEquality24",
+      "expression": "Observation.value != 185 'kg'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNEquality"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equality",
+      "description": "Test not equal operator with quantity values of different units"
+    },
+    {
+      "name": "testEquivalent1",
+      "expression": "1 ~ 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with equal integers"
+    },
+    {
+      "name": "testEquivalent2",
+      "expression": "{} ~ {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with empty collections"
+    },
+    {
+      "name": "testEquivalent3",
+      "expression": "1 ~ {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with value compared to empty collection"
+    },
+    {
+      "name": "testEquivalent4",
+      "expression": "1 ~ 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with unequal integers"
+    },
+    {
+      "name": "testEquivalent5",
+      "expression": "'a' ~ 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with equal strings"
+    },
+    {
+      "name": "testEquivalent6",
+      "expression": "'a' ~ 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with case-insensitive string comparison"
+    },
+    {
+      "name": "testEquivalent7",
+      "expression": "'a' ~ 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with unequal strings"
+    },
+    {
+      "name": "testEquivalent8",
+      "expression": "1.1 ~ 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with equal decimals"
+    },
+    {
+      "name": "testEquivalent9",
+      "expression": "1.1 ~ 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with unequal decimals"
+    },
+    {
+      "name": "testEquivalent10",
+      "expression": "1.10 ~ 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with equivalent decimals of different precision"
+    },
+    {
+      "name": "testEquivalent11",
+      "expression": "1.2 / 1.8 ~ 0.67",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with calculation result and approximate value"
+    },
+    {
+      "name": "testEquivalent12",
+      "expression": "0 ~ 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with zero values"
+    },
+    {
+      "name": "testEquivalent13",
+      "expression": "0.0 ~ 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with decimal zero and integer zero"
+    },
+    {
+      "name": "testEquivalent14",
+      "expression": "@2012-04-15 ~ @2012-04-15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with equal dates"
+    },
+    {
+      "name": "testEquivalent15",
+      "expression": "@2012-04-15 ~ @2012-04-16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with unequal dates"
+    },
+    {
+      "name": "testEquivalent16",
+      "expression": "@2012-04-15 ~ @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with date and datetime of different precision"
+    },
+    {
+      "name": "testEquivalent17",
+      "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with equivalent datetime values of different precision"
+    },
+    {
+      "name": "testEquivalent18",
+      "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with datetime values differing by milliseconds"
+    },
+    {
+      "name": "testEquivalent19",
+      "expression": "name ~ name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with identical path expressions"
+    },
+    {
+      "name": "testEquivalent20",
+      "expression": "name.take(2).given ~ name.take(2).first().given | name.take(2).last().given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with collection and its reconstructed equivalent"
+    },
+    {
+      "name": "testEquivalent21",
+      "expression": "name.take(2).given ~ name.take(2).last().given | name.take(2).first().given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with collection and its reordered version"
+    },
+    {
+      "name": "testEquivalent22",
+      "expression": "Observation.value ~ 185 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with quantity values"
+    },
+    {
+      "name": "testEquivalent23",
+      "expression": "(1 | 2 | 3) ~ (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with identical collections"
+    },
+    {
+      "name": "testEquivalent24",
+      "expression": "(1 | 2 | 3) ~ (3 | 2 | 1)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test equivalence operator with reordered collections"
+    },
+    {
+      "name": "testNotEquivalent1",
+      "expression": "1 !~ 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with equal integers"
+    },
+    {
+      "name": "testNotEquivalent2",
+      "expression": "{} !~ {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with empty collections"
+    },
+    {
+      "name": "testNotEquivalent3",
+      "expression": "{} !~ 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with empty collection compared to value"
+    },
+    {
+      "name": "testNotEquivalent4",
+      "expression": "1 !~ 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with unequal integers"
+    },
+    {
+      "name": "testNotEquivalent5",
+      "expression": "'a' !~ 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with equal strings"
+    },
+    {
+      "name": "testNotEquivalent6",
+      "expression": "'a' !~ 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with case-insensitive string comparison"
+    },
+    {
+      "name": "testNotEquivalent7",
+      "expression": "'a' !~ 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with unequal strings"
+    },
+    {
+      "name": "testNotEquivalent8",
+      "expression": "1.1 !~ 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with equal decimals"
+    },
+    {
+      "name": "testNotEquivalent9",
+      "expression": "1.1 !~ 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with unequal decimals"
+    },
+    {
+      "name": "testNotEquivalent10",
+      "expression": "1.10 !~ 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with equivalent decimals of different precision"
+    },
+    {
+      "name": "testNotEquivalent11",
+      "expression": "0 !~ 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with zero values"
+    },
+    {
+      "name": "testNotEquivalent12",
+      "expression": "0.0 !~ 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with decimal zero and integer zero"
+    },
+    {
+      "name": "testNotEquivalent13",
+      "expression": "1.2 / 1.8 !~ 0.6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with calculation result and non-equivalent value"
+    },
+    {
+      "name": "testNotEquivalent14",
+      "expression": "@2012-04-15 !~ @2012-04-15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with equal dates"
+    },
+    {
+      "name": "testNotEquivalent15",
+      "expression": "@2012-04-15 !~ @2012-04-16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with unequal dates"
+    },
+    {
+      "name": "testNotEquivalent16",
+      "expression": "@2012-04-15 !~ @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with date and datetime of different precision"
+    },
+    {
+      "name": "testNotEquivalent17",
+      "expression": "@2012-04-15T15:30:31 !~ @2012-04-15T15:30:31.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with equivalent datetime values of different precision"
+    },
+    {
+      "name": "testNotEquivalent18",
+      "expression": "@2012-04-15T15:30:31 !~ @2012-04-15T15:30:31.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with datetime values differing by milliseconds"
+    },
+    {
+      "name": "testNotEquivalent19",
+      "expression": "name !~ name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with identical path expressions"
+    },
+    {
+      "name": "testNotEquivalent20",
+      "expression": "name.take(2).given !~ name.take(2).first().given | name.take(2).last().given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with collection and its reconstructed equivalent"
+    },
+    {
+      "name": "testNotEquivalent21",
+      "expression": "name.take(2).given !~ name.take(2).last().given | name.take(2).first().given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with collection and its reordered version"
+    },
+    {
+      "name": "testNotEquivalent22",
+      "expression": "Observation.value !~ 185 'kg'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testNotEquivalent"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "equivalence",
+      "description": "Test not equivalent operator with quantity values of different units"
+    }
+  ]
+}

@@ -1,0 +1,1352 @@
+{
+  "name": "date_time_operations",
+  "category": "dates",
+  "description": "Date and time operations including extraction, conversion, and period operations",
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testToDateInvalid",
+      "expression": "'invalid-date'.toDate()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateFromDate",
+      "expression": "Patient.birthDate.toDate()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-12-25"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateFromString",
+      "expression": "'2023-05-15'.toDate()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "2023-05-15"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateFromStringPartial",
+      "expression": "'2023-05'.toDate()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "2023-05"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateFromStringYear",
+      "expression": "'2023'.toDate()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "2023"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateTimeFromDate",
+      "expression": "Patient.birthDate.toDateTime()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDateTime"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-12-25"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateTimeFromString",
+      "expression": "'1974-12-25'.toDateTime()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDateTime"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-12-25"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateTimeFromDateTime",
+      "expression": "'1974-12-25T10:20:00+00:00'.toDateTime()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDateTime"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-12-25T10:20:00+00:00"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateTimeInvalid",
+      "expression": "'invalid-datetime'.toDateTime()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDateTime"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToDateTimeEmpty",
+      "expression": "{}.toDateTime()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "testToDateTime"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "toDateFullDateTimString",
+      "expression": "'2182-01-09T07:09:31-05:00'.toDate()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "user-feedback",
+        "testToDate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "2182-01-09"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testNow1",
+      "expression": "Patient.birthDate < now()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testNow"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testNow2",
+      "expression": "now().toString().length() > 10",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testNow"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToday1",
+      "expression": "Patient.birthDate < today()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testToday"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToday2",
+      "expression": "today().toString().length() = 10",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testToday"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testDayOfDateFirstOfMonth",
+      "expression": "@2023-05-01.dayOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        1
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testDayOfDateMiddleOfMonth",
+      "expression": "@2023-05-15.dayOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        15
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testDayOfDateEndOfMonth",
+      "expression": "@2023-05-31.dayOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        31
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testDayOfDateTime",
+      "expression": "@2023-12-25T14:30:00.dayOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        25
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testDayOfLeapYear",
+      "expression": "@2024-02-29.dayOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        29
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testDayOfCollectionOfDates",
+      "expression": "(@2023-01-01 | @2023-05-15 | @2023-12-31).dayOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "expectError": true,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testDayOfPatientBirthDate",
+      "expression": "Patient.birthDate.dayOf()",
+      "input": {
+        "resourceType": "Patient",
+        "birthDate": "1990-07-15"
+      },
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": null,
+      "expected": [
+        15
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testHourOfDateTime",
+      "expression": "@2023-05-15T14:30:00.hourOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        14
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testHourOfDateTimeMidnight",
+      "expression": "@2023-05-15T00:00:00.hourOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        0
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testHourOfDateTimeNoon",
+      "expression": "@2023-05-15T12:00:00.hourOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        12
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testHourOfDateTimeWithTimezone",
+      "expression": "@2023-05-15T14:30:00-05:00.hourOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        14
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testHourOfCollectionOfDateTimes",
+      "expression": "(@2023-05-15T09:00:00 | @2023-05-15T15:30:00 | @2023-05-15T23:59:59).hourOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "expectError": true,
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMinuteOfDateTime",
+      "expression": "@2023-05-15T14:30:00.minuteOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMinuteOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        30
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMinuteOfDateTimeZero",
+      "expression": "@2023-05-15T14:00:00.minuteOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMinuteOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        0
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMinuteOfDateTimeMax",
+      "expression": "@2023-05-15T14:59:00.minuteOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMinuteOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        59
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMinuteOfDateTimeWithTimezone",
+      "expression": "@2023-05-15T14:45:00+02:00.minuteOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMinuteOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        45
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMinuteOfCollectionOfDateTimes",
+      "expression": "(@2023-05-15T14:15:00 | @2023-05-15T14:30:00 | @2023-05-15T14:45:00).minuteOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMinuteOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expectError": true,
+      "expected": [],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMonthOfDateJanuary",
+      "expression": "@2023-01-15.monthOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMonthOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        1
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMonthOfDateDecember",
+      "expression": "@2023-12-25.monthOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMonthOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        12
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMonthOfDateTime",
+      "expression": "@2023-06-15T14:30:00.monthOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMonthOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        6
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMonthOfDateTimeWithTimezone",
+      "expression": "@2023-03-01T00:00:00-05:00.monthOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMonthOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        3
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMonthOfLeapYearFebruary",
+      "expression": "@2024-02-29.monthOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMonthOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        2
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMonthOfCollectionOfDates",
+      "expression": "(@2023-01-01 | @2023-06-15 | @2023-12-31).monthOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMonthOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "expectError": true,
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testMonthOfObservationDate",
+      "expression": "Observation.effectiveDateTime.monthOf()",
+      "input": {
+        "resourceType": "Observation",
+        "effectiveDateTime": "2023-09-15T10:30:00Z"
+      },
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testMonthOf"
+      ],
+      "inputfile": null,
+      "expected": [
+        9
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testSecondOfDateTime",
+      "expression": "@2023-05-15T14:30:45.secondOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        45
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testSecondOfDateTimeZero",
+      "expression": "@2023-05-15T14:30:00.secondOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        0
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testSecondOfDateTimeMax",
+      "expression": "@2023-05-15T14:30:59.secondOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        59
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testSecondOfDateTimeWithTimezone",
+      "expression": "@2023-05-15T14:30:30-03:00.secondOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        30
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testSecondOfCollectionOfDateTimes",
+      "expression": "(@2023-05-15T14:30:15 | @2023-05-15T14:30:30 | @2023-05-15T14:30:45).secondOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "expectError": true,
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfDate",
+      "expression": "@2023-05-15.yearOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        2023
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfDateTime",
+      "expression": "@2023-12-25T14:30:00.yearOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        2023
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfDateTimeWithTimezone",
+      "expression": "@2023-01-01T00:00:00-05:00.yearOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        2023
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfLeapYear",
+      "expression": "@2024-02-29.yearOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        2024
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfOldDate",
+      "expression": "@1900-01-01.yearOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        1900
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfFutureDate",
+      "expression": "@2050-12-31.yearOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        2050
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfEmptyCollection",
+      "expression": "{}.yearOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfCollectionOfDates",
+      "expression": "(@2023-01-01 | @2024-01-01).yearOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "expectError": true,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "yearOfPatientBirthDate",
+      "expression": "Patient.birthDate.yearOf()",
+      "input": {
+        "resourceType": "Patient",
+        "birthDate": "1990-07-15"
+      },
+      "tags": [
+        "date_time_operations",
+        "yearOf"
+      ],
+      "inputfile": null,
+      "expected": [
+        1990
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testTimezoneOffsetOfDateTimeUTC",
+      "expression": "@2023-05-15T14:30:00Z.timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        0
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testTimezoneOffsetOfDateTimePositive",
+      "expression": "@2023-05-15T14:30:00+05:00.timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        300
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testTimezoneOffsetOfDateTimeNegative",
+      "expression": "@2023-05-15T14:30:00-05:00.timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        -300
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testTimezoneOffsetOfDateTimePositiveMinutes",
+      "expression": "@2023-05-15T14:30:00+05:30.timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        330
+      ],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testTimezoneOffsetOfCollectionOfDateTimes",
+      "expression": "(@2023-05-15T14:30:00Z | @2023-05-15T14:30:00+02:00 | @2023-05-15T14:30:00-03:00).timezoneOffsetOf()",
+      "input": null,
+      "expectError": true,
+      "tags": [
+        "date_time_operations",
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "subcategory": "extraction"
+    },
+    {
+      "name": "testPeriodInvariantOld",
+      "expression": "Patient.identifier.period.all(start.hasValue().not() or end.hasValue().not() or (start <= end))",
+      "input": null,
+      "inputfile": "patient-example-period.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "period"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPeriodInvariantNew",
+      "expression": "Patient.identifier.period.all(start.empty() or end.empty() or (start.lowBoundary() < end.highBoundary()))",
+      "input": null,
+      "inputfile": "patient-example-period.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "period"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate1",
+      "expression": "@1973-12-25 + 7 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate2",
+      "expression": "@1973-12-25 + 7.7 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate3",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 7 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01T00:00:00.000+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate4",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 7.7 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01T00:00:00.000+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate5",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 second",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:01.000+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate6",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 10 millisecond",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:00.010+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate7",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 minute",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:01:00.000+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate8",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 hour",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T01:00:00.000+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate9",
+      "expression": "@1973-12-25 + 1 day",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-26"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate10",
+      "expression": "@1973-12-25 + 1 month",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-25"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate11",
+      "expression": "@1973-12-25 + 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate12",
+      "expression": "@1973-12-25 + 1 year",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-12-25"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate13",
+      "expression": "@1973-12-25 + 1 'd'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-26"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate15",
+      "expression": "@1973-12-25 + 1 'wk'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate18",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 's'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:01.000+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate19",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 0.1 's'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:00.100+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate20",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 10 'ms'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:00.010+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate21",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 'min'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:01:00.000+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusDate22",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 'h'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T01:00:00.000+10:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusTime1",
+      "expression": "@T01:00:00 + 2 hours",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T03:00:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "time"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusTime2",
+      "expression": "@T23:00:00 + 2 hours",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T01:00:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "time"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testPlusTime3",
+      "expression": "@T23:00:00 + 50 hours",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T01:00:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testPlus"
+      ],
+      "outputTypes": [
+        "time"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testMinus5",
+      "expression": "@1974-12-25 - 1 'month'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-11-25"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testMinus"
+      ],
+      "description": "Contested: single quotes are ucum units, which are not applicable to date arithmetic",
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testMinus7",
+      "expression": "@T00:30:00 - 1 hour",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T23:30:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testMinus"
+      ],
+      "outputTypes": [
+        "time"
+      ],
+      "subcategory": "periods"
+    },
+    {
+      "name": "testMinus8",
+      "expression": "@T01:00:00 - 2 hours",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T23:00:00"
+      ],
+      "tags": [
+        "date_time_operations",
+        "r5-xml",
+        "testMinus"
+      ],
+      "outputTypes": [
+        "time"
+      ],
+      "subcategory": "periods"
+    }
+  ]
+}

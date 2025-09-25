@@ -4,9 +4,6 @@
 //! results into actionable, contextual error messages with suggestions and rich formatting.
 
 // TODO: Re-enable analyzer integration after fixing ModelProvider refactor
-// use crate::analyzer::{
-//     AnalysisWarning, OptimizationKind, OptimizationSuggestion, StaticAnalysisResult,
-// };
 use crate::core::error_code::{ErrorCode, FP0001, FP0010, FP0055, FP0101};
 use crate::diagnostics::{
     AriadneDiagnostic, DiagnosticEngine, DiagnosticSeverity, RelatedDiagnostic,

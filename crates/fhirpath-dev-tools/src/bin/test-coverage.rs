@@ -325,7 +325,102 @@ mod integration_test_runner {
                 serde_json::Value::Null
             };
 
-            // Check for semantic errors first if test expects an error (before consuming input_data)
+            // Check if this is an analyzer category test - run analyzer-only execution
+            let is_analyzer_test = test.category.as_ref().is_some_and(|c| c == "analyzer");
+
+            if is_analyzer_test {
+                // For analyzer tests, only run semantic analysis
+                let context_type = if input_data != serde_json::Value::Null {
+                    // Try to determine FHIR resource type from input
+                    if let Some(resource_type) =
+                        input_data.get("resourceType").and_then(|v| v.as_str())
+                    {
+                        self.model_provider
+                            .get_type(resource_type)
+                            .await
+                            .ok()
+                            .flatten()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
+                    &test.expression,
+                    self.model_provider.clone(),
+                    context_type,
+                )
+                .await;
+
+                if test.expect_error.unwrap_or(false) {
+                    if let Some(ref invalid_kind) = test.invalid_kind {
+                        if invalid_kind == "semantic" || invalid_kind == "syntax" {
+                            // Expect semantic/syntax error
+                            if !semantic_result.analysis.success {
+                                // Found error as expected
+                                for diagnostic in &semantic_result.analysis.diagnostics {
+                                    if matches!(
+                                        diagnostic.severity,
+                                        octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                                    ) {
+                                        return TestResult::Passed;
+                                    }
+                                }
+                            }
+                            // No error found when expected
+                            return TestResult::Failed {
+                                expected: serde_json::Value::String(format!(
+                                    "{invalid_kind} error expected"
+                                )),
+                                actual: serde_json::Value::String("No error detected".to_string()),
+                            };
+                        }
+                    }
+                } else {
+                    // Expect successful analysis - but continue with full evaluation if semantic analysis passes
+                    if !semantic_result.analysis.success {
+                        // Check if this is a type resolution issue that might work with full evaluation
+                        let has_type_resolution_error = semantic_result
+                            .analysis
+                            .diagnostics
+                            .iter()
+                            .any(|d| d.message.contains("not found on Any"));
+
+                        // If test has expected results and the error is just type resolution, fall through to evaluation
+                        if has_type_resolution_error
+                            && (test.expected != serde_json::Value::Null
+                                || !test.output_types.is_empty())
+                        {
+                            // Fall through to evaluation
+                        } else {
+                            let errors: Vec<String> = semantic_result
+                                .analysis
+                                .diagnostics
+                                .iter()
+                                .filter(|d| {
+                                    matches!(
+                                        d.severity,
+                                        octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                                    )
+                                })
+                                .map(|d| d.message.clone())
+                                .collect();
+                            return TestResult::Failed {
+                                expected: serde_json::Value::String("No errors".to_string()),
+                                actual: serde_json::Value::String(format!(
+                                    "Errors: {}",
+                                    errors.join("; ")
+                                )),
+                            };
+                        }
+                    }
+                    // Semantic analysis passed OR we're falling through due to type resolution issues - continue to evaluation
+                }
+            }
+
+            // For non-analyzer tests, check for semantic errors first if test expects an error
             if test.expect_error.unwrap_or(false) {
                 if let Some(ref invalid_kind) = test.invalid_kind {
                     if invalid_kind == "semantic" {
@@ -550,7 +645,7 @@ mod integration_test_runner {
         pub async fn run_and_report_quiet<P: AsRef<Path>>(
             &mut self,
             path: P,
-        ) -> Result<TestStats, Box<dyn std::error::Error>> {
+        ) -> Result<(TestStats, Option<String>), Box<dyn std::error::Error>> {
             let suite = self.load_test_suite(&path)?;
             let results = self.run_test_suite(&suite).await;
 
@@ -577,7 +672,10 @@ mod integration_test_runner {
                 }
             }
 
-            Ok(stats)
+            // Extract category from test suite for grouping
+            let category = suite.category.clone();
+
+            Ok((stats, category))
         }
     }
 }
@@ -658,7 +756,7 @@ async fn main() -> Result<()> {
             )
             .await
             {
-                Ok(Ok(stats)) => {
+                Ok(Ok((stats, category))) => {
                     // Show ERROR status if there are evaluation errors, otherwise show pass/fail info
                     if stats.errored > 0 {
                         println!(
@@ -697,7 +795,7 @@ async fn main() -> Result<()> {
                         );
                     }
 
-                    test_results.push((filename.to_string(), stats));
+                    test_results.push((filename.to_string(), stats, category));
                 }
                 Ok(Err(e)) => {
                     println!(" ❌ Error: {e}");
@@ -711,6 +809,7 @@ async fn main() -> Result<()> {
                             skipped: 0,
                             error_details: vec![format!("File load error: {}", e)],
                         },
+                        None,
                     ));
                 }
                 Err(_) => {
@@ -734,6 +833,7 @@ async fn main() -> Result<()> {
                                 filename, suite_timeout_ms
                             )],
                         },
+                        None,
                     ));
                 }
             }
@@ -746,8 +846,8 @@ async fn main() -> Result<()> {
     let report = generate_coverage_report(&test_results);
     fs::write(&output_file, report)?;
 
-    let total_tests: usize = test_results.iter().map(|(_, r)| r.total).sum();
-    let total_passed: usize = test_results.iter().map(|(_, r)| r.passed).sum();
+    let total_tests: usize = test_results.iter().map(|(_, r, _)| r.total).sum();
+    let total_passed: usize = test_results.iter().map(|(_, r, _)| r.passed).sum();
     let overall_pass_rate = if total_tests > 0 {
         (total_passed as f64 / total_tests as f64) * 100.0
     } else {
@@ -789,15 +889,15 @@ fn get_all_test_files(specs_path: &Path) -> Vec<PathBuf> {
     test_files
 }
 
-fn generate_coverage_report(test_results: &[(String, TestStats)]) -> String {
+fn generate_coverage_report(test_results: &[(String, TestStats, Option<String>)]) -> String {
     let now: DateTime<Utc> = Utc::now();
     let timestamp = now.format("%Y-%m-%d").to_string();
 
     let total_suites = test_results.len();
-    let total_tests: usize = test_results.iter().map(|(_, r)| r.total).sum();
-    let total_passed: usize = test_results.iter().map(|(_, r)| r.passed).sum();
-    let total_failed: usize = test_results.iter().map(|(_, r)| r.failed).sum();
-    let total_errors: usize = test_results.iter().map(|(_, r)| r.errored).sum();
+    let total_tests: usize = test_results.iter().map(|(_, r, _)| r.total).sum();
+    let total_passed: usize = test_results.iter().map(|(_, r, _)| r.passed).sum();
+    let total_failed: usize = test_results.iter().map(|(_, r, _)| r.failed).sum();
+    let total_errors: usize = test_results.iter().map(|(_, r, _)| r.errored).sum();
 
     let overall_pass_rate = if total_tests > 0 {
         (total_passed as f64 / total_tests as f64) * 100.0
@@ -847,6 +947,80 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
         }
     );
 
+    // Group by categories
+    let mut category_groups = std::collections::BTreeMap::new();
+    for (name, stats, category) in test_results {
+        let cat = category.as_deref().unwrap_or("uncategorized");
+        category_groups
+            .entry(cat)
+            .or_insert_with(Vec::new)
+            .push((name, stats));
+    }
+
+    // Sort by pass rate within each category
+    for group in category_groups.values_mut() {
+        group.sort_by(|a, b| b.1.pass_rate().partial_cmp(&a.1.pass_rate()).unwrap());
+    }
+
+    // Generate category-based report
+    for (category, results) in &category_groups {
+        let cat_total: usize = results.iter().map(|(_, s)| s.total).sum();
+        let cat_passed: usize = results.iter().map(|(_, s)| s.passed).sum();
+        let cat_pass_rate = if cat_total > 0 {
+            (cat_passed as f64 / cat_total as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        let emoji = if cat_pass_rate == 100.0 {
+            "✅"
+        } else if cat_pass_rate >= 70.0 {
+            "🟡"
+        } else if cat_pass_rate >= 30.0 {
+            "🟠"
+        } else {
+            "🔴"
+        };
+
+        report.push_str(&format!(
+            "### {} {} ({:.1}% - {}/{} tests)\n\n",
+            emoji,
+            category.to_uppercase(),
+            cat_pass_rate,
+            cat_passed,
+            cat_total
+        ));
+
+        if results.is_empty() {
+            report.push_str("No test suites in this category.\n\n");
+        } else {
+            for (name, stats) in results {
+                let status = if stats.errored > 0 {
+                    format!("(⚠️ {} errors)", stats.errored)
+                } else if stats.passed == 0 {
+                    "(Not implemented)".to_string()
+                } else if stats.pass_rate() == 100.0 {
+                    "(Complete)".to_string()
+                } else {
+                    "(Partial)".to_string()
+                };
+
+                report.push_str(&format!(
+                    "- **{}.json** - {:.1}% ({}/{} tests) {}\n",
+                    name,
+                    stats.pass_rate(),
+                    stats.passed,
+                    stats.total,
+                    status
+                ));
+            }
+            report.push('\n');
+        }
+    }
+
+    // Legacy grouping by pass rate (for compatibility)
+    report.push_str("## Results by Pass Rate\n\n");
+
     // Sort by pass rate
     let mut sorted_results = test_results.to_vec();
     sorted_results.sort_by(|a, b| b.1.pass_rate().partial_cmp(&a.1.pass_rate()).unwrap());
@@ -855,15 +1029,16 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
     report.push_str("### ✅ Fully Passing (100%)\n\n");
     let fully_passing: Vec<_> = sorted_results
         .iter()
-        .filter(|(_, s)| s.pass_rate() == 100.0)
+        .filter(|(_, s, _)| s.pass_rate() == 100.0)
         .collect();
     if fully_passing.is_empty() {
         report.push_str("None currently.\n\n");
     } else {
-        for (name, stats) in &fully_passing {
+        for (name, stats, category) in &fully_passing {
+            let cat_str = category.as_deref().unwrap_or("uncategorized");
             report.push_str(&format!(
-                "- **{}.json** - {}/{} tests\n",
-                name, stats.passed, stats.total
+                "- **{}.json** - {}/{} tests ({})\n",
+                name, stats.passed, stats.total, cat_str
             ));
         }
         report.push('\n');
@@ -873,18 +1048,20 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
     report.push_str("### 🟡 Well Implemented (70%+)\n\n");
     let well_implemented: Vec<_> = sorted_results
         .iter()
-        .filter(|(_, s)| s.pass_rate() >= 70.0 && s.pass_rate() < 100.0)
+        .filter(|(_, s, _)| s.pass_rate() >= 70.0 && s.pass_rate() < 100.0)
         .collect();
     if well_implemented.is_empty() {
         report.push_str("None currently.\n\n");
     } else {
-        for (name, stats) in &well_implemented {
+        for (name, stats, category) in &well_implemented {
+            let cat_str = category.as_deref().unwrap_or("uncategorized");
             report.push_str(&format!(
-                "- **{}.json** - {:.1}% ({}/{} tests)\n",
+                "- **{}.json** - {:.1}% ({}/{} tests) ({})\n",
                 name,
                 stats.pass_rate(),
                 stats.passed,
-                stats.total
+                stats.total,
+                cat_str
             ));
         }
         report.push('\n');
@@ -894,18 +1071,20 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
     report.push_str("### 🟠 Partially Implemented (30-70%)\n\n");
     let partially_implemented: Vec<_> = sorted_results
         .iter()
-        .filter(|(_, s)| s.pass_rate() >= 30.0 && s.pass_rate() < 70.0)
+        .filter(|(_, s, _)| s.pass_rate() >= 30.0 && s.pass_rate() < 70.0)
         .collect();
     if partially_implemented.is_empty() {
         report.push_str("None currently.\n\n");
     } else {
-        for (name, stats) in &partially_implemented {
+        for (name, stats, category) in &partially_implemented {
+            let cat_str = category.as_deref().unwrap_or("uncategorized");
             report.push_str(&format!(
-                "- **{}.json** - {:.1}% ({}/{} tests)\n",
+                "- **{}.json** - {:.1}% ({}/{} tests) ({})\n",
                 name,
                 stats.pass_rate(),
                 stats.passed,
-                stats.total
+                stats.total,
+                cat_str
             ));
         }
         report.push('\n');
@@ -915,24 +1094,26 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
     report.push_str("### 🔴 Major Issues (0-30%)\n\n");
     let major_issues: Vec<_> = sorted_results
         .iter()
-        .filter(|(_, s)| s.pass_rate() < 30.0)
+        .filter(|(_, s, _)| s.pass_rate() < 30.0)
         .collect();
     if major_issues.is_empty() {
         report.push_str("None currently.\n\n");
     } else {
-        for (name, stats) in &major_issues {
+        for (name, stats, category) in &major_issues {
+            let cat_str = category.as_deref().unwrap_or("uncategorized");
             let status = if stats.passed == 0 {
                 "Missing"
             } else {
                 "Issues"
             };
             report.push_str(&format!(
-                "- **{}.json** - {:.1}% ({}/{} tests) - {}\n",
+                "- **{}.json** - {:.1}% ({}/{} tests) - {} ({})\n",
                 name,
                 stats.pass_rate(),
                 stats.passed,
                 stats.total,
-                status
+                status,
+                cat_str
             ));
         }
         report.push('\n');

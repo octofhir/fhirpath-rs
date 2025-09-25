@@ -36,7 +36,6 @@ use super::layout::{PanelLayout, PanelType};
 use super::themes::TuiTheme;
 
 use octofhir_fhirpath::FhirPathEngine;
-// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 
 pub use diagnostics::DiagnosticsPanel;
 pub use help::HelpPanel;
@@ -106,7 +105,7 @@ pub enum ComponentResult {
 }
 
 /// Size constraints for component layout
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SizeConstraints {
     pub min_width: Option<u16>,
     pub max_width: Option<u16>,
@@ -116,18 +115,6 @@ pub struct SizeConstraints {
     pub preferred_height: Option<u16>,
 }
 
-impl Default for SizeConstraints {
-    fn default() -> Self {
-        Self {
-            min_width: None,
-            max_width: None,
-            min_height: None,
-            max_height: None,
-            preferred_width: None,
-            preferred_height: None,
-        }
-    }
-}
 
 /// Manager for all TUI components
 pub struct ComponentManager {

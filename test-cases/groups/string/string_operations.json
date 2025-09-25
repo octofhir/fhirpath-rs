@@ -1,0 +1,1855 @@
+{
+  "name": "string_operations",
+  "category": "string",
+  "subcategory": "operations",
+  "description": "String operations including search, manipulation, and conversion functions",
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testStartsWith1",
+      "expression": "'12345'.startsWith('2') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith2",
+      "expression": "'12345'.startsWith('1') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith3",
+      "expression": "'12345'.startsWith('12') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith4",
+      "expression": "'12345'.startsWith('13') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith5",
+      "expression": "'12345'.startsWith('12345') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith6",
+      "expression": "'12345'.startsWith('123456') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith7",
+      "expression": "'12345'.startsWith('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith8",
+      "expression": "{}.startsWith('1').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith9",
+      "expression": "{}.startsWith('').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith10",
+      "expression": "''.startsWith('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith11",
+      "expression": "{}.startsWith('').exists() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testStartsWith12",
+      "expression": "'987654321'.select(startsWith(length().toString()))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testStartsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith1",
+      "expression": "'12345'.endsWith('2') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith2",
+      "expression": "'12345'.endsWith('5') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith3",
+      "expression": "'12345'.endsWith('45') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith4",
+      "expression": "'12345'.endsWith('35') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith5",
+      "expression": "'12345'.endsWith('12345') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith6",
+      "expression": "'12345'.endsWith('012345') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith7",
+      "expression": "'12345'.endsWith('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith8",
+      "expression": "{}.endsWith('1').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith9",
+      "expression": "{}.endsWith('').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testEndsWith10",
+      "expression": "'123456789'.select(endsWith(length().toString()))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testEndsWith"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString1",
+      "expression": "'12345'.contains('6') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString2",
+      "expression": "'12345'.contains('5') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString3",
+      "expression": "'12345'.contains('45') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString4",
+      "expression": "'12345'.contains('35') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString5",
+      "expression": "'12345'.contains('12345') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString6",
+      "expression": "'12345'.contains('012345') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString7",
+      "expression": "'12345'.contains('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString8",
+      "expression": "{}.contains('a').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString9",
+      "expression": "{}.contains('').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testContainsString10",
+      "expression": "'123456789'.select(contains(length().toString()))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testContainsString"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testIndexOf1",
+      "expression": "'LogicalModel-Person'.indexOf('-')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        12
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testIndexOf"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testIndexOf2",
+      "expression": "'LogicalModel-Person'.indexOf('z')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        -1
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testIndexOf"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testIndexOf3",
+      "expression": "'LogicalModel-Person'.indexOf('')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        0
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testIndexOf"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testIndexOf4",
+      "expression": "{}.indexOf('-').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testIndexOf"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testIndexOf5",
+      "expression": "'LogicalModel-Person'.indexOf({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testIndexOf"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testIndexOf6",
+      "expression": "{}.indexOf({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testIndexOf"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesCaseSensitive1",
+      "expression": "'FHIR'.matches('FHIR')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesCaseSensitive2",
+      "expression": "'FHIR'.matches('fhir')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesEmpty",
+      "expression": "'FHIR'.matches({}).empty() = true",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesEmpty2",
+      "expression": "{}.matches('FHIR').empty() = true",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesEmpty3",
+      "expression": "{}.matches({}).empty() = true",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesSingleLineMode1",
+      "expression": "'A\n\t\t\tB'.matches('A.*B')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesWithinUrl1",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('library')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesWithinUrl2",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('Library')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesWithinUrl3",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('^Library$')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesWithinUrl1a",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('.*Library.*')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesWithinUrl4",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('Measure')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesFullWithinUrl1",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('library')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesFullWithinUrl3",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('Library')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesFullWithinUrl4",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('^Library$')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesFullWithinUrl1a",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('.*Library.*')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testMatchesFullWithinUrl2",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('Measure')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "search"
+    },
+    {
+      "name": "testSubstring1",
+      "expression": "'12345'.substring(2) = '345'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring2",
+      "expression": "'12345'.substring(2,1) = '3'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring3",
+      "expression": "'12345'.substring(2,5) = '345'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring4",
+      "expression": "'12345'.substring(25).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring5",
+      "expression": "'12345'.substring(-1).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring7",
+      "expression": "'LogicalModel-Person'.substring(0, 12)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "LogicalModel"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring8",
+      "expression": "'LogicalModel-Person'.substring(0, 'LogicalModel-Person'.indexOf('-'))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "LogicalModel"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring9",
+      "expression": "{}.substring(25).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring10",
+      "expression": "Patient.name.family.first().select(substring(2, length()-5))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "alm"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring11",
+      "expression": "{}.substring({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSubstring12",
+      "expression": "'string'.substring({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSubstring"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplace1",
+      "expression": "'123456'.replace('234', 'X')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1X56"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplace"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplace2",
+      "expression": "'abc'.replace('', 'x')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "xaxbxcx"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplace"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplace3",
+      "expression": "'123456'.replace('234', '')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "156"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplace"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplace4",
+      "expression": "{}.replace('234', 'X').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplace"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplace5",
+      "expression": "'123'.replace({}, 'X').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplace"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplace6",
+      "expression": "'123'.replace('2', {}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplace"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplaceMatches1",
+      "expression": "'123456'.replaceMatches('234', 'X')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1X56"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplaceMatches2",
+      "expression": "'abc'.replaceMatches('', 'x')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "abc"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplaceMatches3",
+      "expression": "'123456'.replaceMatches('234', '')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "156"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplaceMatches4",
+      "expression": "{}.replaceMatches('234', 'X').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplaceMatches5",
+      "expression": "'123'.replaceMatches({}, 'X').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplaceMatches6",
+      "expression": "'123'.replaceMatches('2', {}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testReplaceMatches7",
+      "expression": "'abc123'.replaceMatches('[0-9]', '-')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "abc---"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testReplaceMatches"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testTrim1",
+      "expression": "'123456'.trim().length() = 6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testTrim"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testTrim2",
+      "expression": "'123 456'.trim().length() = 7",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testTrim"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testTrim3",
+      "expression": "' 123456 '.trim().length() = 6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testTrim"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testTrim4",
+      "expression": "'  '.trim().length() = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testTrim"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testTrim5",
+      "expression": "{}.trim().empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testTrim"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testTrim6",
+      "expression": "'      '.trim() = ''",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testTrim"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSplit1",
+      "expression": "'Peter,James,Jim,Peter,James'.split(',').count() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSplit"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSplit2",
+      "expression": "'A,,C'.split(',').join(',') = 'A,,C'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSplit"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSplit3",
+      "expression": "'[stop]ONE[stop][stop]TWO[stop][stop][stop]THREE[stop][stop]'.split('[stop]').trace('n').count() = 9",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSplit"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testSplit4",
+      "expression": "'[stop]ONE[stop][stop]TWO[stop][stop][stop]THREE[stop][stop]'.split('[stop]').join('[stop]')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "[stop]ONE[stop][stop]TWO[stop][stop][stop]THREE[stop][stop]"
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testSplit"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testLength1",
+      "expression": "'123456'.length() = 6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testLength"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testLength2",
+      "expression": "'12345'.length() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testLength"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testLength3",
+      "expression": "'123'.length() = 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testLength"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testLength4",
+      "expression": "'1'.length() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testLength"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testLength5",
+      "expression": "''.length() = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testLength"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testLength6",
+      "expression": "{}.length().empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testLength"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToChars1",
+      "expression": "'t2'.toChars() = 't' | '2'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testToChars"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testConcatenate1",
+      "expression": "'a' & 'b' = 'ab'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testConcatenate"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testConcatenate2",
+      "expression": "'1' & {} = '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testConcatenate"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    },
+    {
+      "name": "testConcatenate3",
+      "expression": "{} & 'b' = 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "string_operations",
+        "testConcatenate"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "string",
+      "subcategory": "manipulation"
+    }
+  ]
+}

@@ -1,0 +1,2437 @@
+{
+  "name": "math_operations",
+  "category": "math",
+  "subcategory": "all_operations",
+  "description": "Mathematical operations including arithmetic, advanced functions, and rounding",
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testPlus1",
+      "expression": "1 + 1 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testPlus2",
+      "expression": "1 + 0 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testPlus3",
+      "expression": "1.2 + 1.8 = 3.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testPlus4",
+      "expression": "'a'+'b' = 'ab'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testPlus5",
+      "expression": "'a'+{}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testPlusEmpty1",
+      "expression": "1 + {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testPlusEmpty2",
+      "expression": "{} + 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testPlusEmpty3",
+      "expression": "{} + {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMinus1",
+      "expression": "1 - 1 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMinus2",
+      "expression": "1 - 0 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMinus3",
+      "expression": "1.8 - 1.2 = 0.6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMinus4",
+      "expression": "'a'-'b' = 'ab'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMinusEmpty1",
+      "expression": "1 - {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMinusEmpty2",
+      "expression": "{} - 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMinusEmpty3",
+      "expression": "{} - {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMultiply1",
+      "expression": "1 * 1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMultiply2",
+      "expression": "1 * 0 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMultiply3",
+      "expression": "1.2 * 1.8 = 2.16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMultiplyEmpty1",
+      "expression": "1 * {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMultiplyEmpty2",
+      "expression": "{} * 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMultiplyEmpty3",
+      "expression": "{} * {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivide1",
+      "expression": "1 / 1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivide2",
+      "expression": "4 / 2 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivide3",
+      "expression": "4.0 / 2.0 = 2.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivide4",
+      "expression": "1 / 2 = 0.5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivide5",
+      "expression": "(1.2 / 1.8).round(2) = 0.67",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivide6",
+      "expression": "1 / 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivideEmpty1",
+      "expression": "1 / {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivideEmpty2",
+      "expression": "{} / 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivideEmpty3",
+      "expression": "{} / {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDiv1",
+      "expression": "1 div 1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDiv2",
+      "expression": "4 div 2 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDiv3",
+      "expression": "5 div 2 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDiv4",
+      "expression": "2.2 div 1.8 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDiv5",
+      "expression": "5 div 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivEmpty1",
+      "expression": "1 div {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivEmpty2",
+      "expression": "{} div 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testDivEmpty3",
+      "expression": "{} div {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMod1",
+      "expression": "1 mod 1 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMod2",
+      "expression": "4 mod 2 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMod3",
+      "expression": "5 mod 2 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMod4",
+      "expression": "2.2 mod 1.8 = 0.4",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testMod5",
+      "expression": "5 mod 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testModEmpty1",
+      "expression": "1 mod {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testModEmpty2",
+      "expression": "{} mod 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testModEmpty3",
+      "expression": "{} mod {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic"
+    },
+    {
+      "name": "testPower1",
+      "expression": "2.power(3) = 8",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testPower2",
+      "expression": "2.5.power(2) = 6.25",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testPower3",
+      "expression": "(-1).power(0.5)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testPowerEmpty",
+      "expression": "{}.power(2).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testPowerEmpty2",
+      "expression": "{}.power({}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testPowerEmpty3",
+      "expression": "2.5.power({}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testAbs1",
+      "expression": "(-5).abs() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testAbs2",
+      "expression": "(-5.5).abs() = 5.5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testAbs3",
+      "expression": "(-5.5 'mg').abs() = 5.5 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testAbsEmpty",
+      "expression": "{}.abs().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testCeiling1",
+      "expression": "1.ceiling() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testCeiling2",
+      "expression": "(-1.1).ceiling() = -1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testCeiling3",
+      "expression": "1.1.ceiling() = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testCeilingEmpty",
+      "expression": "{}.ceiling().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testFloor1",
+      "expression": "1.floor() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testFloor2",
+      "expression": "2.1.floor() = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testFloor3",
+      "expression": "(-2.1).floor() = -3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testFloorEmpty",
+      "expression": "{}.floor().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testRound1",
+      "expression": "1.round() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testRound2",
+      "expression": "3.14159.round(3) = 3.142",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testRoundEmpty",
+      "expression": "{}.round().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testTruncate1",
+      "expression": "101.truncate() = 101",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testTruncate2",
+      "expression": "1.00000001.truncate() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testTruncate3",
+      "expression": "(-1.56).truncate() = -1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testTruncateEmpty",
+      "expression": "{}.truncate().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "rounding"
+    },
+    {
+      "name": "testSqrt1",
+      "expression": "81.sqrt() = 9.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testSqrt2",
+      "expression": "(-1).sqrt()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testSqrtEmpty",
+      "expression": "{}.sqrt().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testExp1",
+      "expression": "0.exp() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testExp2",
+      "expression": "(-0.0).exp() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testExp3",
+      "expression": "{}.exp().empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testLn1",
+      "expression": "1.ln() = 0.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testLn2",
+      "expression": "1.0.ln() = 0.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testLnEmpty",
+      "expression": "{}.ln().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testLog1",
+      "expression": "16.log(2) = 4.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testLog2",
+      "expression": "100.0.log(10.0) = 2.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testLogEmpty",
+      "expression": "{}.log(10).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testLogEmpty2",
+      "expression": "{}.log({}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "testLogEmpty3",
+      "expression": "16.log({}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "math_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "advanced"
+    },
+    {
+      "name": "Comparable1",
+      "expression": "1 'cm'.comparable(1 '[in_i]')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "Comparable"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "quantities"
+    },
+    {
+      "name": "Comparable2",
+      "expression": "1 'cm'.comparable(1 '[s]')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "Comparable"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "quantities"
+    },
+    {
+      "name": "Comparable3",
+      "expression": "1 'cm'.comparable(1 's')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "Comparable"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "quantities"
+    },
+    {
+      "name": "HighBoundaryDecimalDefault",
+      "expression": "1.587.highBoundary()",
+      "input": null,
+      "expected": [
+        1.5875
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal1",
+      "expression": "1.587.highBoundary(2)",
+      "input": null,
+      "expected": [
+        1.59
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal2",
+      "expression": "1.587.highBoundary(6)",
+      "input": null,
+      "expected": [
+        1.5875
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal3",
+      "expression": "1.587.highBoundary(-1)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal4",
+      "expression": "(-1.587).highBoundary()",
+      "input": null,
+      "expected": [
+        -1.5865
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal5",
+      "expression": "(-1.587).highBoundary(2)",
+      "input": null,
+      "expected": [
+        -1.58
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal6",
+      "expression": "(-1.587).highBoundary(6)",
+      "input": null,
+      "expected": [
+        -1.5865
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal7",
+      "expression": "1.587.highBoundary(39)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal8",
+      "expression": "1.highBoundary()",
+      "input": null,
+      "expected": [
+        1.5
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal9",
+      "expression": "1.highBoundary(0)",
+      "input": null,
+      "expected": [
+        2.0
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal10",
+      "expression": "1.highBoundary(5)",
+      "input": null,
+      "expected": [
+        1.5
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal11",
+      "expression": "12.587.highBoundary(2)",
+      "input": null,
+      "expected": [
+        12.59
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal12",
+      "expression": "12.500.highBoundary(4)",
+      "input": null,
+      "expected": [
+        12.5005
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal13",
+      "expression": "120.highBoundary(2)",
+      "input": null,
+      "expected": [
+        120.5
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal14",
+      "expression": "-120.highBoundary(2)",
+      "input": null,
+      "expected": [
+        -120.5
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal15",
+      "expression": "0.0034.highBoundary(1)",
+      "input": null,
+      "expected": [
+        0.0
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal16",
+      "expression": "-0.0034.highBoundary(1)",
+      "input": null,
+      "expected": [
+        0.0
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDecimal",
+      "expression": "1.587.highBoundary(8)",
+      "input": null,
+      "expected": [
+        1.5875
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryQuantity",
+      "expression": "1.587 'm'.highBoundary(8)",
+      "input": null,
+      "expected": [
+        "1.58750000 'm'"
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "Quantity"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDateMonth",
+      "expression": "@2014.highBoundary(6)",
+      "input": null,
+      "expected": [
+        "2014-12"
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDateTimeMillisecond1",
+      "expression": "@2014-01-01T08.highBoundary(17)",
+      "input": null,
+      "expected": [
+        "2014-01-01T08:00:59.999-12:00"
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDateTimeMillisecond2",
+      "expression": "@2014-01-01T08:05-05:00.highBoundary(17)",
+      "input": null,
+      "expected": [
+        "2014-01-01T08:05:59.999-05:00"
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryDateTimeMillisecond3",
+      "expression": "@2014-01-01T08.highBoundary(17)",
+      "input": null,
+      "expected": [
+        "2014-01-01T08:00:59.999-12:00"
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "HighBoundaryTimeMillisecond",
+      "expression": "@T10:30.highBoundary(9)",
+      "input": null,
+      "expected": [
+        "T10:30:59.999"
+      ],
+      "tags": [
+        "r5-xml",
+        "HighBoundary"
+      ],
+      "outputTypes": [
+        "time"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimalDefault",
+      "expression": "1.587.lowBoundary()",
+      "input": null,
+      "expected": [
+        1.5865
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal1",
+      "expression": "1.587.lowBoundary(6)",
+      "input": null,
+      "expected": [
+        1.5865
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal2",
+      "expression": "1.587.lowBoundary(2)",
+      "input": null,
+      "expected": [
+        1.58
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal3",
+      "expression": "1.587.lowBoundary(-1)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal4",
+      "expression": "1.587.lowBoundary(0)",
+      "input": null,
+      "expected": [
+        1.0
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal5",
+      "expression": "1.587.lowBoundary(32)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryNegDecimalDefault",
+      "expression": "(-1.587).lowBoundary()",
+      "input": null,
+      "expected": [
+        -1.5875
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryNegDecimal1",
+      "expression": "(-1.587).lowBoundary(6)",
+      "input": null,
+      "expected": [
+        -1.5875
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryNegDecimal2",
+      "expression": "(-1.587).lowBoundary(2)",
+      "input": null,
+      "expected": [
+        -1.59
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryNegDecimal3",
+      "expression": "(-1.587).lowBoundary(-1)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryNegDecimal4",
+      "expression": "(-1.587).lowBoundary(0)",
+      "input": null,
+      "expected": [
+        -2.0
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryNegDecimal5",
+      "expression": "(-1.587).lowBoundary(32)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal6",
+      "expression": "1.587.lowBoundary(39)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal7",
+      "expression": "1.toDecimal().lowBoundary()",
+      "input": null,
+      "expected": [
+        0.5
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal8",
+      "expression": "1.lowBoundary(0)",
+      "input": null,
+      "expected": [
+        0.0
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal9",
+      "expression": "1.lowBoundary(5)",
+      "input": null,
+      "expected": [
+        0.5
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal10",
+      "expression": "12.587.lowBoundary(2)",
+      "input": null,
+      "expected": [
+        12.58
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal11",
+      "expression": "12.500.lowBoundary(4)",
+      "input": null,
+      "expected": [
+        12.4995
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal12",
+      "expression": "120.lowBoundary(2)",
+      "input": null,
+      "expected": [
+        119.5
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal13",
+      "expression": "(-120).lowBoundary(2)",
+      "input": null,
+      "expected": [
+        -120.5
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal14",
+      "expression": "0.0034.lowBoundary(1)",
+      "input": null,
+      "expected": [
+        0.0
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDecimal15",
+      "expression": "(-0.0034).lowBoundary(1)",
+      "input": null,
+      "expected": [
+        -0.0
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "decimal"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryQuantity",
+      "expression": "1.587 'cm'.lowBoundary(8)",
+      "input": null,
+      "expected": [
+        "1.58650000 'cm'"
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "Quantity"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDateMonth",
+      "expression": "@2014.lowBoundary(6)",
+      "input": null,
+      "expected": [
+        "2014-01"
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "date"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDateTimeMillisecond1",
+      "expression": "@2014-01-01T08.lowBoundary(17)",
+      "input": null,
+      "expected": [
+        "2014-01-01T08:00:00.000+14:00"
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDateTimeMillisecond2",
+      "expression": "@2014-01-01T08:05+08:00.lowBoundary(17)",
+      "input": null,
+      "expected": [
+        "2014-01-01T08:05:00.000+08:00"
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryDateTimeMillisecond3",
+      "expression": "@2014-01-01T08.lowBoundary(8)",
+      "input": null,
+      "expected": [
+        "2014-01-01"
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "dateTime"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "LowBoundaryTimeMillisecond",
+      "expression": "@T10:30.lowBoundary(9)",
+      "input": null,
+      "expected": [
+        "T10:30:00.000"
+      ],
+      "tags": [
+        "r5-xml",
+        "LowBoundary"
+      ],
+      "outputTypes": [
+        "time"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "PrecisionDecimal",
+      "expression": "1.58700.precision()",
+      "input": null,
+      "expected": [
+        5
+      ],
+      "tags": [
+        "r5-xml",
+        "Precision"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "PrecisionYear",
+      "expression": "@2014.precision()",
+      "input": null,
+      "expected": [
+        4
+      ],
+      "tags": [
+        "r5-xml",
+        "Precision"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "PrecisionDateTimeMilliseconds",
+      "expression": "@2014-01-05T10:30:00.000.precision()",
+      "input": null,
+      "expected": [
+        17
+      ],
+      "tags": [
+        "r5-xml",
+        "Precision"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "PrecisionTimeMinutes",
+      "expression": "@T10:30.precision()",
+      "input": null,
+      "expected": [
+        4
+      ],
+      "tags": [
+        "r5-xml",
+        "Precision"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "PrecisionTimeMilliseconds",
+      "expression": "@T10:30:00.000.precision()",
+      "input": null,
+      "expected": [
+        9
+      ],
+      "tags": [
+        "r5-xml",
+        "Precision"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "PrecisionEmpty",
+      "expression": "{}.precision().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "Precision"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "math",
+      "subcategory": "precision"
+    },
+    {
+      "name": "trivial",
+      "expression": "1+1",
+      "input": null,
+      "expected": [
+        2
+      ],
+      "tags": [
+        "r5-xml",
+        "minimal"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "math",
+      "subcategory": "arithmetic",
+      "description": "Basic addition sanity check"
+    }
+  ]
+}

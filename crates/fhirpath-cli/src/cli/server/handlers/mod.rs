@@ -52,20 +52,20 @@ pub async fn health_handler(
         let status = EngineStatus {
             available: registry.supports_version(*version),
             analysis_available: registry.supports_analysis(*version),
-            initialized_at: "server_start".to_string(), // TODO: Track actual init time
+            initialized_at: "server_start".to_string(), // Placeholder: timestamp tracking not implemented
         };
         engines.insert(version.to_string(), status);
     }
 
     let response = HealthResponse {
         status: "healthy".to_string(),
-        uptime_seconds: 0, // TODO: Track actual uptime
+        uptime_seconds: 0, // Placeholder: uptime tracking not implemented
         fhir_versions: supported_versions,
         engines,
         memory: MemoryInfo {
-            used_bytes: 0,      // TODO: Track actual memory usage
-            total_bytes: 0,     // TODO: Track total memory
-            usage_percent: 0.0, // TODO: Calculate percentage
+            used_bytes: 0,      // Placeholder: memory tracking not implemented
+            total_bytes: 0,     // Placeholder: memory tracking not implemented
+            usage_percent: 0.0, // Placeholder: memory tracking not implemented
         },
     };
 
@@ -139,8 +139,8 @@ pub async fn version_handler() -> Result<Json<serde_json::Value>, ServerError> {
         "service": "octofhir-fhirpath-server",
         "version": env!("CARGO_PKG_VERSION"),
         "build": {
-            "date": "unknown", // TODO: Add build timestamp when available
-            "commit": "unknown", // TODO: Add git commit info
+            "date": option_env!("OCTOFHIR_BUILD_DATE").unwrap_or("unknown"),
+            "commit": option_env!("OCTOFHIR_BUILD_COMMIT").unwrap_or("unknown"),
         },
         "routes": [
             "GET /health - Health check",

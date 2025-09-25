@@ -12,6 +12,8 @@ default:
     @echo "  just repl                # Start interactive REPL (simple)"
     @echo "  just tui                 # Start Terminal User Interface (advanced)"
     @echo "  just test                # Run all tests"
+    @echo "  just test-coverage       # Generate comprehensive test coverage report"
+    @echo "  just test-run <query>    # Run specific tests by name/file/category"
     @echo "  just cli-analyze EXPR    # Analyze FHIRPath expression for errors/warnings"
     @echo "  just diagnostic-demo     # Show beautiful error reporting demo"
     @echo "  just convert-r5-xml      # Convert official R5 XML tests to JSON (in-place)"
@@ -28,6 +30,13 @@ default:
     @echo "  just diagnostic-demo-pretty      # Pretty output with colors"
     @echo "  just diagnostic-demo-json        # JSON structured output"
     @echo "  just diagnostic-demo-types       # Show different diagnostic types"
+    @echo ""
+    @echo "🧪 Testing Commands:"
+    @echo "  just test-run analyzer           # Run analyzer tests"
+    @echo "  just test-run boolean            # Run all boolean tests"
+    @echo "  just test-run analyzer.json      # Run specific test file"
+    @echo "  just test-run testBooleanAnd1    # Run specific test case"
+    @echo "  just test-metadata               # Generate test metadata index"
     @echo ""
     @echo "🔧 Registry Commands:"
     @echo "  just registry-help               # Show registry command help"
@@ -82,6 +91,14 @@ test-r4b:
 test-r5:
     @echo "🔍 Running tests with FHIR R5..."
     FHIRPATH_FHIR_VERSION=r5 cargo test --workspace
+
+# Run specific tests by name/file/category
+test-run QUERY:
+    cargo run --package fhirpath-dev-tools --bin test-runner -- {{QUERY}}
+
+# Generate test metadata index
+test-metadata:
+    cargo run --package fhirpath-dev-tools --bin generate-test-metadata
 
 # Benchmark commands - Use main crate binaries
 bench:

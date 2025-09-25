@@ -1,0 +1,6590 @@
+{
+  "name": "other_operations",
+  "description": "Other FHIRPath operation tests including type checking, literals, navigation, and miscellaneous functions",
+  "source": "fhir-test-cases r5",
+  "category": "other",
+  "tests": [
+    {
+      "name": "testEscapeHtmlBasic",
+      "expression": "'Hello <world>'.escape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Hello &lt;world&gt;"
+      ],
+      "tags": [
+        "custom",
+        "testEscapeHtmlCustom",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testEscapeHtmlQuotes",
+      "expression": "'Say \"hello\"'.escape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Say &quot;hello&quot;"
+      ],
+      "tags": [
+        "custom",
+        "testEscapeHtmlCustom",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testEscapeHtmlAmpersand",
+      "expression": "'Tom & Jerry'.escape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Tom &amp; Jerry"
+      ],
+      "tags": [
+        "custom",
+        "testEscapeHtmlCustom",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testEscapeHtmlComplex",
+      "expression": "'<script>alert(\"XSS\")</script>'.escape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;"
+      ],
+      "tags": [
+        "custom",
+        "testEscapeHtmlCustom",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testUnescapeHtmlBasic",
+      "expression": "'Hello &lt;world&gt;'.unescape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Hello <world>"
+      ],
+      "tags": [
+        "custom",
+        "testEscapeHtmlCustom",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testUnescapeHtmlQuotes",
+      "expression": "'Say &quot;hello&quot;'.unescape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Say \"hello\""
+      ],
+      "tags": [
+        "custom",
+        "testEscapeHtmlCustom",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testUnescapeHtmlAmpersand",
+      "expression": "'Tom &amp; Jerry'.unescape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Tom & Jerry"
+      ],
+      "tags": [
+        "custom",
+        "testEscapeHtmlCustom",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testEscapeUnescapeRoundTrip",
+      "expression": "'<p>Hello \"world\" & everyone!</p>'.escape('html').unescape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "<p>Hello \"world\" & everyone!</p>"
+      ],
+      "tags": [
+        "custom",
+        "testEscapeHtmlCustom",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testExtractBirthDate",
+      "expression": "birthDate",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-12-25"
+      ],
+      "tags": [
+        "r5-xml",
+        "testMiscellaneousAccessorTests",
+        "other_operations"
+      ],
+      "description": "Extract birthDate",
+      "predicate": false,
+      "outputTypes": [
+        "date"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPatientHasBirthDate",
+      "expression": "birthDate",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMiscellaneousAccessorTests",
+        "other_operations"
+      ],
+      "description": "patient has a birthDate",
+      "predicate": true,
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPatientTelecomTypes",
+      "expression": "telecom.use",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "home",
+        "work",
+        "mobile",
+        "old"
+      ],
+      "tags": [
+        "r5-xml",
+        "testMiscellaneousAccessorTests",
+        "other_operations"
+      ],
+      "description": "patient telecom types",
+      "outputTypes": [
+        "code",
+        "code",
+        "code",
+        "code"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testCombine1",
+      "expression": "concept.code.combine($this.descendants().concept.code).isDistinct()",
+      "input": null,
+      "inputfile": "codesystem-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testCombine()",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testCombine2",
+      "expression": "name.given.combine(name.family).exclude('Jim')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Peter",
+        "James",
+        "Chalmers",
+        "Windsor"
+      ],
+      "tags": [
+        "r5-xml",
+        "testCombine()",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testCombine3",
+      "expression": "name.given.combine($this.name.family).exclude('Jim')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Peter",
+        "James",
+        "Chalmers",
+        "Windsor"
+      ],
+      "tags": [
+        "r5-xml",
+        "testCombine()",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testCase1",
+      "expression": "'t'.upper() = 'T'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCase",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testCase2",
+      "expression": "'t'.lower() = 't'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCase",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testCase3",
+      "expression": "'T'.upper() = 'T'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCase",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testCase4",
+      "expression": "'T'.lower() = 't'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCase",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testExtension1",
+      "expression": "Patient.birthDate.extension('http://hl7.org/fhir/StructureDefinition/patient-birthTime').exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExtension",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testExtension2",
+      "expression": "Patient.birthDate.extension(%`ext-patient-birthTime`).exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExtension",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testExtension3",
+      "expression": "Patient.birthDate.extension('http://hl7.org/fhir/StructureDefinition/patient-birthTime1').empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExtension",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testType1",
+      "expression": "1.type().namespace = 'System'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType1a",
+      "expression": "1.type().name = 'Integer'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType2",
+      "expression": "'1'.type().namespace = 'System'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType2a",
+      "expression": "'1'.type().name = 'String'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType3",
+      "expression": "true.type().namespace = 'System'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType4",
+      "expression": "true.type().name = 'Boolean'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType5",
+      "expression": "true.is(Boolean)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType6",
+      "expression": "true.is(System.Boolean)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType7",
+      "expression": "true is Boolean",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testType8",
+      "expression": "true is System.Boolean",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testType9",
+      "expression": "Patient.active.type().namespace = 'FHIR'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType10",
+      "expression": "Patient.active.type().name = 'boolean'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType11",
+      "expression": "Patient.active.is(boolean)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType12",
+      "expression": "Patient.active.is(Boolean).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType13",
+      "expression": "Patient.active.is(FHIR.boolean)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType14",
+      "expression": "Patient.active.is(System.Boolean).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType15",
+      "expression": "Patient.type().namespace = 'FHIR'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType16",
+      "expression": "Patient.type().name = 'Patient'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType17",
+      "expression": "Patient.is(Patient)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType18",
+      "expression": "Patient.is(FHIR.Patient)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType19",
+      "expression": "Patient.is(FHIR.`Patient`)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType20",
+      "expression": "Patient.ofType(Patient).type().name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient"
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType21",
+      "expression": "Patient.ofType(FHIR.Patient).type().name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient"
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType22",
+      "expression": "Patient.is(System.Patient).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "description": "Note: Some systems may return an error due to failing to resolve System.Patient",
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testType23",
+      "expression": "Patient.ofType(FHIR.`Patient`).type().name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient"
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testTypeA1",
+      "expression": "Parameters.parameter[0].value.is(FHIR.string)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testTypeA2",
+      "expression": "Parameters.parameter[1].value.is(FHIR.integer)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testTypeA3",
+      "expression": "Parameters.parameter[2].value.is(FHIR.uuid)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testTypeA4",
+      "expression": "Parameters.parameter[2].value.is(FHIR.uri)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testTypeA",
+      "expression": "Parameters.parameter[3].value.is(FHIR.decimal)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringYearConvertsToDate",
+      "expression": "'2015'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringMonthConvertsToDate",
+      "expression": "'2015-02'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringDayConvertsToDate",
+      "expression": "'2015-02-04'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringYearConvertsToDateTime",
+      "expression": "'2015'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringMonthConvertsToDateTime",
+      "expression": "'2015-02'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringDayConvertsToDateTime",
+      "expression": "'2015-02-04'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringHourConvertsToDateTime",
+      "expression": "'2015-02-04T14'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringMinuteConvertsToDateTime",
+      "expression": "'2015-02-04T14:34'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringSecondConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringMillisecondConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28.123'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringUTCConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28Z'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringTZConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28+10:00'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringHourConvertsToTime",
+      "expression": "'14'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringMinuteConvertsToTime",
+      "expression": "'14:34'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringSecondConvertsToTime",
+      "expression": "'14:34:28'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringMillisecondConvertsToTime",
+      "expression": "'14:34:28.123'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralConvertsToInteger",
+      "expression": "1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralIsInteger",
+      "expression": "1.is(Integer)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralIsSystemInteger",
+      "expression": "1.is(System.Integer)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringLiteralConvertsToInteger",
+      "expression": "'1'.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringLiteralConvertsToIntegerFalse",
+      "expression": "'a'.convertsToInteger().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringDecimalConvertsToIntegerFalse",
+      "expression": "'1.0'.convertsToInteger().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringLiteralIsNotInteger",
+      "expression": "'1'.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testBooleanLiteralConvertsToInteger",
+      "expression": "true.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testBooleanLiteralIsNotInteger",
+      "expression": "true.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testDateIsNotInteger",
+      "expression": "@2013-04-05.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralToInteger",
+      "expression": "1.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testStringIntegerLiteralToInteger",
+      "expression": "'1'.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDecimalLiteralToInteger",
+      "expression": "'1.1'.toInteger() = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDecimalLiteralToIntegerIsEmpty",
+      "expression": "'1.1'.toInteger().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testBooleanLiteralToInteger",
+      "expression": "true.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIntegerLiteralConvertsToDecimal",
+      "expression": "1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralIsNotDecimal",
+      "expression": "1.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testDecimalLiteralConvertsToDecimal",
+      "expression": "1.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testDecimalLiteralIsDecimal",
+      "expression": "1.0.is(Decimal)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringIntegerLiteralConvertsToDecimal",
+      "expression": "'1'.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringIntegerLiteralIsNotDecimal",
+      "expression": "'1'.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringLiteralConvertsToDecimalFalse",
+      "expression": "'1.a'.convertsToDecimal().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToDecimal",
+      "expression": "'1.0'.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringDecimalLiteralIsNotDecimal",
+      "expression": "'1.0'.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testBooleanLiteralConvertsToDecimal",
+      "expression": "true.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testBooleanLiteralIsNotDecimal",
+      "expression": "true.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralToDecimal",
+      "expression": "1.toDecimal() = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testIntegerLiteralToDeciamlEquivalent",
+      "expression": "1.toDecimal() ~ 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testDecimalLiteralToDecimal",
+      "expression": "1.0.toDecimal() = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testDecimalLiteralToDecimalEqual",
+      "expression": "'1.1'.toDecimal() = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testBooleanLiteralToDecimal",
+      "expression": "true.toDecimal() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIntegerLiteralConvertsToQuantity",
+      "expression": "1.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralIsNotQuantity",
+      "expression": "1.is(Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testDecimalLiteralConvertsToQuantity",
+      "expression": "1.0.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testDecimalLiteralIsNotQuantity",
+      "expression": "1.0.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringIntegerLiteralConvertsToQuantity",
+      "expression": "'1'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringIntegerLiteralIsNotQuantity",
+      "expression": "'1'.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringQuantityLiteralConvertsToQuantity",
+      "expression": "'1 day'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringQuantityWeekConvertsToQuantity",
+      "expression": "'1 \\'wk\\''.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringQuantityWeekConvertsToQuantityFalse",
+      "expression": "'1 wk'.convertsToQuantity().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToQuantityFalse",
+      "expression": "'1.a'.convertsToQuantity().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToQuantity",
+      "expression": "'1.0'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringDecimalLiteralIsNotSystemQuantity",
+      "expression": "'1.0'.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testBooleanLiteralConvertsToQuantity",
+      "expression": "true.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testBooleanLiteralIsNotSystemQuantity",
+      "expression": "true.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralToQuantity",
+      "expression": "1.toQuantity() = 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDecimalLiteralToQuantity",
+      "expression": "1.0.toQuantity() = 1.0 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testStringIntegerLiteralToQuantity",
+      "expression": "'1'.toQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 '1'"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "Quantity"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testStringQuantityLiteralToQuantity",
+      "expression": "'1 day'.toQuantity() = 1 day",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testStringQuantityDayLiteralToQuantity",
+      "expression": "'1 day'.toQuantity() = 1 'd'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "description": "Contested: calendar day units are not equal to ucum day units",
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testStringQuantityWeekLiteralToQuantity",
+      "expression": "'1 \\'wk\\''.toQuantity() = 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testStringQuantityMonthLiteralToQuantity",
+      "expression": "'1 \\'mo\\''.toQuantity() = 1 month",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testStringQuantityYearLiteralToQuantity",
+      "expression": "'1 \\'a\\''.toQuantity() = 1 year",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testStringDecimalLiteralToQuantity",
+      "expression": "'1.0'.toQuantity() ~ 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIntegerLiteralConvertsToBoolean",
+      "expression": "1.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralConvertsToBooleanFalse",
+      "expression": "2.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testNegativeIntegerLiteralConvertsToBooleanFalse",
+      "expression": "(-1).convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralFalseConvertsToBoolean",
+      "expression": "0.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testDecimalLiteralConvertsToBoolean",
+      "expression": "1.0.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringTrueLiteralConvertsToBoolean",
+      "expression": "'true'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringFalseLiteralConvertsToBoolean",
+      "expression": "'false'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringFalseLiteralAlsoConvertsToBoolean",
+      "expression": "'False'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testTrueLiteralConvertsToBoolean",
+      "expression": "true.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFalseLiteralConvertsToBoolean",
+      "expression": "false.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralToBoolean",
+      "expression": "1.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testIntegerLiteralToBooleanEmpty",
+      "expression": "2.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testIntegerLiteralToBooleanFalse",
+      "expression": "0.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testStringTrueToBoolean",
+      "expression": "'true'.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testStringFalseToBoolean",
+      "expression": "'false'.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIntegerLiteralConvertsToString",
+      "expression": "1.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralIsNotString",
+      "expression": "1.is(String).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testNegativeIntegerLiteralConvertsToString",
+      "expression": "(-1).convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testDecimalLiteralConvertsToString",
+      "expression": "1.0.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testStringLiteralConvertsToString",
+      "expression": "'true'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testBooleanLiteralConvertsToString",
+      "expression": "true.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testQuantityLiteralConvertsToString",
+      "expression": "1 'wk'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testIntegerLiteralToString",
+      "expression": "1.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testNegativeIntegerLiteralToString",
+      "expression": "(-1).toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "-1"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testDecimalLiteralToString",
+      "expression": "1.0.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1.0"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testStringLiteralToString",
+      "expression": "'true'.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testBooleanLiteralToString",
+      "expression": "true.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantityLiteralWkToString",
+      "expression": "1 'wk'.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 'wk'"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantityLiteralWeekToString",
+      "expression": "1 week.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 week"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testTrace1",
+      "expression": "name.given.trace('test').count() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTrace",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testTrace2",
+      "expression": "name.trace('test', given).count() = 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTrace",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testPrecedence1",
+      "expression": "-1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testPrecedence",
+        "other_operations"
+      ],
+      "description": "test unary precedence",
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testPrecedence2",
+      "expression": "1+2*3+4 = 11",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPrecedence",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPrecedence3",
+      "expression": "1 > 2 is Boolean",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPrecedence",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPrecedence4",
+      "expression": "1 | 1 is Integer",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPrecedence",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPrecedence5",
+      "expression": "true and '0215' in ('0215' | '0216')",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPrecedence",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testPrecedence6",
+      "expression": "category.exists(coding.exists(system = 'http://terminology.hl7.org/CodeSystem/observation-category' and code.trace('c') in ('vital-signs' | 'vital-signs2').trace('codes')))",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPrecedence",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testRepeat1",
+      "expression": "ValueSet.expansion.repeat(contains).count() = 10",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testRepeat2",
+      "expression": "Questionnaire.repeat(item).code.count() = 11",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testRepeat3",
+      "expression": "Questionnaire.descendants().code.count() = 23",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testRepeat4",
+      "expression": "Questionnaire.children().code.count() = 2",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testRepeat5",
+      "expression": "Patient.name.repeat('test')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "test"
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testJoin",
+      "expression": "name.given.join(',')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter,James,Jim,Peter,James"
+      ],
+      "tags": [
+        "r5-xml",
+        "testJoin",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralTrue",
+      "expression": "Patient.name.exists() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralFalse",
+      "expression": "Patient.name.empty() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralString1",
+      "expression": "Patient.name.given.first() = 'Peter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralInteger1",
+      "expression": "1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralInteger0",
+      "expression": "0.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralIntegerNegative1",
+      "expression": "(-1).convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralIntegerNegative1Invalid",
+      "expression": "-1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralIntegerMax",
+      "expression": "2147483647.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralString2",
+      "expression": "'test'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralStringEscapes",
+      "expression": "'\\\\\\/\\f\\r\\n\\t\\\"\\`\\'\\u002a'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralBooleanTrue",
+      "expression": "true.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralBooleanFalse",
+      "expression": "false.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDecimal10",
+      "expression": "1.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDecimal01",
+      "expression": "0.1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDecimal00",
+      "expression": "0.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDecimalNegative01",
+      "expression": "(-0.1).convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDecimalNegative01Invalid",
+      "expression": "-0.1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDecimalMax",
+      "expression": "1234567890987654321.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDecimalStep",
+      "expression": "0.00000001.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateYear",
+      "expression": "@2015.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateMonth",
+      "expression": "@2015-02.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateDay",
+      "expression": "@2015-02-04.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeYear",
+      "expression": "@2015T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeMonth",
+      "expression": "@2015-02T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeDay",
+      "expression": "@2015-02-04T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeHour",
+      "expression": "@2015-02-04T14.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeMinute",
+      "expression": "@2015-02-04T14:34.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeSecond",
+      "expression": "@2015-02-04T14:34:28.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeMillisecond",
+      "expression": "@2015-02-04T14:34:28.123.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeUTC",
+      "expression": "@2015-02-04T14:34:28Z.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralDateTimeTimezoneOffset",
+      "expression": "@2015-02-04T14:34:28+10:00.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralTimeHour",
+      "expression": "@T14.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralTimeMinute",
+      "expression": "@T14:34.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralTimeSecond",
+      "expression": "@T14:34:28.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralTimeMillisecond",
+      "expression": "@T14:34:28.123.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralTimeUTC",
+      "expression": "@T14:34:28Z.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralTimeTimezoneOffset",
+      "expression": "@T14:34:28+10:00.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralQuantityDecimal",
+      "expression": "10.1 'mg'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralQuantityInteger",
+      "expression": "10 'mg'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralQuantityDay",
+      "expression": "4 days.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testLiteralIntegerNotEqual",
+      "expression": "-3 != 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testLiteralIntegerEqual",
+      "expression": "Patient.name.given.count() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testPolarityPrecedence",
+      "expression": "-Patient.name.given.count() = -5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testLiteralIntegerGreaterThan",
+      "expression": "Patient.name.given.count() > -3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testLiteralIntegerCountNotEqual",
+      "expression": "Patient.name.given.count() != 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testLiteralIntegerLessThanTrue",
+      "expression": "1 < 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testLiteralIntegerLessThanFalse",
+      "expression": "1 < -2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testLiteralIntegerLessThanPolarityTrue",
+      "expression": "+1 < +2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testLiteralIntegerLessThanPolarityFalse",
+      "expression": "-1 < 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanNonZeroTrue",
+      "expression": "Observation.value.value > 180.0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanZeroTrue",
+      "expression": "Observation.value.value > 0.0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanIntegerTrue",
+      "expression": "Observation.value.value > 0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testLiteralDecimalLessThanInteger",
+      "expression": "Observation.value.value < 190",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testLiteralDecimalLessThanInvalid",
+      "expression": "Observation.value.value < 'test'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDateEqual",
+      "expression": "Patient.birthDate = @1974-12-25",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDateNotEqual",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDateNotEqualTimezoneOffsetBefore",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00-10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDateNotEqualTimezoneOffsetAfter",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00+10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDateNotEqualUTC",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00Z",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDateNotEqualTimeSecond",
+      "expression": "Patient.birthDate != @T12:14:15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDateNotEqualTimeMinute",
+      "expression": "Patient.birthDate != @T12:14",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDateNotEqualToday",
+      "expression": "Patient.birthDate < today()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testDateTimeGreaterThanDate1",
+      "expression": "now() > Patient.birthDate",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testDateGreaterThanDate",
+      "expression": "today() > Patient.birthDate",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testDateTimeGreaterThanDate2",
+      "expression": "now() > today()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testLiteralDateTimeTZGreater",
+      "expression": "@2017-11-05T01:30:00.0-04:00 > @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralDateTimeTZLess",
+      "expression": "@2017-11-05T01:30:00.0-04:00 < @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralDateTimeTZEqualFalse",
+      "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralDateTimeTZEqualTrue",
+      "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T00:30:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralUnicode",
+      "expression": "Patient.name.given.first() = 'P\\u0065ter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testCollectionNotEmpty",
+      "expression": "Patient.name.given.empty().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testCollectionNotEqualEmpty",
+      "expression": "Patient.name.given != {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testExpressions",
+      "expression": "Patient.name.select(given | family).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Chalmers",
+        "Jim",
+        "Windsor"
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testExpressionsEqual",
+      "expression": "Patient.name.given.count() = 1 + 4",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testNotEmpty",
+      "expression": "Patient.name.empty().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testEmpty",
+      "expression": "Patient.link.empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testLiteralNotOnEmpty",
+      "expression": "{}.not().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testLiteralNotTrue",
+      "expression": "true.not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testLiteralNotFalse",
+      "expression": "false.not() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIntegerBooleanNotTrue",
+      "expression": "(0).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIntegerBooleanNotFalse",
+      "expression": "(1).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testNotInvalid",
+      "expression": "(1|2).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIn1",
+      "expression": "1 in (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testIn2",
+      "expression": "1 in (2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testIn3",
+      "expression": "'a' in ('a' | 'c' | 'd')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIn4",
+      "expression": "'b' in ('a' | 'c' | 'd')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIn5",
+      "expression": "('a' | 'c' | 'd') in 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testIn",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "literals"
+    },
+    {
+      "name": "testInEmptyCollection",
+      "expression": "1 in {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testInEmptyValue",
+      "expression": "{} in (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testIn",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testInEmptyBoth",
+      "expression": "{} in {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testIn",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testFHIRPathIsFunction1",
+      "expression": "Patient.gender.is(code)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathIsFunction2",
+      "expression": "Patient.gender.is(string)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathIsFunction3",
+      "expression": "Patient.gender.is(id)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathIsFunction4",
+      "expression": "Questionnaire.url.is(uri)",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathIsFunction5",
+      "expression": "Questionnaire.url.is(url)",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathIsFunction6",
+      "expression": "ValueSet.version.is(string)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathIsFunction7",
+      "expression": "ValueSet.version.is(code)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathIsFunction8",
+      "expression": "Observation.extension('http://example.com/fhir/StructureDefinition/patient-age').value is Age",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testFHIRPathIsFunction9",
+      "expression": "Observation.extension('http://example.com/fhir/StructureDefinition/patient-age').value is Quantity",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testFHIRPathIsFunction10",
+      "expression": "Observation.extension('http://example.com/fhir/StructureDefinition/patient-age').value is Duration",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testFHIRPathAsFunction11",
+      "expression": "Patient.gender.as(string)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "description": "Contested: code type is a subtype of string",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction12",
+      "expression": "Patient.gender.as(code)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "male"
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "code"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction13",
+      "expression": "Patient.gender.as(id)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction14",
+      "expression": "ValueSet.version.as(string)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        "20150622"
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction15",
+      "expression": "ValueSet.version.as(code)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction16",
+      "expression": "Patient.gender.ofType(string)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "description": "Contested: code type is a subtype of string",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction17",
+      "expression": "Patient.gender.ofType(code)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "male"
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "code"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction18",
+      "expression": "Patient.gender.ofType(id)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction19",
+      "expression": "ValueSet.version.ofType(string)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        "20150622"
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction20",
+      "expression": "ValueSet.version.ofType(code)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction21",
+      "expression": "Patient.name.as(HumanName).use",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction22",
+      "expression": "Patient.name.ofType(HumanName).use",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "official",
+        "usual",
+        "maiden"
+      ],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "code",
+        "code",
+        "code"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction23",
+      "expression": "Patient.gender.as(string1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testFHIRPathAsFunction24",
+      "expression": "Patient.gender.ofType(string1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testInheritance",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testSimple",
+      "expression": "name.given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Jim",
+        "Peter",
+        "James"
+      ],
+      "tags": [
+        "r5-xml",
+        "testBasics",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testSimpleNone",
+      "expression": "name.suffix",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testBasics",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testEscapedIdentifier",
+      "expression": "name.`given`",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Jim",
+        "Peter",
+        "James"
+      ],
+      "tags": [
+        "r5-xml",
+        "testBasics",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testSimpleBackTick1",
+      "expression": "`Patient`.name.`given`",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Jim",
+        "Peter",
+        "James"
+      ],
+      "tags": [
+        "r5-xml",
+        "testBasics",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testSimpleWithContext",
+      "expression": "Patient.name.given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Jim",
+        "Peter",
+        "James"
+      ],
+      "tags": [
+        "r5-xml",
+        "testBasics",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testPolymorphismA",
+      "expression": "Observation.value.unit",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testPolymorphismIsA1",
+      "expression": "Observation.value.is(Quantity)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testPolymorphismIsA2",
+      "expression": "Observation.value is Quantity",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testPolymorphismIsA3",
+      "expression": "Observation.issued is instant",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testObservations",
+        "other_operations"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testPolymorphismIsB",
+      "expression": "Observation.value.is(Period).not()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testPolymorphismAsA",
+      "expression": "Observation.value.as(Quantity).unit",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testPolymorphismAsAFunction",
+      "expression": "(Observation.value as Quantity).unit",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testPolymorphismAsBFunction",
+      "expression": "Observation.value.as(Period).start",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testObservations",
+        "other_operations"
+      ],
+      "subcategory": "type_checking"
+    },
+    {
+      "name": "testDollarThis1",
+      "expression": "Patient.name.given.where(substring($this.length()-3) = 'out')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testDollar",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDollarThis2",
+      "expression": "Patient.name.given.where(substring($this.length()-3) = 'ter')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "Peter"
+      ],
+      "tags": [
+        "r5-xml",
+        "testDollar",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testDollarOrderAllowed",
+      "expression": "Patient.name.skip(1).given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Jim",
+        "Peter",
+        "James"
+      ],
+      "tags": [
+        "r5-xml",
+        "testDollar",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string",
+        "string",
+        "string"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testDollarOrderAllowedA",
+      "expression": "Patient.name.skip(3).given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testDollar",
+        "other_operations"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "testConformsTo1",
+      "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Patient')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testConformsTo",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testConformsTo2",
+      "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Person')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testConformsTo",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testConformsTo3",
+      "expression": "conformsTo('http://trash')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testConformsTo",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantity1",
+      "expression": "4.0000 'g' = 4000.0 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantity2",
+      "expression": "4 'g' ~ 4000 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantity3",
+      "expression": "4 'g' != 4040 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantity4",
+      "expression": "4 'g' ~ 4040 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantity5",
+      "expression": "7 days = 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testQuantity6",
+      "expression": "7 days = 1 'wk'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantity7",
+      "expression": "6 days < 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testQuantity8",
+      "expression": "8 days > 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testQuantity9",
+      "expression": "2.0 'cm' * 2.0 'm' = 0.040 'm2'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantity10",
+      "expression": "4.0 'g' / 2.0 'm' = 2 'g/m'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testQuantity11",
+      "expression": "1.0 'm' / 1.0 'm' = 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testQuantity",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testVariables1",
+      "expression": "%sct = 'http://snomed.info/sct'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testVariables",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testVariables2",
+      "expression": "%loinc = 'http://loinc.org'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testVariables",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testVariables3",
+      "expression": "%ucum = 'http://unitsofmeasure.org'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testVariables",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testVariables4",
+      "expression": "%`vs-administrative-gender` = 'http://hl7.org/fhir/ValueSet/administrative-gender'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testVariables",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testPlus1",
+      "expression": "1 + 1 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPlus",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPlus2",
+      "expression": "1 + 0 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPlus",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPlus3",
+      "expression": "1.2 + 1.8 = 3.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPlus",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPlus4",
+      "expression": "'a'+'b' = 'ab'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testPlus",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testPlus5",
+      "expression": "'a'+{}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testPlus",
+        "other_operations"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testPlusEmpty1",
+      "expression": "1 + {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testPlus",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPlusEmpty2",
+      "expression": "{} + 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testPlus",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testPlusEmpty3",
+      "expression": "{} + {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testPlus",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testMinus1",
+      "expression": "1 - 1 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testMinus2",
+      "expression": "1 - 0 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testMinus3",
+      "expression": "1.8 - 1.2 = 0.6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testMinus4",
+      "expression": "'a'-'b' = 'ab'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "literals"
+    },
+    {
+      "name": "testMinus6",
+      "expression": "@1974-12-25 - 1 'cm'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "literals"
+    },
+    {
+      "name": "testMinusEmpty1",
+      "expression": "1 - {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testMinusEmpty2",
+      "expression": "{} - 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testMinusEmpty3",
+      "expression": "{} - {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus",
+        "other_operations"
+      ],
+      "subcategory": "control_flow"
+    },
+    {
+      "name": "testIif1",
+      "expression": "iif(Patient.name.exists(), 'named', 'unnamed') = 'named'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif2",
+      "expression": "iif(Patient.name.empty(), 'unnamed', 'named') = 'named'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif3",
+      "expression": "iif(true, true, (1 | 2).toString())",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif4",
+      "expression": "iif(false, (1 | 2).toString(), true)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif5",
+      "expression": "iif(false, 'true-result').empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif7",
+      "expression": "{}.iif(true, 'true-result', 'false-result')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true-result"
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif8",
+      "expression": "('item').iif(true, 'true-result', 'false-result')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true-result"
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif9",
+      "expression": "('context').iif(true, select($this), 'false-result')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "context"
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif10",
+      "expression": "('item1' | 'item2').iif(true, 'true-result', 'false-result')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif11",
+      "expression": "('context').iif($this = 'context','true-result', 'false-result')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true-result"
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "literals"
+    },
+    {
+      "name": "testIif12",
+      "expression": "Patient.name.first().iif(text.exists(), text, family+given.first())",
+      "input": null,
+      "inputfile": "patient-example-name.json",
+      "expected": [
+        "Pater J Chalmers"
+      ],
+      "tags": [
+        "r5-xml",
+        "testIif",
+        "other_operations"
+      ],
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "navigation"
+    },
+    {
+      "name": "defineVariable1",
+      "expression": "defineVariable('v1', 'value1').select(%v1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "value1"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "simplest variable",
+      "outputTypes": [
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable2",
+      "expression": "defineVariable('n1', name.first()).select(%n1.given)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "simple use of a variable",
+      "outputTypes": [
+        "string",
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable3",
+      "expression": "defineVariable('n1', name.first()).select(%n1.given).first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "simple use of a variable 2 selects",
+      "outputTypes": [
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable4",
+      "expression": "defineVariable('n1', name.first()).select(%n1.given) | defineVariable('n1', name.skip(1).first()).select(%n1.given)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Jim"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "use of a variable in separate contexts",
+      "outputTypes": [
+        "string",
+        "string",
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable5",
+      "expression": "defineVariable('n1', name.first()).where(active.not()) | defineVariable('n1', name.skip(1).first()).select(%n1.given)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Jim"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "use of a variable in separate contexts defined in 2 but used in 1",
+      "outputTypes": [
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable6",
+      "expression": "defineVariable('n1', name.first()).select(id & '-' & %n1.given.join('|')) | defineVariable('n2', name.skip(1).first()).select(%n2.given)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "example-Peter|James",
+        "Jim"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "use of different variables in different contexts",
+      "outputTypes": [
+        "string",
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable7",
+      "expression": "defineVariable('n1', name.first()).active | defineVariable('n2', name.skip(1).first()).select(%n2.given)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true,
+        "Jim"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "2 vars, one unused",
+      "outputTypes": [
+        "boolean",
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable8",
+      "expression": "defineVariable('v1', 'value1').select(%v1).trace('data').defineVariable('v2', 'value2').select($this & ':' & %v1 & '-' & %v2) | defineVariable('v3', 'value3').select(%v3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "value1:value1-value2",
+        "value3"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "CompositeVariableUse",
+      "outputTypes": [
+        "string",
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable13",
+      "expression": "Patient.name.defineVariable('n2', skip(1).first()).defineVariable('res', %n2.given+%n2.given).select(%res)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "JimJim",
+        "JimJim",
+        "JimJim"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "sequence of variable definitions tweak",
+      "outputTypes": [
+        "string",
+        "string",
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable14",
+      "expression": "Patient.name.defineVariable('n1', first()).select(%n1).exists() | Patient.name.defineVariable('n2', skip(1).first()).defineVariable('res', %n2.given+%n2.given).select(%res)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true,
+        "JimJim"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "sequence of variable definitions original",
+      "outputTypes": [
+        "boolean",
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable15",
+      "expression": "defineVariable('root', 'r1-').select(defineVariable('v1', 'v1').defineVariable('v2', 'v2').select(%v1 | %v2)).select(%root & $this)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "r1-v1",
+        "r1-v2"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "multi-tree vars valid",
+      "outputTypes": [
+        "string",
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "dvConceptMapExample",
+      "expression": "group.select(\n\t\t\t\tdefineVariable('grp')\n\t\t\t\t.element\n\t\t\t\t.select(\n\t\t\t\t\tdefineVariable('ele')\n\t\t\t\t\t.target\n\t\t\t\t\t.select(%grp.source & '|' & %ele.code & ' ' & relationship & ' ' & %grp.target & '|' & code)\n\t\t\t\t)\n\t\t\t)\n\t\t\t.trace('all')\n\t\t\t.isDistinct()",
+      "input": null,
+      "inputfile": "conceptmap-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "realistic example with conceptmap",
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable19",
+      "expression": "defineVariable(defineVariable('param','ppp').select(%param), defineVariable('param','value').select(%param)).select(%ppp)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "value"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "defineVariable in function parameters (1)",
+      "skipStaticCheck": true,
+      "outputTypes": [
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "dvParametersDontColide",
+      "expression": "'aaa'.replace(defineVariable('param', 'aaa').select(%param), defineVariable('param','bbb').select(%param))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "bbb"
+      ],
+      "tags": [
+        "r5-xml",
+        "defineVariable"
+      ],
+      "description": "defineVariable in function parameters (2)",
+      "outputTypes": [
+        "string"
+      ],
+      "category": "other",
+      "subcategory": "variables"
+    },
+    {
+      "name": "txTest01",
+      "expression": "%terminologies.expand('http://hl7.org/fhir/ValueSet/administrative-gender').expansion.contains.count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        4
+      ],
+      "tags": [
+        "r5-xml",
+        "TerminologyTests"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "other",
+      "subcategory": "terminology",
+      "description": "Terminology expand function test"
+    },
+    {
+      "name": "txTest02",
+      "expression": "%terminologies.validateVS('http://hl7.org/fhir/ValueSet/administrative-gender', $this.gender).parameter.where(name = 'result').value",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "TerminologyTests"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "other",
+      "subcategory": "terminology",
+      "description": "Terminology validate ValueSet test"
+    },
+    {
+      "name": "txTest03",
+      "expression": "%terminologies.translate('http://hl7.org/fhir/ConceptMap/cm-address-use-v2', $this.address.use).parameter.where(name = 'match').part.where(name = 'concept').value.code",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "H"
+      ],
+      "tags": [
+        "r5-xml",
+        "TerminologyTests"
+      ],
+      "outputTypes": [
+        "code"
+      ],
+      "category": "other",
+      "subcategory": "terminology",
+      "description": "Terminology translate function test"
+    },
+    {
+      "name": "testHasTemplateId1",
+      "expression": "hasTemplateIdOf('http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD')",
+      "input": null,
+      "inputfile": "ccda.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "cdaTests"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "other",
+      "subcategory": "cda",
+      "description": "hasTemplateIdOf function basic test"
+    },
+    {
+      "name": "testHasTemplateId2",
+      "expression": "ClinicalDocument.hasTemplateIdOf('http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD')",
+      "input": null,
+      "inputfile": "ccda.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "cdaTests"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "other",
+      "subcategory": "cda",
+      "description": "hasTemplateIdOf function with ClinicalDocument context"
+    },
+    {
+      "name": "testHasTemplateId3",
+      "expression": "recordTarget.patientRole.hasTemplateIdOf('http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD')",
+      "input": null,
+      "inputfile": "ccda.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "cdaTests"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "other",
+      "subcategory": "cda",
+      "description": "hasTemplateIdOf function with non-matching context"
+    },
+    {
+      "name": "testIndex",
+      "expression": "Patient.telecom.select(iif(value='(03) 3410 5613', $index, {} ))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        2
+      ],
+      "tags": [
+        "r5-xml",
+        "index-part"
+      ],
+      "outputTypes": [
+        "integer"
+      ],
+      "category": "other",
+      "subcategory": "variables",
+      "description": "Using $index variable in select expression"
+    },
+    {
+      "name": "testContainedId",
+      "expression": "contained.id",
+      "input": null,
+      "inputfile": "patient-container-example.json",
+      "expected": [
+        "1"
+      ],
+      "tags": [
+        "r5-xml",
+        "miscEngineTests"
+      ],
+      "outputTypes": [
+        "id"
+      ],
+      "category": "other",
+      "subcategory": "navigation",
+      "description": "Accessing contained resource id"
+    },
+    {
+      "name": "testMultipleResolve",
+      "expression": "composition.exists() \n\t\t\timplies \n\t\t\t(\n\t\t\t\tcomposition.resolve().section.entry.reference.where(resolve() is Observation)\n\t\t\t\t.where($this in (%resource.result.reference | %resource.result.reference.resolve().hasMember.reference)).exists()\n\t\t\t)",
+      "input": null,
+      "inputfile": "diagnosticreport-eric.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "miscEngineTests"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "category": "other",
+      "subcategory": "navigation",
+      "description": "Complex resolve() function usage with multiple references"
+    },
+    {
+      "name": "testResolveBundle",
+      "expression": "Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()",
+      "input": null,
+      "tags": [
+        "resolve"
+      ],
+      "inputfile": "bundle-small.json",
+      "expected": [
+        14
+      ],
+      "category": "other",
+      "subcategory": "navigation",
+      "description": "Resolve() function with bundle resources count"
+    },
+    {
+      "name": "testResolveBundleFirst",
+      "expression": "Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()",
+      "input": null,
+      "tags": [
+        "resolve"
+      ],
+      "inputfile": "bundle-small.json",
+      "expected": [
+        {
+          "code": {
+            "coding": [
+              {
+                "code": "62584089701",
+                "system": "http://fhir.mimic.mit.edu/CodeSystem/medication-ndc"
+              }
+            ]
+          },
+          "id": "60d3201b-f9da-5dc8-956f-fc72c515e953",
+          "identifier": [
+            {
+              "system": "http://fhir.mimic.mit.edu/CodeSystem/medication-ndc",
+              "value": "62584089701"
+            },
+            {
+              "system": "http://fhir.mimic.mit.edu/CodeSystem/medication-formulary-drug-cd",
+              "value": "FOLI1"
+            },
+            {
+              "system": "http://fhir.mimic.mit.edu/CodeSystem/medication-name",
+              "value": "FoLIC Acid"
+            }
+          ],
+          "meta": {
+            "lastUpdated": "2025-07-30T17:39:59.813+00:00",
+            "profile": [
+              "http://fhir.mimic.mit.edu/StructureDefinition/mimic-medication"
+            ],
+            "versionId": "1"
+          },
+          "resourceType": "Medication",
+          "text": {
+            "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><div class=\"hapiHeaderText\"> 62584089701 </div></div>",
+            "status": "generated"
+          }
+        }
+      ],
+      "category": "other",
+      "subcategory": "navigation",
+      "description": "Resolve() function with bundle resources first item"
+    },
+    {
+      "name": "testResolveContained",
+      "expression": "DiagnosticReport.specimen.resolve().resourceType",
+      "input": {
+        "resourceType": "DiagnosticReport",
+        "id": "example",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                "code": "LAB"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "58410-2"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/example"
+        },
+        "effectiveDateTime": "2011-03-04T08:30:00+11:00",
+        "issued": "2011-03-04T11:45:33+11:00",
+        "performer": [
+          {
+            "reference": "Organization/example"
+          }
+        ],
+        "specimen": [
+          {
+            "reference": "#specimen-1"
+          }
+        ],
+        "contained": [
+          {
+            "resourceType": "Specimen",
+            "id": "specimen-1",
+            "status": "available",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "122555007",
+                  "display": "Venous blood specimen"
+                }
+              ]
+            },
+            "subject": {
+              "reference": "Patient/example"
+            }
+          }
+        ]
+      },
+      "tags": [
+        "resolve",
+        "contained"
+      ],
+      "expected": [
+        "Specimen"
+      ],
+      "category": "other",
+      "subcategory": "navigation",
+      "description": "Resolve() function with contained resources"
+    }
+  ]
+}

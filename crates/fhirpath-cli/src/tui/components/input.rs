@@ -26,12 +26,9 @@ use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;
 use crate::tui::themes::TuiTheme;
 
-// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
-
 /// Input panel for FHIRPath expression editing
 pub struct InputPanel {
     text_area: TextArea<'static>,
-    // _analyzer: Option<std::sync::Arc<StaticAnalyzer>>, // Removed
 }
 
 impl InputPanel {

@@ -1,0 +1,57 @@
+{
+  "name": "type_operations",
+  "category": "conversion",
+  "subcategory": "conversion",
+  "description": "Type operations including conversion, validation, and encoding functions",
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testToString1",
+      "expression": "1.toString() = '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "type_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToString2",
+      "expression": "true.toString() = 'true'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "type_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conversion"
+    },
+    {
+      "name": "testToInteger1",
+      "expression": "'123'.toInteger() = 123",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "type_operations"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "conversion"
+    }
+  ]
+}

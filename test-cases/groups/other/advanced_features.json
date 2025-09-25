@@ -1,0 +1,45 @@
+{
+  "name": "advanced_features",
+  "category": "other",
+  "subcategory": "variables",
+  "description": "Advanced FHIRPath features including variables, resolution, and tracing",
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "defineVariable1",
+      "expression": "defineVariable('v1', 'value1').select(%v1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "value1"
+      ],
+      "tags": [
+        "advanced_features"
+      ],
+      "description": "simplest variable",
+      "outputTypes": [
+        "string"
+      ],
+      "subcategory": "variables"
+    },
+    {
+      "name": "defineVariable2",
+      "expression": "defineVariable('n1', name.first()).select(%n1.given)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James"
+      ],
+      "tags": [
+        "advanced_features"
+      ],
+      "description": "simple use of a variable",
+      "outputTypes": [
+        "string",
+        "string"
+      ],
+      "subcategory": "variables"
+    }
+  ]
+}
