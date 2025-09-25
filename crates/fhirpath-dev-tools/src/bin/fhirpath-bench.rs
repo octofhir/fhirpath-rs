@@ -257,7 +257,7 @@ async fn profile_expression(
     // Initialize engine
     let registry = Arc::new(octofhir_fhirpath::create_function_registry());
     let model_provider = Arc::new(EmbeddedSchemaProvider::new(FhirVersion::R5))
-        as Arc<dyn octofhir_fhir_model::ModelProvider>;
+        as Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>;
     let engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
 
     // Get test data
@@ -467,7 +467,7 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
     // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
     println!("Initializing EmbeddedModelProvider R5...");
     let model_provider = Arc::new(EmbeddedSchemaProvider::new(FhirVersion::R5))
-        as Arc<dyn octofhir_fhir_model::ModelProvider>;
+        as Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>;
 
     let engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
     let patient_data = get_sample_patient();
@@ -522,7 +522,7 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
         expressions: &[&str],
         data: &serde_json::Value,
         engine: &FhirPathEngine,
-        model_provider: Arc<dyn octofhir_fhir_model::ModelProvider>,
+        model_provider: Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>,
         record_memory: bool,
     ) -> Vec<String> {
         let mut bench_results = Vec::new();

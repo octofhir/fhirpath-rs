@@ -9,17 +9,18 @@ use crate::cli::server::{
     version::ServerFhirVersion,
 };
 use octofhir_fhir_model::{HttpTerminologyProvider, TerminologyProvider, TypeInfo};
-use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode};
+use octofhir_fhirpath::diagnostics::DiagnosticSeverity;
+use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode, parse_with_semantic_analysis};
 use octofhir_fhirpath::{Collection, FhirPathValue};
 use serde_json::Value as JsonValue;
-
-// use axum_macros::debug_handler;
+use octofhir_fhirpath::evaluator::EvaluationContext;
 
 use crate::cli::ast::{add_type_information, convert_ast_to_lab_format, extract_resource_type};
 use axum::{
     extract::State,
     response::{IntoResponse, Json},
 };
+
 use octofhir_fhirpath::core::trace::SharedTraceProvider;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -182,7 +183,7 @@ pub async fn fhirpath_lab_handler(
 
 // GET handler removed for simplicity - focus on POST compatibility first
 
-/// FHIRPath Lab API endpoint - R4  
+/// FHIRPath Lab API endpoint - R4
 pub async fn fhirpath_lab_r4_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
@@ -264,7 +265,6 @@ async fn fhirpath_lab_handler_impl(
     request: FhirPathLabRequest,
     version: ServerFhirVersion,
 ) -> ServerResult<Json<serde_json::Value>> {
-    use octofhir_fhirpath::evaluator::EvaluationContext;
 
     let total_start = Instant::now();
 
@@ -301,6 +301,10 @@ async fn fhirpath_lab_handler_impl(
             return Ok(Json(serde_json::to_value(error_response).unwrap()));
         }
     };
+
+
+    let engine = engine_arc.lock_owned().await;
+    let model_provider_arc = engine.get_model_provider();
 
     let mut response = FhirPathLabResponse::new();
 
@@ -549,7 +553,44 @@ async fn fhirpath_lab_handler_impl(
 
     if parse_result.success {
         if let Some(_ast) = parse_result.ast {
-            let engine = engine_arc.lock_owned().await;
+            let context_type =
+                if let Some(resource_type) = extract_resource_type(&parsed_request.resource) {
+                    model_provider_arc
+                        .get_type(&resource_type)
+                        .await
+                        .ok()
+                        .flatten()
+                } else {
+                    None
+                };
+
+            let semantic_result = parse_with_semantic_analysis(
+                    &parsed_request.expression,
+                    model_provider_arc,
+                    context_type,
+            ).await;
+
+            let semantic_errors: Vec<_> = semantic_result
+                .analysis
+                .diagnostics
+                .iter()
+                .filter(|diag| matches!(diag.severity, DiagnosticSeverity::Error))
+                .collect();
+
+            if !semantic_errors.is_empty() {
+                let primary_message = semantic_errors[0].message.clone();
+                let diagnostics_text = semantic_errors
+                    .iter()
+                    .map(|diag| diag.message.clone())
+                    .collect::<Vec<_>>()
+                    .join("; ");
+
+                let operation_outcome =
+                    OperationOutcome::error("invalid", &primary_message, Some(diagnostics_text));
+
+                return Ok(Json(serde_json::to_value(operation_outcome).unwrap()));
+            }
+
             let terminology_provider =
                 resolve_terminology_provider(&engine, parsed_request.terminology_server.as_deref());
             let validation_provider = engine.get_validation_provider();

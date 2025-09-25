@@ -662,7 +662,7 @@ async fn handle_evaluate(
         use octofhir_fhirpath::analyzer::{AnalysisContext, StaticAnalyzer};
 
         let mut analyzer = StaticAnalyzer::new(
-            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider>
+            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>
         );
 
         // Extract resource type from expression or use default
@@ -887,7 +887,7 @@ async fn handle_validate(
     // If parsing succeeded, run static analysis for enhanced validation
     if parse_result.success && parse_result.ast.is_some() {
         let mut analyzer = StaticAnalyzer::new(
-            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider>
+            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>
         );
 
         // Extract resource type from expression or use default
@@ -1054,7 +1054,7 @@ async fn handle_analyze_multi_error(
     if parse_result.success && parse_result.ast.is_some() {
         // Phase 2: Run static analysis with shared model provider
         let mut analyzer = StaticAnalyzer::new(
-            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider>
+            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>
         );
 
         // Extract resource type from expression or use default

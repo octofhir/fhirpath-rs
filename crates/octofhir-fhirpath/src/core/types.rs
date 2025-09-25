@@ -66,7 +66,7 @@ impl Collection {
     /// Create a collection from JSON resource with ModelProvider-aware typing
     pub async fn from_json_resource(
         json: JsonValue,
-        model_provider: Option<Arc<dyn ModelProvider>>,
+        model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
     ) -> crate::core::Result<Self> {
         let resource_value =
             FhirPathValue::resource_with_model_provider(json, model_provider).await?;
@@ -943,7 +943,7 @@ impl FhirPathValue {
     /// Create a resource value with ModelProvider-aware type resolution
     pub async fn resource_with_model_provider(
         json: JsonValue,
-        model_provider: Option<Arc<dyn ModelProvider>>,
+        model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
     ) -> crate::core::Result<Self> {
         if let Some(provider) = model_provider {
             // Try to extract resourceType and get proper TypeInfo

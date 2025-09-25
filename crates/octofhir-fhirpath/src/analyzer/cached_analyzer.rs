@@ -213,7 +213,7 @@ impl AnalysisCache {
 
 impl CachedSemanticAnalyzer {
     /// Create a new optimized analyzer with the given ModelProvider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         let cached_provider = Arc::new(
             CachedModelProviderBuilder::new()
                 .ttl(Duration::from_secs(300)) // 5 minutes
@@ -232,7 +232,7 @@ impl CachedSemanticAnalyzer {
 
     /// Create a new optimized analyzer with custom cache settings
     pub fn with_cache_settings(
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
         cache_ttl: Duration,
         expression_cache_size: usize,
     ) -> Self {

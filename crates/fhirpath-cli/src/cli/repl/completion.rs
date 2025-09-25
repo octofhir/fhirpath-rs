@@ -35,20 +35,20 @@ pub struct FhirPathCompleter {
     cached_functions: std::sync::RwLock<Option<Vec<String>>>,
     cached_resource_types: std::sync::RwLock<Option<Vec<String>>>,
     #[allow(dead_code)]
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     registry: std::sync::RwLock<Option<Arc<FunctionRegistry>>>,
     fuzzy_matcher: SkimMatcherV2,
 }
 
 impl FhirPathCompleter {
     /// Create a new completer
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         Self::with_registry(model_provider, None)
     }
 
     /// Create a new completer with function registry
     pub fn with_registry(
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
         registry: Option<Arc<FunctionRegistry>>,
     ) -> Self {
         let commands = vec![

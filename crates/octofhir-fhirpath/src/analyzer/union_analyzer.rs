@@ -15,7 +15,7 @@ use octofhir_fhir_model::{ModelProvider, TypeInfo};
 #[derive(Debug)]
 pub struct UnionTypeAnalyzer {
     #[allow(dead_code)]
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
 }
 
 /// Result of union type analysis
@@ -40,7 +40,7 @@ pub enum UnionOperation {
 
 impl UnionTypeAnalyzer {
     /// Create a new union type analyzer
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         Self { model_provider }
     }
 

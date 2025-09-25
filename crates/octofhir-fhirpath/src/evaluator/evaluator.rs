@@ -24,7 +24,7 @@ pub struct Evaluator {
     /// Registry for functions (count(), where(), select(), etc.)
     function_registry: Arc<FunctionRegistry>,
     /// Model provider for type information
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     /// Optional terminology provider for terminology functions
     terminology_provider: Option<Arc<dyn TerminologyProvider>>,
     /// Optional validation provider for profile validation functions
@@ -38,7 +38,7 @@ impl Evaluator {
     pub fn new(
         operator_registry: Arc<OperatorRegistry>,
         function_registry: Arc<FunctionRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
         terminology_provider: Option<Arc<dyn TerminologyProvider>>,
     ) -> Self {
         Self {
@@ -62,7 +62,7 @@ impl Evaluator {
     }
 
     /// Get the model provider
-    pub fn model_provider(&self) -> Arc<dyn ModelProvider> {
+    pub fn model_provider(&self) -> Arc<dyn ModelProvider + Send + Sync> {
         self.model_provider.clone()
     }
 

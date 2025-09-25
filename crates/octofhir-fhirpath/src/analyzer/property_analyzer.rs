@@ -10,7 +10,7 @@ pub type AnalysisResult = Result<AnalysisMetadata, FhirPathError>;
 
 /// Property analyzer for enhanced validation with rich diagnostics
 pub struct PropertyAnalyzer {
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
 }
 
 /// Property suggestion with confidence scoring
@@ -22,7 +22,7 @@ pub struct PropertySuggestion {
 
 impl PropertyAnalyzer {
     /// Create a new PropertyAnalyzer with the given ModelProvider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         Self { model_provider }
     }
 

@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// Create a model provider for development tools
 /// This always uses EmbeddedModelProvider for production-quality testing
 /// Exits the process if EmbeddedModelProvider cannot be initialized
-pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
+pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider + Send + Sync> {
     let fhir_version = env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
 
     log::info!("Using EmbeddedModelProvider for development tools (FHIR version: {fhir_version})");
@@ -46,7 +46,7 @@ pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
 /// Create a mock model provider specifically for unit tests
 /// This should only be used in unit tests where speed is more important than accuracy
 #[cfg(test)]
-pub fn create_mock_provider_for_tests() -> Arc<dyn ModelProvider> {
+pub fn create_mock_provider_for_tests() -> Arc<dyn ModelProvider + Send + Sync> {
     use octofhir_fhir_model::EmptyModelProvider;
     log::info!("Using EmptyModelProvider for unit tests only");
     Arc::new(EmptyModelProvider)

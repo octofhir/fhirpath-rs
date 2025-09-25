@@ -137,7 +137,7 @@ pub struct AnalysisContext {
 
 impl StaticAnalyzer {
     /// Create a new static analyzer with all sub-analyzers
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         let function_registry = Arc::new(crate::evaluator::create_function_registry());
         Self {
             property_analyzer: PropertyAnalyzer::new(model_provider.clone()),

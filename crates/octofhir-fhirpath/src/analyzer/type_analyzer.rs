@@ -14,7 +14,7 @@ use octofhir_fhir_model::{ModelProvider, TypeInfo};
 #[derive(Debug)]
 pub struct TypeAnalyzer {
     #[allow(dead_code)]
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
 }
 
 /// Cardinality of a type (singleton or collection)
@@ -50,7 +50,7 @@ pub struct ExpressionContextResult {
 
 impl TypeAnalyzer {
     /// Create a new type analyzer with the given model provider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         Self { model_provider }
     }
 

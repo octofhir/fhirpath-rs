@@ -11,12 +11,12 @@ use crate::path::CanonicalPath;
 /// Type resolver that integrates with ModelProvider for accurate FHIR type information
 #[derive(Debug, Clone)]
 pub struct TypeResolver {
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
 }
 
 impl TypeResolver {
     /// Create a new type resolver with the given ModelProvider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         Self { model_provider }
     }
 
@@ -230,7 +230,7 @@ impl TypeResolver {
     }
 
     /// Get a reference to the underlying ModelProvider
-    pub fn model_provider(&self) -> &Arc<dyn ModelProvider> {
+    pub fn model_provider(&self) -> &Arc<dyn ModelProvider + Send + Sync> {
         &self.model_provider
     }
 }
@@ -315,7 +315,7 @@ pub mod type_utils {
     use super::*;
 
     /// Create type resolver from ModelProvider
-    pub fn create_resolver(model_provider: Arc<dyn ModelProvider>) -> TypeResolver {
+    pub fn create_resolver(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> TypeResolver {
         TypeResolver::new(model_provider)
     }
 
@@ -445,12 +445,12 @@ pub struct TypeResolverFactory;
 
 impl TypeResolverFactory {
     /// Create a type resolver from a ModelProvider
-    pub fn create(model_provider: Arc<dyn ModelProvider>) -> TypeResolver {
+    pub fn create(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> TypeResolver {
         TypeResolver::new(model_provider)
     }
 
     /// Create a type resolution context with caching
-    pub fn create_context(model_provider: Arc<dyn ModelProvider>) -> TypeResolutionContext {
+    pub fn create_context(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> TypeResolutionContext {
         let resolver = Self::create(model_provider);
         TypeResolutionContext::new(resolver)
     }

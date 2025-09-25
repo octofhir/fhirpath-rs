@@ -19,7 +19,7 @@ use octofhir_fhir_model::{ModelProvider, TypeInfo};
 /// Semantic analyzer for FHIRPath expressions
 pub struct SemanticAnalyzer {
     /// Model provider for type resolution
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     /// Current input type context
     input_type: Option<TypeInfo>,
     /// Whether we're at the head of a navigation chain
@@ -34,7 +34,7 @@ pub struct SemanticAnalyzer {
 
 impl SemanticAnalyzer {
     /// Create new semantic analyzer
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         // Initialize reserved/system variables that cannot be user-defined
         let reserved: HashSet<String> = [
             "this",
@@ -188,7 +188,7 @@ impl SemanticAnalyzer {
         node: &'a ExpressionNode,
         analysis: &'a mut ExpressionAnalysis,
     ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<AnalysisMetadata, FhirPathError>> + 'a>,
+        Box<dyn std::future::Future<Output = Result<AnalysisMetadata, FhirPathError>> + Send + 'a>,
     > {
         Box::pin(async move {
             let result = match node {

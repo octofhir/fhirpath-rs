@@ -18,7 +18,7 @@ pub struct ExpressionContext {
     /// User-defined variables (%var)
     pub user_variables: HashMap<String, TypeInfo>,
     /// Model provider for type resolution
-    pub model_provider: Option<Arc<dyn ModelProvider>>,
+    pub model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
     /// Whether this is the head of a navigation chain
     pub is_chain_head: bool,
 }
@@ -61,7 +61,7 @@ impl ExpressionContext {
     }
 
     /// Create a new context with a model provider
-    pub fn with_model_provider(mut self, model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn with_model_provider(mut self, model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         self.model_provider = Some(model_provider);
         self
     }
@@ -108,7 +108,7 @@ impl ExpressionContext {
     }
 
     /// Get the model provider if available
-    pub fn get_model_provider(&self) -> Option<&Arc<dyn ModelProvider>> {
+    pub fn get_model_provider(&self) -> Option<&Arc<dyn ModelProvider + Send + Sync>> {
         self.model_provider.as_ref()
     }
 }

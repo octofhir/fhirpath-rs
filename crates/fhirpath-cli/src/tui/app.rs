@@ -65,7 +65,7 @@ pub struct TuiApp {
     engine: FhirPathEngine,
 
     /// Model provider and function registry for completions
-    _model_provider: Arc<dyn ModelProvider>,
+    _model_provider: Arc<dyn ModelProvider + Send + Sync>,
     _function_registry: Arc<octofhir_fhirpath::FunctionRegistry>,
 
     /// Completion engine
@@ -212,7 +212,7 @@ pub struct PerformanceMetrics {
 impl TuiApp {
     /// Create a new TUI application
     pub async fn new(
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
         config: TuiConfig,
         terminal: Terminal<CrosstermBackend<Stdout>>,
     ) -> Result<Self> {

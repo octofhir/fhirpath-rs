@@ -31,7 +31,7 @@ pub struct FhirPathEngine {
     /// Function registry for introspection
     function_registry: Arc<FunctionRegistry>,
     /// Model provider for type information
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     /// Optional terminology provider
     terminology_provider: Option<Arc<dyn TerminologyProvider>>,
     /// Optional trace provider
@@ -44,7 +44,7 @@ impl FhirPathEngine {
     /// Create new engine with function registry and model provider
     pub async fn new(
         function_registry: Arc<FunctionRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
     ) -> Result<Self> {
         // Create standard operator registry
         let operator_registry = Arc::new(create_standard_operator_registry());
@@ -71,7 +71,7 @@ impl FhirPathEngine {
     pub async fn new_with_registries(
         operator_registry: Arc<OperatorRegistry>,
         function_registry: Arc<FunctionRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
     ) -> Result<Self> {
         let evaluator = Evaluator::new(
             operator_registry,
@@ -116,7 +116,7 @@ impl FhirPathEngine {
     }
 
     /// Get model provider
-    pub fn get_model_provider(&self) -> Arc<dyn ModelProvider> {
+    pub fn get_model_provider(&self) -> Arc<dyn ModelProvider + Send + Sync> {
         self.model_provider.clone()
     }
 

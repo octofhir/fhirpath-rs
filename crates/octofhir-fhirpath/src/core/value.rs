@@ -147,7 +147,7 @@ pub mod utils {
     /// Convert a JsonValue to a FhirPathValue with proper FHIR resource typing using ModelProvider
     pub async fn json_to_fhirpath_value_with_model_provider(
         json: JsonValue,
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
     ) -> crate::core::Result<FhirPathValue> {
         match json {
             JsonValue::Bool(b) => Ok(FhirPathValue::boolean(b)),

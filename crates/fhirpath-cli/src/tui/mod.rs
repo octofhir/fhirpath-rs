@@ -64,7 +64,7 @@ use octofhir_fhirpath::core::ModelProvider;
 
 /// Main entry point for starting the TUI REPL
 pub async fn start_tui(
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     config: TuiConfig,
     initial_resource: Option<JsonValue>,
     initial_variables: Vec<(String, String)>,

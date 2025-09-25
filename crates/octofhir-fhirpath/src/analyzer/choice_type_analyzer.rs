@@ -69,13 +69,13 @@ impl ChoiceTypeCache {
 
 /// Choice type analyzer for validating choice property usage with full ModelProvider capabilities
 pub struct ChoiceTypeAnalyzer {
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     cache: ChoiceTypeCache,
 }
 
 impl ChoiceTypeAnalyzer {
     /// Create a new ChoiceTypeAnalyzer with the given ModelProvider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         Self {
             model_provider,
             cache: ChoiceTypeCache::new(),

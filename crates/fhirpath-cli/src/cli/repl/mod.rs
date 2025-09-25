@@ -63,7 +63,7 @@ impl Default for ReplConfig {
 
 /// Start the REPL with the given configuration
 pub async fn start_repl(
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     config: ReplConfig,
     initial_resource: Option<JsonValue>,
     initial_variables: Vec<(String, String)>,

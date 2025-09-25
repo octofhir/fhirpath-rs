@@ -273,10 +273,10 @@ pub fn parse_with_mode(input: &str, mode: ParsingMode) -> ParseResult {
 /// ```
 pub async fn parse_with_semantic_analysis(
     input: &str,
-    model_provider: std::sync::Arc<dyn octofhir_fhir_model::ModelProvider>,
+    model_provider: std::sync::Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>,
     context_type: Option<octofhir_fhir_model::TypeInfo>,
 ) -> AnalyzedParseResult {
-    // First parse the expression
+    // First, parse the expression
     let parse_result = parse_analysis(input);
 
     if let Some(ast) = parse_result.ast {

@@ -13,7 +13,7 @@ use crate::tui::app::{AppState, CompletionItem, CompletionKind};
 
 /// Context-aware completion engine
 pub struct CompletionEngine {
-    _model_provider: Arc<dyn ModelProvider>,
+    _model_provider: Arc<dyn ModelProvider + Send + Sync>,
     function_registry: Option<Arc<FunctionRegistry>>,
     // analyzer: Arc<StaticAnalyzer>, // Removed
     cache: CompletionCache,
@@ -39,7 +39,7 @@ pub struct CompletionContext {
 impl CompletionEngine {
     /// Create a new completion engine
     pub async fn new(
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
         function_registry: Arc<FunctionRegistry>,
         // analyzer: Arc<StaticAnalyzer>, // Removed
     ) -> anyhow::Result<Self> {

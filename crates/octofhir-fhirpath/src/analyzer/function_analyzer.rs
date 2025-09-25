@@ -12,7 +12,7 @@ pub type AnalysisResult = Result<AnalysisMetadata, FhirPathError>;
 /// Function analyzer for enhanced function validation with context checking
 pub struct FunctionAnalyzer {
     #[allow(dead_code)]
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     function_registry: Arc<crate::evaluator::FunctionRegistry>,
 }
 
@@ -81,7 +81,7 @@ pub enum ReturnType {
 impl FunctionAnalyzer {
     /// Create a new FunctionAnalyzer with the given ModelProvider and FunctionRegistry
     pub fn new(
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
         function_registry: Arc<crate::evaluator::FunctionRegistry>,
     ) -> Self {
         Self {

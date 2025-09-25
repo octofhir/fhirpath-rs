@@ -17,7 +17,7 @@ pub struct EvaluationContext {
     /// Input collection being evaluated
     input_collection: Collection,
     /// Model provider for type information
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     /// Optional terminology provider
     terminology_provider: Option<Arc<dyn TerminologyProvider>>,
     /// Optional validation provider
@@ -77,7 +77,7 @@ impl EvaluationContext {
     /// Create new evaluation context
     pub async fn new(
         input_collection: Collection,
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
         terminology_provider: Option<Arc<dyn TerminologyProvider>>,
         validation_provider: Option<Arc<dyn ValidationProvider>>,
         trace_provider: Option<SharedTraceProvider>,
@@ -250,7 +250,7 @@ impl EvaluationContext {
     }
 
     /// Get model provider
-    pub fn model_provider(&self) -> &Arc<dyn ModelProvider> {
+    pub fn model_provider(&self) -> &Arc<dyn ModelProvider + Send + Sync> {
         &self.model_provider
     }
 

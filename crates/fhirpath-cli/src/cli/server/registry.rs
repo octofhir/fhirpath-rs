@@ -67,7 +67,7 @@ impl ServerRegistry {
                 FhirPathEngine::new(function_registry.clone(), model_provider_arc.clone()).await?;
 
             if let Ok(validation_provider) = create_validation_provider_from_embedded(
-                model_provider_arc.clone() as Arc<dyn ModelProvider>,
+                model_provider_arc.clone() as Arc<dyn ModelProvider + Send + Sync>,
             )
             .await
             {
@@ -153,7 +153,7 @@ impl ServerRegistry {
             FhirPathEngine::new(self.function_registry.clone(), model_provider.clone()).await?;
 
         if let Ok(validation_provider) = create_validation_provider_from_embedded(
-            model_provider.clone() as Arc<dyn ModelProvider>,
+            model_provider.clone() as Arc<dyn ModelProvider + Send + Sync>,
         )
         .await
         {

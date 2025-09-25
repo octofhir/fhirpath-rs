@@ -11,12 +11,12 @@ pub type AnalysisResult = Result<AnalysisMetadata, FhirPathError>;
 
 /// Type hierarchy analyzer for validating type inheritance using ModelProvider
 pub struct HierarchyAnalyzer {
-    model_provider: Arc<dyn ModelProvider>,
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
 }
 
 impl HierarchyAnalyzer {
     /// Create a new HierarchyAnalyzer with the given ModelProvider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> Self {
         Self { model_provider }
     }
 

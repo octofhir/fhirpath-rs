@@ -80,7 +80,7 @@ mod integration_test_runner {
         engine: FhirPathEngine,
         #[allow(dead_code)]
         registry: Arc<octofhir_fhirpath::FunctionRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
         input_cache: HashMap<String, Value>,
         base_path: PathBuf,
         verbose: bool,
