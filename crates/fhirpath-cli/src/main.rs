@@ -45,7 +45,7 @@ async fn create_fhirpath_engine(
     let registry = Arc::new(create_function_registry());
     let engine = FhirPathEngine::new(registry, model_provider.clone())
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to create FhirPath engine: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to create FhirPath engine: {e}"))?;
 
     let trace_provider = create_cli_provider();
     let mut engine = engine.with_trace_provider(trace_provider);
@@ -1773,9 +1773,7 @@ async fn handle_tui(
         if let Some((name, value)) = var.split_once('=') {
             initial_variables.push((name.to_string(), value.to_string()));
         } else {
-            eprintln!(
-                "Warning: Invalid variable format '{var}', expected 'name=value'"
-            );
+            eprintln!("Warning: Invalid variable format '{var}', expected 'name=value'");
         }
     }
 
@@ -1784,9 +1782,7 @@ async fn handle_tui(
         match load_resource_from_input(input_path) {
             Ok(resource) => Some(resource),
             Err(e) => {
-                eprintln!(
-                    "Warning: Failed to load resource from '{input_path}': {e}"
-                );
+                eprintln!("Warning: Failed to load resource from '{input_path}': {e}");
                 None
             }
         }

@@ -1,5 +1,6 @@
 //! Error handling for the FHIRPath HTTP server
 
+use crate::cli::server::models::RequestError;
 use axum::{
     Json,
     http::StatusCode,
@@ -105,3 +106,11 @@ impl IntoResponse for ServerError {
 
 /// Result type for server operations
 pub type ServerResult<T> = Result<T, ServerError>;
+
+impl From<RequestError> for ServerError {
+    fn from(error: RequestError) -> Self {
+        ServerError::BadRequest {
+            message: error.to_string(),
+        }
+    }
+}

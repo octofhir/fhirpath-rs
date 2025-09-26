@@ -9,11 +9,13 @@
 //! - API-only server (no embedded UI)
 
 pub mod config;
+pub mod context;
 pub mod error;
 pub mod handlers;
 pub mod models;
 pub mod registry;
 pub mod response;
+pub mod results;
 pub mod trace;
 pub mod version;
 

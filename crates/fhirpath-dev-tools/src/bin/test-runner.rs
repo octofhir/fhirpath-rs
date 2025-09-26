@@ -290,10 +290,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             // Check if this is an analyzer category test - run analyzer-only execution
-            let is_analyzer_test = test_case
-                .category
-                .as_ref()
-                .is_some_and(|c| c == "analyzer")
+            let is_analyzer_test = test_case.category.as_ref().is_some_and(|c| c == "analyzer")
                 || test_suite
                     .category
                     .as_ref()

@@ -115,7 +115,6 @@ pub struct SizeConstraints {
     pub preferred_height: Option<u16>,
 }
 
-
 /// Manager for all TUI components
 pub struct ComponentManager {
     input: InputPanel,
