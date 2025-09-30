@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2025-09-25
+Generated on: 2025-09-30
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -12,8 +12,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Test Suites** | 13 | 100% |
-| **Total Individual Tests** | 1135 | 100% |
-| **Passing Tests** | 1135 | 100.0% |
+| **Total Individual Tests** | 1145 | 100% |
+| **Passing Tests** | 1145 | 100.0% |
 | **Failing Tests** | 0 | 0.0% |
 | **Error Tests** | 0 | 0.0% |
 
@@ -28,9 +28,9 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **boolean_logic.json** - 100.0% (3/3 tests) (Complete)
 - **boolean_operations.json** - 100.0% (44/44 tests) (Complete)
 
-### ✅ COLLECTION (100.0% - 112/112 tests)
+### ✅ COLLECTION (100.0% - 122/122 tests)
 
-- **collection_operations.json** - 100.0% (112/112 tests) (Complete)
+- **collection_operations.json** - 100.0% (122/122 tests) (Complete)
 
 ### ✅ COMPARISON (100.0% - 218/218 tests)
 
@@ -66,7 +66,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **analyzer.json** - 28/28 tests (analyzer)
 - **boolean_logic.json** - 3/3 tests (boolean)
 - **boolean_operations.json** - 44/44 tests (boolean)
-- **collection_operations.json** - 112/112 tests (collection)
+- **collection_operations.json** - 122/122 tests (collection)
 - **comparison_operations.json** - 218/218 tests (comparison)
 - **conversion_operations.json** - 27/27 tests (conversion)
 - **type_operations.json** - 3/3 tests (conversion)
@@ -95,10 +95,10 @@ The fhirpath-rs implementation currently passes approximately **100.0% of all FH
 
 ### Key Statistics
 - **Test Suites**: 13
-- **Total Tests**: 1135
+- **Total Tests**: 1145
 - **Pass Rate**: 100.0%
 
 ---
 
-*Report generated on: 2025-09-25 21:55:33*
+*Report generated on: 2025-09-30 16:45:24*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*

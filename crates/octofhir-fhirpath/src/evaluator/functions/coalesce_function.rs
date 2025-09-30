@@ -60,7 +60,7 @@ impl CoalesceFunctionEvaluator {
 impl LazyFunctionEvaluator for CoalesceFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        _input: Vec<FhirPathValue>,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -70,13 +70,6 @@ impl LazyFunctionEvaluator for CoalesceFunctionEvaluator {
                 crate::core::error_code::FP0053,
                 "coalesce function requires at least one argument".to_string(),
             ));
-        }
-
-        // Check if input collection is non-empty first
-        if !input.is_empty() {
-            return Ok(EvaluationResult {
-                value: crate::core::Collection::from(input),
-            });
         }
 
         // Evaluate each argument in order with short-circuit evaluation

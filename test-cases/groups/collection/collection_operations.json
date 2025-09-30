@@ -857,6 +857,186 @@
       "description": "sort function with multiple criteria"
     },
     {
+      "name": "testCoalesce1",
+      "expression": "coalesce(Patient.id, 'fallback') = 'example'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function returns first non-empty value"
+    },
+    {
+      "name": "testCoalesce2",
+      "expression": "coalesce({}, 'fallback') = 'fallback'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function with empty collection returns second argument"
+    },
+    {
+      "name": "testCoalesce3",
+      "expression": "coalesce({}, {}, 'third') = 'third'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function with multiple empty collections"
+    },
+    {
+      "name": "testCoalesce4",
+      "expression": "coalesce(Patient.name.where(use='official'), Patient.name.where(use='usual')).exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function with where filters on Patient name"
+    },
+    {
+      "name": "testCoalesce5",
+      "expression": "coalesce(Patient.name.where(use='official'), Patient.name.where(use='usual'), Patient.name.first()).exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function with three fallback options"
+    },
+    {
+      "name": "testCoalesce6",
+      "expression": "coalesce(Patient.name.where(use='unknown'), Patient.id).first() = 'example'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function returns second argument when first is empty"
+    },
+    {
+      "name": "testCoalesce7",
+      "expression": "coalesce({}, {}, {}).exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function with all empty collections returns empty"
+    },
+    {
+      "name": "testCoalesce8",
+      "expression": "coalesce(Patient.telecom.where(system='phone'), Patient.telecom.where(system='email'), Patient.telecom.first()).exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function with telecom data"
+    },
+    {
+      "name": "testCoalesce9",
+      "expression": "(1 | 2) = coalesce(1 | 2)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function with collection input returns collection"
+    },
+    {
+      "name": "testCoalesce10",
+      "expression": "coalesce((1 | 2), (3 | 4)).count() = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCoalesce"
+      ],
+      "outputTypes": [
+        "boolean"
+      ],
+      "subcategory": "combining",
+      "description": "coalesce function returns first non-empty collection completely"
+    },
+    {
       "name": "testCount1",
       "expression": "Patient.name.count()",
       "input": null,
