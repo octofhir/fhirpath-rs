@@ -878,7 +878,11 @@ fn get_all_test_files(specs_path: &Path) -> Vec<PathBuf> {
                     collect(&path, out);
                 } else if path.extension().is_some_and(|ext| ext == "json") {
                     // Skip metadata.json - it's not a test suite
-                    if path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n == "metadata.json") {
+                    if path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .is_some_and(|n| n == "metadata.json")
+                    {
                         continue;
                     }
                     out.push(path);
