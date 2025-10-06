@@ -376,7 +376,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a18ed336352031311f4e0b4dd2ff392d4fbb370777c9d18d7fc9d7359f73871"
 dependencies = [
  "axum-core",
- "axum-macros 0.5.0",
+ "axum-macros",
  "bytes",
  "form_urlencoded",
  "futures-util",
@@ -421,17 +421,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "axum-macros"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57d123550fa8d071b7255cb0cc04dc302baa6c8c4a79f55701552684d8399bce"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.106",
 ]
 
 [[package]]
@@ -1344,7 +1333,7 @@ dependencies = [
  "anyhow",
  "ariadne",
  "axum",
- "axum-macros 0.4.2",
+ "axum-macros",
  "base64",
  "chrono",
  "clap",
