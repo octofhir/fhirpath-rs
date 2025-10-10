@@ -12,10 +12,10 @@ pub trait JsonValueExt {
     fn as_inner(&self) -> &JsonValue;
 
     /// Get an iterator over object entries
-    fn object_iter(&self) -> Option<serde_json::map::Iter>;
+    fn object_iter(&self) -> Option<serde_json::map::Iter<'_>>;
 
-    /// Get an iterator over array elements  
-    fn array_iter(&self) -> Option<std::slice::Iter<JsonValue>>;
+    /// Get an iterator over array elements
+    fn array_iter(&self) -> Option<std::slice::Iter<'_, JsonValue>>;
 
     /// Get a property from an object
     fn get_property(&self, key: &str) -> Option<&JsonValue>;
@@ -32,11 +32,11 @@ impl JsonValueExt for JsonValue {
         self
     }
 
-    fn object_iter(&self) -> Option<serde_json::map::Iter> {
+    fn object_iter(&self) -> Option<serde_json::map::Iter<'_>> {
         self.as_object().map(|obj| obj.iter())
     }
 
-    fn array_iter(&self) -> Option<std::slice::Iter<JsonValue>> {
+    fn array_iter(&self) -> Option<std::slice::Iter<'_, JsonValue>> {
         self.as_array().map(|arr| arr.iter())
     }
 

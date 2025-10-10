@@ -12,7 +12,7 @@ use axum::{
     extract::State,
     response::{IntoResponse, Json},
 };
-use octofhir_fhir_model::TypeInfo;
+use octofhir_fhir_model::{ModelProvider, TypeInfo};
 use octofhir_fhirpath::diagnostics::DiagnosticSeverity;
 use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode, parse_with_semantic_analysis};
 use serde::{Deserialize, Serialize};
@@ -190,10 +190,7 @@ async fn handle_analysis(
                 offset: loc.offset,
                 length: loc.length,
             }),
-            code: diag
-                .error_code
-                .as_ref()
-                .map(|c| format!("FP{:04}", c.code())),
+            code: Some(diag.code.code.clone()),
         });
     }
 
@@ -270,10 +267,7 @@ async fn handle_analysis(
                 offset: loc.offset,
                 length: loc.length,
             }),
-            code: diag
-                .error_code
-                .as_ref()
-                .map(|c| format!("FP{:04}", c.code())),
+            code: Some(diag.code.code.clone()),
         });
     }
 

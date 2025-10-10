@@ -24,6 +24,9 @@ pub enum ServerError {
     #[error("Invalid FHIR version: {version}")]
     InvalidFhirVersion { version: String },
 
+    #[error("Not supported: {0}")]
+    NotSupported(String),
+
     #[error("File not found: {filename}")]
     FileNotFound { filename: String },
 
@@ -66,6 +69,9 @@ impl IntoResponse for ServerError {
                     version
                 ),
             ),
+            ServerError::NotSupported(ref msg) => {
+                (StatusCode::NOT_IMPLEMENTED, "NOT_SUPPORTED", msg.clone())
+            }
             ServerError::FileNotFound { ref filename } => (
                 StatusCode::NOT_FOUND,
                 "FILE_NOT_FOUND",

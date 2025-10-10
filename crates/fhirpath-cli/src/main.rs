@@ -726,16 +726,15 @@ async fn handle_tui(
     }
 }
 
-/// Load a resource from input (file path or JSON string)
+/// Load a FHIR resource from an input path
 fn load_resource_from_input(input: &str) -> anyhow::Result<serde_json::Value> {
     use anyhow::Context;
 
-    if input.starts_with('{') || input.starts_with('[') {
-        // Input looks like JSON, try to parse directly
-        serde_json::from_str(input).context("Failed to parse input as JSON")
-    } else {
-        // Input is likely a file path
-        let content = std::fs::read_to_string(input).context("Failed to read input file")?;
-        serde_json::from_str(&content).context("Failed to parse file content as JSON")
-    }
+    let content = std::fs::read_to_string(input)
+        .with_context(|| format!("Failed to read file: {}", input))?;
+
+    let json_value: serde_json::Value = serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse JSON from file: {}", input))?;
+
+    Ok(json_value)
 }

@@ -178,14 +178,6 @@ impl ServerRegistry {
     pub fn get_function_registry(&self) -> &Arc<FunctionRegistry> {
         &self.function_registry
     }
-
-    /// Get shared model provider for a version
-    pub fn get_model_provider(
-        &self,
-        version: ServerFhirVersion,
-    ) -> Option<Arc<EmbeddedModelProvider>> {
-        self.model_providers.pin().get(&version).cloned()
-    }
 }
 
 /// Create a model provider for a specific FHIR version
