@@ -319,9 +319,7 @@ async fn handle_evaluate_watch(
     context: &CliContext,
     model_provider: &Arc<EmbeddedModelProvider>,
 ) -> anyhow::Result<()> {
-    use notify_debouncer_full::{
-        DebouncedEvent, Debouncer, FileIdMap, new_debouncer, notify::RecursiveMode,
-    };
+    use notify_debouncer_full::{DebouncedEvent, new_debouncer, notify::RecursiveMode};
     use std::path::Path;
     use std::sync::mpsc::channel;
     use std::time::Duration;
@@ -360,7 +358,7 @@ async fn handle_evaluate_watch(
 
     // Set up file watcher
     let (tx, rx) = channel();
-    let mut debouncer: Debouncer<_, FileIdMap> = new_debouncer(
+    let mut debouncer = new_debouncer(
         Duration::from_millis(500), // 500ms debounce
         None,
         move |result: Result<Vec<DebouncedEvent>, Vec<notify_debouncer_full::notify::Error>>| {
