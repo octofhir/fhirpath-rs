@@ -290,11 +290,11 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
 }
 
 fn apply_requested_scale(mut value: Decimal, requested: Option<u32>) -> Decimal {
-    if let Some(scale) = requested {
-        if value.scale() < scale {
-            // Increase the scale without changing the numeric value
-            value.rescale(scale);
-        }
+    if let Some(scale) = requested
+        && value.scale() < scale
+    {
+        // Increase the scale without changing the numeric value
+        value.rescale(scale);
     }
     value
 }

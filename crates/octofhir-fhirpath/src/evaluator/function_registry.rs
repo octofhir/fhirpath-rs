@@ -211,18 +211,18 @@ pub trait FunctionEvaluator: Send + Sync {
             ));
         }
 
-        if let Some(max_params) = signature.max_params {
-            if args.len() > max_params {
-                return Err(crate::core::FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0053,
-                    format!(
-                        "Function '{}' accepts at most {} arguments, got {}",
-                        metadata.name,
-                        max_params,
-                        args.len()
-                    ),
-                ));
-            }
+        if let Some(max_params) = signature.max_params
+            && args.len() > max_params
+        {
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0053,
+                format!(
+                    "Function '{}' accepts at most {} arguments, got {}",
+                    metadata.name,
+                    max_params,
+                    args.len()
+                ),
+            ));
         }
 
         // TODO: Add type checking for arguments when type system is more mature

@@ -13,7 +13,17 @@ categories = ["command-line-utilities", "healthcare", "science"]
 publish = false
 
 [features]
-default = []
+default = ["repl", "cli"]
+# Core features
+cli = []
+repl = ["reedline", "fuzzy-matcher"]
+tui = ["ratatui", "crossterm", "tui-textarea"]
+server = ["axum", "axum-macros", "tower-http", "papaya", "base64"]
+watch = ["notify", "notify-debouncer-full"]
+# Convenience features
+all = ["cli", "repl", "tui", "server", "watch"]
+# Full feature set for development
+full = ["all"]
 # embedded-providers = ["octofhir-fhirschema/embedded-providers"]
 # dynamic-caching = ["octofhir-fhirschema/dynamic-caching"]
 
@@ -29,36 +39,51 @@ octofhir-fhirpath = { path = "../octofhir-fhirpath" }
 octofhir-fhirschema = { version = "0.3.2" }
 octofhir-fhir-model = { workspace = true }
 
-# Server dependencies  
-axum = { version = "0.8", features = ["multipart", "macros"] }
-axum-macros = "0.4"
-tower-http = { version = "0.6", features = ["cors", "catch-panic", "trace"] }
-papaya = { workspace = true }
+# Server dependencies (optional)
+axum = { version = "0.8", features = ["multipart", "macros"], optional = true }
+axum-macros = { version = "0.4", optional = true }
+tower-http = { version = "0.6", features = ["cors", "catch-panic", "trace"], optional = true }
+papaya = { workspace = true, optional = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { workspace = true }
 rust_decimal = { workspace = true }
 octofhir-ucum = { workspace = true }
-base64 = "0.22"
+base64 = { version = "0.22", optional = true }
 
 # CLI dependencies
 clap = { workspace = true }
+clap_complete = "4.5"    # Shell completion generation
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 colored = { workspace = true }
-reedline = "0.42"
-fuzzy-matcher = "0.3"
+reedline = { version = "0.42", optional = true }
+fuzzy-matcher = { version = "0.3", optional = true }
 tabled = "0.20"
 human-panic = "2.0"
 
-# TUI dependencies
-ratatui = "0.29.0"
-crossterm = "0.29.0"
-tui-textarea = "0.7.0"
-dirs = "6"
+# Modern CLI enhancement libraries
+indicatif = "0.17"       # Progress bars and spinners
+console = "0.15"         # Terminal utilities and styling
+dialoguer = "0.11"       # Interactive prompts
+comfy-table = "7.1"      # Beautiful tables
+nu-ansi-term = "0.50"    # Advanced ANSI colors
+notify = { version = "7.0", optional = true }           # File system watcher for watch mode
+notify-debouncer-full = { version = "0.4", optional = true }  # Debounced file watching
+glob = "0.3"             # File pattern matching for batch processing
+
+# TUI dependencies (optional)
+ratatui = { version = "0.29.0", optional = true }
+crossterm = { version = "0.29.0", optional = true }
+tui-textarea = { version = "0.7.0", optional = true }
+dirs = "6"  # Required for config file management
 toml = "0.9"
 ariadne = "0.5.1"
 tempfile = "3"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"

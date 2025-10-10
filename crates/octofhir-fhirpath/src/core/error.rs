@@ -202,6 +202,33 @@ impl FhirPathError {
     pub fn error_info(&self) -> &'static ErrorInfo {
         self.error_code().info()
     }
+
+    /// Get the source location for this error, if available
+    pub fn location(&self) -> Option<&SourceLocation> {
+        match self {
+            Self::ParseError { location, .. } => location.as_ref(),
+            Self::EvaluationError { location, .. } => location.as_ref(),
+            Self::TypeError { location, .. } => location.as_ref(),
+            Self::ModelError { .. } => None,
+            Self::FunctionError { .. } => None,
+            Self::SystemError { .. } => None,
+        }
+    }
+
+    /// Get the source span (offset and length) for this error, if available
+    pub fn span(&self) -> Option<std::ops::Range<usize>> {
+        self.location()
+            .map(|loc| loc.offset..(loc.offset + loc.length))
+    }
+
+    /// Get the expression being evaluated when this error occurred
+    pub fn expression(&self) -> Option<&str> {
+        match self {
+            Self::ParseError { expression, .. } => Some(expression.as_str()),
+            Self::EvaluationError { expression, .. } => expression.as_ref().map(|s| s.as_str()),
+            _ => None,
+        }
+    }
 }
 
 /// Specialized evaluation error for the evaluation engine

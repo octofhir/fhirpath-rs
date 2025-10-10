@@ -101,6 +101,17 @@ struct JsonLocation {
     span: Option<String>,
 }
 
+impl JsonLocation {
+    /// Create JsonLocation from FhirPath SourceLocation
+    fn from_source_location(loc: &octofhir_fhirpath::core::SourceLocation) -> Self {
+        Self {
+            line: loc.line,
+            column: loc.column,
+            span: Some(format!("{}..{}", loc.offset, loc.offset + loc.length)),
+        }
+    }
+}
+
 #[derive(Serialize)]
 struct JsonMetadata {
     cache_hits: usize,
@@ -182,7 +193,7 @@ impl OutputFormatter for JsonFormatter {
                     .unwrap_or("Error")
                     .to_string(),
                 message: e.to_string(),
-                location: None, // TODO: Extract location if available
+                location: e.location().map(JsonLocation::from_source_location),
             }),
             expression: output.expression.clone(),
             execution_time_ms: output.execution_time.as_secs_f64() * 1000.0,
@@ -211,7 +222,7 @@ impl OutputFormatter for JsonFormatter {
                     .unwrap_or("Error")
                     .to_string(),
                 message: e.to_string(),
-                location: None, // TODO: Extract location if available
+                location: e.location().map(JsonLocation::from_source_location),
             }),
             expression: output.expression.clone(),
             metadata: JsonMetadata {
@@ -285,7 +296,7 @@ impl OutputFormatter for JsonFormatter {
                     .unwrap_or("Error")
                     .to_string(),
                 message: e.to_string(),
-                location: None, // TODO: Extract location if available
+                location: e.location().map(JsonLocation::from_source_location),
             }),
             expression: output.expression.clone(),
             metadata: JsonMetadata {

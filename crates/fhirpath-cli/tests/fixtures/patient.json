@@ -1,0 +1,40 @@
+{
+  "resourceType": "Patient",
+  "id": "example",
+  "active": true,
+  "name": [
+    {
+      "use": "official",
+      "family": "Doe",
+      "given": ["John", "Robert"]
+    },
+    {
+      "use": "nickname",
+      "given": ["Johnny"]
+    }
+  ],
+  "gender": "male",
+  "birthDate": "1974-12-25",
+  "address": [
+    {
+      "use": "home",
+      "line": ["123 Main St"],
+      "city": "Springfield",
+      "state": "IL",
+      "postalCode": "62701",
+      "country": "USA"
+    }
+  ],
+  "telecom": [
+    {
+      "system": "phone",
+      "value": "555-1234",
+      "use": "home"
+    },
+    {
+      "system": "email",
+      "value": "john.doe@example.com",
+      "use": "work"
+    }
+  ]
+}

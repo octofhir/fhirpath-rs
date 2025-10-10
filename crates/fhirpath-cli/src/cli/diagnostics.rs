@@ -76,6 +76,12 @@ impl CliDiagnosticHandler {
                 write!(writer, "{output}")?;
                 Ok(())
             }
+            OutputFormat::Template => {
+                // Template mode: output raw diagnostics (similar to Raw)
+                let output = DiagnosticFormatter::format_raw(diagnostic);
+                write!(writer, "{output}")?;
+                Ok(())
+            }
         }
     }
 
@@ -108,8 +114,8 @@ impl CliDiagnosticHandler {
                 writeln!(writer, "{}", serde_json::to_string_pretty(&output)?)?;
                 Ok(())
             }
-            OutputFormat::Raw => {
-                // Raw mode: Show single consolidated diagnostic with ALL error codes
+            OutputFormat::Raw | OutputFormat::Template => {
+                // Raw/Template mode: Show single consolidated diagnostic with ALL error codes
                 if !diagnostics.is_empty() {
                     let consolidated = self.consolidate_diagnostics(diagnostics);
                     self.report_diagnostic(&consolidated, source_id, writer)?;
@@ -358,8 +364,8 @@ impl CliDiagnosticHandler {
                         .map_err(|e| io::Error::other(e.to_string()))?;
                 write!(writer, "{pretty_output}")?;
             }
-            OutputFormat::Raw => {
-                // Raw format shows compact list
+            OutputFormat::Raw | OutputFormat::Template => {
+                // Raw/Template format shows compact list
                 for (i, diagnostic) in result.diagnostics.diagnostics.iter().enumerate() {
                     writeln!(
                         writer,
@@ -404,7 +410,9 @@ impl CliDiagnosticHandler {
 pub fn error_to_diagnostic(error: &octofhir_fhirpath::core::FhirPathError) -> AriadneDiagnostic {
     let error_code = error.error_code();
     let message = error.to_string();
-    let span = 0..0; // TODO: Extract actual span from error when available
+
+    // Extract actual span from error if available, otherwise use placeholder
+    let span = error.span().unwrap_or(0..0);
 
     AriadneDiagnostic {
         severity: DiagnosticSeverity::Error,

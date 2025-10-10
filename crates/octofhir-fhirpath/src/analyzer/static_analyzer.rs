@@ -444,41 +444,36 @@ impl StaticAnalyzer {
         diagnostics: &mut Vec<AriadneDiagnostic>,
     ) {
         // Check for resourceType parameter assignments
-        if let ExpressionNode::BinaryOperation(comparison) = arg {
-            if comparison.operator == crate::ast::BinaryOperator::Equal {
-                if let (ExpressionNode::Identifier(left), ExpressionNode::Literal(literal)) =
-                    (&*comparison.left, &*comparison.right)
-                {
-                    if left.name == "resourceType" {
-                        if let crate::ast::LiteralValue::String(resource_type) = &literal.value {
-                            if !self.is_valid_resource_type(resource_type) {
-                                let valid_types = self.get_valid_resource_types();
-                                let message = format!(
-                                    "Invalid resourceType '{}', valid types: {}",
-                                    resource_type,
-                                    valid_types.join(", ")
-                                );
+        if let ExpressionNode::BinaryOperation(comparison) = arg
+            && comparison.operator == crate::ast::BinaryOperator::Equal
+            && let (ExpressionNode::Identifier(left), ExpressionNode::Literal(literal)) =
+                (&*comparison.left, &*comparison.right)
+            && left.name == "resourceType"
+            && let crate::ast::LiteralValue::String(resource_type) = &literal.value
+            && !self.is_valid_resource_type(resource_type)
+        {
+            let valid_types = self.get_valid_resource_types();
+            let message = format!(
+                "Invalid resourceType '{}', valid types: {}",
+                resource_type,
+                valid_types.join(", ")
+            );
 
-                                let span = literal
-                                    .location
-                                    .clone()
-                                    .map(|l| l.offset..l.offset + l.length)
-                                    .unwrap_or_else(|| self.calculate_literal_span(resource_type));
+            let span = literal
+                .location
+                .clone()
+                .map(|l| l.offset..l.offset + l.length)
+                .unwrap_or_else(|| self.calculate_literal_span(resource_type));
 
-                                diagnostics.push(AriadneDiagnostic {
-                                    severity: DiagnosticSeverity::Error,
-                                    error_code: crate::core::error_code::FP0001,
-                                    message,
-                                    span,
-                                    help: None,
-                                    note: None,
-                                    related: Vec::new(),
-                                });
-                            }
-                        }
-                    }
-                }
-            }
+            diagnostics.push(AriadneDiagnostic {
+                severity: DiagnosticSeverity::Error,
+                error_code: crate::core::error_code::FP0001,
+                message,
+                span,
+                help: None,
+                note: None,
+                related: Vec::new(),
+            });
         }
     }
 
@@ -1036,19 +1031,19 @@ impl StaticAnalyzer {
                 }
 
                 // Check if the argument is a string literal representing a type
-                if let ExpressionNode::Literal(literal_node) = &arguments[0] {
-                    if let crate::ast::LiteralValue::String(type_name) = &literal_node.value {
-                        // Validate that the resource type value is a valid FHIR resource type
+                if let ExpressionNode::Literal(literal_node) = &arguments[0]
+                    && let crate::ast::LiteralValue::String(type_name) = &literal_node.value
+                {
+                    // Validate that the resource type value is a valid FHIR resource type
 
-                        // Also validate if this type operation makes sense for the current type
-                        self.validate_type_operation(
-                            function_name,
-                            current_type,
-                            type_name,
-                            diagnostics,
-                        )
-                        .await;
-                    }
+                    // Also validate if this type operation makes sense for the current type
+                    self.validate_type_operation(
+                        function_name,
+                        current_type,
+                        type_name,
+                        diagnostics,
+                    )
+                    .await;
                 }
             }
             _ => {
@@ -1221,13 +1216,13 @@ impl StaticAnalyzer {
         // and find their position in the expression
 
         // Look for property names in quotes
-        if let Some(property_start) = diagnostic.message.find("'") {
-            if let Some(property_end) = diagnostic.message[property_start + 1..].find("'") {
-                let property_name =
-                    &diagnostic.message[property_start + 1..property_start + 1 + property_end];
-                if let Some(pos) = expression.find(property_name) {
-                    return pos..pos + property_name.len();
-                }
+        if let Some(property_start) = diagnostic.message.find("'")
+            && let Some(property_end) = diagnostic.message[property_start + 1..].find("'")
+        {
+            let property_name =
+                &diagnostic.message[property_start + 1..property_start + 1 + property_end];
+            if let Some(pos) = expression.find(property_name) {
+                return pos..pos + property_name.len();
             }
         }
 
@@ -1242,10 +1237,10 @@ impl StaticAnalyzer {
             "last",
         ];
         for word in &function_names {
-            if diagnostic.message.contains(word) {
-                if let Some(pos) = expression.find(word) {
-                    return pos..pos + word.len();
-                }
+            if diagnostic.message.contains(word)
+                && let Some(pos) = expression.find(word)
+            {
+                return pos..pos + word.len();
             }
         }
 

@@ -326,9 +326,7 @@ mod integration_test_runner {
             };
 
             // Check if this is an analyzer category test - run analyzer-only execution
-            let is_analyzer_test = test.category.as_ref().is_some_and(|c| c == "analyzer");
-
-            if is_analyzer_test {
+            if test.category.as_ref().is_some_and(|c| c == "analyzer") {
                 // For analyzer tests, only run semantic analysis
                 let context_type = if input_data != serde_json::Value::Null {
                     // Try to determine FHIR resource type from input
@@ -355,28 +353,28 @@ mod integration_test_runner {
                 .await;
 
                 if test.expect_error.unwrap_or(false) {
-                    if let Some(ref invalid_kind) = test.invalid_kind {
-                        if invalid_kind == "semantic" || invalid_kind == "syntax" {
-                            // Expect semantic/syntax error
-                            if !semantic_result.analysis.success {
-                                // Found error as expected
-                                for diagnostic in &semantic_result.analysis.diagnostics {
-                                    if matches!(
-                                        diagnostic.severity,
-                                        octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
-                                    ) {
-                                        return TestResult::Passed;
-                                    }
+                    if let Some(ref invalid_kind) = test.invalid_kind
+                        && (invalid_kind == "semantic" || invalid_kind == "syntax")
+                    {
+                        // Expect semantic/syntax error
+                        if !semantic_result.analysis.success {
+                            // Found error as expected
+                            for diagnostic in &semantic_result.analysis.diagnostics {
+                                if matches!(
+                                    diagnostic.severity,
+                                    octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                                ) {
+                                    return TestResult::Passed;
                                 }
                             }
-                            // No error found when expected
-                            return TestResult::Failed {
-                                expected: serde_json::Value::String(format!(
-                                    "{invalid_kind} error expected"
-                                )),
-                                actual: serde_json::Value::String("No error detected".to_string()),
-                            };
                         }
+                        // No error found when expected
+                        return TestResult::Failed {
+                            expected: serde_json::Value::String(format!(
+                                "{invalid_kind} error expected"
+                            )),
+                            actual: serde_json::Value::String("No error detected".to_string()),
+                        };
                     }
                 } else {
                     // Expect successful analysis - but continue with full evaluation if semantic analysis passes
@@ -421,57 +419,51 @@ mod integration_test_runner {
             }
 
             // For non-analyzer tests, check for semantic errors first if test expects an error
-            if test.expect_error.unwrap_or(false) {
-                if let Some(ref invalid_kind) = test.invalid_kind {
-                    if invalid_kind == "semantic" {
-                        // Extract context type from input data if available
-                        let context_type = if input_data != serde_json::Value::Null {
-                            // Try to determine FHIR resource type from input
-                            if let Some(resource_type) =
-                                input_data.get("resourceType").and_then(|v| v.as_str())
-                            {
-                                self.model_provider
-                                    .get_type(resource_type)
-                                    .await
-                                    .ok()
-                                    .flatten()
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
+            if test.expect_error.unwrap_or(false)
+                && let Some(ref invalid_kind) = test.invalid_kind
+                && invalid_kind == "semantic"
+            {
+                // Extract context type from input data if available
+                let context_type = if input_data != serde_json::Value::Null {
+                    // Try to determine FHIR resource type from input
+                    if let Some(resource_type) =
+                        input_data.get("resourceType").and_then(|v| v.as_str())
+                    {
+                        self.model_provider
+                            .get_type(resource_type)
+                            .await
+                            .ok()
+                            .flatten()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
 
-                        let semantic_result =
-                            octofhir_fhirpath::parser::parse_with_semantic_analysis(
-                                &test.expression,
-                                self.model_provider.clone(),
-                                context_type,
-                            )
-                            .await;
+                let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
+                    &test.expression,
+                    self.model_provider.clone(),
+                    context_type,
+                )
+                .await;
 
-                        if !semantic_result.analysis.success {
-                            // Found semantic error as expected
-                            for diagnostic in &semantic_result.analysis.diagnostics {
-                                if matches!(
-                                    diagnostic.severity,
-                                    octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
-                                ) {
-                                    return TestResult::Passed;
-                                }
-                            }
+                if !semantic_result.analysis.success {
+                    // Found semantic error as expected
+                    for diagnostic in &semantic_result.analysis.diagnostics {
+                        if matches!(
+                            diagnostic.severity,
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                        ) {
+                            return TestResult::Passed;
                         }
-                        // If we get here, no semantic error was found
-                        return TestResult::Failed {
-                            expected: serde_json::Value::String(
-                                "Semantic error expected".to_string(),
-                            ),
-                            actual: serde_json::Value::String(
-                                "No semantic error detected".to_string(),
-                            ),
-                        };
                     }
                 }
+                // If we get here, no semantic error was found
+                return TestResult::Failed {
+                    expected: serde_json::Value::String("Semantic error expected".to_string()),
+                    actual: serde_json::Value::String("No semantic error detected".to_string()),
+                };
             }
 
             // Convert input_data to FhirPathValue and create context - same as test-runner
@@ -544,18 +536,17 @@ mod integration_test_runner {
                 };
             }
 
-            if !test.output_types.is_empty() {
-                if let Err(TypeMismatch { expected, actual }) =
+            if !test.output_types.is_empty()
+                && let Err(TypeMismatch { expected, actual }) =
                     verify_output_types(&test.output_types, &result)
-                {
-                    return TestResult::Failed {
-                        expected: json!({"values": test.expected.clone(), "types": expected}),
-                        actual: json!({
-                            "values": serde_json::to_value(&result).unwrap_or_default(),
-                            "types": actual,
-                        }),
-                    };
-                }
+            {
+                return TestResult::Failed {
+                    expected: json!({"values": test.expected.clone(), "types": expected}),
+                    actual: json!({
+                        "values": serde_json::to_value(&result).unwrap_or_default(),
+                        "types": actual,
+                    }),
+                };
             }
 
             if self.verbose {

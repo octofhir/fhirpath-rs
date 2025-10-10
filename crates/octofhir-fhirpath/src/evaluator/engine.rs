@@ -169,12 +169,12 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> Result<Option<String>> {
         for item in context.input_collection().iter() {
-            if let FhirPathValue::Resource(json, _, _) = item {
-                if let Some(resource_type) = json.get("resourceType").and_then(|rt| rt.as_str()) {
-                    // Validate that this is a known FHIR resource type
-                    if self.model_provider.get_type(resource_type).await.is_ok() {
-                        return Ok(Some(resource_type.to_string()));
-                    }
+            if let FhirPathValue::Resource(json, _, _) = item
+                && let Some(resource_type) = json.get("resourceType").and_then(|rt| rt.as_str())
+            {
+                // Validate that this is a known FHIR resource type
+                if self.model_provider.get_type(resource_type).await.is_ok() {
+                    return Ok(Some(resource_type.to_string()));
                 }
             }
         }

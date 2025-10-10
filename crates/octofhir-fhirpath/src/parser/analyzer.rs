@@ -135,17 +135,17 @@ impl SemanticAnalyzer {
         // and find their position in the expression
 
         // Look for property names in quotes
-        if let Some(property_start) = message.find("'") {
-            if let Some(property_end) = message[property_start + 1..].find("'") {
-                let property_name = &message[property_start + 1..property_start + 1 + property_end];
-                if let Some(pos) = expression_text.find(property_name) {
-                    return Some(SourceLocation {
-                        offset: pos,
-                        length: property_name.len(),
-                        line: 1,
-                        column: pos + 1,
-                    });
-                }
+        if let Some(property_start) = message.find("'")
+            && let Some(property_end) = message[property_start + 1..].find("'")
+        {
+            let property_name = &message[property_start + 1..property_start + 1 + property_end];
+            if let Some(pos) = expression_text.find(property_name) {
+                return Some(SourceLocation {
+                    offset: pos,
+                    length: property_name.len(),
+                    line: 1,
+                    column: pos + 1,
+                });
             }
         }
 
@@ -160,15 +160,15 @@ impl SemanticAnalyzer {
             "last",
         ];
         for word in &function_names {
-            if message.contains(word) {
-                if let Some(pos) = expression_text.find(word) {
-                    return Some(SourceLocation {
-                        offset: pos,
-                        length: word.len(),
-                        line: 1,
-                        column: pos + 1,
-                    });
-                }
+            if message.contains(word)
+                && let Some(pos) = expression_text.find(word)
+            {
+                return Some(SourceLocation {
+                    offset: pos,
+                    length: word.len(),
+                    line: 1,
+                    column: pos + 1,
+                });
             }
         }
 
@@ -362,13 +362,13 @@ impl SemanticAnalyzer {
 
         // Chain-head rule: at the head of a navigation chain, allow treating the
         // identifier as a known type to seed the chain (e.g., Patient.name)
-        if self.is_chain_head {
-            if let Ok(Some(type_info)) = self.model_provider.get_type(name).await {
-                metadata.type_info = Some(type_info.clone());
-                self.input_type = Some(type_info);
-                self.is_chain_head = false;
-                return Ok(metadata);
-            }
+        if self.is_chain_head
+            && let Ok(Some(type_info)) = self.model_provider.get_type(name).await
+        {
+            metadata.type_info = Some(type_info.clone());
+            self.input_type = Some(type_info);
+            self.is_chain_head = false;
+            return Ok(metadata);
         }
 
         // Without a model provider or context, we can't know the type
@@ -620,20 +620,20 @@ impl SemanticAnalyzer {
             let _metadata = self.analyze_node(condition_expr, analysis).await?;
 
             // Check if it's a literal non-boolean value
-            if let ExpressionNode::Literal(literal) = condition_expr {
-                if !matches!(literal.value, LiteralValue::Boolean(_)) {
-                    analysis.success = false;
-                    analysis.add_diagnostic(Diagnostic {
-                        severity: DiagnosticSeverity::Error,
-                        code: DiagnosticCode {
-                            code: "TYPE_MISMATCH".to_string(),
-                            namespace: Some("fhirpath".to_string()),
-                        },
-                        message: "iif function condition must be boolean".to_string(),
-                        location: condition_expr.location().cloned(),
-                        related: vec![],
-                    });
-                }
+            if let ExpressionNode::Literal(literal) = condition_expr
+                && !matches!(literal.value, LiteralValue::Boolean(_))
+            {
+                analysis.success = false;
+                analysis.add_diagnostic(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "TYPE_MISMATCH".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: "iif function condition must be boolean".to_string(),
+                    location: condition_expr.location().cloned(),
+                    related: vec![],
+                });
             }
 
             // Check if condition involves union operations (creates collections)
@@ -665,54 +665,48 @@ impl SemanticAnalyzer {
         }
 
         // defineVariable-specific semantic checks: add variable to current scope when name is literal
-        if func_call.name == "defineVariable" {
-            if let Some(first_arg) = func_call.arguments.first() {
-                if let ExpressionNode::Literal(lit) = first_arg {
-                    if let LiteralValue::String(var_name) = &lit.value {
-                        let base = var_name.as_str();
-                        // Reserved names check
-                        let is_reserved = self.reserved_vars.contains(base)
-                            || base.starts_with("vs-")
-                            || base.starts_with("ext-");
-                        if is_reserved {
-                            analysis.success = false;
-                            analysis.add_diagnostic(Diagnostic {
-                                severity: DiagnosticSeverity::Error,
-                                code: DiagnosticCode {
-                                    code: "RESERVED_VARIABLE".to_string(),
-                                    namespace: Some("fhirpath".to_string()),
-                                },
-                                message: format!(
-                                    "Variable name '{base}' is reserved and cannot be redefined"
-                                ),
-                                location: first_arg.location().cloned(),
-                                related: vec![],
-                            });
-                        } else {
-                            // Duplicate in current scope?
-                            if let Some(current) = self.var_scopes.last() {
-                                if current.contains(base) {
-                                    analysis.success = false;
-                                    analysis.add_diagnostic(Diagnostic {
-                                        severity: DiagnosticSeverity::Error,
-                                        code: DiagnosticCode {
-                                            code: "VARIABLE_REDEFINITION".to_string(),
-                                            namespace: Some("fhirpath".to_string()),
-                                        },
-                                        message: format!(
-                                            "Variable '{base}' is already defined in this scope"
-                                        ),
-                                        location: first_arg.location().cloned(),
-                                        related: vec![],
-                                    });
-                                }
-                            }
-                            // Insert into current scope for subsequent chain
-                            if let Some(current) = self.var_scopes.last_mut() {
-                                current.insert(base.to_string());
-                            }
-                        }
-                    }
+        if func_call.name == "defineVariable"
+            && let Some(first_arg) = func_call.arguments.first()
+            && let ExpressionNode::Literal(lit) = first_arg
+            && let LiteralValue::String(var_name) = &lit.value
+        {
+            let base = var_name.as_str();
+            // Reserved names check
+            let is_reserved = self.reserved_vars.contains(base)
+                || base.starts_with("vs-")
+                || base.starts_with("ext-");
+            if is_reserved {
+                analysis.success = false;
+                analysis.add_diagnostic(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "RESERVED_VARIABLE".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: format!("Variable name '{base}' is reserved and cannot be redefined"),
+                    location: first_arg.location().cloned(),
+                    related: vec![],
+                });
+            } else {
+                // Duplicate in current scope?
+                if let Some(current) = self.var_scopes.last()
+                    && current.contains(base)
+                {
+                    analysis.success = false;
+                    analysis.add_diagnostic(Diagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        code: DiagnosticCode {
+                            code: "VARIABLE_REDEFINITION".to_string(),
+                            namespace: Some("fhirpath".to_string()),
+                        },
+                        message: format!("Variable '{base}' is already defined in this scope"),
+                        location: first_arg.location().cloned(),
+                        related: vec![],
+                    });
+                }
+                // Insert into current scope for subsequent chain
+                if let Some(current) = self.var_scopes.last_mut() {
+                    current.insert(base.to_string());
                 }
             }
         }
@@ -743,20 +737,20 @@ impl SemanticAnalyzer {
             let _metadata = self.analyze_node(condition_expr, analysis).await?;
 
             // Check if it's a literal non-boolean value
-            if let ExpressionNode::Literal(literal) = condition_expr {
-                if !matches!(literal.value, LiteralValue::Boolean(_)) {
-                    analysis.success = false;
-                    analysis.add_diagnostic(Diagnostic {
-                        severity: DiagnosticSeverity::Error,
-                        code: DiagnosticCode {
-                            code: "TYPE_MISMATCH".to_string(),
-                            namespace: Some("fhirpath".to_string()),
-                        },
-                        message: "iif function condition must be boolean".to_string(),
-                        location: condition_expr.location().cloned(),
-                        related: vec![],
-                    });
-                }
+            if let ExpressionNode::Literal(literal) = condition_expr
+                && !matches!(literal.value, LiteralValue::Boolean(_))
+            {
+                analysis.success = false;
+                analysis.add_diagnostic(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "TYPE_MISMATCH".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: "iif function condition must be boolean".to_string(),
+                    location: condition_expr.location().cloned(),
+                    related: vec![],
+                });
             }
 
             // Check if condition involves union operations (creates collections)
@@ -784,51 +778,45 @@ impl SemanticAnalyzer {
         }
 
         // defineVariable-specific handling for method calls
-        if method_call.method == "defineVariable" {
-            if let Some(first_arg) = method_call.arguments.first() {
-                if let ExpressionNode::Literal(lit) = first_arg {
-                    if let LiteralValue::String(var_name) = &lit.value {
-                        let base = var_name.as_str();
-                        let is_reserved = self.reserved_vars.contains(base)
-                            || base.starts_with("vs-")
-                            || base.starts_with("ext-");
-                        if is_reserved {
-                            analysis.success = false;
-                            analysis.add_diagnostic(Diagnostic {
-                                severity: DiagnosticSeverity::Error,
-                                code: DiagnosticCode {
-                                    code: "RESERVED_VARIABLE".to_string(),
-                                    namespace: Some("fhirpath".to_string()),
-                                },
-                                message: format!(
-                                    "Variable name '{base}' is reserved and cannot be redefined"
-                                ),
-                                location: first_arg.location().cloned(),
-                                related: vec![],
-                            });
-                        } else {
-                            if let Some(current) = self.var_scopes.last() {
-                                if current.contains(base) {
-                                    analysis.success = false;
-                                    analysis.add_diagnostic(Diagnostic {
-                                        severity: DiagnosticSeverity::Error,
-                                        code: DiagnosticCode {
-                                            code: "VARIABLE_REDEFINITION".to_string(),
-                                            namespace: Some("fhirpath".to_string()),
-                                        },
-                                        message: format!(
-                                            "Variable '{base}' is already defined in this scope"
-                                        ),
-                                        location: first_arg.location().cloned(),
-                                        related: vec![],
-                                    });
-                                }
-                            }
-                            if let Some(current) = self.var_scopes.last_mut() {
-                                current.insert(base.to_string());
-                            }
-                        }
-                    }
+        if method_call.method == "defineVariable"
+            && let Some(first_arg) = method_call.arguments.first()
+            && let ExpressionNode::Literal(lit) = first_arg
+            && let LiteralValue::String(var_name) = &lit.value
+        {
+            let base = var_name.as_str();
+            let is_reserved = self.reserved_vars.contains(base)
+                || base.starts_with("vs-")
+                || base.starts_with("ext-");
+            if is_reserved {
+                analysis.success = false;
+                analysis.add_diagnostic(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "RESERVED_VARIABLE".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: format!("Variable name '{base}' is reserved and cannot be redefined"),
+                    location: first_arg.location().cloned(),
+                    related: vec![],
+                });
+            } else {
+                if let Some(current) = self.var_scopes.last()
+                    && current.contains(base)
+                {
+                    analysis.success = false;
+                    analysis.add_diagnostic(Diagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        code: DiagnosticCode {
+                            code: "VARIABLE_REDEFINITION".to_string(),
+                            namespace: Some("fhirpath".to_string()),
+                        },
+                        message: format!("Variable '{base}' is already defined in this scope"),
+                        location: first_arg.location().cloned(),
+                        related: vec![],
+                    });
+                }
+                if let Some(current) = self.var_scopes.last_mut() {
+                    current.insert(base.to_string());
                 }
             }
         }

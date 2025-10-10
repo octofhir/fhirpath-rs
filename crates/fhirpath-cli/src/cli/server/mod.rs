@@ -36,6 +36,7 @@ use tracing::{info, warn};
 use crate::cli::server::{
     config::ServerConfig,
     handlers::{
+        analyze_r4_handler, analyze_r4b_handler, analyze_r5_handler, analyze_r6_handler,
         fhirpath_lab_handler, fhirpath_lab_r4_handler, fhirpath_lab_r4b_handler,
         fhirpath_lab_r5_handler, fhirpath_lab_r6_handler, health_handler, version_handler,
     },
@@ -99,17 +100,23 @@ async fn create_app(registry: ServerRegistry, config: ServerConfig) -> anyhow::R
             .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap()) // Default frontend dev server
     };
 
-    // Create FHIRPath Lab API routes (start with just health checks)
+    // Create FHIRPath Lab API routes
     let app = Router::new()
         // Health check endpoints
         .route("/health", get(health_handler))
         .route("/healthz", get(health_handler))
         .route("/version", get(version_handler))
+        // Evaluation endpoints
         .route("/", post(fhirpath_lab_handler))
         .route("/r4", post(fhirpath_lab_r4_handler))
         .route("/r4b", post(fhirpath_lab_r4b_handler))
         .route("/r5", post(fhirpath_lab_r5_handler))
-        .route("/r6", post(fhirpath_lab_r6_handler));
+        .route("/r6", post(fhirpath_lab_r6_handler))
+        // Analysis endpoints
+        .route("/r4/analyze", post(analyze_r4_handler))
+        .route("/r4b/analyze", post(analyze_r4b_handler))
+        .route("/r5/analyze", post(analyze_r5_handler))
+        .route("/r6/analyze", post(analyze_r6_handler));
 
     // Apply middleware
     let app = app

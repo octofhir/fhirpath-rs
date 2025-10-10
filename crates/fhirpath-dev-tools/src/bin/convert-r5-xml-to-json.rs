@@ -195,15 +195,17 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                     "expression" => {
                         // Capture expression attributes
                         for a in e.attributes().flatten() {
-                            if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
-                                if k == "invalid" {
-                                    current_expect_error = true;
-                                    current_invalid_kind =
-                                        Some(a.unescape_value().unwrap_or_default().to_string());
-                                } else if k == "mode" {
-                                    current_expr_mode =
-                                        Some(a.unescape_value().unwrap_or_default().to_string());
-                                }
+                            if let Ok(k) = std::str::from_utf8(a.key.as_ref())
+                                && k == "invalid"
+                            {
+                                current_expect_error = true;
+                                current_invalid_kind =
+                                    Some(a.unescape_value().unwrap_or_default().to_string());
+                            } else if let Ok(k) = std::str::from_utf8(a.key.as_ref())
+                                && k == "mode"
+                            {
+                                current_expr_mode =
+                                    Some(a.unescape_value().unwrap_or_default().to_string());
                             }
                         }
 
@@ -218,11 +220,11 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         // Capture output type
                         _current_output_type = None;
                         for a in e.attributes().flatten() {
-                            if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
-                                if k == "type" {
-                                    _current_output_type =
-                                        Some(a.unescape_value().unwrap_or_default().to_string());
-                                }
+                            if let Ok(k) = std::str::from_utf8(a.key.as_ref())
+                                && k == "type"
+                            {
+                                _current_output_type =
+                                    Some(a.unescape_value().unwrap_or_default().to_string());
                             }
                         }
 

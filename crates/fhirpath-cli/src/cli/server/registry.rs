@@ -27,7 +27,6 @@ pub struct ServerRegistry {
     function_registry: Arc<FunctionRegistry>,
     /// Shared model providers for per-request engine creation
     model_providers: HashMap<ServerFhirVersion, Arc<EmbeddedModelProvider>>,
-    // TODO: Add proper analysis engines when analyzer is integrated
 }
 
 impl ServerRegistry {
@@ -128,8 +127,15 @@ impl ServerRegistry {
 
     /// Check if analysis is supported for a FHIR version
     pub fn supports_analysis(&self, version: ServerFhirVersion) -> bool {
-        // TODO: Add proper analysis support when analyzer is integrated
         self.evaluation_engines.pin().contains_key(&version)
+    }
+
+    /// Get model provider for a FHIR version
+    pub fn get_model_provider(
+        &self,
+        version: ServerFhirVersion,
+    ) -> Option<Arc<EmbeddedModelProvider>> {
+        self.model_providers.pin().get(&version).cloned()
     }
 
     /// Create a new engine for the given FHIR version (per-request)

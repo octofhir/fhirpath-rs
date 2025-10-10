@@ -51,30 +51,27 @@ impl OfTypeFunctionEvaluator {
         };
 
         // Check if it's a primitive type
-        if let Ok(primitive_types) = model_provider.get_primitive_types().await {
-            if primitive_types.contains(&base_type_name.to_string())
-                || primitive_types.contains(&type_name.to_string())
-            {
-                return true;
-            }
+        if let Ok(primitive_types) = model_provider.get_primitive_types().await
+            && (primitive_types.contains(&base_type_name.to_string())
+                || primitive_types.contains(&type_name.to_string()))
+        {
+            return true;
         }
 
         // Check if it's a complex type
-        if let Ok(complex_types) = model_provider.get_complex_types().await {
-            if complex_types.contains(&base_type_name.to_string())
-                || complex_types.contains(&type_name.to_string())
-            {
-                return true;
-            }
+        if let Ok(complex_types) = model_provider.get_complex_types().await
+            && (complex_types.contains(&base_type_name.to_string())
+                || complex_types.contains(&type_name.to_string()))
+        {
+            return true;
         }
 
         // Check if it's a FHIR resource type - try to get resource types from model provider
-        if let Ok(resource_types) = model_provider.get_resource_types().await {
-            if resource_types.contains(&base_type_name.to_string())
-                || resource_types.contains(&type_name.to_string())
-            {
-                return true;
-            }
+        if let Ok(resource_types) = model_provider.get_resource_types().await
+            && (resource_types.contains(&base_type_name.to_string())
+                || resource_types.contains(&type_name.to_string()))
+        {
+            return true;
         }
 
         // Allow common FHIR resource types even if not in model provider

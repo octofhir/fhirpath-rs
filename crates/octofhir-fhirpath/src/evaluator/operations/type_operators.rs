@@ -66,22 +66,20 @@ impl IsOperatorEvaluator {
         }
 
         // Check namespace compatibility if specified
-        if let Some(target_ns) = target_namespace {
-            if let Some(value_ns) = &value_type.namespace {
-                if value_ns != target_ns {
-                    return Ok(false);
-                }
-            }
+        if let Some(target_ns) = target_namespace
+            && let Some(value_ns) = &value_type.namespace
+            && value_ns != target_ns
+        {
+            return Ok(false);
         }
 
         // Check inheritance hierarchy using ModelProvider
-        if let Some(value_name) = &value_type.name {
-            if context
+        if let Some(value_name) = &value_type.name
+            && context
                 .model_provider()
                 .is_type_derived_from(value_name, target_type_name)
-            {
-                return Ok(true);
-            }
+        {
+            return Ok(true);
         }
 
         // Check type_name derivation as well
@@ -213,22 +211,20 @@ impl AsOperatorEvaluator {
         }
 
         // Check namespace compatibility if specified
-        if let Some(target_ns) = target_namespace {
-            if let Some(value_ns) = &value_type.namespace {
-                if value_ns != target_ns {
-                    return Ok(false);
-                }
-            }
+        if let Some(target_ns) = target_namespace
+            && let Some(value_ns) = &value_type.namespace
+            && value_ns != target_ns
+        {
+            return Ok(false);
         }
 
         // Check inheritance hierarchy using ModelProvider
-        if let Some(value_name) = &value_type.name {
-            if context
+        if let Some(value_name) = &value_type.name
+            && context
                 .model_provider()
                 .is_type_derived_from(value_name, target_type_name)
-            {
-                return Ok(true);
-            }
+        {
+            return Ok(true);
         }
 
         // Check type_name derivation as well

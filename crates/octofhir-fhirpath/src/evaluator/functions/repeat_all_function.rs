@@ -156,18 +156,18 @@ impl LazyFunctionEvaluator for RepeatAllFunctionEvaluator {
 
         // Check for infinite constant repetition before starting
         // If the expression is a constant that equals any input item, it will loop infinitely
-        if let ExpressionNode::Literal(literal) = projection_expr {
-            if let Some(literal_value) = self.literal_to_fhirpath_value(literal) {
-                for item in &input {
-                    if self.values_equal(item, &literal_value) {
-                        return Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0061,
-                            format!(
-                                "repeatAll function with constant '{}' would create infinite loop",
-                                self.value_to_string(&literal_value)
-                            ),
-                        ));
-                    }
+        if let ExpressionNode::Literal(literal) = projection_expr
+            && let Some(literal_value) = self.literal_to_fhirpath_value(literal)
+        {
+            for item in &input {
+                if self.values_equal(item, &literal_value) {
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0061,
+                        format!(
+                            "repeatAll function with constant '{}' would create infinite loop",
+                            self.value_to_string(&literal_value)
+                        ),
+                    ));
                 }
             }
         }

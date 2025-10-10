@@ -96,11 +96,11 @@ impl ResolveFunctionEvaluator {
             "$this",
         ];
         for name in var_names {
-            if let Some(v) = context.get_variable(name) {
-                if matches!(v, FhirPathValue::Resource(_, _, _)) {
-                    root_resource_opt = Some(v);
-                    break;
-                }
+            if let Some(v) = context.get_variable(name)
+                && matches!(v, FhirPathValue::Resource(_, _, _))
+            {
+                root_resource_opt = Some(v);
+                break;
             }
         }
         // Fall back to finding any Resource in the current input collection
@@ -153,16 +153,15 @@ impl ResolveFunctionEvaluator {
         for item in root_collection.iter() {
             if let FhirPathValue::Resource(resource_json, _type_info, _primitive) = item {
                 // Check contained resources
-                if let Some(contained_array) = resource_json.get("contained") {
-                    if let Some(contained_list) = contained_array.as_array() {
-                        for contained_resource in contained_list {
-                            if let Some(item_id) = contained_resource.get("id") {
-                                if let Some(id_str) = item_id.as_str() {
-                                    if id_str == id {
-                                        return Some(Arc::new(contained_resource.clone()));
-                                    }
-                                }
-                            }
+                if let Some(contained_array) = resource_json.get("contained")
+                    && let Some(contained_list) = contained_array.as_array()
+                {
+                    for contained_resource in contained_list {
+                        if let Some(item_id) = contained_resource.get("id")
+                            && let Some(id_str) = item_id.as_str()
+                            && id_str == id
+                        {
+                            return Some(Arc::new(contained_resource.clone()));
                         }
                     }
                 }
@@ -188,51 +187,51 @@ impl ResolveFunctionEvaluator {
         for item in root_collection.iter() {
             if let FhirPathValue::Resource(resource_json, _type_info, _primitive) = item {
                 // Check if this is a Bundle
-                if let Some(rt) = resource_json.get("resourceType") {
-                    if let Some(rt_str) = rt.as_str() {
-                        if rt_str == "Bundle" {
-                            // Search in Bundle entries
-                            if let Some(entries_array) = resource_json.get("entry") {
-                                if let Some(entries) = entries_array.as_array() {
-                                    for entry in entries {
-                                        if let Some(entry_resource) = entry.get("resource") {
-                                            // Check resource type and id
-                                            let matches_type = entry_resource
-                                                .get("resourceType")
-                                                .and_then(|rt| rt.as_str())
-                                                .map(|rt_str| rt_str == resource_type)
-                                                .unwrap_or(false);
+                if let Some(rt) = resource_json.get("resourceType")
+                    && let Some(rt_str) = rt.as_str()
+                {
+                    if rt_str == "Bundle" {
+                        // Search in Bundle entries
+                        if let Some(entries_array) = resource_json.get("entry")
+                            && let Some(entries) = entries_array.as_array()
+                        {
+                            for entry in entries {
+                                if let Some(entry_resource) = entry.get("resource") {
+                                    // Check resource type and id
+                                    let matches_type = entry_resource
+                                        .get("resourceType")
+                                        .and_then(|rt| rt.as_str())
+                                        .map(|rt_str| rt_str == resource_type)
+                                        .unwrap_or(false);
 
-                                            let matches_id = entry_resource
-                                                .get("id")
-                                                .and_then(|id_val| id_val.as_str())
-                                                .map(|id_str| id_str == id)
-                                                .unwrap_or(false);
+                                    let matches_id = entry_resource
+                                        .get("id")
+                                        .and_then(|id_val| id_val.as_str())
+                                        .map(|id_str| id_str == id)
+                                        .unwrap_or(false);
 
-                                            if matches_type && matches_id {
-                                                return Some(Arc::new(entry_resource.clone()));
-                                            }
-                                        }
+                                    if matches_type && matches_id {
+                                        return Some(Arc::new(entry_resource.clone()));
                                     }
                                 }
                             }
-                        } else {
-                            // Direct resource - check if it matches
-                            let matches_type = resource_json
-                                .get("resourceType")
-                                .and_then(|rt| rt.as_str())
-                                .map(|rt_str| rt_str == resource_type)
-                                .unwrap_or(false);
+                        }
+                    } else {
+                        // Direct resource - check if it matches
+                        let matches_type = resource_json
+                            .get("resourceType")
+                            .and_then(|rt| rt.as_str())
+                            .map(|rt_str| rt_str == resource_type)
+                            .unwrap_or(false);
 
-                            let matches_id = resource_json
-                                .get("id")
-                                .and_then(|id_val| id_val.as_str())
-                                .map(|id_str| id_str == id)
-                                .unwrap_or(false);
+                        let matches_id = resource_json
+                            .get("id")
+                            .and_then(|id_val| id_val.as_str())
+                            .map(|id_str| id_str == id)
+                            .unwrap_or(false);
 
-                            if matches_type && matches_id {
-                                return Some(resource_json.clone());
-                            }
+                        if matches_type && matches_id {
+                            return Some(resource_json.clone());
                         }
                     }
                 }

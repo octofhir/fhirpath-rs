@@ -57,10 +57,10 @@ impl ContainsOperatorEvaluator {
                 .await?;
 
             // If equals returns true, we found a match
-            if let Some(result_value) = equals_result.value.first() {
-                if let Some(true) = result_value.as_boolean() {
-                    return Ok(true);
-                }
+            if let Some(result_value) = equals_result.value.first()
+                && let Some(true) = result_value.as_boolean()
+            {
+                return Ok(true);
             }
         }
         Ok(false)

@@ -53,36 +53,36 @@ pub fn add_type_information<'a>(
         match original_ast {
             ExpressionNode::PropertyAccess(node) => {
                 // First enhance the object recursively
-                if let Some(ref mut args) = ast_node.arguments {
-                    if let Some(object_arg) = args.get_mut(0) {
-                        let enhanced_object = add_type_information(
-                            object_arg.clone(),
-                            &node.object,
-                            _model_provider,
-                            function_registry,
-                            base_type,
-                        )
-                        .await?;
+                if let Some(ref mut args) = ast_node.arguments
+                    && let Some(object_arg) = args.get_mut(0)
+                {
+                    let enhanced_object = add_type_information(
+                        object_arg.clone(),
+                        &node.object,
+                        _model_provider,
+                        function_registry,
+                        base_type,
+                    )
+                    .await?;
 
-                        // Get the object's return type to use as the base for property lookup
-                        let object_type = enhanced_object
-                            .return_type
-                            .as_ref()
-                            .map(|t| t.trim_end_matches("[]")) // Remove array notation if present
-                            .unwrap_or(base_type.unwrap_or("Patient")); // Default to Patient if unknown
+                    // Get the object's return type to use as the base for property lookup
+                    let object_type = enhanced_object
+                        .return_type
+                        .as_ref()
+                        .map(|t| t.trim_end_matches("[]")) // Remove array notation if present
+                        .unwrap_or(base_type.unwrap_or("Patient")); // Default to Patient if unknown
 
-                        // Now infer the property type using ModelProvider
-                        let property_type = infer_property_access_type_async(
-                            object_type,
-                            &node.property,
-                            _model_provider,
-                        )
-                        .await?;
+                    // Now infer the property type using ModelProvider
+                    let property_type = infer_property_access_type_async(
+                        object_type,
+                        &node.property,
+                        _model_provider,
+                    )
+                    .await?;
 
-                        // Update the object and set return type
-                        args[0] = enhanced_object;
-                        ast_node.return_type = property_type;
-                    }
+                    // Update the object and set return type
+                    args[0] = enhanced_object;
+                    ast_node.return_type = property_type;
                 }
             }
             ExpressionNode::FunctionCall(node) => {
@@ -152,27 +152,27 @@ pub fn add_type_information<'a>(
             }
             ExpressionNode::BinaryOperation(node) => {
                 // Enhance binary operation operands
-                if let Some(ref mut args) = ast_node.arguments {
-                    if args.len() >= 2 {
-                        let enhanced_left = add_type_information(
-                            args[0].clone(),
-                            &node.left,
-                            _model_provider,
-                            function_registry,
-                            base_type,
-                        )
-                        .await?;
-                        let enhanced_right = add_type_information(
-                            args[1].clone(),
-                            &node.right,
-                            _model_provider,
-                            function_registry,
-                            base_type,
-                        )
-                        .await?;
-                        args[0] = enhanced_left;
-                        args[1] = enhanced_right;
-                    }
+                if let Some(ref mut args) = ast_node.arguments
+                    && args.len() >= 2
+                {
+                    let enhanced_left = add_type_information(
+                        args[0].clone(),
+                        &node.left,
+                        _model_provider,
+                        function_registry,
+                        base_type,
+                    )
+                    .await?;
+                    let enhanced_right = add_type_information(
+                        args[1].clone(),
+                        &node.right,
+                        _model_provider,
+                        function_registry,
+                        base_type,
+                    )
+                    .await?;
+                    args[0] = enhanced_left;
+                    args[1] = enhanced_right;
                 }
 
                 // Set return type based on operator
@@ -239,53 +239,53 @@ pub fn add_type_information<'a>(
             }
             ExpressionNode::IndexAccess(node) => {
                 // Index access returns single item from collection
-                if let Some(ref mut args) = ast_node.arguments {
-                    if let Some(object_arg) = args.get_mut(0) {
-                        let enhanced_object = add_type_information(
-                            object_arg.clone(),
-                            &node.object,
-                            _model_provider,
-                            function_registry,
-                            base_type,
-                        )
-                        .await?;
-                        // Index access removes array notation - get type before moving
-                        let return_type = enhanced_object
-                            .return_type
-                            .as_ref()
-                            .map(|t| t.trim_end_matches("[]").to_string());
+                if let Some(ref mut args) = ast_node.arguments
+                    && let Some(object_arg) = args.get_mut(0)
+                {
+                    let enhanced_object = add_type_information(
+                        object_arg.clone(),
+                        &node.object,
+                        _model_provider,
+                        function_registry,
+                        base_type,
+                    )
+                    .await?;
+                    // Index access removes array notation - get type before moving
+                    let return_type = enhanced_object
+                        .return_type
+                        .as_ref()
+                        .map(|t| t.trim_end_matches("[]").to_string());
 
-                        args[0] = enhanced_object;
-                        ast_node.return_type = return_type;
-                    }
+                    args[0] = enhanced_object;
+                    ast_node.return_type = return_type;
                 }
             }
             ExpressionNode::UnaryOperation(node) => {
                 // Enhance operand and set return type based on operator
-                if let Some(ref mut args) = ast_node.arguments {
-                    if let Some(operand_arg) = args.get_mut(0) {
-                        let enhanced_operand = add_type_information(
-                            operand_arg.clone(),
-                            &node.operand,
-                            _model_provider,
-                            function_registry,
-                            base_type,
-                        )
-                        .await?;
-                        // Set return type based on unary operator - get type before moving
-                        use octofhir_fhirpath::ast::UnaryOperator;
-                        let operand_return_type = enhanced_operand.return_type.clone();
+                if let Some(ref mut args) = ast_node.arguments
+                    && let Some(operand_arg) = args.get_mut(0)
+                {
+                    let enhanced_operand = add_type_information(
+                        operand_arg.clone(),
+                        &node.operand,
+                        _model_provider,
+                        function_registry,
+                        base_type,
+                    )
+                    .await?;
+                    // Set return type based on unary operator - get type before moving
+                    use octofhir_fhirpath::ast::UnaryOperator;
+                    let operand_return_type = enhanced_operand.return_type.clone();
 
-                        args[0] = enhanced_operand;
+                    args[0] = enhanced_operand;
 
-                        ast_node.return_type = match node.operator {
-                            UnaryOperator::Not => Some("boolean".to_string()),
-                            UnaryOperator::Negate | UnaryOperator::Positive => {
-                                // Arithmetic unary operators preserve numeric type
-                                operand_return_type
-                            }
-                        };
-                    }
+                    ast_node.return_type = match node.operator {
+                        UnaryOperator::Not => Some("boolean".to_string()),
+                        UnaryOperator::Negate | UnaryOperator::Positive => {
+                            // Arithmetic unary operators preserve numeric type
+                            operand_return_type
+                        }
+                    };
                 }
             }
             ExpressionNode::Collection(node) => {
@@ -321,19 +321,19 @@ pub fn add_type_information<'a>(
             }
             ExpressionNode::Parenthesized(expr) => {
                 // Parenthesized expressions have same type as inner expression
-                if let Some(ref mut args) = ast_node.arguments {
-                    if let Some(inner_arg) = args.get_mut(0) {
-                        let enhanced_inner = add_type_information(
-                            inner_arg.clone(),
-                            expr,
-                            _model_provider,
-                            function_registry,
-                            base_type,
-                        )
-                        .await?;
-                        args[0] = enhanced_inner.clone();
-                        ast_node.return_type = enhanced_inner.return_type;
-                    }
+                if let Some(ref mut args) = ast_node.arguments
+                    && let Some(inner_arg) = args.get_mut(0)
+                {
+                    let enhanced_inner = add_type_information(
+                        inner_arg.clone(),
+                        expr,
+                        _model_provider,
+                        function_registry,
+                        base_type,
+                    )
+                    .await?;
+                    args[0] = enhanced_inner.clone();
+                    ast_node.return_type = enhanced_inner.return_type;
                 }
             }
             _ => {

@@ -72,11 +72,15 @@ impl ReplSession {
         let edit_mode = Box::new(Emacs::new(keybindings));
         line_editor = line_editor.with_edit_mode(edit_mode);
 
-        // Set up completer
+        // Set up completer with async initialization
         let completer = FhirPathCompleter::with_registry(
             engine.get_model_provider().clone(),
             Some(engine.get_function_registry().clone()),
         );
+
+        // Pre-fetch resource types from model provider for better completion
+        completer.prefetch_resource_types().await;
+
         line_editor = line_editor.with_completer(Box::new(completer));
 
         // Set up completion menu for better UX
@@ -89,15 +93,12 @@ impl ReplSession {
             line_editor.with_menu(ReedlineMenu::EngineCompleter(Box::new(completion_menu)));
 
         // Load history if file is specified
-        if let Some(history_path) = &config.history_file {
-            if history_path.exists() {
-                if let Ok(history) = reedline::FileBackedHistory::with_file(
-                    config.history_size,
-                    history_path.clone(),
-                ) {
-                    line_editor = line_editor.with_history(Box::new(history));
-                }
-            }
+        if let Some(history_path) = &config.history_file
+            && history_path.exists()
+            && let Ok(history) =
+                reedline::FileBackedHistory::with_file(config.history_size, history_path.clone())
+        {
+            line_editor = line_editor.with_history(Box::new(history));
         }
 
         let formatter = DisplayFormatter::new(config.color_output);
@@ -377,6 +378,11 @@ impl ReplSession {
         )
         .await;
 
+        // Add REPL variables to evaluation context
+        for (name, value) in &self.variables {
+            context.set_variable(name.clone(), value.clone());
+        }
+
         let result = match self.engine.evaluate(expression, &context).await {
             Ok(result) => result,
             Err(e) => {
@@ -485,11 +491,11 @@ impl ReplSession {
                         Ok((fhir_val, format!("'{string_val}'")))
                     } else {
                         // Expression evaluation failed
-                        return Err(anyhow::anyhow!(
+                        Err(anyhow::anyhow!(
                             "Failed to evaluate expression '{}': {}",
                             value,
                             e
-                        ));
+                        ))
                     }
                 }
             }
@@ -520,8 +526,7 @@ impl ReplSession {
             std::sync::Arc::new(serde_json::json!({}))
         };
 
-        // For now, use simple evaluation without variables
-        // TODO: Add variables support back
+        // Create evaluation context with variables support
         use octofhir_fhirpath::Collection;
 
         let input_value = FhirPathValue::resource(input_json.as_ref().clone());
@@ -535,6 +540,11 @@ impl ReplSession {
             self.engine.get_trace_provider(),
         )
         .await;
+
+        // Add REPL variables to evaluation context
+        for (name, value) in &self.variables {
+            context.set_variable(name.clone(), value.clone());
+        }
         let result = self
             .engine
             .evaluate(expression, &context)
@@ -966,7 +976,7 @@ impl ReplSession {
     fn get_general_help(&self) -> String {
         r#"Available commands:
   <expression>          Evaluate FHIRPath expression
-  :load <file>         Load FHIR resource from file  
+  :load <file>         Load FHIR resource from file
   :set <name> <value>  Set variable (supports expressions and literals)
   :unset <name>        Remove variable
   :vars                List all variables

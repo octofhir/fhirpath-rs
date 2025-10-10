@@ -15,9 +15,83 @@ use axum::{
 use octofhir_fhir_model::TypeInfo;
 use octofhir_fhirpath::diagnostics::DiagnosticSeverity;
 use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode, parse_with_semantic_analysis};
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::time::Instant;
 use tracing::error;
+
+/// Analysis request structure
+#[derive(Debug, Deserialize)]
+pub struct AnalysisRequest {
+    /// FHIRPath expression to analyze
+    pub expression: String,
+    /// Optional resource type for context
+    #[serde(rename = "resourceType")]
+    pub resource_type: Option<String>,
+    /// Analysis options
+    #[serde(default)]
+    pub options: AnalysisOptions,
+}
+
+/// Analysis options
+#[derive(Debug, Default, Deserialize)]
+pub struct AnalysisOptions {
+    /// Only validate, don't perform full type inference
+    #[serde(default)]
+    pub validate_only: bool,
+    /// Include detailed type information
+    #[serde(default = "default_true")]
+    pub include_type_info: bool,
+    /// Include AST debug information
+    #[serde(default)]
+    pub include_ast: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Analysis response structure
+#[derive(Debug, Serialize)]
+pub struct AnalysisResponse {
+    /// Whether analysis was successful
+    pub success: bool,
+    /// Parsed expression text
+    pub expression: String,
+    /// Inferred return type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_type: Option<String>,
+    /// Type information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_info: Option<JsonValue>,
+    /// Diagnostics (errors and warnings)
+    pub diagnostics: Vec<DiagnosticInfo>,
+    /// AST representation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ast: Option<JsonValue>,
+    /// Analysis timing
+    pub timing_ms: f64,
+}
+
+/// Diagnostic information
+#[derive(Debug, Serialize)]
+pub struct DiagnosticInfo {
+    pub severity: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<DiagnosticLocation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+}
+
+/// Location information for diagnostics
+#[derive(Debug, Serialize)]
+pub struct DiagnosticLocation {
+    pub line: usize,
+    pub column: usize,
+    pub offset: usize,
+    pub length: usize,
+}
 
 pub async fn health_handler(
     State(registry): State<ServerRegistry>,
@@ -47,6 +121,212 @@ pub async fn version_handler() -> Result<Json<JsonValue>, ServerError> {
     });
 
     Ok(Json(payload))
+}
+
+/// Analysis endpoint for R4
+pub async fn analyze_r4_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<AnalysisRequest>,
+) -> impl IntoResponse {
+    handle_analysis(&registry, ServerFhirVersion::R4, request).await
+}
+
+/// Analysis endpoint for R4B
+pub async fn analyze_r4b_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<AnalysisRequest>,
+) -> impl IntoResponse {
+    handle_analysis(&registry, ServerFhirVersion::R4B, request).await
+}
+
+/// Analysis endpoint for R5
+pub async fn analyze_r5_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<AnalysisRequest>,
+) -> impl IntoResponse {
+    handle_analysis(&registry, ServerFhirVersion::R5, request).await
+}
+
+/// Analysis endpoint for R6
+pub async fn analyze_r6_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<AnalysisRequest>,
+) -> impl IntoResponse {
+    handle_analysis(&registry, ServerFhirVersion::R6, request).await
+}
+
+/// Handle analysis request
+async fn handle_analysis(
+    registry: &ServerRegistry,
+    version: ServerFhirVersion,
+    request: AnalysisRequest,
+) -> Result<Json<AnalysisResponse>, ServerError> {
+    let start = Instant::now();
+
+    // Get model provider for the requested FHIR version
+    let model_provider = match registry.get_model_provider(version) {
+        Some(provider) => provider,
+        None => {
+            return Err(ServerError::NotSupported(format!(
+                "FHIR version {} not available",
+                version
+            )));
+        }
+    };
+
+    // Parse the expression
+    let parse_result = parse_with_mode(&request.expression, ParsingMode::Analysis);
+
+    let mut diagnostics = Vec::new();
+
+    // Convert parse diagnostics
+    for diag in &parse_result.diagnostics {
+        diagnostics.push(DiagnosticInfo {
+            severity: format!("{:?}", diag.severity),
+            message: diag.message.clone(),
+            location: diag.location.as_ref().map(|loc| DiagnosticLocation {
+                line: loc.line,
+                column: loc.column,
+                offset: loc.offset,
+                length: loc.length,
+            }),
+            code: diag
+                .error_code
+                .as_ref()
+                .map(|c| format!("FP{:04}", c.code())),
+        });
+    }
+
+    // Check for parse errors
+    let has_errors = parse_result
+        .diagnostics
+        .iter()
+        .any(|d| matches!(d.severity, DiagnosticSeverity::Error));
+
+    if has_errors {
+        return Ok(Json(AnalysisResponse {
+            success: false,
+            expression: request.expression,
+            return_type: None,
+            type_info: None,
+            diagnostics,
+            ast: None,
+            timing_ms: start.elapsed().as_secs_f64() * 1000.0,
+        }));
+    }
+
+    let ast = match &parse_result.ast {
+        Some(ast) => ast,
+        None => {
+            return Ok(Json(AnalysisResponse {
+                success: false,
+                expression: request.expression,
+                return_type: None,
+                type_info: None,
+                diagnostics,
+                ast: None,
+                timing_ms: start.elapsed().as_secs_f64() * 1000.0,
+            }));
+        }
+    };
+
+    // Perform semantic analysis
+    let resource_type_info: Option<TypeInfo> =
+        if let Some(ref resource_type) = request.resource_type {
+            match model_provider.get_type(resource_type).await {
+                Ok(Some(info)) => Some(info),
+                Ok(None) => {
+                    diagnostics.push(DiagnosticInfo {
+                        severity: "Warning".to_string(),
+                        message: format!("Resource type '{}' not found in model", resource_type),
+                        location: None,
+                        code: None,
+                    });
+                    None
+                }
+                Err(e) => {
+                    return Err(ServerError::Model(e));
+                }
+            }
+        } else {
+            None
+        };
+
+    let semantic_result = parse_with_semantic_analysis(
+        &request.expression,
+        model_provider.clone(),
+        resource_type_info.clone(),
+    )
+    .await;
+
+    // Add semantic diagnostics
+    for diag in &semantic_result.analysis.diagnostics {
+        diagnostics.push(DiagnosticInfo {
+            severity: format!("{:?}", diag.severity),
+            message: diag.message.clone(),
+            location: diag.location.as_ref().map(|loc| DiagnosticLocation {
+                line: loc.line,
+                column: loc.column,
+                offset: loc.offset,
+                length: loc.length,
+            }),
+            code: diag
+                .error_code
+                .as_ref()
+                .map(|c| format!("FP{:04}", c.code())),
+        });
+    }
+
+    // Build AST if requested
+    let ast_json = if request.options.include_ast {
+        let engine_guard = registry
+            .get_evaluation_engine(version)
+            .ok_or_else(|| {
+                ServerError::NotSupported(format!("FHIR version {} not available", version))
+            })?
+            .lock_owned()
+            .await;
+
+        let lab_ast = convert_ast_to_lab_format(
+            ast,
+            Some(engine_guard.get_function_registry().as_ref()),
+            Some(model_provider.as_ref()),
+        );
+        Some(serde_json::to_value(lab_ast).unwrap_or(serde_json::json!({})))
+    } else {
+        None
+    };
+
+    // Build type info if requested
+    let type_info = if request.options.include_type_info {
+        semantic_result.analysis.root_type.as_ref().map(|ti| {
+            serde_json::json!({
+                "type_name": ti.type_name,
+                "singleton": ti.singleton,
+                "is_empty": ti.is_empty,
+                "namespace": ti.namespace,
+                "name": ti.name,
+            })
+        })
+    } else {
+        None
+    };
+
+    let return_type = semantic_result
+        .analysis
+        .root_type
+        .as_ref()
+        .map(|ti| ti.type_name.clone());
+
+    Ok(Json(AnalysisResponse {
+        success: semantic_result.analysis.success,
+        expression: request.expression,
+        return_type,
+        type_info,
+        diagnostics,
+        ast: ast_json,
+        timing_ms: start.elapsed().as_secs_f64() * 1000.0,
+    }))
 }
 
 pub async fn fhirpath_lab_handler(

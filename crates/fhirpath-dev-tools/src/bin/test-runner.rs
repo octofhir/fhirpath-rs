@@ -290,13 +290,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             // Check if this is an analyzer category test - run analyzer-only execution
-            let is_analyzer_test = test_case.category.as_ref().is_some_and(|c| c == "analyzer")
+            if test_case.category.as_ref().is_some_and(|c| c == "analyzer")
                 || test_suite
                     .category
                     .as_ref()
-                    .is_some_and(|c| c == "analyzer");
-
-            if is_analyzer_test {
+                    .is_some_and(|c| c == "analyzer")
+            {
                 // For analyzer tests, only run semantic analysis
                 let context_type = if input_data != Value::Null {
                     // Try to determine FHIR resource type from input
@@ -319,30 +318,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .await;
 
                 if test_case.expect_error.unwrap_or(false) {
-                    if let Some(ref invalid_kind) = test_case.invalid_kind {
-                        if invalid_kind == "semantic" || invalid_kind == "syntax" {
-                            // Expect semantic/syntax error
-                            if !semantic_result.analysis.success {
-                                // Found error as expected
-                                for diagnostic in &semantic_result.analysis.diagnostics {
-                                    if matches!(
-                                        diagnostic.severity,
-                                        octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
-                                    ) {
-                                        println!(
-                                            "✅ PASS: {} error detected: {}",
-                                            invalid_kind, diagnostic.message
-                                        );
-                                        passed += 1;
-                                        continue 'test_loop;
-                                    }
+                    if let Some(ref invalid_kind) = test_case.invalid_kind
+                        && (invalid_kind == "semantic" || invalid_kind == "syntax")
+                    {
+                        // Expect semantic/syntax error
+                        if !semantic_result.analysis.success {
+                            // Found error as expected
+                            for diagnostic in &semantic_result.analysis.diagnostics {
+                                if matches!(
+                                    diagnostic.severity,
+                                    octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                                ) {
+                                    println!(
+                                        "✅ PASS: {} error detected: {}",
+                                        invalid_kind, diagnostic.message
+                                    );
+                                    passed += 1;
+                                    continue 'test_loop;
                                 }
                             }
-                            // No error found when expected
-                            println!("❌ FAIL: Expected {invalid_kind} error but none found");
-                            failed += 1;
-                            continue;
                         }
+                        // No error found when expected
+                        println!("❌ FAIL: Expected {invalid_kind} error but none found");
+                        failed += 1;
+                        continue;
                     }
                 } else {
                     // Expect successful analysis - but continue with full evaluation if semantic analysis passes
@@ -382,53 +381,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // For non-analyzer tests, check for semantic errors first if test expects an error
-            if test_case.expect_error.is_some() && test_case.expect_error.unwrap() {
-                if let Some(ref invalid_kind) = test_case.invalid_kind {
-                    if invalid_kind == "semantic" {
-                        // Extract context type from input data if available
-                        let context_type = if input_data != Value::Null {
-                            // Try to determine FHIR resource type from input
-                            if let Some(resource_type) =
-                                input_data.get("resourceType").and_then(|v| v.as_str())
-                            {
-                                model_provider.get_type(resource_type).await.ok().flatten()
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
+            if test_case.expect_error.is_some()
+                && test_case.expect_error.unwrap()
+                && let Some(ref invalid_kind) = test_case.invalid_kind
+                && invalid_kind == "semantic"
+            {
+                // Extract context type from input data if available
+                let context_type = if input_data != Value::Null {
+                    // Try to determine FHIR resource type from input
+                    if let Some(resource_type) =
+                        input_data.get("resourceType").and_then(|v| v.as_str())
+                    {
+                        model_provider.get_type(resource_type).await.ok().flatten()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
 
-                        let semantic_result =
-                            octofhir_fhirpath::parser::parse_with_semantic_analysis(
-                                &test_case.expression,
-                                model_provider.clone(),
-                                context_type,
-                            )
-                            .await;
+                let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
+                    &test_case.expression,
+                    model_provider.clone(),
+                    context_type,
+                )
+                .await;
 
-                        if !semantic_result.analysis.success {
-                            // Found semantic error as expected
-                            for diagnostic in &semantic_result.analysis.diagnostics {
-                                if matches!(
-                                    diagnostic.severity,
-                                    octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
-                                ) {
-                                    println!(
-                                        "✅ PASS: Semantic error detected: {}",
-                                        diagnostic.message
-                                    );
-                                    passed += 1;
-                                    continue 'test_loop;
-                                }
-                            }
+                if !semantic_result.analysis.success {
+                    // Found semantic error as expected
+                    for diagnostic in &semantic_result.analysis.diagnostics {
+                        if matches!(
+                            diagnostic.severity,
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                        ) {
+                            println!("✅ PASS: Semantic error detected: {}", diagnostic.message);
+                            passed += 1;
+                            continue 'test_loop;
                         }
-                        // If we get here, no semantic error was found
-                        println!("❌ FAIL: Expected semantic error but none found");
-                        failed += 1;
-                        continue;
                     }
                 }
+                // If we get here, no semantic error was found
+                println!("❌ FAIL: Expected semantic error but none found");
+                failed += 1;
+                continue;
             }
 
             // Convert input to FhirPathValue and create evaluation context
@@ -520,14 +515,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 result
             };
 
-            if !test_case.output_types.is_empty() {
-                if let Err(mismatch) = verify_output_types(&test_case.output_types, &final_result) {
-                    println!("❌ FAIL: Type mismatch");
-                    println!("   Expected types: {:?}", mismatch.expected);
-                    println!("   Actual types:   {:?}", mismatch.actual);
-                    failed += 1;
-                    continue;
-                }
+            if !test_case.output_types.is_empty()
+                && let Err(mismatch) = verify_output_types(&test_case.output_types, &final_result)
+            {
+                println!("❌ FAIL: Type mismatch");
+                println!("   Expected types: {:?}", mismatch.expected);
+                println!("   Actual types:   {:?}", mismatch.actual);
+                failed += 1;
+                continue;
             }
 
             // Compare results

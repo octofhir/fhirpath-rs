@@ -104,12 +104,12 @@ impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
 
         // Check each element for the template ID
         for element in &elements_to_check {
-            if let FhirPathValue::Resource(json, type_info, _) = element {
-                if has_template_id(json, &type_info.type_name, template_id) {
-                    return Ok(EvaluationResult {
-                        value: crate::core::Collection::single(FhirPathValue::boolean(true)),
-                    });
-                }
+            if let FhirPathValue::Resource(json, type_info, _) = element
+                && has_template_id(json, &type_info.type_name, template_id)
+            {
+                return Ok(EvaluationResult {
+                    value: crate::core::Collection::single(FhirPathValue::boolean(true)),
+                });
             }
         }
 
@@ -126,10 +126,10 @@ impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
 /// Check if a CDA element has the specified template ID
 fn has_template_id(json: &serde_json::Value, resource_type: &str, template_id: &str) -> bool {
     // For CDA documents, check for explicit templateId elements first
-    if let Some(template_ids) = json.get("templateId") {
-        if check_template_id_value(template_ids, template_id) {
-            return true;
-        }
+    if let Some(template_ids) = json.get("templateId")
+        && check_template_id_value(template_ids, template_id)
+    {
+        return true;
     }
 
     // Special handling for known CDA document types
@@ -148,10 +148,10 @@ fn has_template_id(json: &serde_json::Value, resource_type: &str, template_id: &
 
                 if has_component && has_record_target && has_title {
                     // Check if title indicates this is a CCD
-                    if let Some(title) = json.get("title").and_then(|t| t.get("#text")) {
-                        if let Some(title_str) = title.as_str() {
-                            return title_str.contains("Continuity of Care");
-                        }
+                    if let Some(title) = json.get("title").and_then(|t| t.get("#text"))
+                        && let Some(title_str) = title.as_str()
+                    {
+                        return title_str.contains("Continuity of Care");
                     }
                     // Even without explicit title match, a ClinicalDocument with
                     // component and recordTarget is likely a CCD
@@ -188,28 +188,26 @@ fn check_template_id_value(template_ids: &serde_json::Value, target_template_id:
 /// Check if a single templateId object matches the target template ID
 fn check_single_template_id(template_id: &serde_json::Value, target_template_id: &str) -> bool {
     // Check for @root attribute (common in CDA)
-    if let Some(root) = template_id.get("@root") {
-        if let Some(root_str) = root.as_str() {
-            if root_str == target_template_id {
-                return true;
-            }
-        }
+    if let Some(root) = template_id.get("@root")
+        && let Some(root_str) = root.as_str()
+        && root_str == target_template_id
+    {
+        return true;
     }
 
     // Check for root attribute (without @)
-    if let Some(root) = template_id.get("root") {
-        if let Some(root_str) = root.as_str() {
-            if root_str == target_template_id {
-                return true;
-            }
-        }
+    if let Some(root) = template_id.get("root")
+        && let Some(root_str) = root.as_str()
+        && root_str == target_template_id
+    {
+        return true;
     }
 
     // Check if the template_id itself is a string
-    if let Some(template_str) = template_id.as_str() {
-        if template_str == target_template_id {
-            return true;
-        }
+    if let Some(template_str) = template_id.as_str()
+        && template_str == target_template_id
+    {
+        return true;
     }
 
     false

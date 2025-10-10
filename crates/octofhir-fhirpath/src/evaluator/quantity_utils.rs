@@ -71,10 +71,10 @@ pub fn parse_string_to_quantity_value(s: &str) -> Option<FhirPathValue> {
         "years",
     ];
 
-    if accepted.contains(&unit_lc.as_str()) {
-        if let Some(cal) = CalendarUnit::from_str(&unit_lc) {
-            return Some(FhirPathValue::calendar_quantity(dec, cal));
-        }
+    if accepted.contains(&unit_lc.as_str())
+        && let Some(cal) = CalendarUnit::from_str(&unit_lc)
+    {
+        return Some(FhirPathValue::calendar_quantity(dec, cal));
     }
 
     None
@@ -292,16 +292,16 @@ pub fn convert_quantity(
     to_unit: &str,
 ) -> Result<ConversionResult, QuantityError> {
     // Handle calendar unit conversions
-    if let Some(from_cal) = from_calendar_unit {
-        if let Some(to_cal) = CalendarUnit::from_str(to_unit) {
-            let converted_value = convert_calendar_units(value, *from_cal, to_cal)?;
-            return Ok(ConversionResult {
-                value: converted_value,
-                unit: Some(to_unit.to_string()),
-                ucum_unit: None,
-                calendar_unit: Some(to_cal),
-            });
-        }
+    if let Some(from_cal) = from_calendar_unit
+        && let Some(to_cal) = CalendarUnit::from_str(to_unit)
+    {
+        let converted_value = convert_calendar_units(value, *from_cal, to_cal)?;
+        return Ok(ConversionResult {
+            value: converted_value,
+            unit: Some(to_unit.to_string()),
+            ucum_unit: None,
+            calendar_unit: Some(to_cal),
+        });
     }
 
     // Handle UCUM conversions

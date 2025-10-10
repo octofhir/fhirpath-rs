@@ -17,6 +17,7 @@
 mod json;
 mod pretty;
 mod raw;
+pub mod template;
 
 use clap::ValueEnum;
 use octofhir_fhirpath::{Collection, ExpressionNode, FhirPathError, FhirPathValue};
@@ -27,8 +28,9 @@ use thiserror::Error;
 pub use json::JsonFormatter;
 pub use pretty::PrettyFormatter;
 pub use raw::RawFormatter;
+pub use template::{TemplateFormatter, TemplatePresets};
 
-#[derive(Debug, Clone, ValueEnum, PartialEq)]
+#[derive(Debug, Clone, ValueEnum, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum OutputFormat {
     /// Pretty Ariadne-formatted output with colors and diagnostics (default)
     Pretty,
@@ -36,6 +38,8 @@ pub enum OutputFormat {
     Json,
     /// Raw text output
     Raw,
+    /// Template-based custom output
+    Template,
 }
 
 impl std::fmt::Display for OutputFormat {
@@ -44,6 +48,7 @@ impl std::fmt::Display for OutputFormat {
             OutputFormat::Json => write!(f, "json"),
             OutputFormat::Raw => write!(f, "raw"),
             OutputFormat::Pretty => write!(f, "pretty"),
+            OutputFormat::Template => write!(f, "template"),
         }
     }
 }
@@ -154,11 +159,20 @@ impl FormatterFactory {
         Self { no_color }
     }
 
-    pub fn create_formatter(&self, format: OutputFormat) -> Box<dyn OutputFormatter> {
+    pub fn create_formatter(
+        &self,
+        format: OutputFormat,
+        template: Option<String>,
+    ) -> Box<dyn OutputFormatter> {
         match format {
             OutputFormat::Json => Box::new(JsonFormatter::new()),
             OutputFormat::Raw => Box::new(RawFormatter::new()),
             OutputFormat::Pretty => Box::new(PrettyFormatter::new(!self.no_color)),
+            OutputFormat::Template => {
+                // Use provided template or default text format
+                let template_str = template.unwrap_or_else(TemplatePresets::text);
+                Box::new(TemplateFormatter::new(template_str))
+            }
         }
     }
 }

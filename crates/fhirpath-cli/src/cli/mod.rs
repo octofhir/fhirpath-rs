@@ -15,9 +15,17 @@
 //! CLI module for FHIRPath evaluation and analysis
 
 pub mod ast;
+pub mod config;
+pub mod context;
 pub mod diagnostics;
+pub mod handlers;
 pub mod output;
+pub mod profiler;
+
+#[cfg(feature = "repl")]
 pub mod repl;
+
+#[cfg(feature = "server")]
 pub mod server;
 
 use clap::{Parser, Subcommand};
@@ -60,6 +68,8 @@ pub struct Cli {
 #[derive(Subcommand, Clone)]
 pub enum Commands {
     /// Evaluate FHIRPath expression against a FHIR resource
+    #[command(visible_alias = "eval")]
+    #[command(visible_alias = "e")]
     Evaluate {
         /// FHIRPath expression to evaluate
         expression: String,
@@ -87,8 +97,28 @@ pub enum Commands {
         /// Run static analysis alongside evaluation
         #[arg(long)]
         analyze: bool,
+        /// Watch input file for changes and re-evaluate automatically
+        #[arg(long, short = 'w')]
+        watch: bool,
+        /// Batch mode: evaluate expression against multiple files (glob patterns supported)
+        #[arg(long, short = 'b', value_name = "PATTERN", conflicts_with = "input")]
+        batch: Option<String>,
+        /// Continue processing on errors in batch mode
+        #[arg(long, requires = "batch")]
+        continue_on_error: bool,
+        /// Use custom output template (preset name or template string)
+        #[arg(long, short = 't')]
+        template: Option<String>,
+        /// Pipe mode: read NDJSON from stdin, output to stdout (auto-detects if stdin is a pipe)
+        #[arg(long)]
+        pipe: bool,
+        /// Performance profiling: show detailed timing breakdown
+        #[arg(long)]
+        profile: bool,
     },
     /// Validate FHIRPath expression syntax (alias for parse)
+    #[command(visible_alias = "val")]
+    #[command(visible_alias = "v")]
     Validate {
         /// FHIRPath expression to validate
         expression: String,
@@ -106,6 +136,8 @@ pub enum Commands {
         verbose: bool,
     },
     /// Analyze FHIRPath expressions with comprehensive FHIR field validation
+    #[command(visible_alias = "check")]
+    #[command(visible_alias = "a")]
     Analyze {
         /// FHIRPath expression to analyze
         expression: String,
@@ -137,6 +169,7 @@ pub enum Commands {
         error_code: String,
     },
     /// Start interactive FHIRPath REPL
+    #[cfg(feature = "repl")]
     Repl {
         /// JSON file containing FHIR resource to load initially
         #[arg(short, long)]
@@ -152,6 +185,7 @@ pub enum Commands {
         history_size: usize,
     },
     /// Start Terminal User Interface (TUI) - Advanced multi-panel REPL
+    #[cfg(feature = "tui")]
     Tui {
         /// JSON file containing FHIR resource to load initially
         #[arg(short, long)]
@@ -182,11 +216,14 @@ pub enum Commands {
         check_terminal: bool,
     },
     /// Registry information for functions and operators
+    #[command(visible_alias = "reg")]
+    #[command(visible_alias = "r")]
     Registry {
         #[command(subcommand)]
         command: RegistryCommands,
     },
     /// Start HTTP API server for FHIRPath evaluation
+    #[cfg(feature = "server")]
     Server {
         /// Port to bind the server to
         #[arg(short, long, default_value = "8084")]
@@ -209,6 +246,17 @@ pub enum Commands {
         /// Rate limit: requests per minute per IP
         #[arg(long, default_value = "100")]
         rate_limit: u32,
+    },
+    /// Generate shell completion scripts
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
+    /// Manage CLI configuration
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
     },
     // /// Start Terminal User Interface (TUI) - Advanced multi-panel REPL
     // Tui {
@@ -301,4 +349,40 @@ pub enum RegistryShowTarget {
     Auto,
     Function,
     Operator,
+}
+
+#[derive(Subcommand, Clone)]
+pub enum ConfigCommands {
+    /// Show current configuration
+    Show,
+    /// Show configuration file path
+    Path,
+    /// Initialize a new configuration file
+    Init {
+        /// Force overwrite existing configuration
+        #[arg(long)]
+        force: bool,
+        /// Path to create config file (default: ~/.fhirpathrc)
+        #[arg(long)]
+        path: Option<String>,
+    },
+    /// Edit configuration in default editor
+    Edit,
+    /// Add a favorite expression
+    AddFavorite {
+        /// Alias name for the expression
+        alias: String,
+        /// The FHIRPath expression
+        expression: String,
+        /// Optional description
+        #[arg(long, short)]
+        description: Option<String>,
+    },
+    /// List favorite expressions
+    ListFavorites,
+    /// Remove a favorite expression
+    RemoveFavorite {
+        /// Alias of the favorite to remove
+        alias: String,
+    },
 }

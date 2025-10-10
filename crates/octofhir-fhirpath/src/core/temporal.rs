@@ -104,27 +104,27 @@ impl PrecisionDate {
     /// Parse from ISO 8601 string with automatic precision detection
     pub fn parse(s: &str) -> Option<Self> {
         // YYYY
-        if s.len() == 4 {
-            if let Ok(year) = s.parse::<i32>() {
-                return Self::from_year(year);
-            }
+        if s.len() == 4
+            && let Ok(year) = s.parse::<i32>()
+        {
+            return Self::from_year(year);
         }
 
         // YYYY-MM
         if s.len() == 7 && s.chars().nth(4) == Some('-') {
             let parts: Vec<&str> = s.split('-').collect();
-            if parts.len() == 2 {
-                if let (Ok(year), Ok(month)) = (parts[0].parse::<i32>(), parts[1].parse::<u32>()) {
-                    return Self::from_year_month(year, month);
-                }
+            if parts.len() == 2
+                && let (Ok(year), Ok(month)) = (parts[0].parse::<i32>(), parts[1].parse::<u32>())
+            {
+                return Self::from_year_month(year, month);
             }
         }
 
         // YYYY-MM-DD
-        if s.len() == 10 {
-            if let Ok(date) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-                return Some(Self::from_date(date));
-            }
+        if s.len() == 10
+            && let Ok(date) = NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        {
+            return Some(Self::from_date(date));
         }
 
         None
@@ -566,7 +566,7 @@ impl PrecisionDateTime {
         None
     }
 
-    /// Parse datetime string with comprehensive validation and proper error codes  
+    /// Parse datetime string with comprehensive validation and proper error codes
     pub fn parse_with_validation(s: &str) -> Result<Self> {
         let trimmed = s.trim();
 
@@ -617,12 +617,12 @@ impl PrecisionDateTime {
         ];
 
         for (format, precision) in &naive_formats {
-            if let Ok(ndt) = NaiveDateTime::parse_from_str(&s_norm, format) {
-                if let Some(offset) = FixedOffset::east_opt(0) {
-                    let dt = DateTime::from_naive_utc_and_offset(ndt, offset);
-                    // Additional validation can go here if needed
-                    return Ok(Self::new_with_tz(dt, *precision, has_tz));
-                }
+            if let Ok(ndt) = NaiveDateTime::parse_from_str(&s_norm, format)
+                && let Some(offset) = FixedOffset::east_opt(0)
+            {
+                let dt = DateTime::from_naive_utc_and_offset(ndt, offset);
+                // Additional validation can go here if needed
+                return Ok(Self::new_with_tz(dt, *precision, has_tz));
             }
         }
 
@@ -886,33 +886,34 @@ impl PrecisionTime {
     /// Parse from time string with automatic precision detection
     pub fn parse(s: &str) -> Option<Self> {
         // HH
-        if s.len() == 2 {
-            if let Ok(hour) = s.parse::<u32>() {
-                if let Some(time) = NaiveTime::from_hms_opt(hour, 0, 0) {
-                    return Some(Self::new(time, TemporalPrecision::Hour));
-                }
-            }
+        if s.len() == 2
+            && let Ok(hour) = s.parse::<u32>()
+            && let Some(time) = NaiveTime::from_hms_opt(hour, 0, 0)
+        {
+            return Some(Self::new(time, TemporalPrecision::Hour));
         }
 
         // HH:MM
-        if s.len() == 5 && s.chars().nth(2) == Some(':') {
-            if let Ok(time) = NaiveTime::parse_from_str(s, "%H:%M") {
-                return Some(Self::new(time, TemporalPrecision::Minute));
-            }
+        if s.len() == 5
+            && s.chars().nth(2) == Some(':')
+            && let Ok(time) = NaiveTime::parse_from_str(s, "%H:%M")
+        {
+            return Some(Self::new(time, TemporalPrecision::Minute));
         }
 
         // HH:MM:SS
-        if s.len() == 8 {
-            if let Ok(time) = NaiveTime::parse_from_str(s, "%H:%M:%S") {
-                return Some(Self::new(time, TemporalPrecision::Second));
-            }
+        if s.len() == 8
+            && let Ok(time) = NaiveTime::parse_from_str(s, "%H:%M:%S")
+        {
+            return Some(Self::new(time, TemporalPrecision::Second));
         }
 
         // HH:MM:SS.sss
-        if s.len() == 12 && s.chars().nth(8) == Some('.') {
-            if let Ok(time) = NaiveTime::parse_from_str(s, "%H:%M:%S%.3f") {
-                return Some(Self::new(time, TemporalPrecision::Millisecond));
-            }
+        if s.len() == 12
+            && s.chars().nth(8) == Some('.')
+            && let Ok(time) = NaiveTime::parse_from_str(s, "%H:%M:%S%.3f")
+        {
+            return Some(Self::new(time, TemporalPrecision::Millisecond));
         }
 
         None

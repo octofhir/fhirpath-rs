@@ -82,22 +82,22 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
             if let FhirPathValue::Resource(json, _, _) = &item {
                 if let Some(extensions) = json.get("extension").and_then(|e| e.as_array()) {
                     for extension in extensions {
-                        if let Some(url_str) = extension.get("url").and_then(|u| u.as_str()) {
-                            if url_str == target_url {
-                                let type_info = TypeInfo {
-                                    type_name: "Extension".to_string(),
-                                    name: Some("Extension".to_string()),
-                                    is_empty: Some(false),
-                                    namespace: Some("FHIR".to_string()),
-                                    singleton: Some(true),
-                                };
-                                let extension_value = FhirPathValue::Resource(
-                                    Arc::new(extension.clone()),
-                                    type_info,
-                                    None,
-                                );
-                                matching_extensions.push(extension_value);
-                            }
+                        if let Some(url_str) = extension.get("url").and_then(|u| u.as_str())
+                            && url_str == target_url
+                        {
+                            let type_info = TypeInfo {
+                                type_name: "Extension".to_string(),
+                                name: Some("Extension".to_string()),
+                                is_empty: Some(false),
+                                namespace: Some("FHIR".to_string()),
+                                singleton: Some(true),
+                            };
+                            let extension_value = FhirPathValue::Resource(
+                                Arc::new(extension.clone()),
+                                type_info,
+                                None,
+                            );
+                            matching_extensions.push(extension_value);
                         }
                     }
                 }

@@ -25,6 +25,17 @@ use super::events::KeyBindings;
 use super::layout::LayoutConfig;
 use super::themes::TuiTheme;
 
+/// Serializable subset of TUI configuration (for persistence)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SerializableConfig {
+    metadata: ConfigMetadata,
+    features: FeatureFlags,
+    performance: PerformanceConfig,
+    ui_preferences: UiPreferences,
+    theme_name: String,
+    key_bindings: HashMap<String, String>,
+}
+
 /// Complete TUI configuration
 #[derive(Debug, Clone)]
 pub struct TuiConfig {
@@ -198,14 +209,28 @@ impl Default for UiPreferences {
 }
 
 impl TuiConfig {
-    /// Load configuration from file (currently returns default due to serialization limitations)
+    /// Load configuration from file
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let _content =
+        let content =
             std::fs::read_to_string(path.as_ref()).context("Failed to read configuration file")?;
 
-        // TODO: Implement partial TOML loading for basic config fields
-        // Currently disabled due to complex theme/layout serialization
+        // Deserialize the serializable subset
+        let serializable: SerializableConfig =
+            toml::from_str(&content).context("Failed to parse TOML configuration")?;
+
+        // Create full config from serializable subset
         let mut config = Self::default();
+
+        // Apply loaded settings
+        config.metadata = serializable.metadata;
+        config.features = serializable.features;
+        config.performance = serializable.performance;
+        config.ui_preferences = serializable.ui_preferences;
+        config.key_bindings = serializable.key_bindings;
+
+        // Load theme by name (keep default if theme not found)
+        config.theme =
+            TuiTheme::load_theme(&serializable.theme_name).unwrap_or_else(|| TuiTheme::default());
 
         // Update last modified time
         config.metadata.last_modified = chrono::Utc::now().to_rfc3339();
@@ -213,27 +238,33 @@ impl TuiConfig {
         Ok(config)
     }
 
-    /// Save configuration to file (currently disabled due to complex serialization)
+    /// Save configuration to file
     pub fn save_to_file<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         // Update last modified time
         self.metadata.last_modified = chrono::Utc::now().to_rfc3339();
 
-        // Create basic TOML content (serialization disabled for complex UI types)
-        let content = format!(
+        // Create serializable subset
+        let serializable = SerializableConfig {
+            metadata: self.metadata.clone(),
+            features: self.features.clone(),
+            performance: self.performance.clone(),
+            ui_preferences: self.ui_preferences.clone(),
+            theme_name: self.theme.metadata.name.clone(),
+            key_bindings: self.key_bindings.clone(),
+        };
+
+        // Serialize to TOML
+        let content =
+            toml::to_string_pretty(&serializable).context("Failed to serialize configuration")?;
+
+        // Add header comment
+        let content_with_header = format!(
             "# FHIRPath TUI Configuration\n\
              # Generated at {}\n\
-             # Note: Full serialization not yet implemented\n\
              \n\
-             [metadata]\n\
-             version = \"{}\"\n\
-             created_at = \"{}\"\n\
-             last_modified = \"{}\"\n\
-             user = \"{}\"\n",
+             {}",
             chrono::Utc::now().to_rfc3339(),
-            self.metadata.version,
-            self.metadata.created_at,
-            self.metadata.last_modified,
-            self.metadata.user
+            content
         );
 
         // Ensure parent directory exists
@@ -242,7 +273,8 @@ impl TuiConfig {
         }
 
         // Write to file
-        std::fs::write(path.as_ref(), content).context("Failed to write configuration file")?;
+        std::fs::write(path.as_ref(), content_with_header)
+            .context("Failed to write configuration file")?;
 
         Ok(())
     }
@@ -289,15 +321,17 @@ impl TuiConfig {
     }
 
     /// Auto-save configuration if enabled
-    /// NOTE: Currently disabled due to serialization limitations
     pub fn auto_save(&mut self) -> Result<()> {
         if !self.features.auto_save_config {
             return Ok(());
         }
 
-        // TODO: Implement basic config saving
-        // Currently disabled due to complex theme serialization issues
-        eprintln!("Warning: Auto-save not yet implemented");
+        // Get config path
+        let config_path = Self::default_config_path()?;
+
+        // Save configuration
+        self.save_to_file(config_path)?;
+
         Ok(())
     }
 
@@ -403,11 +437,36 @@ impl TuiConfig {
     }
 
     /// Export configuration to different format (TOML primary, JSON fallback)
-    /// NOTE: Currently disabled due to complex theme serialization
-    pub fn export_config(&self, _format: ConfigFormat) -> Result<String> {
-        // TODO: Implement partial serialization for basic config fields only
-        // Complex UI types (themes, layouts) cannot be easily serialized
-        Ok("# TUI Configuration (serialization not yet implemented)\n".to_string())
+    pub fn export_config(&self, format: ConfigFormat) -> Result<String> {
+        // Create serializable subset
+        let serializable = SerializableConfig {
+            metadata: self.metadata.clone(),
+            features: self.features.clone(),
+            performance: self.performance.clone(),
+            ui_preferences: self.ui_preferences.clone(),
+            theme_name: self.theme.metadata.name.clone(),
+            key_bindings: self.key_bindings.clone(),
+        };
+
+        match format {
+            ConfigFormat::Toml => {
+                let content =
+                    toml::to_string_pretty(&serializable).context("Failed to serialize to TOML")?;
+                Ok(format!(
+                    "# FHIRPath TUI Configuration\n\
+                     # Exported at {}\n\
+                     \n\
+                     {}",
+                    chrono::Utc::now().to_rfc3339(),
+                    content
+                ))
+            }
+            ConfigFormat::Json => {
+                let content = serde_json::to_string_pretty(&serializable)
+                    .context("Failed to serialize to JSON")?;
+                Ok(content)
+            }
+        }
     }
 
     /// Get configuration summary

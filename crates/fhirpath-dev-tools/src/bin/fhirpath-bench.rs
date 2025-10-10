@@ -724,10 +724,10 @@ fn parse_and_format_results(benchmark_output: &str, mem_start_end: Option<(u64, 
     }
 
     let avg = |sec: &str, cat: &str| -> String {
-        if let Some((sum, cnt)) = sums.get(&(sec, cat)) {
-            if *cnt > 0 {
-                return format_ops_per_sec(sum / *cnt as f64);
-            }
+        if let Some((sum, cnt)) = sums.get(&(sec, cat))
+            && *cnt > 0
+        {
+            return format_ops_per_sec(sum / *cnt as f64);
         }
         "-".to_string()
     };
@@ -768,7 +768,7 @@ Generated on: {}
 
 This benchmark suite measures the performance of FHIRPath-rs library across three main operations:
 - **Tokenization**: Converting FHIRPath expressions into tokens
-- **Parsing**: Building AST from tokens  
+- **Parsing**: Building AST from tokens
 - **Evaluation**: Executing expressions against FHIR data
 
 ## Environment
@@ -894,7 +894,7 @@ This benchmark suite measures the performance of FHIRPath-rs library across thre
 Basic field access and simple operations:
 - {}
 
-### Medium Expressions  
+### Medium Expressions
 Filtered queries and basic functions:
 - {}
 

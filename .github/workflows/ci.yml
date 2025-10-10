@@ -40,8 +40,8 @@ jobs:
       - name: Install Node.js and pnpm
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      
+          node-version: "22"
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -132,6 +132,56 @@ jobs:
         run: |
           echo "🚀 Running quick benchmark check..."
           timeout 300 cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench list || echo "⚠️ Benchmark timed out after 5 minutes"
+
+  cli-features:
+    name: CLI Feature Combinations
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+          - name: "minimal"
+            flags: "--no-default-features --features cli"
+          - name: "default"
+            flags: ""
+          - name: "cli+repl"
+            flags: "--no-default-features --features cli,repl"
+          - name: "cli+tui"
+            flags: "--no-default-features --features cli,tui"
+          - name: "cli+server"
+            flags: "--no-default-features --features cli,server"
+          - name: "cli+watch"
+            flags: "--no-default-features --features cli,watch"
+          - name: "all"
+            flags: "--all-features"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "ci-features"
+          shared-key: "cli-features-${{ matrix.features.name }}"
+          cache-targets: true
+
+      - name: Check CLI with ${{ matrix.features.name }} features
+        run: |
+          echo "🔍 Testing CLI with ${{ matrix.features.name }} features"
+          cargo check --package fhirpath-cli ${{ matrix.features.flags }}
+
+      - name: Build CLI with ${{ matrix.features.name }} features
+        run: |
+          echo "🏗️ Building CLI with ${{ matrix.features.name }} features"
+          cargo build --package fhirpath-cli ${{ matrix.features.flags }}
+
+      - name: Test CLI with ${{ matrix.features.name }} features
+        run: |
+          echo "🧪 Testing CLI with ${{ matrix.features.name }} features"
+          cargo test --package fhirpath-cli ${{ matrix.features.flags }} --lib
 
   coverage:
     name: Code Coverage
@@ -224,4 +274,3 @@ jobs:
 
       - name: Run security audit
         run: cargo audit
-

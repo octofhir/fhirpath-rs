@@ -10,7 +10,7 @@
 //! - **Memory Usage**: Low overhead
 //! - **Use Case**: Runtime evaluation, production applications
 //!
-//! ### Analysis Mode  
+//! ### Analysis Mode
 //! - **Error Recovery**: Comprehensive, collects multiple errors
 //! - **Diagnostics**: Rich error information with suggestions
 //! - **Memory Usage**: Higher due to error collection
@@ -157,10 +157,10 @@ impl ParseResult {
 
     /// Convert to Result<ExpressionNode, FhirPathError> for compatibility
     pub fn into_result(self) -> Result<ExpressionNode, FhirPathError> {
-        if self.success {
-            if let Some(ast) = self.ast {
-                return Ok(ast);
-            }
+        if self.success
+            && let Some(ast) = self.ast
+        {
+            return Ok(ast);
         }
 
         let error_msg = self
@@ -686,7 +686,7 @@ impl MultipleParsesResult {
         self.expressions.iter().filter(|r| r.success).count()
     }
 
-    /// Get count of failed expressions  
+    /// Get count of failed expressions
     pub fn failure_count(&self) -> usize {
         self.expressions.iter().filter(|r| !r.success).count()
     }

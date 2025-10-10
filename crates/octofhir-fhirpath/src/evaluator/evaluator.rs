@@ -1237,15 +1237,14 @@ impl Evaluator {
 
         // Check primitive element extensions (e.g., _value.extension)
         for (key, value) in json.as_object().unwrap_or(&serde_json::Map::new()) {
-            if key.starts_with('_') {
-                if let Some(primitive_extensions) =
+            if key.starts_with('_')
+                && let Some(primitive_extensions) =
                     value.get("extension").and_then(|e| e.as_array())
-                {
-                    results.extend(
-                        self.find_extensions_by_url(primitive_extensions, target_url)
-                            .await?,
-                    );
-                }
+            {
+                results.extend(
+                    self.find_extensions_by_url(primitive_extensions, target_url)
+                        .await?,
+                );
             }
         }
 
@@ -1262,11 +1261,11 @@ impl Evaluator {
 
         for ext in extensions {
             if let Some(ext_obj) = ext.as_object() {
-                if let Some(url) = ext_obj.get("url").and_then(|u| u.as_str()) {
-                    if url == target_url {
-                        let extension_value = self.wrap_extension(ext.clone()).await?;
-                        results.push(extension_value);
-                    }
+                if let Some(url) = ext_obj.get("url").and_then(|u| u.as_str())
+                    && url == target_url
+                {
+                    let extension_value = self.wrap_extension(ext.clone()).await?;
+                    results.push(extension_value);
                 }
 
                 // Check nested extensions
@@ -2041,38 +2040,35 @@ impl Evaluator {
 
         if let Some(contained) = json.get("contained").and_then(|c| c.as_array()) {
             for contained_resource in contained {
-                if let Some(resource_obj) = contained_resource.as_object() {
-                    if let Some(resource_type) =
+                if let Some(resource_obj) = contained_resource.as_object()
+                    && let Some(resource_type) =
                         resource_obj.get("resourceType").and_then(|rt| rt.as_str())
-                    {
-                        // Get precise type information from ModelProvider
-                        let resource_type_info = self
-                            .model_provider
-                            .get_type(resource_type)
-                            .await
-                            .map_err(|e| {
-                                FhirPathError::evaluation_error(
-                                    crate::core::error_code::FP0054,
-                                    format!(
-                                        "ModelProvider error getting type '{resource_type}': {e}"
-                                    ),
-                                )
-                            })?
-                            .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
-                                type_name: resource_type.to_string(),
-                                singleton: Some(true),
-                                namespace: Some("FHIR".to_string()),
-                                name: Some(resource_type.to_string()),
-                                is_empty: Some(false),
-                            });
+                {
+                    // Get precise type information from ModelProvider
+                    let resource_type_info = self
+                        .model_provider
+                        .get_type(resource_type)
+                        .await
+                        .map_err(|e| {
+                            FhirPathError::evaluation_error(
+                                crate::core::error_code::FP0054,
+                                format!("ModelProvider error getting type '{resource_type}': {e}"),
+                            )
+                        })?
+                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
+                            type_name: resource_type.to_string(),
+                            singleton: Some(true),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some(resource_type.to_string()),
+                            is_empty: Some(false),
+                        });
 
-                        let resource_value = FhirPathValue::Resource(
-                            std::sync::Arc::new(contained_resource.clone()),
-                            resource_type_info,
-                            None,
-                        );
-                        results.push(resource_value);
-                    }
+                    let resource_value = FhirPathValue::Resource(
+                        std::sync::Arc::new(contained_resource.clone()),
+                        resource_type_info,
+                        None,
+                    );
+                    results.push(resource_value);
                 }
             }
         }
@@ -2089,40 +2085,36 @@ impl Evaluator {
 
         if let Some(entry) = json.get("entry").and_then(|e| e.as_array()) {
             for entry_item in entry {
-                if let Some(resource) = entry_item.get("resource") {
-                    if let Some(resource_obj) = resource.as_object() {
-                        if let Some(resource_type) =
-                            resource_obj.get("resourceType").and_then(|rt| rt.as_str())
-                        {
-                            // Get precise type information from ModelProvider
-                            let resource_type_info = self
-                                .model_provider
-                                .get_type(resource_type)
-                                .await
-                                .map_err(|e| {
-                                    FhirPathError::evaluation_error(
-                                        crate::core::error_code::FP0054,
-                                        format!(
-                                            "ModelProvider error getting type '{resource_type}': {e}"
-                                        ),
-                                    )
-                                })?
-                                .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
-                                    type_name: resource_type.to_string(),
-                                    singleton: Some(true),
-                                    namespace: Some("FHIR".to_string()),
-                                    name: Some(resource_type.to_string()),
-                                    is_empty: Some(false),
-                                });
+                if let Some(resource) = entry_item.get("resource")
+                    && let Some(resource_obj) = resource.as_object()
+                    && let Some(resource_type) =
+                        resource_obj.get("resourceType").and_then(|rt| rt.as_str())
+                {
+                    // Get precise type information from ModelProvider
+                    let resource_type_info = self
+                        .model_provider
+                        .get_type(resource_type)
+                        .await
+                        .map_err(|e| {
+                            FhirPathError::evaluation_error(
+                                crate::core::error_code::FP0054,
+                                format!("ModelProvider error getting type '{resource_type}': {e}"),
+                            )
+                        })?
+                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
+                            type_name: resource_type.to_string(),
+                            singleton: Some(true),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some(resource_type.to_string()),
+                            is_empty: Some(false),
+                        });
 
-                            let resource_value = FhirPathValue::Resource(
-                                std::sync::Arc::new(resource.clone()),
-                                resource_type_info,
-                                None,
-                            );
-                            results.push(resource_value);
-                        }
-                    }
+                    let resource_value = FhirPathValue::Resource(
+                        std::sync::Arc::new(resource.clone()),
+                        resource_type_info,
+                        None,
+                    );
+                    results.push(resource_value);
                 }
             }
         }
@@ -2141,32 +2133,28 @@ impl Evaluator {
 
         for value in input {
             if let FhirPathValue::Resource(json_obj, current_type_info, primitive_element) = &value
+                && let Some(rt) = json_obj.get("resourceType").and_then(|rt| rt.as_str())
+                && rt == resource_type
             {
-                if let Some(rt) = json_obj.get("resourceType").and_then(|rt| rt.as_str()) {
-                    if rt == resource_type {
-                        // Re-type the resource with precise type information from ModelProvider
-                        let precise_type_info = self
-                            .model_provider
-                            .get_type(resource_type)
-                            .await
-                            .map_err(|e| {
-                                FhirPathError::evaluation_error(
-                                    crate::core::error_code::FP0054,
-                                    format!(
-                                        "ModelProvider error getting type '{resource_type}': {e}"
-                                    ),
-                                )
-                            })?
-                            .unwrap_or_else(|| current_type_info.clone());
+                // Re-type the resource with precise type information from ModelProvider
+                let precise_type_info = self
+                    .model_provider
+                    .get_type(resource_type)
+                    .await
+                    .map_err(|e| {
+                        FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0054,
+                            format!("ModelProvider error getting type '{resource_type}': {e}"),
+                        )
+                    })?
+                    .unwrap_or_else(|| current_type_info.clone());
 
-                        let retyped_value = FhirPathValue::Resource(
-                            json_obj.clone(),
-                            precise_type_info,
-                            primitive_element.clone(),
-                        );
-                        filtered.push(retyped_value);
-                    }
-                }
+                let retyped_value = FhirPathValue::Resource(
+                    json_obj.clone(),
+                    precise_type_info,
+                    primitive_element.clone(),
+                );
+                filtered.push(retyped_value);
             }
         }
 
@@ -2181,63 +2169,59 @@ impl Evaluator {
         context: &EvaluationContext,
         visited: &mut std::collections::HashSet<String>,
     ) -> Result<Vec<FhirPathValue>> {
-        if let FhirPathValue::Resource(json_obj, _, _) = reference_value {
-            if let Some(reference_url) = json_obj.get("reference").and_then(|r| r.as_str()) {
-                // Check for circular references
-                if visited.contains(reference_url) {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0054,
-                        format!("Circular reference detected: {reference_url}"),
-                    ));
-                }
+        if let FhirPathValue::Resource(json_obj, _, _) = reference_value
+            && let Some(reference_url) = json_obj.get("reference").and_then(|r| r.as_str())
+        {
+            // Check for circular references
+            if visited.contains(reference_url) {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0054,
+                    format!("Circular reference detected: {reference_url}"),
+                ));
+            }
 
-                visited.insert(reference_url.to_string());
+            visited.insert(reference_url.to_string());
 
-                // Basic reference resolution - look for contained resources first
-                let mut results = Vec::new();
+            // Basic reference resolution - look for contained resources first
+            let mut results = Vec::new();
 
-                // Check if reference is a local fragment reference (starts with #)
-                if let Some(local_id) = reference_url.strip_prefix('#') {
-                    for root_value in context.input_collection().iter() {
-                        if let FhirPathValue::Resource(root_json, _, _) = root_value {
-                            if let Some(contained) =
-                                root_json.get("contained").and_then(|c| c.as_array())
+            // Check if reference is a local fragment reference (starts with #)
+            if let Some(local_id) = reference_url.strip_prefix('#') {
+                for root_value in context.input_collection().iter() {
+                    if let FhirPathValue::Resource(root_json, _, _) = root_value
+                        && let Some(contained) =
+                            root_json.get("contained").and_then(|c| c.as_array())
+                    {
+                        for contained_resource in contained {
+                            if let Some(resource_id) =
+                                contained_resource.get("id").and_then(|id| id.as_str())
+                                && resource_id == local_id
                             {
-                                for contained_resource in contained {
-                                    if let Some(resource_id) =
-                                        contained_resource.get("id").and_then(|id| id.as_str())
-                                    {
-                                        if resource_id == local_id {
-                                            // Found the referenced resource
-                                            if let Some(resource_type) = contained_resource
-                                                .get("resourceType")
-                                                .and_then(|rt| rt.as_str())
-                                            {
-                                                let resource_type_info = self
-                                                    .model_provider
-                                                    .get_type(resource_type)
-                                                    .await
-                                                    .unwrap_or(None)
-                                                    .unwrap_or_else(|| {
-                                                        crate::core::model_provider::TypeInfo {
-                                                            type_name: resource_type.to_string(),
-                                                            singleton: Some(true),
-                                                            namespace: Some("FHIR".to_string()),
-                                                            name: Some(resource_type.to_string()),
-                                                            is_empty: Some(false),
-                                                        }
-                                                    });
+                                // Found the referenced resource
+                                if let Some(resource_type) = contained_resource
+                                    .get("resourceType")
+                                    .and_then(|rt| rt.as_str())
+                                {
+                                    let resource_type_info = self
+                                        .model_provider
+                                        .get_type(resource_type)
+                                        .await
+                                        .unwrap_or(None)
+                                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
+                                            type_name: resource_type.to_string(),
+                                            singleton: Some(true),
+                                            namespace: Some("FHIR".to_string()),
+                                            name: Some(resource_type.to_string()),
+                                            is_empty: Some(false),
+                                        });
 
-                                                let resolved_resource = FhirPathValue::Resource(
-                                                    std::sync::Arc::new(contained_resource.clone()),
-                                                    resource_type_info,
-                                                    None,
-                                                );
-                                                results.push(resolved_resource);
-                                                break;
-                                            }
-                                        }
-                                    }
+                                    let resolved_resource = FhirPathValue::Resource(
+                                        std::sync::Arc::new(contained_resource.clone()),
+                                        resource_type_info,
+                                        None,
+                                    );
+                                    results.push(resolved_resource);
+                                    break;
                                 }
                             }
                         }

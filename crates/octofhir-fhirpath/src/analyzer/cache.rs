@@ -435,25 +435,25 @@ impl ModelProviderCache {
 
         // Clean stable caches (longer TTL)
         let long_ttl = ttl * 10;
-        if let Some(entry) = &self.resource_types_cache {
-            if entry.timestamp.elapsed() > long_ttl {
-                self.resource_types_cache = None;
-                evictions += 1;
-            }
+        if let Some(entry) = &self.resource_types_cache
+            && entry.timestamp.elapsed() > long_ttl
+        {
+            self.resource_types_cache = None;
+            evictions += 1;
         }
 
-        if let Some(entry) = &self.complex_types_cache {
-            if entry.timestamp.elapsed() > long_ttl {
-                self.complex_types_cache = None;
-                evictions += 1;
-            }
+        if let Some(entry) = &self.complex_types_cache
+            && entry.timestamp.elapsed() > long_ttl
+        {
+            self.complex_types_cache = None;
+            evictions += 1;
         }
 
-        if let Some(entry) = &self.primitive_types_cache {
-            if entry.timestamp.elapsed() > long_ttl {
-                self.primitive_types_cache = None;
-                evictions += 1;
-            }
+        if let Some(entry) = &self.primitive_types_cache
+            && entry.timestamp.elapsed() > long_ttl
+        {
+            self.primitive_types_cache = None;
+            evictions += 1;
         }
 
         self.cache_stats.evictions += evictions;

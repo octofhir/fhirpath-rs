@@ -1,0 +1,51 @@
+# FHIRPath CLI specific artifacts
+
+# Server logs
+server.log
+*.log
+
+# Performance profiling outputs
+profile_output/
+flamegraph_*.svg
+perf.data
+perf.data.old
+
+# TUI/REPL history
+.fhirpath_history
+*.history
+
+# Config files (keep template)
+.fhirpathrc.local
+config.local.toml
+
+# Test outputs
+test_output/
+*.test.json
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+
+# Watch mode artifacts
+.watch/
+
+# Coverage reports
+tarpaulin-report.html
+cobertura.xml
+lcov.info
+
+# Benchmarking results
+benchmark_results/
+criterion/
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

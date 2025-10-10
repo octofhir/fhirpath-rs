@@ -104,13 +104,13 @@ impl TestMetadataManager {
         }
 
         // Direct test case name match
-        if let Some(suite_name) = self.metadata.name_index.get(query) {
-            if let Some(suite) = self.metadata.suites.get(suite_name) {
-                return TestLookupResult::TestCase(
-                    self.test_cases_base.join(&suite.file_path),
-                    query.to_string(),
-                );
-            }
+        if let Some(suite_name) = self.metadata.name_index.get(query)
+            && let Some(suite) = self.metadata.suites.get(suite_name)
+        {
+            return TestLookupResult::TestCase(
+                self.test_cases_base.join(&suite.file_path),
+                query.to_string(),
+            );
         }
 
         // Category match
@@ -159,9 +159,10 @@ impl TestMetadataManager {
 
         if matches.is_empty() {
             TestLookupResult::NotFound
-        } else if matches.len() == 1 {
+        } else if matches.len() == 1
+            && let match_str = &matches[0]
+        {
             // Single fuzzy match - try to resolve it
-            let match_str = &matches[0];
             if let Some(stripped) = match_str.strip_prefix("file:") {
                 self.lookup(stripped)
             } else if let Some(stripped) = match_str.strip_prefix("test:") {

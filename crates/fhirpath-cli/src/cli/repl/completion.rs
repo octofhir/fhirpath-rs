@@ -121,12 +121,11 @@ impl FhirPathCompleter {
     /// Get description for a function/operation from registry
     fn get_function_description(&self, name: &str) -> String {
         // Get description from registry metadata
-        if let Ok(registry_guard) = self.registry.read() {
-            if let Some(ref registry) = *registry_guard {
-                if let Some(metadata) = registry.get_metadata(name) {
-                    return metadata.description.clone();
-                }
-            }
+        if let Ok(registry_guard) = self.registry.read()
+            && let Some(ref registry) = *registry_guard
+            && let Some(metadata) = registry.get_metadata(name)
+        {
+            return metadata.description.clone();
         }
 
         // Fallback descriptions for common functions
@@ -145,26 +144,26 @@ impl FhirPathCompleter {
     /// Get cached function names from registry or cache
     fn get_cached_function_names(&self) -> Vec<String> {
         // First check cache
-        if let Ok(guard) = self.cached_functions.read() {
-            if let Some(ref cached) = *guard {
-                return cached.clone();
-            }
+        if let Ok(guard) = self.cached_functions.read()
+            && let Some(ref cached) = *guard
+        {
+            return cached.clone();
         }
 
         // Get from registry (registry is always available as core feature)
-        if let Ok(registry_guard) = self.registry.read() {
-            if let Some(ref registry) = *registry_guard {
-                // Get all function names directly
-                let function_names: Vec<String> =
-                    registry.list_functions().into_iter().cloned().collect();
+        if let Ok(registry_guard) = self.registry.read()
+            && let Some(ref registry) = *registry_guard
+        {
+            // Get all function names directly
+            let function_names: Vec<String> =
+                registry.list_functions().into_iter().cloned().collect();
 
-                // Cache the results
-                if let Ok(mut cache_guard) = self.cached_functions.write() {
-                    *cache_guard = Some(function_names.clone());
-                }
-
-                return function_names;
+            // Cache the results
+            if let Ok(mut cache_guard) = self.cached_functions.write() {
+                *cache_guard = Some(function_names.clone());
             }
+
+            return function_names;
         }
 
         // This should never happen since registry is always available
@@ -176,49 +175,207 @@ impl FhirPathCompleter {
         line.trim_start().starts_with(':')
     }
 
-    /// Get cached resource types from model provider
-    fn get_cached_resource_types(&self) -> Vec<String> {
-        if let Ok(guard) = self.cached_resource_types.read() {
-            if let Some(ref cached) = *guard {
-                return cached.clone();
+    /// Pre-fetch resource types from model provider asynchronously
+    /// This should be called during REPL initialization to populate the cache
+    pub async fn prefetch_resource_types(&self) {
+        // Try to get resource types from model provider
+        if let Ok(resource_types) = self.model_provider.get_resource_types().await
+            && !resource_types.is_empty()
+        {
+            // Cache the results from model provider
+            if let Ok(mut cache_guard) = self.cached_resource_types.write() {
+                *cache_guard = Some(resource_types);
             }
+            return;
         }
 
-        // Try to get from model provider
-        // TODO: Add async method to get all resource types from model provider
-        // For now, we'll use common FHIR resource types but this should be
-        // dynamically populated from the actual model provider
-
-        // Common FHIR resource types as fallback
-        let resource_types = vec![
-            "Patient".to_string(),
-            "Bundle".to_string(),
-            "Observation".to_string(),
-            "Condition".to_string(),
-            "Organization".to_string(),
-            "Practitioner".to_string(),
-            "Location".to_string(),
-            "Encounter".to_string(),
-            "DiagnosticReport".to_string(),
-            "Medication".to_string(),
-            "MedicationRequest".to_string(),
-            "AllergyIntolerance".to_string(),
-            "Procedure".to_string(),
-            "Immunization".to_string(),
-            "CarePlan".to_string(),
-            "Device".to_string(),
-            "Substance".to_string(),
-            "DocumentReference".to_string(),
-            "Binary".to_string(),
-            "Appointment".to_string(),
-        ];
-
-        // Cache the results
+        // Fallback to comprehensive hardcoded list if model provider fails
+        let resource_types = Self::get_fallback_resource_types();
         if let Ok(mut cache_guard) = self.cached_resource_types.write() {
-            *cache_guard = Some(resource_types.clone());
+            *cache_guard = Some(resource_types);
+        }
+    }
+
+    /// Get fallback resource types when model provider is unavailable
+    /// Returns a comprehensive list of FHIR resource types
+    fn get_fallback_resource_types() -> Vec<String> {
+        vec![
+            // Clinical - General
+            "AllergyIntolerance".to_string(),
+            "AdverseEvent".to_string(),
+            "Condition".to_string(),
+            "Procedure".to_string(),
+            "FamilyMemberHistory".to_string(),
+            "ClinicalImpression".to_string(),
+            "DetectedIssue".to_string(),
+            // Clinical - Diagnostics
+            "Observation".to_string(),
+            "DiagnosticReport".to_string(),
+            "ImagingStudy".to_string(),
+            "QuestionnaireResponse".to_string(),
+            "MolecularSequence".to_string(),
+            "Specimen".to_string(),
+            // Clinical - Medications
+            "MedicationRequest".to_string(),
+            "MedicationDispense".to_string(),
+            "MedicationAdministration".to_string(),
+            "MedicationStatement".to_string(),
+            "Medication".to_string(),
+            "MedicationKnowledge".to_string(),
+            "Immunization".to_string(),
+            "ImmunizationEvaluation".to_string(),
+            "ImmunizationRecommendation".to_string(),
+            // Clinical - Care Provision
+            "CarePlan".to_string(),
+            "CareTeam".to_string(),
+            "Goal".to_string(),
+            "ServiceRequest".to_string(),
+            "NutritionOrder".to_string(),
+            "VisionPrescription".to_string(),
+            "RiskAssessment".to_string(),
+            "RequestGroup".to_string(),
+            // Clinical - Request & Response
+            "Communication".to_string(),
+            "CommunicationRequest".to_string(),
+            "DeviceRequest".to_string(),
+            "DeviceUseStatement".to_string(),
+            "GuidanceResponse".to_string(),
+            "SupplyRequest".to_string(),
+            "SupplyDelivery".to_string(),
+            // Financial
+            "Coverage".to_string(),
+            "CoverageEligibilityRequest".to_string(),
+            "CoverageEligibilityResponse".to_string(),
+            "EnrollmentRequest".to_string(),
+            "EnrollmentResponse".to_string(),
+            "Claim".to_string(),
+            "ClaimResponse".to_string(),
+            "Invoice".to_string(),
+            "PaymentNotice".to_string(),
+            "PaymentReconciliation".to_string(),
+            "Account".to_string(),
+            "ChargeItem".to_string(),
+            "ChargeItemDefinition".to_string(),
+            "Contract".to_string(),
+            "ExplanationOfBenefit".to_string(),
+            "InsurancePlan".to_string(),
+            // Foundation - Individuals
+            "Patient".to_string(),
+            "Practitioner".to_string(),
+            "PractitionerRole".to_string(),
+            "RelatedPerson".to_string(),
+            "Person".to_string(),
+            "Group".to_string(),
+            // Foundation - Entities
+            "Organization".to_string(),
+            "OrganizationAffiliation".to_string(),
+            "HealthcareService".to_string(),
+            "Endpoint".to_string(),
+            "Location".to_string(),
+            "Substance".to_string(),
+            "BiologicallyDerivedProduct".to_string(),
+            "Device".to_string(),
+            "DeviceMetric".to_string(),
+            "DeviceDefinition".to_string(),
+            // Foundation - Workflow
+            "Task".to_string(),
+            "Appointment".to_string(),
+            "AppointmentResponse".to_string(),
+            "Schedule".to_string(),
+            "Slot".to_string(),
+            "VerificationResult".to_string(),
+            // Foundation - Management
+            "Encounter".to_string(),
+            "EpisodeOfCare".to_string(),
+            "Flag".to_string(),
+            "List".to_string(),
+            "Library".to_string(),
+            // Documents & Messages
+            "Composition".to_string(),
+            "DocumentManifest".to_string(),
+            "DocumentReference".to_string(),
+            "CatalogEntry".to_string(),
+            // Infrastructure
+            "Basic".to_string(),
+            "Binary".to_string(),
+            "Bundle".to_string(),
+            "Linkage".to_string(),
+            "MessageHeader".to_string(),
+            "OperationOutcome".to_string(),
+            "Parameters".to_string(),
+            "Subscription".to_string(),
+            // Conformance
+            "CapabilityStatement".to_string(),
+            "StructureDefinition".to_string(),
+            "ImplementationGuide".to_string(),
+            "SearchParameter".to_string(),
+            "MessageDefinition".to_string(),
+            "OperationDefinition".to_string(),
+            "CompartmentDefinition".to_string(),
+            "StructureMap".to_string(),
+            "GraphDefinition".to_string(),
+            "ExampleScenario".to_string(),
+            // Terminology
+            "CodeSystem".to_string(),
+            "ValueSet".to_string(),
+            "ConceptMap".to_string(),
+            "NamingSystem".to_string(),
+            "TerminologyCapabilities".to_string(),
+            // Quality & Reporting
+            "Measure".to_string(),
+            "MeasureReport".to_string(),
+            "ResearchStudy".to_string(),
+            "ResearchSubject".to_string(),
+            "ResearchDefinition".to_string(),
+            "ResearchElementDefinition".to_string(),
+            "Evidence".to_string(),
+            "EvidenceVariable".to_string(),
+            "EffectEvidenceSynthesis".to_string(),
+            "RiskEvidenceSynthesis".to_string(),
+            // Medication Definition
+            "MedicinalProduct".to_string(),
+            "MedicinalProductAuthorization".to_string(),
+            "MedicinalProductContraindication".to_string(),
+            "MedicinalProductIndication".to_string(),
+            "MedicinalProductIngredient".to_string(),
+            "MedicinalProductInteraction".to_string(),
+            "MedicinalProductManufactured".to_string(),
+            "MedicinalProductPackaged".to_string(),
+            "MedicinalProductPharmaceutical".to_string(),
+            "MedicinalProductUndesirableEffect".to_string(),
+            "SubstanceSpecification".to_string(),
+            "SubstancePolymer".to_string(),
+            "SubstanceReferenceInformation".to_string(),
+            "SubstanceSourceMaterial".to_string(),
+            "SubstanceProtein".to_string(),
+            "SubstanceNucleicAcid".to_string(),
+            // Other
+            "AuditEvent".to_string(),
+            "Consent".to_string(),
+            "Provenance".to_string(),
+            "Questionnaire".to_string(),
+            "ActivityDefinition".to_string(),
+            "PlanDefinition".to_string(),
+            "EventDefinition".to_string(),
+            "ObservationDefinition".to_string(),
+            "SpecimenDefinition".to_string(),
+            "Citation".to_string(),
+            "DataRequirement".to_string(),
+        ]
+    }
+
+    /// Get cached resource types (synchronous)
+    /// Returns cached resource types or fallback list if cache is empty
+    fn get_cached_resource_types(&self) -> Vec<String> {
+        if let Ok(guard) = self.cached_resource_types.read()
+            && let Some(ref cached) = *guard
+        {
+            return cached.clone();
         }
 
-        resource_types
+        // If cache is empty, return fallback list
+        // This shouldn't happen if prefetch_resource_types() was called during initialization
+        Self::get_fallback_resource_types()
     }
 
     /// Extract the most likely resource type from a FHIRPath context
@@ -281,8 +438,8 @@ impl FhirPathCompleter {
         // Extract resource type from context - handle complex expressions
         let resource_type = self.extract_resource_type_from_context(context);
 
-        // For now, provide common FHIR properties based on resource type
-        // TODO: Extend this with actual model provider data when async completion is supported
+        // Provide common FHIR properties based on resource type
+        // Resource types are fetched from model provider during initialization
         let common_properties = match resource_type.as_str() {
             "Patient" => vec![
                 ("id", "resource identifier"),
@@ -435,7 +592,7 @@ impl FhirPathCompleter {
         let mut candidates = Vec::new();
 
         // Parse command to provide appropriate completions
-        if line.starts_with(":help") && word.len() > 0 {
+        if line.starts_with(":help") && !word.is_empty() {
             // Complete function names for help command
             let function_names = self.get_cached_function_names();
             for name in function_names {
