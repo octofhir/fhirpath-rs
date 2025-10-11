@@ -1,0 +1,1 @@
+//! Document symbols feature implementation

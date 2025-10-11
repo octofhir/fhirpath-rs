@@ -1,0 +1,1 @@
+//! Hover feature implementation

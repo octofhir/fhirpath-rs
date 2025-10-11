@@ -1,0 +1,1 @@
+//! Inlay hints feature implementation

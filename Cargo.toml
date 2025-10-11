@@ -3,6 +3,7 @@ members = [
     "crates/octofhir-fhirpath",
     "crates/fhirpath-cli",
     "crates/fhirpath-dev-tools",
+    "crates/fhirpath-lsp",
 ]
 exclude = []
 resolver = "3"
