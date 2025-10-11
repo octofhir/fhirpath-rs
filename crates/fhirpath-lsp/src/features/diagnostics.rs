@@ -12,22 +12,28 @@ pub async fn generate_diagnostics(
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
-    // Check for directive errors (missing files)
+    // Check for directive errors (missing files and invalid resources)
     for directive in &document.directives {
-        if let DirectiveContent::FilePath { path, resolved } = &directive.content
-            && resolved.is_none()
-        {
-            diagnostics.push(Diagnostic {
-                range: directive.range,
-                severity: Some(DiagnosticSeverity::ERROR),
-                code: Some(NumberOrString::String("file-not-found".to_string())),
-                source: Some("fhirpath-lsp".to_string()),
-                message: format!("File not found: {}", path),
-                related_information: None,
-                tags: None,
-                code_description: None,
-                data: None,
-            });
+        match &directive.content {
+            DirectiveContent::FilePath { path, resolved } => {
+                if resolved.is_none() {
+                    diagnostics.push(Diagnostic {
+                        range: directive.range,
+                        severity: Some(DiagnosticSeverity::ERROR),
+                        code: Some(NumberOrString::String("file-not-found".to_string())),
+                        source: Some("fhirpath-lsp".to_string()),
+                        message: format!("File not found: {}", path),
+                        related_information: None,
+                        tags: None,
+                        code_description: None,
+                        data: None,
+                    });
+                }
+            }
+            DirectiveContent::InlineResource(resource) => {
+                // Validate FHIR resource structure
+                diagnostics.extend(validate_fhir_resource(resource, directive.range));
+            }
         }
     }
 
@@ -50,6 +56,101 @@ pub async fn generate_diagnostics(
             }
         }
     }
+
+    diagnostics
+}
+
+/// Validate a FHIR resource structure
+fn validate_fhir_resource(resource: &serde_json::Value, range: Range) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+
+    // Check if it's a JSON object
+    if !resource.is_object() {
+        diagnostics.push(Diagnostic {
+            range,
+            severity: Some(DiagnosticSeverity::ERROR),
+            code: Some(NumberOrString::String("invalid-fhir-resource".to_string())),
+            source: Some("fhirpath-lsp".to_string()),
+            message: "FHIR resource must be a JSON object".to_string(),
+            related_information: None,
+            tags: None,
+            code_description: None,
+            data: None,
+        });
+        return diagnostics;
+    }
+
+    let obj = resource.as_object().unwrap();
+
+    // Check for required resourceType field
+    if !obj.contains_key("resourceType") {
+        diagnostics.push(Diagnostic {
+            range,
+            severity: Some(DiagnosticSeverity::ERROR),
+            code: Some(NumberOrString::String("missing-resource-type".to_string())),
+            source: Some("fhirpath-lsp".to_string()),
+            message: "FHIR resource must have a 'resourceType' field".to_string(),
+            related_information: None,
+            tags: None,
+            code_description: None,
+            data: None,
+        });
+    } else if let Some(resource_type) = obj.get("resourceType") {
+        // Validate resourceType is a string
+        if !resource_type.is_string() {
+            diagnostics.push(Diagnostic {
+                range,
+                severity: Some(DiagnosticSeverity::ERROR),
+                code: Some(NumberOrString::String("invalid-resource-type".to_string())),
+                source: Some("fhirpath-lsp".to_string()),
+                message: "'resourceType' must be a string".to_string(),
+                related_information: None,
+                tags: None,
+                code_description: None,
+                data: None,
+            });
+        } else {
+            let rt = resource_type.as_str().unwrap();
+            // Check if it's a valid FHIR resource type (basic validation)
+            if rt.is_empty() || !rt.chars().next().unwrap().is_uppercase() {
+                diagnostics.push(Diagnostic {
+                    range,
+                    severity: Some(DiagnosticSeverity::WARNING),
+                    code: Some(NumberOrString::String("unusual-resource-type".to_string())),
+                    source: Some("fhirpath-lsp".to_string()),
+                    message: format!(
+                        "Resource type '{}' may not be a valid FHIR resource type",
+                        rt
+                    ),
+                    related_information: None,
+                    tags: None,
+                    code_description: None,
+                    data: None,
+                });
+            }
+        }
+    }
+
+    // Check for common structural issues
+    if let Some(id) = obj.get("id")
+        && !id.is_string()
+    {
+        diagnostics.push(Diagnostic {
+            range,
+            severity: Some(DiagnosticSeverity::WARNING),
+            code: Some(NumberOrString::String("invalid-id-type".to_string())),
+            source: Some("fhirpath-lsp".to_string()),
+            message: "'id' field should be a string".to_string(),
+            related_information: None,
+            tags: None,
+            code_description: None,
+            data: None,
+        });
+    }
+
+    // TODO: Use octofhir-fhirschema for comprehensive validation
+    // This is a basic validation - full schema validation should be added
+    // using the FhirSchemaModelProvider integration
 
     diagnostics
 }

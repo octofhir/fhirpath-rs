@@ -1549,6 +1549,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dashmap 6.1.0",
+ "divan",
  "lsp-types",
  "notify",
  "notify-debouncer-full",
@@ -1568,6 +1569,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "walkdir",
 ]
 
 [[package]]

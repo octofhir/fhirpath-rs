@@ -11,7 +11,15 @@ use url::Url;
 use crate::cache::{AnalysisCache, CompletionCache};
 use crate::config::Config;
 use crate::document::FhirPathDocument;
+use crate::features::code_actions::generate_code_actions;
+use crate::features::completion::generate_completions;
 use crate::features::diagnostics::generate_diagnostics;
+use crate::features::document_symbols::generate_document_symbols;
+use crate::features::goto_definition::goto_definition;
+use crate::features::hover::generate_hover;
+use crate::features::inlay_hints::generate_inlay_hints;
+use crate::features::semantic_tokens::generate_semantic_tokens;
+use crate::metrics::{MetricOperation, MetricsTracker};
 use octofhir_fhirpath::FhirPathEngine;
 
 /// FHIRPath Language Server
@@ -28,6 +36,10 @@ pub struct FhirPathLanguageServer {
     completion_cache: Arc<CompletionCache>,
     /// FHIRPath engine (initialized lazily in initialized() callback)
     engine: Arc<tokio::sync::RwLock<Option<FhirPathEngine>>>,
+    /// Workspace folders (URI -> WorkspaceFolder)
+    workspace_folders: Arc<DashMap<Url, WorkspaceFolder>>,
+    /// Performance metrics tracker
+    metrics: MetricsTracker,
 }
 
 impl Clone for FhirPathLanguageServer {
@@ -39,6 +51,8 @@ impl Clone for FhirPathLanguageServer {
             analysis_cache: self.analysis_cache.clone(),
             completion_cache: self.completion_cache.clone(),
             engine: self.engine.clone(),
+            workspace_folders: self.workspace_folders.clone(),
+            metrics: self.metrics.clone(),
         }
     }
 }
@@ -58,6 +72,8 @@ impl FhirPathLanguageServer {
             analysis_cache: Arc::new(AnalysisCache::default()),
             completion_cache: Arc::new(CompletionCache::default()),
             engine: Arc::new(tokio::sync::RwLock::new(None)),
+            workspace_folders: Arc::new(DashMap::new()),
+            metrics: MetricsTracker::new(),
         }
     }
 
@@ -90,6 +106,8 @@ impl FhirPathLanguageServer {
     /// Publish diagnostics for a document
     async fn publish_diagnostics(&self, uri: Url) {
         if let Some(doc) = self.get_document(&uri) {
+            let start = std::time::Instant::now();
+
             let engine_guard = self.engine.read().await;
             let diagnostics = if let Some(ref engine) = *engine_guard {
                 generate_diagnostics(&doc, engine).await
@@ -99,6 +117,11 @@ impl FhirPathLanguageServer {
                 Vec::new()
             };
             drop(engine_guard);
+
+            // Record metrics
+            let duration = start.elapsed();
+            self.metrics.track(MetricOperation::Diagnostic, || duration);
+            self.metrics.document_processed();
 
             self.client
                 .publish_diagnostics(uri.clone(), diagnostics, Some(doc.version))
@@ -172,6 +195,61 @@ impl FhirPathLanguageServer {
             }
         }
     }
+
+    /// Find workspace folder for a given document URI
+    pub fn find_workspace_folder(&self, document_uri: &Url) -> Option<WorkspaceFolder> {
+        // Find the workspace folder that contains this document
+        for entry in self.workspace_folders.iter() {
+            let workspace_uri = entry.key();
+            let workspace_path = workspace_uri.path();
+            let document_path = document_uri.path();
+
+            // Check if document path starts with workspace path
+            if document_path.starts_with(workspace_path) {
+                return Some(entry.value().clone());
+            }
+        }
+        None
+    }
+
+    /// Load configuration for a specific workspace folder
+    pub fn load_workspace_config(&self, workspace_uri: &Url) -> Config {
+        // Try to load .fhirpath-lsp.toml from workspace root
+        if let Ok(workspace_path) = workspace_uri.to_file_path() {
+            let config_path = workspace_path.join(".fhirpath-lsp.toml");
+
+            if config_path.exists() {
+                match Config::from_file(&config_path) {
+                    Ok(config) => {
+                        tracing::info!(
+                            "Loaded workspace-specific config from: {}",
+                            config_path.display()
+                        );
+                        return config;
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to load workspace config from {}: {}",
+                            config_path.display(),
+                            e
+                        );
+                    }
+                }
+            }
+        }
+
+        // Fall back to global config
+        self.config()
+    }
+
+    /// Get configuration for a document (workspace-specific or global)
+    pub fn get_document_config(&self, document_uri: &Url) -> Config {
+        if let Some(workspace_folder) = self.find_workspace_folder(document_uri) {
+            self.load_workspace_config(&workspace_folder.uri)
+        } else {
+            self.config()
+        }
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -179,10 +257,11 @@ impl LanguageServer for FhirPathLanguageServer {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("LSP initialize request received");
 
-        // Log workspace folders
-        if let Some(folders) = &params.workspace_folders {
+        // Store and log workspace folders
+        if let Some(folders) = params.workspace_folders {
             for folder in folders {
                 tracing::info!("Workspace folder: {}", folder.uri);
+                self.workspace_folders.insert(folder.uri.clone(), folder);
             }
         }
 
@@ -230,6 +309,13 @@ impl LanguageServer for FhirPathLanguageServer {
                 ),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 inlay_hint_provider: Some(OneOf::Left(true)),
+                workspace: Some(WorkspaceServerCapabilities {
+                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                        supported: Some(true),
+                        change_notifications: Some(OneOf::Left(true)),
+                    }),
+                    ..Default::default()
+                }),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -319,6 +405,163 @@ impl LanguageServer for FhirPathLanguageServer {
         for change in params.changes {
             tracing::info!("File changed: {} ({:?})", change.uri, change.typ);
             // TODO: Handle .fhirpath-lsp.toml changes
+        }
+    }
+
+    async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
+        tracing::info!("Workspace folders changed");
+
+        // Add new workspace folders
+        for folder in params.event.added {
+            tracing::info!("Workspace folder added: {}", folder.uri);
+            self.workspace_folders.insert(folder.uri.clone(), folder);
+        }
+
+        // Remove workspace folders
+        for folder in params.event.removed {
+            tracing::info!("Workspace folder removed: {}", folder.uri);
+            self.workspace_folders.remove(&folder.uri);
+        }
+
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!(
+                    "Workspace folders updated: {} total",
+                    self.workspace_folders.len()
+                ),
+            )
+            .await;
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        let uri = params.text_document.uri;
+
+        tracing::debug!("Semantic tokens requested for: {}", uri);
+
+        if let Some(doc) = self.get_document(&uri) {
+            let tokens = generate_semantic_tokens(&doc);
+            Ok(Some(tokens))
+        } else {
+            tracing::warn!("Document not found for semantic tokens: {}", uri);
+            Ok(None)
+        }
+    }
+
+    async fn semantic_tokens_range(
+        &self,
+        params: SemanticTokensRangeParams,
+    ) -> Result<Option<SemanticTokensRangeResult>> {
+        let uri = params.text_document.uri;
+
+        tracing::debug!("Semantic tokens range requested for: {}", uri);
+
+        // For now, return full tokens (range filtering can be optimized later)
+        if let Some(doc) = self.get_document(&uri) {
+            let tokens = generate_semantic_tokens(&doc);
+            match tokens {
+                SemanticTokensResult::Tokens(tokens) => {
+                    Ok(Some(SemanticTokensRangeResult::Tokens(tokens)))
+                }
+                SemanticTokensResult::Partial(_) => Ok(None),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+
+        tracing::debug!("Completion requested for: {} at {:?}", uri, position);
+
+        if let Some(doc) = self.get_document(&uri) {
+            Ok(generate_completions(&doc, position))
+        } else {
+            tracing::warn!("Document not found for completion: {}", uri);
+            Ok(None)
+        }
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        tracing::debug!("Hover requested for: {} at {:?}", uri, position);
+
+        if let Some(doc) = self.get_document(&uri) {
+            Ok(generate_hover(&doc, position))
+        } else {
+            tracing::warn!("Document not found for hover: {}", uri);
+            Ok(None)
+        }
+    }
+
+    async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
+        let uri = params.text_document.uri;
+        let range = params.range;
+
+        tracing::debug!("Inlay hints requested for: {} in range {:?}", uri, range);
+
+        if let Some(doc) = self.get_document(&uri) {
+            let hints = generate_inlay_hints(&doc, range);
+            Ok(Some(hints))
+        } else {
+            tracing::warn!("Document not found for inlay hints: {}", uri);
+            Ok(None)
+        }
+    }
+
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = params.text_document.uri;
+        let range = params.range;
+        let diagnostics = params.context.diagnostics;
+
+        tracing::debug!("Code actions requested for: {} in range {:?}", uri, range);
+
+        if let Some(doc) = self.get_document(&uri) {
+            let actions = generate_code_actions(&doc, range, &diagnostics);
+            Ok(Some(actions))
+        } else {
+            tracing::warn!("Document not found for code actions: {}", uri);
+            Ok(None)
+        }
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        tracing::debug!("Goto definition requested for: {} at {:?}", uri, position);
+
+        if let Some(doc) = self.get_document(&uri) {
+            Ok(goto_definition(&doc, position))
+        } else {
+            tracing::warn!("Document not found for goto definition: {}", uri);
+            Ok(None)
+        }
+    }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let uri = params.text_document.uri;
+
+        tracing::debug!("Document symbols requested for: {}", uri);
+
+        if let Some(doc) = self.get_document(&uri) {
+            Ok(Some(generate_document_symbols(&doc)))
+        } else {
+            tracing::warn!("Document not found for document symbols: {}", uri);
+            Ok(None)
         }
     }
 }

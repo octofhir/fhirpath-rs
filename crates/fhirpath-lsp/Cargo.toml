@@ -44,8 +44,14 @@ dashmap = "6"  # Concurrent HashMap for caching
 url = { workspace = true }
 parking_lot = { workspace = true }
 regex = { workspace = true }
+walkdir = "2.4"  # Directory traversal for file path completion
 
 [dev-dependencies]
 tempfile = "3"
 pretty_assertions = "1.4"
 tokio-test = "0.4"
+divan = "0.1"
+
+[[bench]]
+name = "lsp_bench"
+harness = false

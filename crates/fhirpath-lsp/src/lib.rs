@@ -10,6 +10,7 @@ pub mod config;
 pub mod directives;
 pub mod document;
 pub mod features;
+pub mod metrics;
 pub mod server;
 pub mod utils;
 pub mod watcher;
