@@ -67,7 +67,7 @@ human-panic = "2.0"
 
 # Modern CLI enhancement libraries
 indicatif = "0.17"       # Progress bars and spinners
-console = "0.15"         # Terminal utilities and styling
+console = "0.16"         # Terminal utilities and styling
 dialoguer = "0.11"       # Interactive prompts
 comfy-table = "7.1"      # Beautiful tables
 nu-ansi-term = "0.50"    # Advanced ANSI colors
