@@ -21,7 +21,7 @@ workspace = true
 [dependencies]
 # LSP core
 tower-lsp = "0.20"
-lsp-types = "0.94"  # Must match tower-lsp version
+lsp-types = "0.97"  # Must match tower-lsp version
 tokio = { workspace = true }
 
 # FHIRPath engine (existing crates)
