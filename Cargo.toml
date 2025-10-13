@@ -33,7 +33,7 @@ url = "2.5"
 percent-encoding = "2.3"
 parking_lot = "0.12.4"
 regex = "1.11.1"
-rust_decimal = { version = "1.37.2", features = ["serde-with-str"] }
+rust_decimal = { version = "1.39.0", features = ["serde-with-str"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
 quick-xml = "0.38"
