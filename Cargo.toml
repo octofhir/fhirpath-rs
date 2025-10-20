@@ -32,7 +32,7 @@ papaya = "0.2"
 url = "2.5"
 percent-encoding = "2.3"
 parking_lot = "0.12.4"
-regex = "1.11.1"
+regex = "1.12.2"
 rust_decimal = { version = "1.37.2", features = ["serde-with-str"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
