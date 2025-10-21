@@ -1,0 +1,73 @@
+<idea-plugin>
+  <id>com.octofhir.fhirpath</id>
+  <name>FHIRPath</name>
+  <version>0.1.0</version>
+  <vendor email="funyloony@gmail.com" url="https://github.com/octofhir/fhirpath-rs">OctoFHIR Team</vendor>
+
+  <description><![CDATA[
+    <h1>FHIRPath Language Support</h1>
+
+    <p>Professional FHIRPath language support with Language Server Protocol (LSP) integration.</p>
+
+    <h2>Features</h2>
+    <ul>
+      <li><strong>Syntax Highlighting</strong> - Rich semantic token-based highlighting</li>
+      <li><strong>IntelliSense</strong> - Context-aware code completion</li>
+      <li><strong>Real-time Diagnostics</strong> - Instant error detection</li>
+      <li><strong>Hover Documentation</strong> - Inline docs with examples</li>
+      <li><strong>Inlay Hints</strong> - Type annotations and parameter names</li>
+      <li><strong>Code Actions</strong> - Quick fixes and refactorings</li>
+      <li><strong>Go to Definition</strong> - Navigate to file references</li>
+    </ul>
+
+    <h2>Requirements</h2>
+    <p>Requires IntelliJ IDEA Ultimate and the <code>fhirpath-lsp</code> binary installed in PATH.</p>
+
+    <h2>Usage</h2>
+    <ol>
+      <li>Install the <code>fhirpath-lsp</code> binary from GitHub releases</li>
+      <li>Create a <code>.fhirpath</code> file</li>
+      <li>Start writing FHIRPath expressions</li>
+    </ol>
+
+    <p>See <a href="https://github.com/octofhir/fhirpath-rs">documentation</a> for more details.</p>
+  ]]></description>
+
+  <change-notes><![CDATA[
+    <h2>Version 0.1.0</h2>
+    <ul>
+      <li>Initial release</li>
+      <li>LSP integration with fhirpath-lsp server</li>
+      <li>Full FHIRPath syntax support</li>
+      <li>Directive support (@input, @input-file)</li>
+      <li>All LSP features: completion, hover, diagnostics, etc.</li>
+    </ul>
+  ]]></change-notes>
+
+  <!-- Requires IntelliJ Platform with LSP support -->
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.lang</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <!-- File Type -->
+    <fileType
+      name="FHIRPath"
+      implementationClass="com.octofhir.fhirpath.FhirPathFileType"
+      fieldName="INSTANCE"
+      language="FHIRPath"
+      extensions="fhirpath"/>
+
+    <!-- Language -->
+    <lang.parserDefinition
+      language="FHIRPath"
+      implementationClass="com.octofhir.fhirpath.FhirPathParserDefinition"/>
+
+    <!-- LSP Server Support (requires Ultimate Edition) -->
+    <platform.lsp.serverSupportProvider
+      implementation="com.octofhir.fhirpath.FhirPathLspServerSupportProvider"/>
+  </extensions>
+
+  <actions>
+    <!-- Optional: Add menu actions -->
+  </actions>
+</idea-plugin>

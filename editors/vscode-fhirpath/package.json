@@ -1,0 +1,100 @@
+{
+  "name": "fhirpath",
+  "displayName": "FHIRPath",
+  "description": "FHIRPath language support with IntelliSense and LSP",
+  "version": "0.1.0",
+  "publisher": "octofhir",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/octofhir/fhirpath-rs"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "fhir",
+    "fhirpath",
+    "healthcare",
+    "hl7"
+  ],
+  "activationEvents": [
+    "onLanguage:fhirpath"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "fhirpath",
+        "extensions": [".fhirpath"],
+        "aliases": ["FHIRPath", "fhirpath"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "fhirpath",
+        "scopeName": "source.fhirpath",
+        "path": "./syntaxes/fhirpath.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "FHIRPath",
+      "properties": {
+        "fhirpath.fhirVersion": {
+          "type": "string",
+          "enum": ["r4", "r4b", "r5"],
+          "default": "r5",
+          "description": "FHIR version for schema validation"
+        },
+        "fhirpath.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the FHIRPath language server"
+        },
+        "fhirpath.features.diagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time diagnostics"
+        },
+        "fhirpath.features.completion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable code completion"
+        },
+        "fhirpath.features.hover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable hover documentation"
+        },
+        "fhirpath.features.inlayHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inlay hints for types and parameters"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

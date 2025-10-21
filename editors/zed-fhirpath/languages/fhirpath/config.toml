@@ -1,0 +1,8 @@
+name = "FHIRPath"
+grammar = "fhirpath"
+path_suffixes = ["fhirpath"]
+line_comment = "//"
+block_comment = ["/*", "*/"]
+
+[language_servers]
+fhirpath-lsp = {}
