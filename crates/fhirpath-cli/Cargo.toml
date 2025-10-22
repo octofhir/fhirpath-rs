@@ -71,7 +71,7 @@ console = "0.15"         # Terminal utilities and styling
 dialoguer = "0.11"       # Interactive prompts
 comfy-table = "7.1"      # Beautiful tables
 nu-ansi-term = "0.50"    # Advanced ANSI colors
-notify = { version = "7.0", optional = true }           # File system watcher for watch mode
+notify = { version = "8.2", optional = true }           # File system watcher for watch mode
 notify-debouncer-full = { version = "0.4", optional = true }  # Debounced file watching
 glob = "0.3"             # File pattern matching for batch processing
 
