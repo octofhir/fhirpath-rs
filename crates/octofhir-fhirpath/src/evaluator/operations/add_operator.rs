@@ -2,6 +2,14 @@
 //!
 //! Implements FHIRPath addition for numeric types and string concatenation.
 //! Uses octofhir_ucum for quantity arithmetic and handles temporal arithmetic.
+//!
+//! ## UCUM Unit Conversion for Quantities
+//!
+//! When adding quantities with different units, the operator attempts UCUM-based conversion:
+//! - Both quantities must have UCUM units (same system)
+//! - Units must be convertible (same dimension, e.g., length, mass, time)
+//! - Result is returned in the left operand's unit
+//! - If units are incompatible or non-UCUM, the operation returns empty
 
 use async_trait::async_trait;
 use rust_decimal::Decimal;
@@ -13,6 +21,7 @@ use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::quantity_utils::convert_quantity;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Addition operator evaluator
@@ -69,6 +78,7 @@ impl AddOperatorEvaluator {
                     unit: lu,
                     code: lc,
                     system: ls,
+                    ucum_unit: lu_ucum,
                     ..
                 },
                 FhirPathValue::Quantity {
@@ -76,6 +86,7 @@ impl AddOperatorEvaluator {
                     unit: ru,
                     code: rc,
                     system: rs,
+                    ucum_unit: ru_ucum,
                     ..
                 },
             ) => {
@@ -87,10 +98,19 @@ impl AddOperatorEvaluator {
                         lc.clone().or_else(|| rc.clone()),
                         ls.clone().or_else(|| rs.clone()),
                     ))
+                } else if lu_ucum.is_some() && ru_ucum.is_some() {
+                    // Different units but both have UCUM - attempt conversion
+                    self.add_quantities_with_ucum(
+                        *lv,
+                        lu.clone(),
+                        lc.clone(),
+                        ls.clone(),
+                        *rv,
+                        ru.clone(),
+                        rc.clone(),
+                    )
                 } else {
-                    // Different units - would need UCUM conversion
-                    // TODO: Integrate with octofhir_ucum library for unit conversion
-                    // For now, return None to indicate incompatible units
+                    // Different units without UCUM or mixed UCUM/non-UCUM - incompatible
                     None
                 }
             }
@@ -175,6 +195,47 @@ impl AddOperatorEvaluator {
             // Invalid combinations
             _ => None,
         }
+    }
+
+    /// Add two quantities with UCUM unit conversion
+    ///
+    /// Attempts to convert the right quantity to the left quantity's unit and perform addition.
+    /// Returns None if the units are not convertible (different dimensions).
+    fn add_quantities_with_ucum(
+        &self,
+        left_value: Decimal,
+        left_unit_str: Option<String>,
+        left_code: Option<String>,
+        left_system: Option<String>,
+        right_value: Decimal,
+        right_unit_str: Option<String>,
+        right_code: Option<String>,
+    ) -> Option<FhirPathValue> {
+        // Get the target unit (left operand) - prefer code, fallback to unit string
+        let target_unit = left_code.as_deref().or(left_unit_str.as_deref())?;
+
+        // Get the source unit (right operand) - prefer code, fallback to unit string
+        let source_unit_for_ref = right_code.as_ref().or(right_unit_str.as_ref())?;
+
+        // Try to convert right quantity to left unit using existing conversion infrastructure
+        let converted = convert_quantity(
+            right_value,
+            &Some(source_unit_for_ref.clone()),
+            &None, // calendar_unit - we know both are UCUM units
+            target_unit,
+        )
+        .ok()?;
+
+        // Perform addition in left unit
+        let result_value = left_value + converted.value;
+
+        // Return result in left operand's unit
+        Some(FhirPathValue::quantity_with_components(
+            result_value,
+            left_unit_str,
+            left_code,
+            left_system,
+        ))
     }
 
     /// Add a time-valued quantity to a temporal value with type information
@@ -585,8 +646,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(5)];
         let right = vec![FhirPathValue::integer(3)];
@@ -609,8 +669,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::decimal(Decimal::new(55, 1))];
         let right = vec![FhirPathValue::decimal(Decimal::new(32, 1))];
@@ -636,8 +695,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(5)];
         let right = vec![FhirPathValue::decimal(Decimal::new(35, 1))];
@@ -663,8 +721,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::string("Hello".to_string())];
         let right = vec![FhirPathValue::string(" World".to_string())];
@@ -690,8 +747,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::quantity(
             Decimal::new(5, 0),
@@ -725,8 +781,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(5)];
         let right = vec![]; // Empty collection
@@ -736,6 +791,75 @@ mod tests {
             .await
             .unwrap();
 
+        assert!(result.value.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_add_quantities_with_ucum_conversion() {
+        // Test adding 1000 mg + 2 g = 3 g (or 3000 mg, depending on left operand)
+        let evaluator = AddOperatorEvaluator::new();
+        let context = EvaluationContext::new(
+            Collection::empty(),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
+            None,
+        );
+
+        // Left: 2 g, Right: 1000 mg
+        // Expected: 3 g (result in left operand's unit)
+        let left = vec![FhirPathValue::quantity(
+            Decimal::new(2, 0),
+            Some("g".to_string()),
+        )];
+        let right = vec![FhirPathValue::quantity(
+            Decimal::new(1000, 0),
+            Some("mg".to_string()),
+        )];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
+            // Result should be 3 g (2 g + 1 g from converted 1000 mg)
+            assert_eq!(*value, Decimal::new(3, 0));
+            assert_eq!(unit.as_deref(), Some("g"));
+        } else {
+            panic!("Expected quantity result");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_add_quantities_incompatible_units() {
+        // Test that incompatible units (e.g., length + mass) return empty
+        let evaluator = AddOperatorEvaluator::new();
+        let context = EvaluationContext::new(
+            Collection::empty(),
+            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
+            None,
+            None,
+            None,
+        );
+
+        // Left: 5 kg (mass), Right: 10 m (length)
+        let left = vec![FhirPathValue::quantity(
+            Decimal::new(5, 0),
+            Some("kg".to_string()),
+        )];
+        let right = vec![FhirPathValue::quantity(
+            Decimal::new(10, 0),
+            Some("m".to_string()),
+        )];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        // Incompatible dimensions should return empty
         assert!(result.value.is_empty());
     }
 }

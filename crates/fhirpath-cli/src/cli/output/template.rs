@@ -197,58 +197,6 @@ impl TemplatePresets {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_template_formatter() {
-        let template = TemplateFormatter::new("Hello {name}, you are {age} years old".to_string());
-        let mut vars = HashMap::new();
-        vars.insert("name".to_string(), "Alice".to_string());
-        vars.insert("age".to_string(), "30".to_string());
-
-        let result = template.format(&vars);
-        assert_eq!(result, "Hello Alice, you are 30 years old");
-    }
-
-    #[test]
-    fn test_get_placeholders() {
-        let template = TemplateFormatter::new("Hello {name}, {greeting}!".to_string());
-        let placeholders = template.get_placeholders();
-        assert_eq!(placeholders, vec!["name", "greeting"]);
-    }
-
-    #[test]
-    fn test_escape_sequences() {
-        let template = TemplateFormatter::new("Line 1\\nLine 2\\tTabbed".to_string());
-        let vars = HashMap::new();
-        let result = template.format(&vars);
-        assert_eq!(result, "Line 1\nLine 2\tTabbed");
-    }
-
-    #[test]
-    fn test_output_formatter_evaluation() {
-        use super::super::EvaluationOutput;
-        use octofhir_fhirpath::Collection;
-        use std::time::Duration;
-
-        let template = TemplateFormatter::new("{expression} => {result}".to_string());
-        let output = EvaluationOutput {
-            success: true,
-            result: Some(Collection::from_values(vec![])),
-            result_with_metadata: None,
-            error: None,
-            expression: "Patient.name".to_string(),
-            execution_time: Duration::from_millis(10),
-            metadata: super::super::OutputMetadata::default(),
-        };
-
-        let result = template.format_evaluation(&output).unwrap();
-        assert!(result.contains("Patient.name"));
-    }
-}
-
 impl OutputFormatter for TemplateFormatter {
     fn format_evaluation(&self, output: &EvaluationOutput) -> Result<String, FormatError> {
         let mut vars = HashMap::new();
@@ -400,5 +348,57 @@ impl OutputFormatter for TemplateFormatter {
         }
 
         Ok(self.format(&vars))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_template_formatter() {
+        let template = TemplateFormatter::new("Hello {name}, you are {age} years old".to_string());
+        let mut vars = HashMap::new();
+        vars.insert("name".to_string(), "Alice".to_string());
+        vars.insert("age".to_string(), "30".to_string());
+
+        let result = template.format(&vars);
+        assert_eq!(result, "Hello Alice, you are 30 years old");
+    }
+
+    #[test]
+    fn test_get_placeholders() {
+        let template = TemplateFormatter::new("Hello {name}, {greeting}!".to_string());
+        let placeholders = template.get_placeholders();
+        assert_eq!(placeholders, vec!["name", "greeting"]);
+    }
+
+    #[test]
+    fn test_escape_sequences() {
+        let template = TemplateFormatter::new("Line 1\\nLine 2\\tTabbed".to_string());
+        let vars = HashMap::new();
+        let result = template.format(&vars);
+        assert_eq!(result, "Line 1\nLine 2\tTabbed");
+    }
+
+    #[test]
+    fn test_output_formatter_evaluation() {
+        use super::super::EvaluationOutput;
+        use octofhir_fhirpath::Collection;
+        use std::time::Duration;
+
+        let template = TemplateFormatter::new("{expression} => {result}".to_string());
+        let output = EvaluationOutput {
+            success: true,
+            result: Some(Collection::from_values(vec![])),
+            result_with_metadata: None,
+            error: None,
+            expression: "Patient.name".to_string(),
+            execution_time: Duration::from_millis(10),
+            metadata: super::super::OutputMetadata::default(),
+        };
+
+        let result = template.format_evaluation(&output).unwrap();
+        assert!(result.contains("Patient.name"));
     }
 }

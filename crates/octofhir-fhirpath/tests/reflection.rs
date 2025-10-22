@@ -22,8 +22,7 @@ async fn type_function_name_returns_system_string() {
         None,
         None,
         None,
-    )
-    .await;
+    );
 
     let evaluation = engine
         .evaluate("Patient.ofType(FHIR.`Patient`).type().name", &context)

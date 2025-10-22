@@ -478,8 +478,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(8)];
         let right = vec![FhirPathValue::integer(3)];
@@ -502,8 +501,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::decimal(Decimal::new(87, 1))];
         let right = vec![FhirPathValue::decimal(Decimal::new(32, 1))];
@@ -529,8 +527,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::quantity(
             Decimal::new(8, 0),

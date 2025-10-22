@@ -135,8 +135,7 @@ impl LazyFunctionEvaluator for AggregateFunctionEvaluator {
                 context.terminology_provider().cloned(),
                 context.validation_provider().cloned(),
                 context.trace_provider().cloned(),
-            )
-            .await;
+            );
 
             iteration_context.set_variable("$this".to_string(), item.clone());
             iteration_context

@@ -7,6 +7,7 @@ use papaya::HashMap as LockFreeHashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::core::model_provider::TypeInfo;
 use crate::core::trace::SharedTraceProvider;
 use crate::core::{Collection, FhirPathValue, ModelProvider};
 use octofhir_fhir_model::{TerminologyProvider, ValidationProvider};
@@ -32,6 +33,9 @@ pub struct EvaluationContext {
     parent_context: Option<Box<EvaluationContext>>,
     /// Shared cache for resolved references to avoid repeated cloning and scanning
     resolution_cache: std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>>,
+    /// Shared cache for TypeInfo to avoid repeated model provider calls
+    /// Key: type name (e.g., "Patient", "HumanName"), Value: TypeInfo
+    type_info_cache: std::sync::Arc<LockFreeHashMap<String, TypeInfo>>,
 }
 
 /// Helper to create well-known environment variables following FHIR specification
@@ -75,7 +79,7 @@ fn create_environment_variables() -> HashMap<String, FhirPathValue> {
 
 impl EvaluationContext {
     /// Create new evaluation context
-    pub async fn new(
+    pub fn new(
         input_collection: Collection,
         model_provider: Arc<dyn ModelProvider + Send + Sync>,
         terminology_provider: Option<Arc<dyn TerminologyProvider>>,
@@ -114,6 +118,7 @@ impl EvaluationContext {
             },
             parent_context: None,
             resolution_cache: std::sync::Arc::new(LockFreeHashMap::new()),
+            type_info_cache: std::sync::Arc::new(LockFreeHashMap::new()),
         };
 
         // Set $this to the root input collection for root-level evaluation
@@ -186,6 +191,7 @@ impl EvaluationContext {
             },
             parent_context: None, // Independent context has no parent
             resolution_cache: self.resolution_cache.clone(),
+            type_info_cache: self.type_info_cache.clone(),
         }
     }
 
@@ -200,6 +206,7 @@ impl EvaluationContext {
             variables: LockFreeHashMap::new(), // Empty variables in nested scope
             parent_context: Some(Box::new(self.clone())), // Parent chain
             resolution_cache: self.resolution_cache.clone(),
+            type_info_cache: self.type_info_cache.clone(),
         }
     }
 
@@ -214,6 +221,7 @@ impl EvaluationContext {
             variables: LockFreeHashMap::new(), // Empty variables for child context
             parent_context: Some(Box::new(self.clone())), // Set parent to inherit variables
             resolution_cache: self.resolution_cache.clone(),
+            type_info_cache: self.type_info_cache.clone(),
         }
     }
 
@@ -275,6 +283,32 @@ impl EvaluationContext {
     ) -> &std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>> {
         &self.resolution_cache
     }
+
+    /// Get or fetch TypeInfo from cache, falling back to model provider on cache miss
+    /// This reduces redundant model provider calls for the same type
+    pub async fn get_or_fetch_type_info(&self, type_name: &str) -> Option<TypeInfo> {
+        // Check cache first
+        if let Some(cached) = self.type_info_cache.pin().get(type_name) {
+            return Some(cached.clone());
+        }
+
+        // Cache miss - fetch from model provider
+        match self.model_provider.get_type(type_name).await {
+            Ok(Some(type_info)) => {
+                // Insert into cache for future use
+                self.type_info_cache
+                    .pin()
+                    .insert(type_name.to_string(), type_info.clone());
+                Some(type_info)
+            }
+            _ => None,
+        }
+    }
+
+    /// Get the shared TypeInfo cache
+    pub fn type_info_cache(&self) -> &std::sync::Arc<LockFreeHashMap<String, TypeInfo>> {
+        &self.type_info_cache
+    }
 }
 
 /// Clone implementation for EvaluationContext
@@ -298,6 +332,7 @@ impl Clone for EvaluationContext {
             },
             parent_context: self.parent_context.clone(),
             resolution_cache: self.resolution_cache.clone(),
+            type_info_cache: self.type_info_cache.clone(),
         }
     }
 }

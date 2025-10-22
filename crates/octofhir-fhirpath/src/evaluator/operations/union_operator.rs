@@ -128,8 +128,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(1), FhirPathValue::integer(2)];
         let right = vec![FhirPathValue::integer(3), FhirPathValue::integer(4)];
@@ -155,8 +154,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(1)];
         let right = vec![];

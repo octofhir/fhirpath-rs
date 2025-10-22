@@ -37,7 +37,7 @@ async fn evaluate_against_patient(expression: &str) -> bool {
 
     let model_provider = Arc::new(EmptyModelProvider);
     let context =
-        EvaluationContext::new(input_collection, model_provider.clone(), None, None, None).await;
+        EvaluationContext::new(input_collection, model_provider.clone(), None, None, None);
 
     let engine = FhirPathEngine::new(Arc::new(create_function_registry()), model_provider)
         .await

@@ -165,8 +165,7 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
                     context.terminology_provider().cloned(),
                     context.validation_provider().cloned(),
                     context.trace_provider().cloned(),
-                )
-                .await;
+                );
 
                 let item_result = evaluator.evaluate(repeat_expr, &item_context).await?;
                 for new_item in item_result.value.into_iter() {

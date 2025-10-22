@@ -75,7 +75,7 @@ async fn async_main() -> anyhow::Result<()> {
             quiet,
             verbose,
             analyze,
-            watch,
+            watch: _,
             batch,
             continue_on_error,
             template,
@@ -725,6 +725,7 @@ async fn handle_tui(
 }
 
 /// Load a FHIR resource from an input path
+#[allow(dead_code)]
 fn load_resource_from_input(input: &str) -> anyhow::Result<serde_json::Value> {
     use anyhow::Context;
 

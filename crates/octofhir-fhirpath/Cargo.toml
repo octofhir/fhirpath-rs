@@ -42,6 +42,7 @@ indexmap = { workspace = true }
 log = { workspace = true }
 papaya = { workspace = true }
 octofhir-ucum = { workspace = true }
+moka = { version = "0.12", features = ["sync"] }
 uuid = { workspace = true }
 tracing = { workspace = true }
 chumsky = { version = "0.10", features = ["pratt"] }
@@ -63,6 +64,7 @@ stacker = "0.1"
 
 # Async dependencies
 async-trait = { workspace = true }
+async-recursion = "1.1"
 futures = { workspace = true }
 tokio = { workspace = true }
 

@@ -208,7 +208,6 @@ mod tests {
             None, // No validation provider
             None, // No trace provider
         )
-        .await
     }
 
     #[tokio::test]

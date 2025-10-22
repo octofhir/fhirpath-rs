@@ -28,8 +28,7 @@ mod tests {
             Some(terminology_provider.clone()),
             None, // No validation provider
             None, // No trace provider
-        )
-        .await;
+        );
 
         // Test that %terminologies variable is available (stored as "terminologies")
         let terminologies_var = context.get_variable("terminologies");
@@ -60,8 +59,7 @@ mod tests {
             None, // No terminology provider
             None, // No validation provider
             None, // No trace provider
-        )
-        .await;
+        );
 
         // Test that %terminologies variable is not available
         let terminologies_var = context.get_variable("%terminologies");
@@ -123,8 +121,7 @@ mod tests {
             Some(terminology_provider.clone()),
             None, // No validation provider
             None, // No trace provider
-        )
-        .await;
+        );
 
         // Set system variables for testing
         context.set_variable(

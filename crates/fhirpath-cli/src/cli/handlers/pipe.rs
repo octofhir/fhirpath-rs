@@ -114,8 +114,7 @@ pub async fn handle_pipe_mode(
             engine.get_terminology_provider(),
             engine.get_validation_provider(),
             None,
-        )
-        .await;
+        );
 
         // Evaluate
         let result = match engine

@@ -24,6 +24,11 @@ use super::function_registry::{FunctionRegistry, create_function_registry};
 use super::operator_registry::{OperatorRegistry, create_standard_operator_registry};
 use super::result::{EvaluationResult, EvaluationResultWithMetadata};
 
+/// Maximum number of compiled expressions to cache
+/// Trade-off: Higher values use more memory but reduce parsing overhead for diverse expressions
+/// 256 entries at ~1KB each ≈ 256KB memory overhead
+const AST_CACHE_MAX_ENTRIES: u64 = 256;
+
 /// FHIRPath evaluation engine with registry-based architecture
 pub struct FhirPathEngine {
     /// The core evaluator
@@ -38,6 +43,9 @@ pub struct FhirPathEngine {
     trace_provider: Option<SharedTraceProvider>,
     /// Optional validation provider for profile validation
     validation_provider: Option<Arc<dyn ValidationProvider>>,
+    /// AST compilation cache to avoid reparsing hot expressions
+    /// Uses LRU eviction when cache is full
+    ast_cache: moka::sync::Cache<String, Arc<ExpressionNode>>,
 }
 
 impl FhirPathEngine {
@@ -57,6 +65,11 @@ impl FhirPathEngine {
             None,
         );
 
+        // Create AST cache with LRU eviction
+        let ast_cache = moka::sync::Cache::builder()
+            .max_capacity(AST_CACHE_MAX_ENTRIES)
+            .build();
+
         Ok(Self {
             evaluator,
             function_registry,
@@ -64,6 +77,7 @@ impl FhirPathEngine {
             terminology_provider: None,
             trace_provider: None,
             validation_provider: None,
+            ast_cache,
         })
     }
 
@@ -80,6 +94,11 @@ impl FhirPathEngine {
             None,
         );
 
+        // Create AST cache with LRU eviction
+        let ast_cache = moka::sync::Cache::builder()
+            .max_capacity(AST_CACHE_MAX_ENTRIES)
+            .build();
+
         Ok(Self {
             evaluator,
             function_registry,
@@ -87,6 +106,7 @@ impl FhirPathEngine {
             terminology_provider: None,
             trace_provider: None,
             validation_provider: None,
+            ast_cache,
         })
     }
 
@@ -187,14 +207,19 @@ impl FhirPathEngine {
         expression: &str,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
-        // Start evaluation
+        // Check cache first for compiled AST
+        let ast = if let Some(cached_ast) = self.ast_cache.get(expression) {
+            // Cache hit - use cached AST
+            cached_ast
+        } else {
+            // Cache miss - parse and cache the AST
+            let parsed_ast = Arc::new(parser::parse_ast(expression)?);
+            self.ast_cache
+                .insert(expression.to_string(), parsed_ast.clone());
+            parsed_ast
+        };
 
-        // Parse the expression as-is without modification
-        let ast = parser::parse_ast(expression)?;
-
-        // Evaluate using the real evaluator
-        // Server logs evaluation outcome; engine remains silent
-
+        // Evaluate using the cached or freshly parsed AST
         self.evaluate_ast(&ast, context).await
     }
 
@@ -213,14 +238,19 @@ impl FhirPathEngine {
         expression: &str,
         context: &EvaluationContext,
     ) -> Result<EvaluationResultWithMetadata> {
-        // Start evaluation
+        // Check cache first for compiled AST
+        let ast = if let Some(cached_ast) = self.ast_cache.get(expression) {
+            // Cache hit - use cached AST
+            cached_ast
+        } else {
+            // Cache miss - parse and cache the AST
+            let parsed_ast = Arc::new(parser::parse_ast(expression)?);
+            self.ast_cache
+                .insert(expression.to_string(), parsed_ast.clone());
+            parsed_ast
+        };
 
-        // Parse the expression
-        let ast = parser::parse_ast(expression)?;
-
-        // Evaluate with metadata using the real evaluator
-        // Server logs evaluation outcome; engine remains silent
-
+        // Evaluate with metadata using the cached or freshly parsed AST
         self.evaluate_ast_with_metadata(&ast, context).await
     }
 
@@ -233,6 +263,17 @@ impl FhirPathEngine {
         self.evaluator
             .evaluate_node_with_metadata(ast, context)
             .await
+    }
+
+    /// Get AST cache statistics (for testing and monitoring)
+    /// Returns (entry_count, weighted_size)
+    pub fn cache_stats(&self) -> (u64, u64) {
+        (self.ast_cache.entry_count(), self.ast_cache.weighted_size())
+    }
+
+    /// Get maximum cache capacity
+    pub const fn cache_capacity() -> u64 {
+        AST_CACHE_MAX_ENTRIES
     }
 }
 
@@ -270,8 +311,7 @@ impl FhirPathEvaluator for FhirPathEngine {
             self.terminology_provider.clone(),
             self.validation_provider.clone(),
             self.trace_provider.clone(),
-        )
-        .await;
+        );
 
         // Evaluate using our internal engine
         let result = self
@@ -305,16 +345,22 @@ impl FhirPathEvaluator for FhirPathEngine {
             self.terminology_provider.clone(),
             self.validation_provider.clone(),
             self.trace_provider.clone(),
-        )
-        .await;
+        );
 
-        // Add variables to context
-        // TODO: Implement proper conversion from ModelEvaluationResult to FhirPathValue
-        for name in variables.keys() {
-            // For now, skip variable conversion - this needs proper implementation
-            // let fhir_value = FhirPathValue::from_evaluation_result(value);
-            // eval_context.add_variable(name.clone(), fhir_value);
-            eprintln!("Warning: Variable {name} not added - conversion not implemented");
+        // Add variables to context - convert from ModelEvaluationResult to FhirPathValue
+        for (name, value) in variables.iter() {
+            let fhir_value = crate::evaluator::result::eval_result_to_fhirpath_value(
+                value,
+                Some(self.model_provider.clone()),
+            );
+
+            // Support both % prefix and bare names for variables
+            eval_context.set_variable(name.clone(), fhir_value.clone());
+
+            // If name doesn't start with %, also set %name version
+            if !name.starts_with('%') {
+                eval_context.set_variable(format!("%{}", name), fhir_value);
+            }
         }
 
         // Evaluate using our internal engine
@@ -329,17 +375,29 @@ impl FhirPathEvaluator for FhirPathEngine {
 
     /// Compile an expression for reuse
     async fn compile(&self, expression: &str) -> octofhir_fhir_model::Result<CompiledExpression> {
-        // Parse the expression to validate it
-        match crate::parser::parse_ast(expression) {
-            Ok(_ast) => {
-                // For now, we'll store the original expression as compiled form
-                // In a real implementation, this could be serialized AST or optimized form
-                Ok(CompiledExpression::new(
-                    expression.to_string(),
-                    expression.to_string(), // TODO: Store actual compiled form
-                    true,
-                ))
+        // Check cache first, or parse and cache the AST
+        let ast_result = if let Some(_cached_ast) = self.ast_cache.get(expression) {
+            // Already cached - expression is valid
+            Ok(())
+        } else {
+            // Parse and cache the AST
+            match crate::parser::parse_ast(expression) {
+                Ok(parsed_ast) => {
+                    let ast_arc = Arc::new(parsed_ast);
+                    self.ast_cache.insert(expression.to_string(), ast_arc);
+                    Ok(())
+                }
+                Err(e) => Err(e),
             }
+        };
+
+        // Return compilation result
+        match ast_result {
+            Ok(()) => Ok(CompiledExpression::new(
+                expression.to_string(),
+                expression.to_string(), // Expression is now cached in AST cache
+                true,
+            )),
             Err(e) => Ok(CompiledExpression::invalid(
                 expression.to_string(),
                 e.to_string(),
@@ -396,8 +454,7 @@ impl FhirPathEvaluator for FhirPathEngine {
                 self.terminology_provider.clone(),
                 self.validation_provider.clone(),
                 self.trace_provider.clone(),
-            )
-            .await;
+            );
 
             // Evaluate the constraint expression using internal engine method
             match FhirPathEngine::evaluate(self, &constraint.expression, &eval_context).await {
@@ -465,5 +522,106 @@ impl FhirPathEvaluator for FhirPathEngine {
             "tracing" => self.trace_provider.is_some(),
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use octofhir_fhir_model::EmptyModelProvider;
+
+    #[tokio::test]
+    async fn test_ast_cache_functionality() {
+        // Create engine
+        let registry = Arc::new(create_function_registry());
+        let provider = Arc::new(EmptyModelProvider);
+        let engine = FhirPathEngine::new(registry, provider).await.unwrap();
+
+        // Initially cache should be empty
+        let (initial_count, _) = engine.cache_stats();
+        assert_eq!(initial_count, 0, "Cache should start empty");
+
+        // Compile a few expressions
+        let expr1 = "Patient.name";
+        let expr2 = "Patient.gender";
+        let expr3 = "1 + 2";
+
+        let result1 = engine.compile(expr1).await.unwrap();
+        assert!(result1.is_valid, "Expression 1 should be valid");
+
+        // Force synchronization
+        engine.ast_cache.run_pending_tasks();
+
+        let (count_after_1, _) = engine.cache_stats();
+        println!("Count after expr1: {}", count_after_1);
+        assert_eq!(
+            count_after_1, 1,
+            "Cache should have 1 entry after first compile"
+        );
+
+        let result2 = engine.compile(expr2).await.unwrap();
+        assert!(result2.is_valid, "Expression 2 should be valid");
+        engine.ast_cache.run_pending_tasks();
+
+        let (count_after_2, _) = engine.cache_stats();
+        assert_eq!(count_after_2, 2, "Cache should have 2 entries");
+
+        let result3 = engine.compile(expr3).await.unwrap();
+        assert!(result3.is_valid, "Expression 3 should be valid");
+        engine.ast_cache.run_pending_tasks();
+
+        let (count_after_3, _) = engine.cache_stats();
+        assert_eq!(count_after_3, 3, "Cache should have 3 entries");
+
+        // Recompile same expression - should not increase cache size
+        engine.compile(expr1).await.unwrap();
+        engine.ast_cache.run_pending_tasks();
+
+        let (count_after_recompile, _) = engine.cache_stats();
+        assert_eq!(
+            count_after_recompile, 3,
+            "Cache should still have 3 entries after recompile"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_uses_cache() {
+        use crate::core::Collection;
+
+        // Create engine
+        let registry = Arc::new(create_function_registry());
+        let provider = Arc::new(EmptyModelProvider);
+        let engine = FhirPathEngine::new(registry, provider.clone())
+            .await
+            .unwrap();
+
+        // Create empty context
+        let collection = Collection::empty();
+        let context = EvaluationContext::new(collection, provider, None, None, None);
+
+        // Cache should be empty initially
+        let (count_before, _) = engine.cache_stats();
+        assert_eq!(count_before, 0);
+
+        // Evaluate expression
+        let expr = "1 + 2";
+        let _ = engine.evaluate(expr, &context).await.unwrap();
+
+        // Force cache synchronization
+        engine.ast_cache.run_pending_tasks();
+
+        // Cache should now have 1 entry
+        let (count_after, _) = engine.cache_stats();
+        assert_eq!(count_after, 1, "Evaluate should cache the AST");
+
+        // Evaluate same expression again
+        let _ = engine.evaluate(expr, &context).await.unwrap();
+
+        // Force cache synchronization
+        engine.ast_cache.run_pending_tasks();
+
+        // Cache should still have 1 entry (reused)
+        let (count_after_reuse, _) = engine.cache_stats();
+        assert_eq!(count_after_reuse, 1, "Cache should be reused");
     }
 }

@@ -131,8 +131,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![FhirPathValue::boolean(true)];
@@ -155,8 +154,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![FhirPathValue::boolean(false)];
@@ -179,8 +177,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::boolean(false)];
         let right = vec![FhirPathValue::boolean(false)];
@@ -203,8 +200,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![]; // Empty collection
@@ -227,8 +223,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::boolean(false)];
         let right = vec![]; // Empty collection

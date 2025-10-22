@@ -294,8 +294,7 @@ impl RepeatAllFunctionEvaluator {
                 context.terminology_provider().cloned(),
                 context.validation_provider().cloned(),
                 context.trace_provider().cloned(),
-            )
-            .await;
+            );
 
             // Evaluate projection expression to get children
             let projection_result = evaluator

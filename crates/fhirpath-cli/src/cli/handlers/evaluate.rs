@@ -98,8 +98,7 @@ pub async fn handle_evaluate(
         engine.get_terminology_provider(),
         engine.get_validation_provider(),
         None,
-    )
-    .await;
+    );
 
     // Add variables if provided
     if !parsed_variables.is_empty() {

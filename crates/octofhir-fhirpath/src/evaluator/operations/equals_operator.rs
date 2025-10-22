@@ -362,8 +362,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![FhirPathValue::boolean(true)];
@@ -386,8 +385,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::integer(42)];
@@ -410,8 +408,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::decimal(Decimal::new(42, 0))];
@@ -434,8 +431,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::string("42".to_string())];
         let right = vec![FhirPathValue::integer(42)];
@@ -458,8 +454,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![]; // Empty collection

@@ -84,8 +84,7 @@ impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
                 context.terminology_provider().cloned(),
                 context.validation_provider().cloned(),
                 context.trace_provider().cloned(),
-            )
-            .await;
+            );
 
             // Set lambda variables: $this = single item, $index = current index
             iteration_context.set_variable("$this".to_string(), item.clone());

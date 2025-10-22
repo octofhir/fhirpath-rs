@@ -3,6 +3,7 @@
 //! This module provides the main Evaluator struct that replaces the stub implementation
 //! with a registry-based architecture for operators and functions.
 
+use async_recursion::async_recursion;
 use std::sync::Arc;
 
 use super::context::EvaluationContext;
@@ -100,10 +101,11 @@ impl Evaluator {
         node: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
-        Box::pin(self.evaluate_node_inner(node, context)).await
+        self.evaluate_node_inner(node, context).await
     }
 
     /// Inner evaluation method to handle recursion
+    #[async_recursion]
     async fn evaluate_node_inner(
         &self,
         node: &ExpressionNode,
@@ -123,10 +125,8 @@ impl Evaluator {
             }
             ExpressionNode::BinaryOperation(binary_op) => {
                 // Evaluate both operands first
-                let left_result =
-                    Box::pin(self.evaluate_node_inner(&binary_op.left, context)).await?;
-                let right_result =
-                    Box::pin(self.evaluate_node_inner(&binary_op.right, context)).await?;
+                let left_result = self.evaluate_node_inner(&binary_op.left, context).await?;
+                let right_result = self.evaluate_node_inner(&binary_op.right, context).await?;
 
                 // Dispatch to operator registry
                 self.evaluate_binary_operation(
@@ -139,8 +139,7 @@ impl Evaluator {
             }
             ExpressionNode::UnaryOperation(unary_op) => {
                 // Evaluate operand first
-                let operand_result =
-                    Box::pin(self.evaluate_node_inner(&unary_op.operand, context)).await?;
+                let operand_result = self.evaluate_node_inner(&unary_op.operand, context).await?;
 
                 // Dispatch to operator registry for unary operations
                 self.evaluate_unary_operation(&unary_op.operator, operand_result.value, context)
@@ -158,18 +157,21 @@ impl Evaluator {
             }
             ExpressionNode::IndexAccess(index_access) => {
                 // Evaluate collection first, then apply index
-                let collection_result =
-                    Box::pin(self.evaluate_node_inner(&index_access.object, context)).await?;
-                let index_result =
-                    Box::pin(self.evaluate_node_inner(&index_access.index, context)).await?;
+                let collection_result = self
+                    .evaluate_node_inner(&index_access.object, context)
+                    .await?;
+                let index_result = self
+                    .evaluate_node_inner(&index_access.index, context)
+                    .await?;
 
                 self.evaluate_index_operation(collection_result.value, index_result.value)
                     .await
             }
             ExpressionNode::PropertyAccess(property_access) => {
                 // Evaluate object first, then navigate to member
-                let object_result =
-                    Box::pin(self.evaluate_node_inner(&property_access.object, context)).await?;
+                let object_result = self
+                    .evaluate_node_inner(&property_access.object, context)
+                    .await?;
                 // Use create_child_context to preserve variables from defineVariable
                 let new_context = context.create_child_context(object_result.value);
 
@@ -178,8 +180,9 @@ impl Evaluator {
             }
             ExpressionNode::MethodCall(method_call) => {
                 // Evaluate receiver first, then call method with receiver as input
-                let object_result =
-                    Box::pin(self.evaluate_node_inner(&method_call.object, context)).await?;
+                let object_result = self
+                    .evaluate_node_inner(&method_call.object, context)
+                    .await?;
 
                 self.evaluate_function_call(
                     &method_call.method,
@@ -198,9 +201,7 @@ impl Evaluator {
                 // Evaluate variable access ($this, $index, $total, user variables)
                 self.evaluate_variable(&variable_node.name, context).await
             }
-            ExpressionNode::Parenthesized(expr) => {
-                Box::pin(self.evaluate_node_inner(expr, context)).await
-            }
+            ExpressionNode::Parenthesized(expr) => self.evaluate_node_inner(expr, context).await,
             ExpressionNode::Union(union_node) => {
                 // Each side of union should be evaluated in separate child contexts
                 // Variables defined in one side should not be visible to the other side
@@ -209,18 +210,21 @@ impl Evaluator {
                 let left_context = context.nest();
                 let right_context = context.nest();
 
-                let left_result =
-                    Box::pin(self.evaluate_node_inner(&union_node.left, &left_context)).await?;
-                let right_result =
-                    Box::pin(self.evaluate_node_inner(&union_node.right, &right_context)).await?;
+                let left_result = self
+                    .evaluate_node_inner(&union_node.left, &left_context)
+                    .await?;
+                let right_result = self
+                    .evaluate_node_inner(&union_node.right, &right_context)
+                    .await?;
 
                 self.evaluate_union_operator(left_result.value, right_result.value, context)
                     .await
             }
             ExpressionNode::TypeCheck(type_check) => {
                 // Evaluate the expression being type-checked
-                let expression_result =
-                    Box::pin(self.evaluate_node_inner(&type_check.expression, context)).await?;
+                let expression_result = self
+                    .evaluate_node_inner(&type_check.expression, context)
+                    .await?;
 
                 // Create a new context with the expression result as input
                 let new_context = EvaluationContext::new(
@@ -229,8 +233,7 @@ impl Evaluator {
                     self.terminology_provider.clone(),
                     self.validation_provider.clone(),
                     self.trace_provider.clone(),
-                )
-                .await;
+                );
 
                 // Create an identifier node for the type name to pass to the is function
                 let type_arg = ExpressionNode::Identifier(crate::ast::expression::IdentifierNode {
@@ -244,8 +247,9 @@ impl Evaluator {
             }
             ExpressionNode::TypeCast(type_cast) => {
                 // Evaluate the expression being type-casted
-                let expression_result =
-                    Box::pin(self.evaluate_node_inner(&type_cast.expression, context)).await?;
+                let expression_result = self
+                    .evaluate_node_inner(&type_cast.expression, context)
+                    .await?;
                 // Create a new context with the expression result as input
                 let new_context = EvaluationContext::new(
                     expression_result.value,
@@ -253,8 +257,7 @@ impl Evaluator {
                     self.terminology_provider.clone(),
                     self.validation_provider.clone(),
                     self.trace_provider.clone(),
-                )
-                .await;
+                );
                 // Create an identifier node for the type name to pass to the as function
                 let type_arg = ExpressionNode::Identifier(crate::ast::expression::IdentifierNode {
                     name: type_cast.target_type.clone(),
@@ -281,9 +284,9 @@ impl Evaluator {
         let metadata_collector = Arc::new(super::metadata_collector::MetadataCollector::new());
 
         // Evaluate with metadata collection
-        let result =
-            Box::pin(self.evaluate_node_with_collector(node, context, &metadata_collector, 0))
-                .await?;
+        let result = self
+            .evaluate_node_with_collector(node, context, &metadata_collector, 0)
+            .await?;
 
         // Build comprehensive metadata summary
         // TODO: Implement proper metadata collection summary
@@ -305,6 +308,7 @@ impl Evaluator {
     }
 
     /// Evaluate an AST node with metadata collection tracking
+    #[async_recursion]
     async fn evaluate_node_with_collector(
         &self,
         node: &ExpressionNode,
@@ -363,20 +367,12 @@ impl Evaluator {
                 result
             }
             ExpressionNode::BinaryOperation(binary_op) => {
-                let left_result = Box::pin(self.evaluate_node_with_collector(
-                    &binary_op.left,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
-                let right_result = Box::pin(self.evaluate_node_with_collector(
-                    &binary_op.right,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
+                let left_result = self
+                    .evaluate_node_with_collector(&binary_op.left, context, collector, depth + 1)
+                    .await?;
+                let right_result = self
+                    .evaluate_node_with_collector(&binary_op.right, context, collector, depth + 1)
+                    .await?;
 
                 // Record counts before moving values
                 let left_count = left_result.value.len();
@@ -406,13 +402,9 @@ impl Evaluator {
                 result
             }
             ExpressionNode::UnaryOperation(unary_op) => {
-                let operand_result = Box::pin(self.evaluate_node_with_collector(
-                    &unary_op.operand,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
+                let operand_result = self
+                    .evaluate_node_with_collector(&unary_op.operand, context, collector, depth + 1)
+                    .await?;
 
                 // Record operator timing
                 let op_start = Instant::now();
@@ -449,32 +441,35 @@ impl Evaluator {
                 result
             }
             ExpressionNode::IndexAccess(index_access) => {
-                let collection_result = Box::pin(self.evaluate_node_with_collector(
-                    &index_access.object,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
-                let index_result = Box::pin(self.evaluate_node_with_collector(
-                    &index_access.index,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
+                let collection_result = self
+                    .evaluate_node_with_collector(
+                        &index_access.object,
+                        context,
+                        collector,
+                        depth + 1,
+                    )
+                    .await?;
+                let index_result = self
+                    .evaluate_node_with_collector(
+                        &index_access.index,
+                        context,
+                        collector,
+                        depth + 1,
+                    )
+                    .await?;
 
                 self.evaluate_index_operation(collection_result.value, index_result.value)
                     .await
             }
             ExpressionNode::PropertyAccess(property_access) => {
-                let object_result = Box::pin(self.evaluate_node_with_collector(
-                    &property_access.object,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
+                let object_result = self
+                    .evaluate_node_with_collector(
+                        &property_access.object,
+                        context,
+                        collector,
+                        depth + 1,
+                    )
+                    .await?;
                 let new_context = context.create_child_context(object_result.value);
 
                 // Record property access timing
@@ -492,13 +487,14 @@ impl Evaluator {
                 result
             }
             ExpressionNode::MethodCall(method_call) => {
-                let object_result = Box::pin(self.evaluate_node_with_collector(
-                    &method_call.object,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
+                let object_result = self
+                    .evaluate_node_with_collector(
+                        &method_call.object,
+                        context,
+                        collector,
+                        depth + 1,
+                    )
+                    .await?;
                 // Record method call timing
                 let method_start = Instant::now();
                 let result = self
@@ -522,7 +518,8 @@ impl Evaluator {
                 self.evaluate_variable(&variable_node.name, context).await
             }
             ExpressionNode::Parenthesized(expr) => {
-                Box::pin(self.evaluate_node_with_collector(expr, context, collector, depth)).await
+                self.evaluate_node_with_collector(expr, context, collector, depth)
+                    .await
             }
             ExpressionNode::Union(union_node) => {
                 // Each side of union should be evaluated in separate child contexts
@@ -532,33 +529,36 @@ impl Evaluator {
                 let left_context = context.nest();
                 let right_context = context.nest();
 
-                let left_result = Box::pin(self.evaluate_node_with_collector(
-                    &union_node.left,
-                    &left_context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
-                let right_result = Box::pin(self.evaluate_node_with_collector(
-                    &union_node.right,
-                    &right_context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
+                let left_result = self
+                    .evaluate_node_with_collector(
+                        &union_node.left,
+                        &left_context,
+                        collector,
+                        depth + 1,
+                    )
+                    .await?;
+                let right_result = self
+                    .evaluate_node_with_collector(
+                        &union_node.right,
+                        &right_context,
+                        collector,
+                        depth + 1,
+                    )
+                    .await?;
 
                 self.evaluate_union_operator(left_result.value, right_result.value, context)
                     .await
             }
             ExpressionNode::TypeCheck(type_check) => {
                 // Evaluate the expression being type-checked
-                let expression_result = Box::pin(self.evaluate_node_with_collector(
-                    &type_check.expression,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
+                let expression_result = self
+                    .evaluate_node_with_collector(
+                        &type_check.expression,
+                        context,
+                        collector,
+                        depth + 1,
+                    )
+                    .await?;
 
                 // Create a new context with the expression result as input
                 let new_context = EvaluationContext::new(
@@ -567,8 +567,7 @@ impl Evaluator {
                     self.terminology_provider.clone(),
                     self.validation_provider.clone(),
                     self.trace_provider.clone(),
-                )
-                .await;
+                );
 
                 // Create an identifier node for the type name to pass to the is function
                 let type_arg = ExpressionNode::Identifier(crate::ast::expression::IdentifierNode {
@@ -588,13 +587,14 @@ impl Evaluator {
             }
             ExpressionNode::TypeCast(type_cast) => {
                 // Evaluate the expression being type-casted
-                let expression_result = Box::pin(self.evaluate_node_with_collector(
-                    &type_cast.expression,
-                    context,
-                    collector,
-                    depth + 1,
-                ))
-                .await?;
+                let expression_result = self
+                    .evaluate_node_with_collector(
+                        &type_cast.expression,
+                        context,
+                        collector,
+                        depth + 1,
+                    )
+                    .await?;
                 // Create a new context with the expression result as input
                 let new_context = EvaluationContext::new(
                     expression_result.value,
@@ -602,8 +602,7 @@ impl Evaluator {
                     self.terminology_provider.clone(),
                     self.validation_provider.clone(),
                     self.trace_provider.clone(),
-                )
-                .await;
+                );
                 // Create an identifier node for the type name to pass to the as function
                 let type_arg = ExpressionNode::Identifier(crate::ast::expression::IdentifierNode {
                     name: type_cast.target_type.clone(),
@@ -1252,6 +1251,7 @@ impl Evaluator {
     }
 
     /// Find extensions with matching URL in an array, including nested extensions
+    #[async_recursion]
     async fn find_extensions_by_url(
         &self,
         extensions: &[serde_json::Value],
@@ -1271,9 +1271,9 @@ impl Evaluator {
                 // Check nested extensions
                 if let Some(nested_extensions) = ext_obj.get("extension").and_then(|e| e.as_array())
                 {
-                    let nested_results =
-                        Box::pin(self.find_extensions_by_url(nested_extensions, target_url))
-                            .await?;
+                    let nested_results = self
+                        .find_extensions_by_url(nested_extensions, target_url)
+                        .await?;
                     results.extend(nested_results);
                 }
             }
@@ -1544,7 +1544,7 @@ impl Evaluator {
 
         // Evaluate each element in the collection
         for element in elements {
-            let element_result = Box::pin(self.evaluate_node_inner(element, context)).await?;
+            let element_result = self.evaluate_node_inner(element, context).await?;
 
             // Add all values from the element result to the collection
             // This handles both single values and collections properly
@@ -2414,16 +2414,13 @@ impl Evaluator {
         // We only use this when the argument expression contains no identifiers/property accesses
         // and the function does not require Root argument evaluation.
         let receiver_context = if !input_values.is_empty() {
-            Some(
-                EvaluationContext::new(
-                    Collection::from(input_values.clone()),
-                    self.model_provider.clone(),
-                    self.terminology_provider.clone(),
-                    self.validation_provider.clone(),
-                    self.trace_provider.clone(),
-                )
-                .await,
-            )
+            Some(EvaluationContext::new(
+                Collection::from(input_values.clone()),
+                self.model_provider.clone(),
+                self.terminology_provider.clone(),
+                self.validation_provider.clone(),
+                self.trace_provider.clone(),
+            ))
         } else {
             None
         };
@@ -2645,7 +2642,7 @@ impl Evaluator {
             Ok(result) => result.value.values().to_vec(),
             Err(_) => {
                 // If that fails, fall back to evaluating in current context
-                let result = Box::pin(self.evaluate_node_inner(&arguments[0], context)).await?;
+                let result = self.evaluate_node_inner(&arguments[0], context).await?;
                 result.value.values().to_vec()
             }
         };
@@ -2682,11 +2679,11 @@ impl Evaluator {
             context.terminology_provider().cloned(),
             context.validation_provider().cloned(),
             context.trace_provider().cloned(),
-        )
-        .await;
+        );
 
         // Evaluate the expression in the resource context
-        Box::pin(self.evaluate_node_inner(expression, &resource_context)).await
+        self.evaluate_node_inner(expression, &resource_context)
+            .await
     }
 
     /// Evaluate an index operation (e.g., collection[0])
@@ -2812,5 +2809,69 @@ impl<'a> AsyncNodeEvaluator<'a> {
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         self.evaluator.evaluate_node_inner(node, context).await
+    }
+}
+
+#[cfg(test)]
+mod deep_nesting_tests {
+    use crate::core::Collection;
+    use crate::create_function_registry;
+    use crate::evaluator::EvaluationContext;
+    use octofhir_fhir_model::EmptyModelProvider;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_deeply_nested_binary_operations() {
+        // Test that deeply nested expressions don't cause stack overflow
+        // Create a deeply nested addition: 1 + 1 + 1 + ... + 1 (20 levels - conservative for async_recursion)
+        let mut expr = "1".to_string();
+        for _ in 0..20 {
+            expr = format!("({} + 1)", expr);
+        }
+
+        let model_provider = Arc::new(EmptyModelProvider);
+        let engine = crate::FhirPathEngine::new(
+            Arc::new(create_function_registry()),
+            model_provider.clone(),
+        )
+        .await
+        .expect("engine creation");
+
+        let context = EvaluationContext::new(Collection::empty(), model_provider, None, None, None);
+
+        // This should not stack overflow thanks to async_recursion
+        let result = engine.evaluate(&expr, &context).await;
+        assert!(result.is_ok(), "Deeply nested expression should evaluate");
+
+        let eval_result = result.unwrap();
+        assert_eq!(eval_result.value.len(), 1);
+        // Result should be 21 (1 + 20 additions of 1)
+        match eval_result.value.first() {
+            Some(crate::core::FhirPathValue::Integer(21, _, _)) => {
+                // Success - got expected value
+            }
+            _ => panic!("Expected integer 21"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_deeply_nested_property_access() {
+        // Test deeply nested property navigation
+        // Create: Patient.name.given.first().value (repeated pattern)
+        let expr = "Patient.name.given.first().value.first().value.first().value.first().value.first().value";
+
+        let model_provider = Arc::new(EmptyModelProvider);
+        let engine = crate::FhirPathEngine::new(
+            Arc::new(create_function_registry()),
+            model_provider.clone(),
+        )
+        .await
+        .expect("engine creation");
+
+        let context = EvaluationContext::new(Collection::empty(), model_provider, None, None, None);
+
+        // This should not stack overflow thanks to async_recursion
+        let result = engine.evaluate(expr, &context).await;
+        assert!(result.is_ok(), "Deeply nested navigation should evaluate");
     }
 }

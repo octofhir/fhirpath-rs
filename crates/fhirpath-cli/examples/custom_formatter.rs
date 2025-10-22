@@ -35,10 +35,10 @@ async fn main() -> anyhow::Result<()> {
     println!("==================================\n");
 
     // Initialize model provider
-    let model_provider = Arc::new(EmbeddedModelProvider::new(FhirVersion::R4));
+    let _model_provider = Arc::new(EmbeddedModelProvider::new(FhirVersion::R4));
 
     // Create sample evaluation result
-    let patient_json = serde_json::json!({
+    let _patient_json = serde_json::json!({
         "resourceType": "Patient",
         "id": "example",
         "active": true,
@@ -55,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Example 1: Pretty Format (with colors and diagnostics)");
     println!("-------------------------------------------------------");
 
-    let context = CliContext::new(
+    let _context = CliContext::new(
         OutputFormat::Pretty,
         false, // Enable colors
         false,

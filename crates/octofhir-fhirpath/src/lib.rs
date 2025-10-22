@@ -49,7 +49,7 @@
 //! let engine = FhirPathEngine::new(Arc::new(registry), model_provider.clone()).await?;
 //!
 //! // Create evaluation context
-//! let context = EvaluationContext::new(Collection::empty(), model_provider, None, None, None).await;
+//! let context = EvaluationContext::new(Collection::empty(), model_provider, None, None, None);
 //!
 //! // Parse and evaluate an expression
 //! let expression = "Patient.name.family";
@@ -168,7 +168,7 @@ pub use crate::analyzer::{AnalysisContext, StaticAnalysisResult, StaticAnalyzer}
 /// # async fn example() -> octofhir_fhirpath::Result<()> {
 /// let engine = create_engine_with_empty_provider().await?;
 /// let model_provider = Arc::new(EmptyModelProvider);
-/// let context = EvaluationContext::new(Collection::empty(), model_provider, None, None, None).await;
+/// let context = EvaluationContext::new(Collection::empty(), model_provider, None, None, None);
 ///
 /// let result = engine.evaluate("1 + 2", &context).await?;
 /// # Ok(())

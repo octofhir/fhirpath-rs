@@ -3,7 +3,6 @@
 //! This module provides intelligent diagnostic processing that transforms raw analysis
 //! results into actionable, contextual error messages with suggestions and rich formatting.
 
-// TODO: Re-enable analyzer integration after fixing ModelProvider refactor
 use crate::core::error_code::{ErrorCode, FP0001, FP0010, FP0055, FP0101};
 use crate::diagnostics::{
     AriadneDiagnostic, DiagnosticEngine, DiagnosticSeverity, RelatedDiagnostic,
@@ -237,49 +236,58 @@ impl DiagnosticProcessor {
         processor
     }
 
-    // /// Process analysis results into rich diagnostics
-    // /// TODO: Re-enable after fixing ModelProvider refactor
-    // pub fn process_analysis(
-    //     &mut self,
-    //     result: &StaticAnalysisResult,
-    //     source: &str,
-    //     filename: Option<&str>,
-    // ) -> Vec<ProcessedDiagnostic> {
-    //     let mut processed = Vec::new();
+    /// Process analysis results into rich diagnostics
+    pub fn process_analysis(
+        &mut self,
+        result: &crate::analyzer::StaticAnalysisResult,
+        source: &str,
+        filename: Option<&str>,
+    ) -> Vec<ProcessedDiagnostic> {
+        let mut processed = Vec::new();
 
-    //     // Add source to engine
-    //     let source_id = self
-    //         .engine
-    //         .add_source(filename.unwrap_or("<input>"), source);
+        // Add source to engine
+        let _source_id = self
+            .engine
+            .add_source(filename.unwrap_or("<input>"), source);
 
-    //     // Process regular diagnostics
-    //     for diagnostic in &result.diagnostics {
-    //         if let Some(processed_diag) = self.process_diagnostic(diagnostic, source, source_id) {
-    //             processed.push(processed_diag);
-    //         }
-    //     }
+        // Process diagnostics from static analysis (already in AriadneDiagnostic format!)
+        for diagnostic in &result.diagnostics {
+            let context = self.build_context(diagnostic, source);
 
-    //     // Process analysis warnings
-    //     for warning in &result.warnings {
-    //         let diagnostic = self.convert_warning_to_diagnostic(warning);
-    //         if let Some(processed_diag) = self.process_diagnostic(&diagnostic, source, source_id) {
-    //             processed.push(processed_diag);
-    //         }
-    //     }
+            // Generate suggestions
+            let suggestions = self
+                .suggestion_engine
+                .generate_suggestions(diagnostic, source, &context);
 
-    //     // Process optimization suggestions as info diagnostics
-    //     for suggestion in &result.suggestions {
-    //         let diagnostic = self.convert_optimization_to_diagnostic(suggestion);
-    //         if let Some(processed_diag) = self.process_diagnostic(&diagnostic, source, source_id) {
-    //             processed.push(processed_diag);
-    //         }
-    //     }
+            // Get help text
+            let help_text = self.help_system.get_help_text(&diagnostic.error_code);
+            let documentation_url = self
+                .help_system
+                .get_documentation_url(&diagnostic.error_code);
 
-    //     // Detect and link related diagnostics
-    //     self.relationship_detector.link_related(&mut processed);
+            processed.push(ProcessedDiagnostic {
+                diagnostic: diagnostic.clone(),
+                context,
+                suggestions,
+                related: Vec::new(), // Will be populated by relationship detector
+                help_text,
+                documentation_url,
+            });
+        }
 
-    //     processed
-    // }
+        // Process analysis suggestions as info-level diagnostics
+        for suggestion in &result.suggestions {
+            if let Some(processed_diag) = self.process_suggestion_to_diagnostic(suggestion, source)
+            {
+                processed.push(processed_diag);
+            }
+        }
+
+        // Detect and link related diagnostics
+        self.relationship_detector.link_related(&mut processed);
+
+        processed
+    }
 
     /// Process a single diagnostic into a rich diagnostic
     #[allow(dead_code)]
@@ -529,55 +537,85 @@ impl DiagnosticProcessor {
             .collect()
     }
 
-    // /// Convert analysis warning to diagnostic
-    // /// TODO: Re-enable after fixing ModelProvider refactor
-    // fn convert_warning_to_diagnostic(
-    //     &self,
-    //     warning: &AnalysisWarning,
-    // ) -> crate::diagnostics::Diagnostic {
-    //     let mut diagnostic = crate::diagnostics::Diagnostic::new(
-    //         warning.severity.clone(),
-    //         warning.code.clone(),
-    //         warning.message.clone(),
-    //     );
+    /// Convert analysis suggestion to processed diagnostic
+    fn process_suggestion_to_diagnostic(
+        &self,
+        suggestion: &crate::analyzer::AnalysisSuggestion,
+        source: &str,
+    ) -> Option<ProcessedDiagnostic> {
+        use crate::core::error_code::FP0010;
 
-    //     if let Some(location) = &warning.location {
-    //         diagnostic = diagnostic.with_location(location.clone());
-    //     }
+        // Map suggestion type to error code
+        let error_code = match suggestion.suggestion_type {
+            crate::analyzer::SuggestionType::Performance => FP0010,
+            crate::analyzer::SuggestionType::Simplification => FP0010,
+            crate::analyzer::SuggestionType::TypeSafety => FP0010,
+            crate::analyzer::SuggestionType::BestPractice => FP0010,
+            crate::analyzer::SuggestionType::ErrorPrevention => FP0010,
+        };
 
-    //     diagnostic
-    // }
+        // Create AriadneDiagnostic from suggestion
+        let span = if let Some(location) = &suggestion.location {
+            location.offset..(location.offset + location.length)
+        } else {
+            0..0
+        };
 
-    // /// Convert optimization suggestion to diagnostic
-    // /// TODO: Re-enable after fixing ModelProvider refactor
-    // fn convert_optimization_to_diagnostic(
-    //     &self,
-    //     suggestion: &OptimizationSuggestion,
-    // ) -> crate::diagnostics::Diagnostic {
-    //     let code = match suggestion.kind {
-    //         OptimizationKind::ExpensiveOperation => "FP0200",
-    //         OptimizationKind::RedundantCondition => "FP0201",
-    //         OptimizationKind::CollectionOptimization => "FP0202",
-    //         OptimizationKind::CachableExpression => "FP0203",
-    //         OptimizationKind::TypeCoercion => "FP0204",
-    //         OptimizationKind::UnreachableCode => "FP0205",
-    //         OptimizationKind::DeepNesting => "FP0206",
-    //         OptimizationKind::FunctionSimplification => "FP0207",
-    //         OptimizationKind::PropertyCorrection => "FP0208",
-    //     };
+        let ariadne_diag = AriadneDiagnostic {
+            severity: DiagnosticSeverity::Info,
+            error_code,
+            message: suggestion.message.clone(),
+            span: span.clone(),
+            help: suggestion.code_snippet.clone(),
+            note: None,
+            related: Vec::new(),
+        };
 
-    //     let mut diagnostic = crate::diagnostics::Diagnostic::new(
-    //         DiagnosticSeverity::Info,
-    //         code,
-    //         suggestion.message.clone(),
-    //     );
+        // Build context
+        let context = self.build_context(&ariadne_diag, source);
 
-    //     if let Some(location) = &suggestion.location {
-    //         diagnostic = diagnostic.with_location(location.clone());
-    //     }
+        // Convert suggestion to diagnostic suggestion
+        let diag_suggestions = vec![DiagnosticSuggestion {
+            message: suggestion.message.clone(),
+            replacements: if let Some(snippet) = &suggestion.code_snippet {
+                vec![TextReplacement {
+                    range: span,
+                    text: snippet.clone(),
+                    description: "Apply suggested improvement".to_string(),
+                }]
+            } else {
+                Vec::new()
+            },
+            confidence: if suggestion.confidence > 0.8 {
+                SuggestionConfidence::High
+            } else if suggestion.confidence > 0.5 {
+                SuggestionConfidence::Medium
+            } else {
+                SuggestionConfidence::Low
+            },
+            category: match suggestion.suggestion_type {
+                crate::analyzer::SuggestionType::Performance => SuggestionCategory::Improvement,
+                crate::analyzer::SuggestionType::Simplification => SuggestionCategory::Improvement,
+                crate::analyzer::SuggestionType::TypeSafety => SuggestionCategory::Fix,
+                crate::analyzer::SuggestionType::BestPractice => SuggestionCategory::Clarification,
+                crate::analyzer::SuggestionType::ErrorPrevention => SuggestionCategory::Fix,
+            },
+            improvement_estimate: Some(suggestion.confidence),
+        }];
 
-    //     diagnostic
-    // }
+        Some(ProcessedDiagnostic {
+            diagnostic: ariadne_diag,
+            context,
+            suggestions: diag_suggestions,
+            related: Vec::new(),
+            help_text: Some(format!(
+                "{} suggestion with {:.0}% confidence",
+                suggestion.suggestion_type,
+                suggestion.confidence * 100.0
+            )),
+            documentation_url: None,
+        })
+    }
 
     /// Render processed diagnostics to string
     pub fn render_diagnostics(
@@ -1135,66 +1173,93 @@ mod tests {
         assert!(output.contains("🔧")); // Fix category icon
     }
 
-    // TODO: Re-enable after fixing ModelProvider refactor
-    // #[test]
-    // fn test_complex_diagnostic_processing() {
-    //     let processor = DiagnosticProcessor::new();
-    //     let analysis_result = StaticAnalysisResult {
-    //         diagnostics: vec![
-    //             crate::diagnostics::Diagnostic::error("FP0055", "Property not found: 'invalid'")
-    //                 .with_location(SourceLocation {
-    //                     offset: 8,
-    //                     length: 7,
-    //                 }),
-    //         ],
-    //         warnings: vec![AnalysisWarning {
-    //             code: "W001".to_string(),
-    //             message: "Deep nesting detected".to_string(),
-    //             location: Some(SourceLocation {
-    //                 offset: 5,
-    //                 length: 10,
-    //             }),
-    //             severity: DiagnosticSeverity::Warning,
-    //             suggestion: Some("Consider simplifying".to_string()),
-    //         }],
-    //         suggestions: vec![OptimizationSuggestion {
-    //             kind: OptimizationKind::PropertyCorrection,
-    //             message: "Did you mean 'name'?".to_string(),
-    //             location: Some(SourceLocation {
-    //                 offset: 8,
-    //                 length: 7,
-    //             }),
-    //             estimated_improvement: 0.0,
-    //         }],
-    //         type_info: HashMap::new(),
-    //         complexity_metrics: ComplexityMetrics {
-    //             cyclomatic_complexity: 1,
-    //             expression_depth: 3,
-    //             function_calls: 0,
-    //             property_accesses: 2,
-    //             collection_operations: 0,
-    //             estimated_runtime_cost: 0.1,
-    //         },
-    //         is_valid: false,
-    //     };
+    #[tokio::test]
+    async fn test_complex_diagnostic_processing() {
+        use crate::analyzer::{AnalysisContext, StaticAnalyzer};
+        use octofhir_fhir_model::{EmptyModelProvider, ModelProvider};
+        use std::sync::Arc;
 
-    //     let source = "Patient.invalid.name";
-    //     let processed = processor.process_analysis(&analysis_result, source, Some("test.fhirpath"));
+        let mut processor = DiagnosticProcessor::new();
+        let model_provider = Arc::new(EmptyModelProvider);
 
-    //     assert!(!processed.is_empty());
-    //     assert_eq!(processed.len(), 3); // 1 diagnostic + 1 warning + 1 suggestion
+        // Create a static analyzer
+        let mut analyzer = StaticAnalyzer::new(model_provider.clone());
 
-    //     // Check that the main error was processed
-    //     let main_diagnostic = &processed[0];
-    //     assert_eq!(
-    //         main_diagnostic.diagnostic.severity,
-    //         DiagnosticSeverity::Error
-    //     );
-    //     assert_eq!(main_diagnostic.context.source_snippet, "invalid");
-    //     assert_eq!(
-    //         main_diagnostic.context.resource_context,
-    //         Some("Patient".to_string())
-    //     );
-    //     assert!(!main_diagnostic.suggestions.is_empty());
-    // }
+        // Get Patient type for context
+        let patient_type = model_provider
+            .get_type("Patient")
+            .await
+            .unwrap()
+            .expect("Patient type should exist");
+
+        let context = AnalysisContext {
+            root_type: patient_type,
+            deep_analysis: true,
+            suggest_optimizations: true,
+            max_suggestions: 5,
+        };
+
+        // Analyze an expression with issues
+        let source = "Patient.invalidProperty";
+        let analysis_result = analyzer.analyze_expression(source, context).await;
+
+        // Process the analysis result through the diagnostic processor
+        let processed = processor.process_analysis(&analysis_result, source, Some("test.fhirpath"));
+
+        // Should have at least one diagnostic
+        assert!(
+            !processed.is_empty(),
+            "Should have diagnostics for invalid property"
+        );
+
+        // Check that diagnostics were processed
+        let has_error = processed
+            .iter()
+            .any(|d| matches!(d.diagnostic.severity, DiagnosticSeverity::Error));
+
+        if has_error {
+            let error_diag = processed
+                .iter()
+                .find(|d| matches!(d.diagnostic.severity, DiagnosticSeverity::Error))
+                .unwrap();
+            assert_eq!(
+                error_diag.context.resource_context,
+                Some("Patient".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn test_suggestion_conversion() {
+        use crate::analyzer::{AnalysisSuggestion, SuggestionType};
+        use crate::core::SourceLocation;
+
+        let processor = DiagnosticProcessor::new();
+
+        let suggestion = AnalysisSuggestion {
+            suggestion_type: SuggestionType::Performance,
+            message: "Use exists() instead of count() > 0".to_string(),
+            location: Some(SourceLocation {
+                offset: 10,
+                length: 15,
+                line: 1,
+                column: 10,
+            }),
+            code_snippet: Some("exists()".to_string()),
+            confidence: 0.9,
+        };
+
+        let source = "Patient.name.count() > 0";
+        let processed = processor.process_suggestion_to_diagnostic(&suggestion, source);
+
+        assert!(processed.is_some());
+        let processed = processed.unwrap();
+        assert_eq!(processed.diagnostic.severity, DiagnosticSeverity::Info);
+        assert!(processed.help_text.is_some());
+        assert!(!processed.suggestions.is_empty());
+        assert_eq!(
+            processed.suggestions[0].confidence,
+            SuggestionConfidence::High
+        );
+    }
 }

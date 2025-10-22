@@ -208,8 +208,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::string("Hello".to_string())];
         let right = vec![FhirPathValue::string(" World".to_string())];
@@ -235,8 +234,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::string("Count: ".to_string())];
         let right = vec![FhirPathValue::integer(42)];
@@ -262,8 +260,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::string(" items".to_string())];
@@ -289,8 +286,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::string("Active: ".to_string())];
         let right = vec![FhirPathValue::boolean(true)];
@@ -316,8 +312,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         // Test string with empty collection
         let left = vec![FhirPathValue::string("Hello".to_string())];

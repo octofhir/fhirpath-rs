@@ -475,8 +475,7 @@ mod integration_test_runner {
                 self.engine.get_terminology_provider(),
                 self.engine.get_validation_provider(),
                 self.engine.get_trace_provider(),
-            )
-            .await;
+            );
 
             // Use single root evaluation method (parse + evaluate in one call) - same as test-runner
             let timeout_ms: u64 = std::env::var("FHIRPATH_TEST_TIMEOUT_MS")

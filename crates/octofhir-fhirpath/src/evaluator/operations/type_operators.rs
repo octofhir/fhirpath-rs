@@ -381,8 +381,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![FhirPathValue::string("Boolean".to_string())];
@@ -405,8 +404,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::string("boolean".to_string())];
@@ -429,8 +427,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::string("Integer".to_string())];
@@ -453,8 +450,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::string("boolean".to_string())];

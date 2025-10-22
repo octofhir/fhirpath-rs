@@ -159,10 +159,9 @@ impl TestMetadataManager {
 
         if matches.is_empty() {
             TestLookupResult::NotFound
-        } else if matches.len() == 1
-            && let match_str = &matches[0]
-        {
+        } else if matches.len() == 1 {
             // Single fuzzy match - try to resolve it
+            let match_str = &matches[0];
             if let Some(stripped) = match_str.strip_prefix("file:") {
                 self.lookup(stripped)
             } else if let Some(stripped) = match_str.strip_prefix("test:") {

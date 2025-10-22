@@ -435,8 +435,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 engine.get_terminology_provider(),
                 engine.get_validation_provider(),
                 engine.get_trace_provider(),
-            )
-            .await;
+            );
 
             // Log terminology setup only for tests that actually use it (engine handles terminology setup automatically)
             if test_suite.name.contains("Terminology")

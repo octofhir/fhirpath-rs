@@ -306,8 +306,7 @@ async fn profile_expression(
             None,
             None,
             None,
-        )
-        .await;
+        );
         let _ = engine.evaluate(expression, &ctx).await;
     }
     let duration = start.elapsed();
@@ -543,8 +542,7 @@ async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
                     None,
                     None,
                     None,
-                )
-                .await;
+                );
                 let _ = engine.evaluate(expr, &ctx).await;
             }
 

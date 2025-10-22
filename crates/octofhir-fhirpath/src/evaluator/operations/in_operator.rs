@@ -180,8 +180,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(2)];
         let right = vec![FhirPathValue::Collection(Collection::from_values(vec![
@@ -208,8 +207,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(4)];
         let right = vec![FhirPathValue::Collection(Collection::from_values(vec![
@@ -236,8 +234,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::string("hello".to_string())];
         let right = vec![FhirPathValue::Collection(Collection::from_values(vec![
@@ -264,8 +261,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::integer(42)]; // Single value, not a collection
@@ -288,8 +284,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![]; // Empty
         let right = vec![FhirPathValue::Collection(Collection::from_values(vec![
@@ -314,8 +309,7 @@ mod tests {
             None,
             None,
             None,
-        )
-        .await;
+        );
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![]; // Empty collection

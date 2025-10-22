@@ -24,7 +24,6 @@ use fhirpath_cli::{
     EmbeddedModelProvider, cli::context::CliContext, cli::handlers, cli::output::OutputFormat,
 };
 use octofhir_fhir_model::provider::FhirVersion;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -39,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
         true, // quiet mode to reduce noise
         false,
         "r4".to_string(),
-        vec![],
+        Vec::new(),
         false,
     );
 
@@ -53,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     // Create multiple patient files
     println!("Creating test patient files...");
 
-    let patients = vec![
+    let patients = [
         r#"{"resourceType": "Patient", "id": "1", "active": true, "name": [{"family": "Smith", "given": ["Alice"]}]}"#,
         r#"{"resourceType": "Patient", "id": "2", "active": false, "name": [{"family": "Jones", "given": ["Bob"]}]}"#,
         r#"{"resourceType": "Patient", "id": "3", "active": true, "name": [{"family": "Brown", "given": ["Charlie"]}]}"#,

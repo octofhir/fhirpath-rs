@@ -4,6 +4,7 @@
 //! consolidated implementation while maintaining compatibility with serde_json::Value.
 
 use crate::core::types::FhirPathValue;
+use async_recursion::async_recursion;
 use serde_json::Value as JsonValue;
 
 /// Extension trait for JsonValue to add FHIRPath-specific functionality
@@ -145,6 +146,7 @@ pub mod utils {
     }
 
     /// Convert a JsonValue to a FhirPathValue with proper FHIR resource typing using ModelProvider
+    #[async_recursion]
     pub async fn json_to_fhirpath_value_with_model_provider(
         json: JsonValue,
         model_provider: Arc<dyn ModelProvider + Send + Sync>,
@@ -166,11 +168,9 @@ pub mod utils {
             JsonValue::Array(arr) => {
                 let mut values = Vec::new();
                 for item in arr {
-                    let value = Box::pin(json_to_fhirpath_value_with_model_provider(
-                        item,
-                        model_provider.clone(),
-                    ))
-                    .await?;
+                    let value =
+                        json_to_fhirpath_value_with_model_provider(item, model_provider.clone())
+                            .await?;
                     values.push(value);
                 }
                 Ok(FhirPathValue::collection(values))

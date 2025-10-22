@@ -375,8 +375,7 @@ impl ReplSession {
             self.engine.get_terminology_provider(),
             self.engine.get_validation_provider(),
             self.engine.get_trace_provider(),
-        )
-        .await;
+        );
 
         // Add REPL variables to evaluation context
         for (name, value) in &self.variables {
@@ -538,8 +537,7 @@ impl ReplSession {
             self.engine.get_terminology_provider(),
             self.engine.get_validation_provider(),
             self.engine.get_trace_provider(),
-        )
-        .await;
+        );
 
         // Add REPL variables to evaluation context
         for (name, value) in &self.variables {
