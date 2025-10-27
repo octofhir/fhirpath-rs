@@ -204,7 +204,7 @@ jobs:
           echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
 
       - name: Download all binary artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           pattern: binary-*
           merge-multiple: true
