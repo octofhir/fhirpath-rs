@@ -30,7 +30,7 @@ fn cache_miss_simple_expression(bencher: Bencher) {
                     .unwrap();
 
                 let collection = Collection::empty();
-                let context = EvaluationContext::new(collection, provider, None, None, None).await;
+                let context = EvaluationContext::new(collection, provider, None, None, None);
 
                 (engine, context)
             })
@@ -55,7 +55,7 @@ fn cache_hit_simple_expression(bencher: Bencher) {
                     .unwrap();
 
                 let collection = Collection::empty();
-                let context = EvaluationContext::new(collection, provider, None, None, None).await;
+                let context = EvaluationContext::new(collection, provider, None, None, None);
 
                 // Warm up cache with first evaluation
                 let _ = engine.evaluate("1 + 2", &context).await.unwrap();
@@ -86,7 +86,7 @@ fn cache_miss_complex_expression(bencher: Bencher) {
                     .unwrap();
 
                 let collection = Collection::empty();
-                let context = EvaluationContext::new(collection, provider, None, None, None).await;
+                let context = EvaluationContext::new(collection, provider, None, None, None);
 
                 (engine, context)
             })
@@ -118,7 +118,7 @@ fn cache_hit_complex_expression(bencher: Bencher) {
                     .unwrap();
 
                 let collection = Collection::empty();
-                let context = EvaluationContext::new(collection, provider, None, None, None).await;
+                let context = EvaluationContext::new(collection, provider, None, None, None);
 
                 // Warm up cache
                 let _ = engine
@@ -156,7 +156,7 @@ fn mixed_workload_with_cache(bencher: Bencher) {
                     .unwrap();
 
                 let collection = Collection::empty();
-                let context = EvaluationContext::new(collection, provider, None, None, None).await;
+                let context = EvaluationContext::new(collection, provider, None, None, None);
 
                 (engine, context)
             })

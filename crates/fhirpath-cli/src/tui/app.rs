@@ -563,8 +563,7 @@ impl TuiApp {
                     None,
                     None,
                     None,
-                )
-                .await;
+                );
 
                 // Set variables if any
                 for (name, value) in &self.state.variables {
@@ -598,8 +597,7 @@ impl TuiApp {
                     None,
                     None,
                     None,
-                )
-                .await;
+                );
 
                 // Set variables if any
                 for (name, value) in &self.state.variables {

@@ -46,8 +46,7 @@ pub async fn evaluate_context_items(
         terminology_provider.clone(),
         validation_provider.clone(),
         trace_provider.clone(),
-    )
-    .await;
+    );
 
     initialise_variables(&evaluation_context, &model_provider, &request.variables).await?;
 

@@ -75,7 +75,8 @@ async fn async_main() -> anyhow::Result<()> {
             quiet,
             verbose,
             analyze,
-            watch: _,
+            #[cfg_attr(not(feature = "watch"), allow(unused_variables))]
+            watch,
             batch,
             continue_on_error,
             template,

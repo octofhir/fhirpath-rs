@@ -48,8 +48,7 @@ pub async fn evaluate_expression_for_contexts(
             terminology_provider.clone(),
             validation_provider.clone(),
             Some(trace_shared),
-        )
-        .await;
+        );
 
         initialise_variables(&evaluation_context, &model_provider, &request.variables).await?;
 
