@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version_bump:
-        description: "Version bump type"
+        description: 'Version bump type'
         required: true
-        default: "patch"
+        default: 'patch'
         type: choice
         options:
           - patch
@@ -48,7 +48,7 @@ jobs:
       - name: Install Node.js and pnpm
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: '22'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -64,8 +64,8 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "release-binary"
-          shared-key: "binary-${{ matrix.target }}"
+          prefix-key: 'release-binary'
+          shared-key: 'binary-${{ matrix.target }}'
           cache-targets: true
           cache-on-failure: true
 
@@ -143,7 +143,7 @@ jobs:
           copy target\${{ matrix.target }}\release\octofhir-fhirpath.exe release-artifacts\octofhir-fhirpath-${{ matrix.postfix }}.exe
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binary-${{ matrix.postfix }}
           path: release-artifacts/*
@@ -204,7 +204,7 @@ jobs:
           echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
 
       - name: Download all binary artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           pattern: binary-*
           merge-multiple: true
@@ -262,7 +262,7 @@ jobs:
       - name: Install Node.js and pnpm
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: '22'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -277,8 +277,8 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "release-publish"
-          shared-key: "publish-crate"
+          prefix-key: 'release-publish'
+          shared-key: 'publish-crate'
           cache-targets: true
           cache-on-failure: true
 
