@@ -76,7 +76,10 @@ pub mod define_variable_function;
 
 // Temporal functions
 pub mod day_of_function;
+pub mod difference_function;
+pub mod duration_function;
 pub mod hour_of_function;
+pub mod millisecond_function;
 pub mod minute_of_function;
 pub mod month_of_function;
 pub mod now_function;
@@ -148,7 +151,9 @@ pub use day_of_function::*;
 pub use decode_function::*;
 pub use define_variable_function::*;
 pub use descendants_function::*;
+pub use difference_function::*;
 pub use distinct_function::*;
+pub use duration_function::*;
 pub use empty_function::*;
 pub use encode_function::*;
 pub use ends_with_function::*;
@@ -178,6 +183,7 @@ pub use lower_function::*;
 pub use matches_full_function::*;
 pub use matches_function::*;
 pub use max_function::*;
+pub use millisecond_function::*;
 pub use min_function::*;
 pub use minute_of_function::*;
 pub use month_of_function::*;

@@ -129,7 +129,7 @@ impl TraceProvider for NoOpTraceProvider {
     }
 }
 
-/// Convenience type for Arc<dyn TraceProvider>
+/// Convenience type for `Arc<dyn TraceProvider>`
 pub type SharedTraceProvider = Arc<dyn TraceProvider>;
 
 /// Create a CLI trace provider wrapped in Arc

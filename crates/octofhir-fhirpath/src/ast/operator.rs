@@ -83,7 +83,7 @@ pub enum UnaryOperator {
 
 impl BinaryOperator {
     /// Get the precedence level of this operator (higher = binds tighter)
-    /// Based on FHIRPath specification: http://hl7.org/fhirpath/#grammar
+    /// Based on FHIRPath specification: <http://hl7.org/fhirpath/#grammar>
     /// Spec precedence levels converted to higher=tighter internal representation
     pub fn precedence(self) -> u8 {
         match self {

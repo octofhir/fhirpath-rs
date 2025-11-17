@@ -58,7 +58,7 @@ pub enum FhirPathType {
     Union(Vec<FhirPathType>),
 
     // Navigation types
-    /// Polymorphic type (for choice types like value[x])
+    /// Polymorphic type (for choice types like `value[x]`)
     Polymorphic(Vec<FhirPathType>),
     /// Unknown type (for error cases)
     Unknown,

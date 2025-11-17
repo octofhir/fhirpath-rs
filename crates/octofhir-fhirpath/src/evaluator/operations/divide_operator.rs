@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathError, FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
@@ -56,10 +56,7 @@ impl DivideOperatorEvaluator {
             // Decimal division
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
                 if *r == Decimal::ZERO {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None);
                 }
                 Ok(Some(FhirPathValue::decimal(*l / *r)))
             }
@@ -67,20 +64,14 @@ impl DivideOperatorEvaluator {
             // Integer / Decimal = Decimal
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
                 if *r == Decimal::ZERO {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None);
                 }
                 let left_decimal = Decimal::from(*l);
                 Ok(Some(FhirPathValue::decimal(left_decimal / *r)))
             }
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Integer(r, _, _)) => {
                 if *r == 0 {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None);
                 }
                 let right_decimal = Decimal::from(*r);
                 Ok(Some(FhirPathValue::decimal(*l / right_decimal)))
@@ -98,10 +89,7 @@ impl DivideOperatorEvaluator {
                 FhirPathValue::Integer(r, _, _),
             ) => {
                 if *r == 0 {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None);
                 }
                 let right_decimal = Decimal::from(*r);
                 Ok(Some(FhirPathValue::quantity_with_components(
@@ -122,10 +110,7 @@ impl DivideOperatorEvaluator {
                 FhirPathValue::Decimal(r, _, _),
             ) => {
                 if *r == Decimal::ZERO {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None);
                 }
                 Ok(Some(FhirPathValue::quantity_with_components(
                     *lv / *r,
@@ -135,7 +120,7 @@ impl DivideOperatorEvaluator {
                 )))
             }
 
-            // Quantity / Quantity = Decimal (unitless) or Quantity (with unit division)
+            // Quantity / Quantity = Decimal (when units cancel) or Quantity (with unit division)
             (
                 FhirPathValue::Quantity {
                     value: lv,
@@ -153,20 +138,13 @@ impl DivideOperatorEvaluator {
                 },
             ) => {
                 if *rv == Decimal::ZERO {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None);
                 }
 
-                // If same units, result is quantity with unit "1" (dimensionless)
+                // If same units, units cancel and result is a Decimal (not Quantity)
+                // Per FHIRPath spec: "6 'kg' / 2 'kg' -> 3.0"
                 if lu == ru {
-                    Ok(Some(FhirPathValue::quantity_with_components(
-                        *lv / *rv,
-                        Some("1".to_string()),
-                        None,
-                        None,
-                    )))
+                    Ok(Some(FhirPathValue::decimal(*lv / *rv)))
                 } else {
                     // TODO: Implement proper unit division using UCUM
                     // For now, simple concatenation with division
@@ -282,17 +260,41 @@ fn create_divide_metadata() -> OperatorMetadata {
 mod tests {
     use super::*;
     use crate::core::Collection;
+    use rust_decimal_macros::dec;
 
-    #[tokio::test]
-    async fn test_divide_integers() {
-        let evaluator = DivideOperatorEvaluator::new();
-        let context = EvaluationContext::new(
+    fn create_test_context() -> EvaluationContext {
+        EvaluationContext::new(
             Collection::empty(),
             std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
             None,
             None,
             None,
-        );
+        )
+    }
+
+    // ========== Integer / Integer → Decimal (CRITICAL) ==========
+
+    #[tokio::test]
+    async fn test_integer_divide_integer_returns_decimal() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::integer(5)];
+        let right = vec![FhirPathValue::integer(2)];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(2.5)));
+    }
+
+    #[tokio::test]
+    async fn test_integer_divide_yields_exact_decimal() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
 
         let left = vec![FhirPathValue::integer(15)];
         let right = vec![FhirPathValue::integer(3)];
@@ -310,18 +312,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_divide_decimals() {
+    async fn test_integer_divide_fraction() {
         let evaluator = DivideOperatorEvaluator::new();
-        let context = EvaluationContext::new(
-            Collection::empty(),
-            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
-            None,
-            None,
-            None,
-        );
+        let context = create_test_context();
 
-        let left = vec![FhirPathValue::decimal(Decimal::new(10, 0))];
-        let right = vec![FhirPathValue::decimal(Decimal::new(2, 0))];
+        let left = vec![FhirPathValue::integer(1)];
+        let right = vec![FhirPathValue::integer(2)];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -329,51 +325,161 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(
-            result.value.first().unwrap().as_decimal(),
-            Some(Decimal::from(5))
-        );
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(0.5)));
     }
 
     #[tokio::test]
-    async fn test_divide_by_zero() {
+    async fn test_integer_divide_with_remainder() {
         let evaluator = DivideOperatorEvaluator::new();
-        let context = EvaluationContext::new(
-            Collection::empty(),
-            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
-            None,
-            None,
-            None,
-        );
+        let context = create_test_context();
 
-        let left = vec![FhirPathValue::integer(10)];
-        let right = vec![FhirPathValue::integer(0)];
+        let left = vec![FhirPathValue::integer(7)];
+        let right = vec![FhirPathValue::integer(2)];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
             .await
             .unwrap();
 
-        // Integer division by zero returns empty collection per FHIRPath spec
-        assert_eq!(result.value.len(), 0);
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(3.5)));
+    }
+
+    // ========== Decimal Division ==========
+
+    #[tokio::test]
+    async fn test_divide_decimals() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::decimal(dec!(7.5))];
+        let right = vec![FhirPathValue::decimal(dec!(2.5))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(3.0)));
     }
 
     #[tokio::test]
-    async fn test_divide_quantity_by_scalar() {
+    async fn test_divide_decimals_with_result() {
         let evaluator = DivideOperatorEvaluator::new();
-        let context = EvaluationContext::new(
-            Collection::empty(),
-            std::sync::Arc::new(crate::core::types::test_utils::create_test_model_provider()),
-            None,
-            None,
-            None,
-        );
+        let context = create_test_context();
 
-        let left = vec![FhirPathValue::quantity(
-            Decimal::new(15, 0),
-            Some("kg".to_string()),
-        )];
-        let right = vec![FhirPathValue::integer(3)];
+        let left = vec![FhirPathValue::decimal(dec!(10.0))];
+        let right = vec![FhirPathValue::decimal(dec!(4.0))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(2.5)));
+    }
+
+    // ========== Mixed Integer/Decimal ==========
+
+    #[tokio::test]
+    async fn test_integer_divide_decimal() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::integer(5)];
+        let right = vec![FhirPathValue::decimal(dec!(2.0))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(2.5)));
+    }
+
+    #[tokio::test]
+    async fn test_decimal_divide_integer() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::decimal(dec!(7.5))];
+        let right = vec![FhirPathValue::integer(2)];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(3.75)));
+    }
+
+    // ========== Quantity / Quantity → Decimal ==========
+
+    #[tokio::test]
+    async fn test_quantity_divide_quantity_same_units_returns_decimal() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(6), Some("kg".to_string()))];
+        let right = vec![FhirPathValue::quantity(dec!(2), Some("kg".to_string()))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        // Should return Decimal, not Quantity
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(3.0)));
+    }
+
+    #[tokio::test]
+    async fn test_quantity_divide_quantity_mg() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(10), Some("mg".to_string()))];
+        let right = vec![FhirPathValue::quantity(dec!(5), Some("mg".to_string()))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(2.0)));
+    }
+
+    #[tokio::test]
+    async fn test_quantity_divide_quantity_cm() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(100), Some("cm".to_string()))];
+        let right = vec![FhirPathValue::quantity(dec!(50), Some("cm".to_string()))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(2.0)));
+    }
+
+    // ========== Quantity / Number → Quantity ==========
+
+    #[tokio::test]
+    async fn test_quantity_divide_integer() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(10), Some("mg".to_string()))];
+        let right = vec![FhirPathValue::integer(2)];
 
         let result = evaluator
             .evaluate(vec![], &context, left, right)
@@ -382,8 +488,227 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
-            assert_eq!(*value, Decimal::from(5));
-            assert_eq!(unit.as_deref(), Some("kg"));
+            assert_eq!(*value, dec!(5));
+            assert_eq!(unit.as_deref(), Some("mg"));
+        } else {
+            panic!("Expected quantity result");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_quantity_divide_decimal() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(10), Some("mg".to_string()))];
+        let right = vec![FhirPathValue::decimal(dec!(2.0))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
+            assert_eq!(*value, dec!(5));
+            assert_eq!(unit.as_deref(), Some("mg"));
+        } else {
+            panic!("Expected quantity result");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_quantity_cm_divide_integer() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(100), Some("cm".to_string()))];
+        let right = vec![FhirPathValue::integer(4)];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
+            assert_eq!(*value, dec!(25));
+            assert_eq!(unit.as_deref(), Some("cm"));
+        } else {
+            panic!("Expected quantity result");
+        }
+    }
+
+    // ========== Division by Zero ==========
+
+    #[tokio::test]
+    async fn test_integer_divide_by_zero() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::integer(5)];
+        let right = vec![FhirPathValue::integer(0)];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_decimal_divide_by_zero() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::decimal(dec!(5.0))];
+        let right = vec![FhirPathValue::decimal(dec!(0.0))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_quantity_divide_by_zero_integer() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(10), Some("mg".to_string()))];
+        let right = vec![FhirPathValue::integer(0)];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_quantity_divide_by_zero_decimal() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(10), Some("mg".to_string()))];
+        let right = vec![FhirPathValue::decimal(dec!(0.0))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_quantity_divide_by_zero_quantity() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(10), Some("mg".to_string()))];
+        let right = vec![FhirPathValue::quantity(dec!(0), Some("mg".to_string()))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 0);
+    }
+
+    // ========== Edge Cases ==========
+
+    #[tokio::test]
+    async fn test_zero_divide_by_integer() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::integer(0)];
+        let right = vec![FhirPathValue::integer(5)];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(0.0)));
+    }
+
+    #[tokio::test]
+    async fn test_zero_decimal_divide_by_decimal() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::decimal(dec!(0.0))];
+        let right = vec![FhirPathValue::decimal(dec!(5.0))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(0.0)));
+    }
+
+    #[tokio::test]
+    async fn test_empty_left_operand() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![];
+        let right = vec![FhirPathValue::integer(5)];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_empty_right_operand() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::integer(5)];
+        let right = vec![];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 0);
+    }
+
+    // ========== Incompatible Quantity Division ==========
+
+    #[tokio::test]
+    async fn test_quantity_divide_different_units_creates_compound_unit() {
+        let evaluator = DivideOperatorEvaluator::new();
+        let context = create_test_context();
+
+        let left = vec![FhirPathValue::quantity(dec!(10), Some("mg".to_string()))];
+        let right = vec![FhirPathValue::quantity(dec!(5), Some("cm".to_string()))];
+
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
+
+        assert_eq!(result.value.len(), 1);
+        // Should create a compound unit (basic implementation without UCUM)
+        if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
+            assert_eq!(*value, dec!(2));
+            assert_eq!(unit.as_deref(), Some("mg/cm"));
         } else {
             panic!("Expected quantity result");
         }

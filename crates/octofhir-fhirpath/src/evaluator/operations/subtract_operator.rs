@@ -13,6 +13,7 @@ use crate::core::{Collection, FhirPathError, FhirPathType, FhirPathValue, Result
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::quantity_utils::convert_quantity;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Subtraction operator evaluator
@@ -73,6 +74,7 @@ impl SubtractOperatorEvaluator {
                     unit: lu,
                     code: lc,
                     system: ls,
+                    ucum_unit: lu_ucum,
                     ..
                 },
                 FhirPathValue::Quantity {
@@ -80,6 +82,7 @@ impl SubtractOperatorEvaluator {
                     unit: ru,
                     code: rc,
                     system: rs,
+                    ucum_unit: ru_ucum,
                     ..
                 },
             ) => {
@@ -91,9 +94,19 @@ impl SubtractOperatorEvaluator {
                         lc.clone().or_else(|| rc.clone()),
                         ls.clone().or_else(|| rs.clone()),
                     )))
+                } else if lu_ucum.is_some() && ru_ucum.is_some() {
+                    // Different units but both have UCUM - attempt conversion
+                    Ok(self.subtract_quantities_with_ucum(
+                        *lv,
+                        lu.clone(),
+                        lc.clone(),
+                        ls.clone(),
+                        *rv,
+                        ru.clone(),
+                        rc.clone(),
+                    ))
                 } else {
-                    // Different units - would need UCUM conversion
-                    // TODO: Integrate with octofhir_ucum library for unit conversion
+                    // Different units without UCUM or mixed UCUM/non-UCUM - incompatible
                     Ok(None)
                 }
             }
@@ -202,6 +215,45 @@ impl SubtractOperatorEvaluator {
             // Invalid combinations
             _ => Ok(None),
         }
+    }
+
+    /// Subtract two quantities with UCUM unit conversion
+    /// Converts the right operand to the left operand's unit, then performs subtraction
+    fn subtract_quantities_with_ucum(
+        &self,
+        left_value: Decimal,
+        left_unit_str: Option<String>,
+        left_code: Option<String>,
+        left_system: Option<String>,
+        right_value: Decimal,
+        right_unit_str: Option<String>,
+        right_code: Option<String>,
+    ) -> Option<FhirPathValue> {
+        // Get the target unit (left operand) - prefer code, fallback to unit string
+        let target_unit = left_code.as_deref().or(left_unit_str.as_deref())?;
+
+        // Get the source unit (right operand) - prefer code, fallback to unit string
+        let source_unit_for_ref = right_code.as_ref().or(right_unit_str.as_ref())?;
+
+        // Try to convert right quantity to left unit using existing conversion infrastructure
+        let converted = convert_quantity(
+            right_value,
+            &Some(source_unit_for_ref.clone()),
+            &None, // calendar_unit - we know both are UCUM units
+            target_unit,
+        )
+        .ok()?;
+
+        // Perform subtraction in left unit
+        let result_value = left_value - converted.value;
+
+        // Return result in left operand's unit
+        Some(FhirPathValue::quantity_with_components(
+            result_value,
+            left_unit_str,
+            left_code,
+            left_system,
+        ))
     }
 
     /// Subtract a time-valued quantity from a temporal value with type information

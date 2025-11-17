@@ -190,8 +190,7 @@ fn compile_expression(bencher: Bencher) {
             runtime.block_on(async {
                 let registry = Arc::new(create_function_registry());
                 let provider = Arc::new(EmptyModelProvider);
-                let engine = FhirPathEngine::new(registry, provider).await.unwrap();
-                engine
+                FhirPathEngine::new(registry, provider).await.unwrap()
             })
         })
         .bench_values(|engine| {

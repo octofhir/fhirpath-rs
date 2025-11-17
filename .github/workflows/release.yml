@@ -203,6 +203,28 @@ jobs:
           echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
           echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
 
+      - name: Generate changelog
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version-file: './Cargo.toml'
+          version-path: 'workspace.package.version'
+          skip-version-file: true
+          skip-commit: true
+          skip-tag: true
+          output-file: 'CHANGELOG.md'
+          release-count: 0
+          preset: 'angular'
+          git-user-name: 'GitHub Actions'
+          git-user-email: 'actions@github.com'
+
+      - name: Upload changelog artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: changelog
+          path: CHANGELOG.md
+
       - name: Download all binary artifacts
         uses: actions/download-artifact@v6
         with:
@@ -217,12 +239,9 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
           body: |
-            🚀 **Release ${{ steps.version.outputs.version }}** - Manual release from main branch
+            ${{ steps.changelog.outputs.clean_changelog }}
 
-            **Commit:** ${{ github.sha }}
-            **Version:** ${{ steps.version.outputs.version }}
-            **Branch:** ${{ github.ref_name }}
-            **Bump Type:** ${{ github.event.inputs.version_bump }}
+            ---
 
             ## Available Binaries
             - `octofhir-fhirpath-linux-x64` - Linux x86_64 (glibc)
@@ -231,7 +250,9 @@ jobs:
             - `octofhir-fhirpath-windows-x64.exe` - Windows x86_64
 
             ## Crates.io
-            The `octofhir-fhirpath` crate will be published to crates.io with version `${{ steps.version.outputs.version }}`
+            The `octofhir-fhirpath` crate is published to crates.io with version `${{ steps.version.outputs.version }}`
+
+            **Commit:** ${{ github.sha }}
           prerelease: false
           generate_release_notes: false
           files: |
@@ -332,14 +353,21 @@ jobs:
             exit 1
           fi
 
-      - name: Commit and push version bump (only on success)
+      - name: Download changelog artifact
+        if: steps.publish.outputs.success == 'true'
+        uses: actions/download-artifact@v6
+        with:
+          name: changelog
+          path: .
+
+      - name: Commit and push version bump and changelog (only on success)
         if: steps.publish.outputs.success == 'true'
         run: |
-          echo "📝 Committing version bump to ${{ needs.create-github-release.outputs.version }}"
-          git add -A
-          git commit -m "chore: bump version to ${{ needs.create-github-release.outputs.version }} for release [ci skip]"
+          echo "📝 Committing version bump and changelog for ${{ needs.create-github-release.outputs.version }}"
+          git add Cargo.toml CHANGELOG.md
+          git commit -m "chore: bump version to ${{ needs.create-github-release.outputs.version }} and update changelog [ci skip]"
 
-          echo "📤 Pushing version bump to remote"
+          echo "📤 Pushing version bump and changelog to remote"
           git push origin main
 
   # Step 4: Cleanup on failure - remove GitHub release and binaries

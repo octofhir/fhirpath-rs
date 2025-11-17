@@ -15,10 +15,10 @@
 //! Test runner binary for running individual FHIRPath test files
 //!
 //! Usage:
-//!   cargo run --bin test-runner <test_file.json>     # Run specific file
-//!   cargo run --bin test-runner <filename>           # Run by filename (with/without .json)
-//!   cargo run --bin test-runner <test_name>          # Run specific test case
-//!   cargo run --bin test-runner <category>           # Run all tests in category
+//!   cargo run --bin test-runner `<test_file.json>`     # Run specific file
+//!   cargo run --bin test-runner `<filename>`           # Run by filename (with/without .json)
+//!   cargo run --bin test-runner `<test_name>`          # Run specific test case
+//!   cargo run --bin test-runner `<category>`           # Run all tests in category
 //!
 //! Examples:
 //!   cargo run --bin test-runner analyzer.json

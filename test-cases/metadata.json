@@ -4879,7 +4879,7 @@
     },
     "testQuantity11": {
       "name": "testQuantity11",
-      "expression": "1.0 'm' / 1.0 'm' = 1 '1'",
+      "expression": "1.0 'm' / 1.0 'm' = 1.0",
       "category": "other",
       "subcategory": "literals",
       "tags": [

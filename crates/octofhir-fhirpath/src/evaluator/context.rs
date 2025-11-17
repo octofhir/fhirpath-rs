@@ -225,7 +225,7 @@ impl EvaluationContext {
         }
     }
 
-    /// Resolve %vs-[name] and %ext-[name] environment variables dynamically
+    /// Resolve `%vs-[name]` and `%ext-[name]` environment variables dynamically
     /// Dynamic environment variable resolution
     pub fn resolve_environment_variable(&self, name: &str) -> Option<FhirPathValue> {
         // First check if this is a user-defined variable (stored without prefix)

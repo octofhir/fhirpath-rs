@@ -20,11 +20,11 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::EvaluationResult;
 
 /// Min function evaluator
 pub struct MinFunctionEvaluator {
@@ -209,10 +209,7 @@ mod tests {
         ];
         let result = evaluator.evaluate(input, vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
-        assert_eq!(
-            result.value.first(),
-            Some(&FhirPathValue::string("apple"))
-        );
+        assert_eq!(result.value.first(), Some(&FhirPathValue::string("apple")));
     }
 
     #[tokio::test]
@@ -256,10 +253,7 @@ mod tests {
         let evaluator = MinFunctionEvaluator::create();
 
         // {1, 'string'}.min() = {} (type mismatch)
-        let input = vec![
-            FhirPathValue::integer(1),
-            FhirPathValue::string("string"),
-        ];
+        let input = vec![FhirPathValue::integer(1), FhirPathValue::string("string")];
         let result = evaluator.evaluate(input, vec![]).await.unwrap();
         assert!(result.value.is_empty());
     }

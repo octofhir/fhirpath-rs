@@ -13,9 +13,9 @@ pub enum PathSegment {
     Root(String),
     /// Property name (e.g., "name", "given", "family")
     Property(String),
-    /// Array index (e.g., [0], [1])
+    /// Array index (e.g., `[0]`, `[1]`)
     Index(usize),
-    /// Wildcard for collection operations (e.g., [*])
+    /// Wildcard for collection operations (e.g., `[*]`)
     Wildcard,
 }
 
@@ -89,7 +89,7 @@ impl CanonicalPath {
     }
 
     /// Parse a path from string representation
-    /// Examples: "Patient", "Patient.name", "Patient.name[0].given"
+    /// Examples: "Patient", "Patient.name", "Patient.name\[0\].given"
     pub fn parse(path_str: &str) -> Result<Self, PathParseError> {
         if path_str.is_empty() {
             return Ok(Self::empty());

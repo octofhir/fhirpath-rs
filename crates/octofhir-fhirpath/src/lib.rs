@@ -32,7 +32,6 @@
 //! - [`core`] - Core types, errors, and value system
 //! - [`parser`] - Expression parsing with chumsky
 //! - [`evaluator`] - Expression evaluation engine
-//! - [`registry`] - Function and operator registry
 //! - [`diagnostics`] - Error reporting and diagnostics
 //!
 //! ## Quick Start

@@ -5461,7 +5461,7 @@
     },
     {
       "name": "testQuantity11",
-      "expression": "1.0 'm' / 1.0 'm' = 1 '1'",
+      "expression": "1.0 'm' / 1.0 'm' = 1.0",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [

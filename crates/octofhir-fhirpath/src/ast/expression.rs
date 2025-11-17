@@ -28,7 +28,7 @@ pub enum ExpressionNode {
     /// Property navigation (e.g., "Patient.name", "name.family")
     PropertyAccess(PropertyAccessNode),
 
-    /// Index access (e.g., "name[0]", "telecom[1]")
+    /// Index access (e.g., "name\[0\]", "telecom\[1\]")
     IndexAccess(IndexAccessNode),
 
     /// Binary operation (e.g., "age > 18", "name = 'John'")

@@ -11,9 +11,9 @@ use std::sync::Arc;
 /// Parse a string into a Quantity according to FHIRPath rules used by convertsToQuantity()/toQuantity().
 ///
 /// Supported forms:
-/// - "<number>" → unitless quantity
-/// - "<number> '<ucum>'" → UCUM unit in single quotes
-/// - "<number> <calendar-word>" → calendar unit (e.g., day, week, month, year, hour, minute, second, millisecond)
+/// - `"<number>"` → unitless quantity
+/// - `"<number> '<ucum>'"` → UCUM unit in single quotes
+/// - `"<number> <calendar-word>"` → calendar unit (e.g., day, week, month, year, hour, minute, second, millisecond)
 ///
 /// Notably, unquoted UCUM abbreviations like "wk" or "mo" are NOT accepted as calendar words.
 pub fn parse_string_to_quantity_value(s: &str) -> Option<FhirPathValue> {

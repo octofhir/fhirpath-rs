@@ -15,7 +15,7 @@ use octofhir_fhir_model::TypeInfo;
 pub struct AnalysisMetadata {
     /// Type information resolved during parsing
     pub type_info: Option<TypeInfo>,
-    /// Full path in evaluation context (e.g., "Patient.name[0].given[1]")
+    /// Full path in evaluation context (e.g., "Patient.name\[0\].given\[1\]")
     pub path: Option<String>,
     /// Diagnostics specific to this node
     pub diagnostics: Vec<Diagnostic>,

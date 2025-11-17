@@ -6,8 +6,8 @@
 //! The following environmental values are set for all contexts:
 //! - %sct        // (string) url for snomed ct
 //! - %loinc      // (string) url for loinc
-//! - %vs-[name]  // (string) full url for the provided HL7 value set with id [name]
-//! - %ext-[name] // (string) full url for the provided HL7 extension with id [name]
+//! - `%vs-[name]`  // (string) full url for the provided HL7 value set with id `[name]`
+//! - `%ext-[name]` // (string) full url for the provided HL7 extension with id `[name]`
 //! - %resource   // The original resource current context is part of
 //!
 //! Implementation Guides are allowed to define their own externals, and implementers
@@ -27,9 +27,9 @@ pub struct EnvironmentVariables {
     pub sct_url: Option<String>,
     /// URL for LOINC terminology system (%loinc)
     pub loinc_url: Option<String>,
-    /// URLs for HL7 value sets (%vs-[name])
+    /// URLs for HL7 value sets (`%vs-[name]`)
     pub value_sets: HashMap<String, String>,
-    /// URLs for HL7 extensions (%ext-[name])
+    /// URLs for HL7 extensions (`%ext-[name]`)
     pub extensions: HashMap<String, String>,
     /// Additional custom environment variables
     pub custom_variables: HashMap<String, FhirPathValue>,
@@ -121,8 +121,8 @@ impl EnvironmentVariables {
     /// It supports the following patterns:
     /// - %sct: SNOMED CT URL
     /// - %loinc: LOINC URL
-    /// - %vs-[name]: HL7 value set URL
-    /// - %ext-[name]: HL7 extension URL
+    /// - `%vs-[name]`: HL7 value set URL
+    /// - `%ext-[name]`: HL7 extension URL
     /// - Custom variables defined in custom_variables
     pub fn get_variable(&self, name: &str) -> Option<FhirPathValue> {
         match name {

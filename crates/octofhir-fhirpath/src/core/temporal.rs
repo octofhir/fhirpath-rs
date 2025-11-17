@@ -636,7 +636,7 @@ impl PrecisionDateTime {
         ))
     }
 
-    /// Convert to chrono DateTime<Utc>
+    /// Convert to chrono `DateTime<Utc>`
     pub fn to_chrono_datetime(&self) -> Result<DateTime<Utc>> {
         Ok(self.datetime.with_timezone(&Utc))
     }

@@ -238,7 +238,7 @@ pub trait FunctionEvaluator: Send + Sync {
 pub trait PureFunctionEvaluator: Send + Sync {
     /// Evaluate the function with pre-evaluated arguments
     /// - input: The input collection that the function operates on
-    /// - args: Pre-evaluated function arguments (each Vec<FhirPathValue> is one argument)
+    /// - args: Pre-evaluated function arguments (each `Vec<FhirPathValue>` is one argument)
     async fn evaluate(
         &self,
         _input: Vec<FhirPathValue>,
@@ -255,7 +255,7 @@ pub trait PureFunctionEvaluator: Send + Sync {
 pub trait ProviderPureFunctionEvaluator: Send + Sync {
     /// Evaluate the function with pre-evaluated arguments and provider access
     /// - input: The input collection that the function operates on
-    /// - args: Pre-evaluated function arguments (each Vec<FhirPathValue> is one argument)
+    /// - args: Pre-evaluated function arguments (each `Vec<FhirPathValue>` is one argument)
     /// - context: Evaluation context providing access to terminology/model/trace providers
     async fn evaluate(
         &self,
@@ -787,7 +787,13 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_pure_function(SecondOfFunctionEvaluator::create());
         self.registry
+            .register_pure_function(MillisecondFunctionEvaluator::create());
+        self.registry
             .register_pure_function(TimezoneOffsetOfFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(DurationFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(DifferenceFunctionEvaluator::create());
 
         // Register logic functions
         self.registry

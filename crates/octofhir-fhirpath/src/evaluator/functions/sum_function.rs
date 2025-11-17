@@ -19,12 +19,12 @@
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
 use crate::evaluator::quantity_utils::convert_quantity;
-use crate::evaluator::EvaluationResult;
 use rust_decimal::Decimal;
 
 /// Sum function evaluator
@@ -59,11 +59,7 @@ impl SumFunctionEvaluator {
     }
 
     /// Add two values, handling type promotion and UCUM conversion
-    fn add_values(
-        &self,
-        left: &FhirPathValue,
-        right: &FhirPathValue,
-    ) -> Option<FhirPathValue> {
+    fn add_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<FhirPathValue> {
         match (left, right) {
             // Integer + Integer = Integer
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
@@ -144,13 +140,9 @@ impl SumFunctionEvaluator {
                     let target_unit = lc.as_deref().or(lu.as_deref())?;
                     let source_unit = rc.as_ref().or(ru.as_ref())?;
 
-                    let converted = convert_quantity(
-                        *rv,
-                        &Some(source_unit.clone()),
-                        rc_unit,
-                        target_unit,
-                    )
-                    .ok()?;
+                    let converted =
+                        convert_quantity(*rv, &Some(source_unit.clone()), rc_unit, target_unit)
+                            .ok()?;
 
                     Some(FhirPathValue::quantity_with_components(
                         *lv + converted.value,

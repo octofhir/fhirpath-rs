@@ -4,9 +4,9 @@
 //! terminology operations in FHIRPath 3.0.0-ballot specification.
 //!
 //! Usage examples:
-//! - %terminologies.expand('http://example.org/ValueSet/example')
-//! - %terminologies.lookup('http://loinc.org', '29463-7')
-//! - %terminologies.validateVS('http://example.org/ValueSet/example', 'code', 'system')
+//! - %terminologies.expand('<http://example.org/ValueSet/example>')
+//! - %terminologies.lookup('<http://loinc.org>', '29463-7')
+//! - %terminologies.validateVS('<http://example.org/ValueSet/example>', 'code', 'system')
 
 use std::sync::Arc;
 

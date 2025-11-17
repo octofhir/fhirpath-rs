@@ -21,11 +21,11 @@ use std::sync::Arc;
 use rust_decimal::Decimal;
 
 use crate::core::{Collection, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::EvaluationResult;
 
 /// Avg function evaluator
 pub struct AvgFunctionEvaluator {
@@ -106,12 +106,7 @@ impl PureFunctionEvaluator for AvgFunctionEvaluator {
                 code,
                 system,
                 ..
-            } => FhirPathValue::quantity_with_components(
-                value / count,
-                unit,
-                code,
-                system,
-            ),
+            } => FhirPathValue::quantity_with_components(value / count, unit, code, system),
             _ => {
                 // Should not happen if sum calculation is correct
                 return Ok(EvaluationResult {
@@ -203,13 +198,9 @@ impl AvgFunctionEvaluator {
                     let target_unit = lc.as_deref().or(lu.as_deref())?;
                     let source_unit = rc.as_ref().or(ru.as_ref())?;
 
-                    let converted = convert_quantity(
-                        *rv,
-                        &Some(source_unit.clone()),
-                        &None,
-                        target_unit,
-                    )
-                    .ok()?;
+                    let converted =
+                        convert_quantity(*rv, &Some(source_unit.clone()), &None, target_unit)
+                            .ok()?;
 
                     Some(FhirPathValue::quantity_with_components(
                         *lv + converted.value,
@@ -222,13 +213,9 @@ impl AvgFunctionEvaluator {
                     let target_unit = lc.as_deref().or(lu.as_deref())?;
                     let source_unit = rc.as_ref().or(ru.as_ref())?;
 
-                    let converted = convert_quantity(
-                        *rv,
-                        &Some(source_unit.clone()),
-                        rc_unit,
-                        target_unit,
-                    )
-                    .ok()?;
+                    let converted =
+                        convert_quantity(*rv, &Some(source_unit.clone()), rc_unit, target_unit)
+                            .ok()?;
 
                     Some(FhirPathValue::quantity_with_components(
                         *lv + converted.value,
@@ -267,7 +254,10 @@ mod tests {
         ];
         let result = evaluator.evaluate(input, vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first(), Some(&FhirPathValue::decimal(dec!(3.0))));
+        assert_eq!(
+            result.value.first(),
+            Some(&FhirPathValue::decimal(dec!(3.0)))
+        );
     }
 
     #[tokio::test]
@@ -278,7 +268,10 @@ mod tests {
         let input = vec![FhirPathValue::integer(1), FhirPathValue::integer(2)];
         let result = evaluator.evaluate(input, vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first(), Some(&FhirPathValue::decimal(dec!(1.5))));
+        assert_eq!(
+            result.value.first(),
+            Some(&FhirPathValue::decimal(dec!(1.5)))
+        );
     }
 
     #[tokio::test]
@@ -329,7 +322,10 @@ mod tests {
         ];
         let result = evaluator.evaluate(input, vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first(), Some(&FhirPathValue::decimal(dec!(0.2))));
+        assert_eq!(
+            result.value.first(),
+            Some(&FhirPathValue::decimal(dec!(0.2)))
+        );
     }
 
     #[tokio::test]
@@ -376,7 +372,10 @@ mod tests {
         ];
         let result = evaluator.evaluate(input, vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first(), Some(&FhirPathValue::decimal(dec!(2.0))));
+        assert_eq!(
+            result.value.first(),
+            Some(&FhirPathValue::decimal(dec!(2.0)))
+        );
     }
 
     #[tokio::test]
@@ -441,6 +440,9 @@ mod tests {
         ];
         let result = evaluator.evaluate(input, vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first(), Some(&FhirPathValue::decimal(dec!(0.0))));
+        assert_eq!(
+            result.value.first(),
+            Some(&FhirPathValue::decimal(dec!(0.0)))
+        );
     }
 }
