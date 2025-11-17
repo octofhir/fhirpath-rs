@@ -46,7 +46,7 @@ moka = { version = "0.12", features = ["sync"] }
 uuid = { workspace = true }
 tracing = { workspace = true }
 chumsky = { version = "0.10", features = ["pratt"] }
-ariadne = "0.5.1"
+ariadne = "0.6"
 tabled = "0.20"
 
 url = { workspace = true }

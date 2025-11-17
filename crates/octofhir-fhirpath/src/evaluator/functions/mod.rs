@@ -57,14 +57,18 @@ pub mod upper_function;
 
 // Math functions
 pub mod abs_function;
+pub mod avg_function;
 pub mod ceiling_function;
 pub mod exp_function;
 pub mod floor_function;
 pub mod ln_function;
 pub mod log_function;
+pub mod max_function;
+pub mod min_function;
 pub mod power_function;
 pub mod round_function;
 pub mod sqrt_function;
+pub mod sum_function;
 pub mod truncate_function;
 
 // Utility functions
@@ -131,6 +135,7 @@ pub use aggregate_function::*;
 pub use all_function::*;
 pub use all_true_function::*;
 pub use any_true_function::*;
+pub use avg_function::*;
 pub use ceiling_function::*;
 pub use children_function::*;
 pub use coalesce_function::*;
@@ -172,6 +177,8 @@ pub use low_boundary_function::*;
 pub use lower_function::*;
 pub use matches_full_function::*;
 pub use matches_function::*;
+pub use max_function::*;
+pub use min_function::*;
 pub use minute_of_function::*;
 pub use month_of_function::*;
 pub use not_function::*;
@@ -195,6 +202,7 @@ pub use sqrt_function::*;
 pub use starts_with_function::*;
 pub use subset_of_function::*;
 pub use substring_function::*;
+pub use sum_function::*;
 pub use superset_of_function::*;
 pub use tail_function::*;
 pub use take_function::*;

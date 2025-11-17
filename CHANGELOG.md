@@ -8,6 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **sum() function** - FHIRPath v3.0.0 aggregate function
+  - Returns the sum of all numeric items in a collection
+  - Supports Integer, Decimal, and Quantity types
+  - Handles type promotion (Integer to Decimal when mixed)
+  - UCUM unit conversion for compatible Quantity units
+  - Skips empty values in collection
+  - Returns empty for empty collections or type mismatches
+
+- **min() function** - FHIRPath v3.0.0 aggregate function
+  - Returns the smallest value in a collection
+  - Supports Integer, Decimal, Quantity, Date, DateTime, Time, and String types
+  - Uses standard comparison semantics for each type
+  - Handles incompatible types/units gracefully
+  - Skips empty values in collection
+  - Returns empty for empty collections or type mismatches
+
+- **max() function** - FHIRPath v3.0.0 aggregate function
+  - Returns the largest value in a collection
+  - Supports Integer, Decimal, Quantity, Date, DateTime, Time, and String types
+  - Uses standard comparison semantics for each type
+  - Handles incompatible types/units gracefully
+  - Skips empty values in collection
+  - Returns empty for empty collections or type mismatches
+
+- **avg() function** - FHIRPath v3.0.0 aggregate function
+  - Calculates the average of all numeric items in a collection
+  - Supports Integer (returns Decimal), Decimal, and Quantity types
+  - Always returns Decimal for numeric types (never Integer)
+  - Leverages sum() function with division by count
+  - UCUM unit conversion for compatible Quantity units
+  - Skips empty values in collection
+  - Returns empty for empty collections or type mismatches
+
+### Added
+
 - Architecture Decision Records (ADRs) for major architectural decisions
   - ADR-001: Model Context Protocol (MCP) Server Implementation
   - ADR-002: FHIRPath Analyzer Crate for static analysis and expression explanation
@@ -18,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Future development roadmap with MCP server and analyzer crate plans
 
 ### Changed
+
 - Updated README.md with modular workspace architecture description
 - Improved Quick Start section with both simple and complete examples
 - Enhanced CLI documentation with practical examples
@@ -27,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated architecture overview to show 11 specialized crates
 
 ### Planned
+
 - Model Context Protocol (MCP) server implementation for AI assistant integration
 - FHIRPath analyzer crate for static analysis and expression explanation
 - Cross-platform distribution with GitHub releases and Docker images
@@ -34,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] - 2024-XX-XX
 
 ### Added
+
 - Comprehensive CI/CD pipeline with GitHub Actions
 - Canary releases on every main branch push
 - Automated release workflow with manual trigger
@@ -46,12 +85,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MSRV (Minimum Supported Rust Version) testing
 
 ### Changed
+
 - Package name from `fhirpath-rs` to `octofhir-fhirpath` for crates.io compatibility
 - Library name from `fhirpath_rs` to `octofhir_fhirpath` for consistency
 - Updated package metadata with better description and categorization
 - Added MSRV specification (Rust 1.87.0)
 
 ### Fixed
+
 - Resolved deprecation warnings in benchmark files
 - Fixed clippy warning about infinite loop in parser
 - Fixed compilation errors in diagnostic reporter
@@ -62,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2024-07-31
 
 ### Added
+
 - Comprehensive FHIRPath implementation with 82.7% official spec compliance
 - Modular architecture with separate components for parsing, evaluation, and registry
 - High-performance tokenizer and parser using nom library
@@ -74,11 +116,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration with official FHIRPath test suites
 
 ### Changed
+
 - Consolidated from multi-crate workspace to single crate with modular structure
 - Improved error handling and diagnostic reporting
 - Enhanced type system with better compatibility checking
 
 ### Fixed
+
 - Numerous parsing edge cases
 - Type coercion and compatibility issues
 - Performance bottlenecks in evaluation engine
@@ -86,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - Initial Release
 
 ### Added
+
 - Basic FHIRPath parser and evaluator
 - Core functionality for FHIRPath expressions
 - Initial test suite

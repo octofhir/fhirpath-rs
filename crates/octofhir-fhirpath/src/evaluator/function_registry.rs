@@ -732,6 +732,14 @@ impl FunctionRegistryBuilder {
             .register_pure_function(RoundFunctionEvaluator::create());
         self.registry
             .register_pure_function(TruncateFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(SumFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(MinFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(MaxFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(AvgFunctionEvaluator::create());
 
         self
     }
