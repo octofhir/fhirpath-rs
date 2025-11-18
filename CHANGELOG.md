@@ -1,237 +1,246 @@
-# Changelog
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.28...v0.5.0) (2025-11-18)
 
-All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Features
 
-## [Unreleased]
+* support new changes from current specification ([e3f7f45](https://github.com/octofhir/fhirpath-rs/commit/e3f7f4505b30706af7c95d96a1d766c18ec35a42))
+* support new math function form latest spec updates ([4bb29de](https://github.com/octofhir/fhirpath-rs/commit/4bb29de3142732b4529be64bde93c6cd1e2a8177))
 
-## [0.4.29] - 2025-01-XX
 
-### Added
 
-- **difference(precision) function** - FHIRPath v3.0.0 STU temporal function
-  - Computes signed integer difference between two temporal values in specified units
-  - Supports precision units: 'years', 'months', 'days', 'hours', 'minutes', 'seconds', 'milliseconds'
-  - Returns signed integer (negative if input < comparand, positive otherwise)
-  - Automatic truncation to whole units
-  - Calendar arithmetic for years/months (variable month lengths, leap years)
-  - Time-based arithmetic for hours/minutes/seconds/milliseconds
-  - Examples:
-    - `@2023-01-01.difference(@2024-01-01, 'years')` → `-1`
-    - `@2024-01-01.difference(@2023-01-01, 'years')` → `1`
-    - `@2024-01-01.difference(@2024-01-15, 'days')` → `-14`
-    - `@2024-01-01.difference(@2024-01-01, 'days')` → `0`
-    - `@2024-01-01T10:00:00.difference(@2024-01-01T12:00:00, 'hours')` → `-2`
-  - Added 11 comprehensive tests covering all scenarios
-  - Zero warnings, no test regression (484 tests pass)
+## [0.4.28](https://github.com/octofhir/fhirpath-rs/compare/v0.4.27...v0.4.28) (2025-11-07)
 
-- **duration() function** - FHIRPath v3.0.0 STU temporal function
-  - Calculates absolute (always positive) duration between two temporal values
-  - Requires exactly 2 temporal values of the same type
-  - Unit selection based on temporal type:
-    - Date - Date → Quantity in 'day' units
-    - DateTime - DateTime → Quantity in 'ms' (millisecond) units
-    - Time - Time → Quantity in 'ms' (millisecond) units
-  - Type mismatch returns empty collection
-  - Examples:
-    - `{ @2024-01-01, @2024-01-15 }.duration()` → `14 'day'`
-    - `{ @2024-01-15, @2024-01-01 }.duration()` → `14 'day'` (absolute value)
-    - `{ @2024-01-01T00:00:00, @2024-01-01T01:00:00 }.duration()` → `3600000 'ms'`
-    - `{ @T10:00:00, @T10:30:00 }.duration()` → `1800000 'ms'`
-  - Added 10 comprehensive tests covering all scenarios
-  - Zero warnings, no test regression (474 tests pass)
 
-- **Quantity - Quantity subtraction with UCUM conversion** - FHIRPath v3.0.0 quantity arithmetic
-  - Automatic unit conversion for compatible quantities using UCUM
-  - Same units: direct subtraction
-  - Compatible units: converts right to left's unit, then subtracts
-  - Incompatible units: returns empty collection
-  - Supports length (m, cm, mm), mass (kg, g, mg), time (h, min, s) and other UCUM units
-  - Mirrors addition operator logic for consistency
+### Bug Fixes
 
-- **Time - Time subtraction** - FHIRPath v3.0.0 time arithmetic
-  - Returns Quantity in 'ms' (millisecond) units with UCUM code
-  - Calculates difference in milliseconds between two times
-  - No wrap-around behavior (10:00 - 23:00 = negative result)
-  - Supports millisecond precision (sub-second differences)
-  - Handles full time range (midnight to 23:59:59.999)
-  - Comprehensive test coverage including edge cases and precision
+* fmt ([73b2a77](https://github.com/octofhir/fhirpath-rs/commit/73b2a77360ebbb658f9c0f9c74da6cd5f1970321))
+* fmt and check errros ([2a897f2](https://github.com/octofhir/fhirpath-rs/commit/2a897f294eebae0123686eb827507e38b7df7fff))
+* notifier error ([be7dd20](https://github.com/octofhir/fhirpath-rs/commit/be7dd2016ed037f2ef9ac6f9e3dfbe63d9130503))
+* warnings and clippy errors ([26c046a](https://github.com/octofhir/fhirpath-rs/commit/26c046a6f8c4d18e5c6973bbb06f52f817293192))
 
-- **DateTime - DateTime subtraction** - FHIRPath v3.0.0 datetime arithmetic
-  - Returns Quantity in 'ms' (millisecond) units with UCUM code
-  - Calculates difference in milliseconds between two datetimes
-  - Automatic timezone conversion (datetimes stored with FixedOffset)
-  - Handles same instant in different timezones correctly
-  - Supports negative results when left datetime is earlier than right
-  - Comprehensive test coverage including timezone handling and large differences
 
-- **Date - Date subtraction** - FHIRPath v3.0.0 date arithmetic
-  - Returns Quantity in 'day' units with UCUM code
-  - Calculates difference in whole days between two dates
-  - Handles leap years correctly (February 29, 366-day years)
-  - Returns empty for partial dates (Year or Month precision)
-  - Supports negative results when left date is earlier than right
-  - Comprehensive test coverage including year boundaries and large differences
+### Features
 
-- **millisecond() function** - FHIRPath v3.0.0 temporal component extraction function
-  - Extracts the millisecond component (0-999) from DateTime or Time values
-  - Returns empty if the value doesn't have millisecond precision
-  - Consistent with other temporal component functions (hourOf, minuteOf, secondOf)
-  - Completes the temporal component extraction API
+* improve cli  crate ([bc51d61](https://github.com/octofhir/fhirpath-rs/commit/bc51d61b3fe846eaaae83bbc691277a78f5375f9))
 
-- **sum() function** - FHIRPath v3.0.0 aggregate function
-  - Returns the sum of all numeric items in a collection
-  - Supports Integer, Decimal, and Quantity types
-  - Handles type promotion (Integer to Decimal when mixed)
-  - UCUM unit conversion for compatible Quantity units
-  - Skips empty values in collection
-  - Returns empty for empty collections or type mismatches
 
-- **min() function** - FHIRPath v3.0.0 aggregate function
-  - Returns the smallest value in a collection
-  - Supports Integer, Decimal, Quantity, Date, DateTime, Time, and String types
-  - Uses standard comparison semantics for each type
-  - Handles incompatible types/units gracefully
-  - Skips empty values in collection
-  - Returns empty for empty collections or type mismatches
 
-- **max() function** - FHIRPath v3.0.0 aggregate function
-  - Returns the largest value in a collection
-  - Supports Integer, Decimal, Quantity, Date, DateTime, Time, and String types
-  - Uses standard comparison semantics for each type
-  - Handles incompatible types/units gracefully
-  - Skips empty values in collection
-  - Returns empty for empty collections or type mismatches
+## [0.4.27](https://github.com/octofhir/fhirpath-rs/compare/v0.4.26...v0.4.27) (2025-09-26)
 
-- **avg() function** - FHIRPath v3.0.0 aggregate function
-  - Calculates the average of all numeric items in a collection
-  - Supports Integer (returns Decimal), Decimal, and Quantity types
-  - Always returns Decimal for numeric types (never Integer)
-  - Leverages sum() function with division by count
-  - UCUM unit conversion for compatible Quantity units
-  - Skips empty values in collection
-  - Returns empty for empty collections or type mismatches
 
-- Architecture Decision Records (ADRs) for major architectural decisions
-  - ADR-001: Model Context Protocol (MCP) Server Implementation
-  - ADR-002: FHIRPath Analyzer Crate for static analysis and expression explanation
-- Enhanced CLAUDE.md with improved workspace architecture documentation
-- Simple and complete usage examples in README.md
-- CLI quick start example with practical usage
-- Comprehensive contributor guide updates
-- Future development roadmap with MCP server and analyzer crate plans
+### Features
 
-### Changed
+* improve server capabilities ([a1c4d11](https://github.com/octofhir/fhirpath-rs/commit/a1c4d1117930cfee6715c3150fe166a19147100b))
 
-- **Multiplication operator (*) - Proper UCUM unit algebra for Quantity * Quantity**
-  - Replaced simple string concatenation with proper UCUM unit multiplication
-  - Uses `octofhir_ucum::unit_multiply()` for correct unit composition
-  - Handles dimensionless units ("1") correctly - they act as identity in multiplication
-  - Examples:
-    - `2 'm' * 3 'm'` → `6 'm.m'` (correct UCUM expression)
-    - `5 '1' * 3 'm'` → `15 'm'` (dimensionless acts as identity)
-    - `10 'm' * 5 's'` → `50 'm.s'` (proper unit composition)
-  - Gracefully falls back to string concatenation for non-UCUM units
-  - Added 15 comprehensive tests covering all multiplication scenarios
-  - Zero clippy warnings, no test regression
 
-- Updated README.md with modular workspace architecture description
-- Improved Quick Start section with both simple and complete examples
-- Enhanced CLI documentation with practical examples
-- Updated CONTRIBUTING.md to reflect workspace structure
-- Updated specification compliance rate to 88.1%
-- Enhanced development workflow documentation
-- Updated architecture overview to show 11 specialized crates
 
-### Fixed
+## [0.4.26](https://github.com/octofhir/fhirpath-rs/compare/v0.4.25...v0.4.26) (2025-09-25)
 
-- **Division operator (/) - Critical fixes for FHIRPath v3.0.0 compliance**
-  - **Division by zero now returns empty collection (not error)** for all type combinations
-    - Previously: Decimal/Integer mixed types and Quantities returned errors on division by zero
-    - Now: All division by zero cases return empty collection per FHIRPath spec
-    - Safer behavior, prevents exceptions during evaluation
-  - **Quantity / Quantity with same units now returns Decimal (not Quantity)**
-    - Previously: `6 'kg' / 2 'kg'` returned `3 '1'` (Quantity with unit "1")
-    - Now: `6 'kg' / 2 'kg'` returns `3.0` (Decimal with no units)
-    - Units properly cancel when identical, per FHIRPath specification
-  - Added 23 comprehensive tests covering all division scenarios
-  - Zero clippy warnings, no test regression
 
-## [0.4.28] - 2025-01-XX
+### Bug Fixes
 
-### Changed
-- Updated ecosystem libraries and dependencies
-- Improved support for new math functions from latest FHIRPath specification updates
+* fmt ([dad0520](https://github.com/octofhir/fhirpath-rs/commit/dad0520d147ada712a0c4090064ac5009354b53f))
 
-### Fixed
-- Resolved various warnings and clippy errors
-- General maintenance improvements
 
-## [0.4.0] - 2024-XX-XX
+### Features
 
-### Added
+* improve benchmarking and add profiling capabilities with `pprof` ([15e3b9b](https://github.com/octofhir/fhirpath-rs/commit/15e3b9bfb90d36722269fc6be94e9f1ab428743c))
+* improve server api response ([ba0775a](https://github.com/octofhir/fhirpath-rs/commit/ba0775a4caf41b209dfd47f897086a8b916a1433))
+* improve server api response ([11a99aa](https://github.com/octofhir/fhirpath-rs/commit/11a99aad0899dec1004d24da18511e3f44800031))
+* introduce Terminal UI (TUI) mode with advanced features ([28dae88](https://github.com/octofhir/fhirpath-rs/commit/28dae88545b17d2e2ca242869c1edbf380cf9467))
+* update quantity structure ([71aa07a](https://github.com/octofhir/fhirpath-rs/commit/71aa07aa07704418850e88c16ffae4c73273a72a))
 
-- Comprehensive CI/CD pipeline with GitHub Actions
-- Canary releases on every main branch push
-- Automated release workflow with manual trigger
-- Automatic crates.io publishing on tag push
-- GitHub issue templates for bug reports and feature requests
-- Pull request template with comprehensive checklist
-- Dependabot configuration for automated dependency updates
-- Code coverage reporting with codecov
-- Security audit workflow
-- MSRV (Minimum Supported Rust Version) testing
 
-### Changed
 
-- Package name from `fhirpath-rs` to `octofhir-fhirpath` for crates.io compatibility
-- Library name from `fhirpath_rs` to `octofhir_fhirpath` for consistency
-- Updated package metadata with better description and categorization
-- Added MSRV specification (Rust 1.87.0)
+## [0.4.25](https://github.com/octofhir/fhirpath-rs/compare/v0.4.24...v0.4.25) (2025-09-23)
 
-### Fixed
 
-- Resolved deprecation warnings in benchmark files
-- Fixed clippy warning about infinite loop in parser
-- Fixed compilation errors in diagnostic reporter
-- Fixed hanging cache tests with proper eviction logic
-- Fixed union type compatibility and signature matching
-- All tests now pass (122 passed, 0 failed)
+### Bug Fixes
 
-## [0.2.0] - 2024-07-31
+* improve code formatting and readability ([2f52757](https://github.com/octofhir/fhirpath-rs/commit/2f52757f64243f8578976022956820796c10bf24))
 
-### Added
 
-- Comprehensive FHIRPath implementation with 82.7% official spec compliance
-- Modular architecture with separate components for parsing, evaluation, and registry
-- High-performance tokenizer and parser using nom library
-- Function registry with built-in FHIRPath functions
-- Type system with comprehensive type checking
-- Diagnostic system with detailed error reporting
-- Caching infrastructure for improved performance
-- Benchmark suite for performance monitoring
-- CLI tool for FHIRPath evaluation
-- Integration with official FHIRPath test suites
+### Features
 
-### Changed
+* enhance terminology functions with stricter validation and improved behavior ([8e349c0](https://github.com/octofhir/fhirpath-rs/commit/8e349c054b28d74e331641bb2acc2fdf269c4923))
+* enhance variable handling in FHIRPath evaluator ([df0bb30](https://github.com/octofhir/fhirpath-rs/commit/df0bb30a670b43b2bb15010b7b74564cb15940be))
+* improve type handling and quantity conversions in FHIRPath evaluator ([9ee6c7f](https://github.com/octofhir/fhirpath-rs/commit/9ee6c7fd043ef4c5365b0bbe2f366f641ec98a18))
 
-- Consolidated from multi-crate workspace to single crate with modular structure
-- Improved error handling and diagnostic reporting
-- Enhanced type system with better compatibility checking
 
-### Fixed
 
-- Numerous parsing edge cases
-- Type coercion and compatibility issues
-- Performance bottlenecks in evaluation engine
+## [0.4.24](https://github.com/octofhir/fhirpath-rs/compare/v0.4.23...v0.4.24) (2025-09-21)
 
-## [0.1.0] - Initial Release
 
-### Added
+### Bug Fixes
 
-- Basic FHIRPath parser and evaluator
-- Core functionality for FHIRPath expressions
-- Initial test suite
-- Basic documentation
+* formatting ([5384ebd](https://github.com/octofhir/fhirpath-rs/commit/5384ebded4f37ece452b429ce23f0f7bd8939940))
+* remove unsued assets ([45e6f45](https://github.com/octofhir/fhirpath-rs/commit/45e6f458ac338c2d825d054fa926a1377bc89e00))
+
+
+### Features
+
+* enable server subcommand ([ebe1f61](https://github.com/octofhir/fhirpath-rs/commit/ebe1f6147f95e192668af54126806363c86a46a2))
+* repl subcommand ([45392c0](https://github.com/octofhir/fhirpath-rs/commit/45392c066e991008e9709635447ecef0540746cf))
+
+
+
+## [0.4.23](https://github.com/octofhir/fhirpath-rs/compare/v0.4.21...v0.4.23) (2025-09-21)
+
+
+### Bug Fixes
+
+* fmt and clippy warnings ([c9895b3](https://github.com/octofhir/fhirpath-rs/commit/c9895b3df7a424ce23d2c743526dc3ae6fb8b00f))
+
+
+### Features
+
+* cli repl and pretty errors ([61dac0a](https://github.com/octofhir/fhirpath-rs/commit/61dac0aad7a7acc0d2dc36ce9ccdc78c08c92761))
+* server ([1791507](https://github.com/octofhir/fhirpath-rs/commit/179150764be69fb3f91f88f0b8252d4273ac78c6))
+
+
+
+## [0.4.21](https://github.com/octofhir/fhirpath-rs/compare/v0.4.18...v0.4.21) (2025-08-29)
+
+
+### Bug Fixes
+
+* build script ([9ca0387](https://github.com/octofhir/fhirpath-rs/commit/9ca038746956f1aab9b5160c63af996172a79b08))
+* failed tests ([0730113](https://github.com/octofhir/fhirpath-rs/commit/07301136272f1ade306e2e9d4c0f4ac5f4dadfa9))
+* remove duplicated build ([d9803e5](https://github.com/octofhir/fhirpath-rs/commit/d9803e56cf1f02586b750bf9125a7d1c57ae3cf2))
+* slippy errors ([e39ad8a](https://github.com/octofhir/fhirpath-rs/commit/e39ad8af13dfa695b0540bce66ab2982f8abb7a8))
+
+
+### Features
+
+* introduce repl and simple web server ([f138586](https://github.com/octofhir/fhirpath-rs/commit/f1385866bb90f175c667456a8124248b426a2c0a))
+* user serde and introduce repl subcommand for cli ([03e33a2](https://github.com/octofhir/fhirpath-rs/commit/03e33a29e6e08af46bf2f62f5dac3b81121a47b1))
+
+
+
+## [0.4.18](https://github.com/octofhir/fhirpath-rs/compare/v0.4.17...v0.4.18) (2025-08-27)
+
+
+### Bug Fixes
+
+* doc tests ([61a6d6a](https://github.com/octofhir/fhirpath-rs/commit/61a6d6a55ac6127d30a43c5c226a3384711cb8e9))
+* formatting ([9c8c974](https://github.com/octofhir/fhirpath-rs/commit/9c8c974fd650aba3bba80d711350cfdbd875f6df))
+* formatting ([d24c56a](https://github.com/octofhir/fhirpath-rs/commit/d24c56abcfcb7193d2e15a360d6db6352ebfe900))
+
+
+### Features
+
+* improve analyzer features ([595dd64](https://github.com/octofhir/fhirpath-rs/commit/595dd641cdc0f4f1b1c2e98b636e4ff02a5ec41c))
+
+
+
+## [0.4.17](https://github.com/octofhir/fhirpath-rs/compare/v0.4.16...v0.4.17) (2025-08-26)
+
+
+### Bug Fixes
+
+* improve FHIRPath function implementations and test coverage ([3fb4046](https://github.com/octofhir/fhirpath-rs/commit/3fb40465fe868456353bb0852d1295147f3227de))
+
+
+### Features
+
+* improve test coverage ([7dc53d3](https://github.com/octofhir/fhirpath-rs/commit/7dc53d35877c9e525cec715d366e4bf5daa58004))
+* porgress with test compliance ([18f4c38](https://github.com/octofhir/fhirpath-rs/commit/18f4c387b8bf80ca25fcd1878fe956afa2758762))
+* simplify registry and make it more maintanable ([0a2e9db](https://github.com/octofhir/fhirpath-rs/commit/0a2e9db2e3627ecde1e8026eab9b5754b0f2bd2a))
+
+
+
+## [0.4.16](https://github.com/octofhir/fhirpath-rs/compare/v0.4.15...v0.4.16) (2025-08-22)
+
+
+### Bug Fixes
+
+* clippy errors ([19b7cdb](https://github.com/octofhir/fhirpath-rs/commit/19b7cdb1a83dc236f5d21410418e03fe76fe9d07))
+* remove wrong usage ([f845bf0](https://github.com/octofhir/fhirpath-rs/commit/f845bf06d562d20d277afdba2f59d24af792d01b))
+* some code quality issues ([4dd6a7a](https://github.com/octofhir/fhirpath-rs/commit/4dd6a7a49f9064c7da59775e65501951754ad839))
+
+
+### Features
+
+* improve model provider for advanced type operations ([dae1bbe](https://github.com/octofhir/fhirpath-rs/commit/dae1bbeb613e2c3a1e7071fe953d9dd0f90f8f33))
+
+
+
+## [0.4.15](https://github.com/octofhir/fhirpath-rs/compare/v0.4.13...v0.4.15) (2025-08-20)
+
+
+### Bug Fixes
+
+* formatting ([ba897d4](https://github.com/octofhir/fhirpath-rs/commit/ba897d401cb76111d1705a38b3e8c249b656922e))
+* metadata for package ([37f4e34](https://github.com/octofhir/fhirpath-rs/commit/37f4e34842c673eef3a9b7d49ce75529073e41c2))
+
+
+### Features
+
+* introduce analayzer create ([d7f50fe](https://github.com/octofhir/fhirpath-rs/commit/d7f50fe46fcdeb68c47a525e2c4d95cc97ecd5b2))
+
+
+
+## [0.4.13](https://github.com/octofhir/fhirpath-rs/compare/v0.4.12...v0.4.13) (2025-08-19)
+
+
+### Features
+
+* add new function from current continius build and fix some test cases ([6deab47](https://github.com/octofhir/fhirpath-rs/commit/6deab4727ad8c01f13b311003fbf1ccdf76f5111))
+
+
+
+## [0.4.12](https://github.com/octofhir/fhirpath-rs/compare/v0.4.11...v0.4.12) (2025-08-19)
+
+
+### Performance Improvements
+
+* improve tokenizer performance ([e405b13](https://github.com/octofhir/fhirpath-rs/commit/e405b13e2fb226d641a81594ff97d1ef2ca397ba))
+
+
+
+## [0.4.11](https://github.com/octofhir/fhirpath-rs/compare/v0.4.10...v0.4.11) (2025-08-18)
+
+
+### Performance Improvements
+
+* start improving tokenizer performance ([644bff1](https://github.com/octofhir/fhirpath-rs/commit/644bff11a2422af0dc4ac38f52358f34c1a0f179))
+
+
+
+## [0.4.10](https://github.com/octofhir/fhirpath-rs/compare/8e67967698de310fbdf3b2de36c3a9a999e8c13c...v0.4.10) (2025-08-18)
+
+
+### Bug Fixes
+
+* all build errors ([c5f8fac](https://github.com/octofhir/fhirpath-rs/commit/c5f8fac5829d6c46eae021b337e977c020e6561c))
+* all checks error ([49fdc38](https://github.com/octofhir/fhirpath-rs/commit/49fdc389ba64034ba7458860ed766bda718af33e))
+* check issues ([ed29e6b](https://github.com/octofhir/fhirpath-rs/commit/ed29e6bbb555f8da56618ad1df57cbb149ddeaf4))
+* code warning ([937577a](https://github.com/octofhir/fhirpath-rs/commit/937577aded4d6049a5e2853e63eb57a469f1e4e6))
+* correct resolve function implementation ([6473e45](https://github.com/octofhir/fhirpath-rs/commit/6473e45cbc9f94d09e952dce4d80e424269b9700))
+* examples formatting ([af7c8fe](https://github.com/octofhir/fhirpath-rs/commit/af7c8fea1b76d65b1424e49590bd519ee6ec3a3e))
+* formatting ([ee1f7ce](https://github.com/octofhir/fhirpath-rs/commit/ee1f7ce1b0a73640eb8ac216db4458b0c9308f88))
+* formatting ([d33b768](https://github.com/octofhir/fhirpath-rs/commit/d33b768e2860714a22487022c13eae41a831061a))
+* formatting ([15e51f2](https://github.com/octofhir/fhirpath-rs/commit/15e51f2f509e7121bf533faf26d8d694d63b3e2d))
+* formatting ([37348e8](https://github.com/octofhir/fhirpath-rs/commit/37348e8a362abe454bfd2c7ffbb4eb4967eb689f))
+* quality issues ([9670e80](https://github.com/octofhir/fhirpath-rs/commit/9670e8022e5d1ab1289937ff11e970eaf8ee4ad1))
+* remove unsupported tags for crates.io ([e33fd78](https://github.com/octofhir/fhirpath-rs/commit/e33fd78030bed52b7f88cbd64370833c7f83f7a4))
+* resolve Ubuntu OpenSSL build error in canary workflow ([e87ecd8](https://github.com/octofhir/fhirpath-rs/commit/e87ecd87fceb70ab0148267cc483a55a1bf6c7b1))
+* use correct deps path ([3ea624d](https://github.com/octofhir/fhirpath-rs/commit/3ea624d7cbb1a6e020006b5e7acd23372c293c13))
+
+
+### Features
+
+* add automated changelog generation system ([8e67967](https://github.com/octofhir/fhirpath-rs/commit/8e67967698de310fbdf3b2de36c3a9a999e8c13c))
+* add performance profiling tools and string interning for FHIRPath ([87296c8](https://github.com/octofhir/fhirpath-rs/commit/87296c81aabdc8ef708c48cde56a475966cc68e2))
+* continue improving reset coveraga for official cases, currently 50,1% passed ([5e0eaaf](https://github.com/octofhir/fhirpath-rs/commit/5e0eaaffc8121b841174c444f9e123db495deab7))
+* implement missed date functions ([9ed91fd](https://github.com/octofhir/fhirpath-rs/commit/9ed91fd65385758601f72fcdd07b94b4033fa6ab))
+* increase test compliance ([2b69990](https://github.com/octofhir/fhirpath-rs/commit/2b699905ef7a8f16168d73110adc8489f32c07d2))
+* mode lambda fucntion into dedicated methods instead of registry based approach ([0cb0dcb](https://github.com/octofhir/fhirpath-rs/commit/0cb0dcbe36542385d7838b19d112079d378ac9da))
+* new unified registry and simplified engine ([801c228](https://github.com/octofhir/fhirpath-rs/commit/801c228f7d9911fb86c23cd7e67635ab313da4c0))
+* rename library to octofhir-fhirpath and set up comprehensive CI/CD ([bd6154e](https://github.com/octofhir/fhirpath-rs/commit/bd6154ec83146355a3527cd30082b542d71dcc8f))
+* support publishing all crates to cratesio ([998414b](https://github.com/octofhir/fhirpath-rs/commit/998414be7730cf17c6b3cf8dddb890e1a3fc731d))
+* support raw json input for cli ([f2401b0](https://github.com/octofhir/fhirpath-rs/commit/f2401b07f98f770cb1dfc7cc4c1e2f57a9b95116))
+* support variables in engine ([1df5f27](https://github.com/octofhir/fhirpath-rs/commit/1df5f2740528799767b6db5c1a7a4220b8bb75e4))
+
+
+
