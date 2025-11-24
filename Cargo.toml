@@ -25,7 +25,7 @@ hex = "0.4"
 indexmap = "2.10.0"
 log = "0.4"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
-octofhir-fhir-model = { version = "0.1.5", features = ["serde", "http-client"] }
+octofhir-fhir-model = { version = "0.1.6", features = ["serde", "http-client"] }
 octofhir-canonical-manager = { version = "0.1.13" }
 papaya = "0.2"
 url = "2.5"

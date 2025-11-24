@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Configure git for Windows line endings
           autocrlf: false
@@ -40,7 +40,7 @@ jobs:
       - name: Install Node.js and pnpm
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: '22'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -63,9 +63,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           # Use stable cache keys that will match across similar builds
-          prefix-key: "ci-test"
+          prefix-key: 'ci-test'
           # Share cache across similar configurations
-          shared-key: "${{ matrix.os }}-${{ matrix.rust }}"
+          shared-key: '${{ matrix.os }}-${{ matrix.rust }}'
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true
@@ -139,24 +139,24 @@ jobs:
     strategy:
       matrix:
         features:
-          - name: "minimal"
-            flags: "--no-default-features --features cli"
-          - name: "default"
-            flags: ""
-          - name: "cli+repl"
-            flags: "--no-default-features --features cli,repl"
-          - name: "cli+tui"
-            flags: "--no-default-features --features cli,tui"
-          - name: "cli+server"
-            flags: "--no-default-features --features cli,server"
-          - name: "cli+watch"
-            flags: "--no-default-features --features cli,watch"
-          - name: "all"
-            flags: "--all-features"
+          - name: 'minimal'
+            flags: '--no-default-features --features cli'
+          - name: 'default'
+            flags: ''
+          - name: 'cli+repl'
+            flags: '--no-default-features --features cli,repl'
+          - name: 'cli+tui'
+            flags: '--no-default-features --features cli,tui'
+          - name: 'cli+server'
+            flags: '--no-default-features --features cli,server'
+          - name: 'cli+watch'
+            flags: '--no-default-features --features cli,watch'
+          - name: 'all'
+            flags: '--all-features'
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -164,8 +164,8 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "ci-features"
-          shared-key: "cli-features-${{ matrix.features.name }}"
+          prefix-key: 'ci-features'
+          shared-key: 'cli-features-${{ matrix.features.name }}'
           cache-targets: true
 
       - name: Check CLI with ${{ matrix.features.name }} features
@@ -190,7 +190,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Configure git for Windows line endings
           autocrlf: false
@@ -202,9 +202,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           # Use stable cache key for coverage builds
-          prefix-key: "ci-coverage"
+          prefix-key: 'ci-coverage'
           # Share cache across coverage runs
-          shared-key: "coverage"
+          shared-key: 'coverage'
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true
@@ -236,7 +236,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Configure git for Windows line endings
           autocrlf: false
@@ -248,9 +248,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           # Use stable cache key for security builds
-          prefix-key: "ci-security"
+          prefix-key: 'ci-security'
           # Share cache across security runs
-          shared-key: "security"
+          shared-key: 'security'
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true
