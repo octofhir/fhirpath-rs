@@ -225,7 +225,7 @@ impl Default for CachedModelProviderBuilder {
 
 /// Utility functions for cache management
 pub mod cache_utils {
-    use super::*;
+    use super::{Arc, CachedModelProvider, CachedModelProviderBuilder, Duration, ModelProvider};
 
     /// Create a high-performance cached provider for real-time usage
     pub fn create_realtime_cached_provider(

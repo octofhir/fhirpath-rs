@@ -9,7 +9,7 @@ use std::fmt;
 use std::sync::{Arc, LazyLock};
 
 use super::error::{FhirPathError, Result};
-use super::error_code::*;
+use super::error_code::FP0051;
 use super::model_provider::utils::extract_resource_type;
 use super::model_provider::{ModelProvider, TypeInfo};
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};

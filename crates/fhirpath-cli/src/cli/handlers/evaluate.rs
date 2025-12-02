@@ -482,7 +482,10 @@ fn report_format_error(
 
 /// Convert diagnostic code string to ErrorCode
 fn parse_error_code(code_str: &str) -> octofhir_fhirpath::core::error_code::ErrorCode {
-    use octofhir_fhirpath::core::error_code::*;
+    use octofhir_fhirpath::core::error_code::{
+        ErrorCode, FP0001, FP0002, FP0003, FP0004, FP0005, FP0006, FP0007, FP0008, FP0009, FP0010,
+        FP0051, FP0052, FP0053, FP0054, FP0055, FP0056, FP0057, FP0058, FP0059, FP0060,
+    };
 
     match code_str {
         "FP0001" => FP0001,

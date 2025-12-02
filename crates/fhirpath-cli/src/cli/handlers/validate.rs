@@ -134,7 +134,7 @@ async fn extract_resource_type(
 fn convert_diagnostic_to_ariadne(
     diagnostic: &octofhir_fhirpath::diagnostics::Diagnostic,
 ) -> octofhir_fhirpath::diagnostics::AriadneDiagnostic {
-    use octofhir_fhirpath::core::error_code::*;
+    use octofhir_fhirpath::core::error_code::{FP0001, FP0002, FP0003};
     use octofhir_fhirpath::diagnostics::AriadneDiagnostic;
     use std::ops::Range;
 

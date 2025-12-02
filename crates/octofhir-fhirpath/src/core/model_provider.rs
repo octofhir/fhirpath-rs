@@ -9,7 +9,7 @@
 use serde_json::Value as JsonValue;
 
 use super::error::{FhirPathError, Result};
-use super::error_code::*;
+use super::error_code::FP0151;
 
 // Re-export ModelProvider trait and types from octofhir-fhir-model
 pub use octofhir_fhir_model::{
@@ -21,7 +21,7 @@ pub use octofhir_fhir_model::{
 
 /// Utility functions for working with ModelProviders
 pub mod utils {
-    use super::*;
+    use super::{FP0151, FhirPathError, JsonValue, Result};
 
     /// Extract resource type from a JsonValue safely
     pub fn extract_resource_type(resource: &JsonValue) -> Option<String> {

@@ -61,7 +61,7 @@ impl JsonValueExt for JsonValue {
 
 /// Utility functions for working with JSON values in FHIRPath context
 pub mod utils {
-    use super::*;
+    use super::{FhirPathValue, JsonValue, async_recursion};
     use crate::core::model_provider::ModelProvider;
     use std::sync::Arc;
 

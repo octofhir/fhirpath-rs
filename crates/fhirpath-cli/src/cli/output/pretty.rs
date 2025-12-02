@@ -15,7 +15,7 @@
 //! Pretty output formatter with colors and symbols
 
 use super::{AnalysisOutput, EvaluationOutput, FormatError, OutputFormatter, ParseOutput};
-use colored::*;
+use colored::Colorize;
 use octofhir_fhirpath::FhirPathValue;
 
 pub struct PrettyFormatter {

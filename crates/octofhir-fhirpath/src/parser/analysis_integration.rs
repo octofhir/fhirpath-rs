@@ -4,7 +4,7 @@
 //! collection system to provide comprehensive error reporting.
 
 use crate::ast::ExpressionNode;
-use crate::core::error_code::*;
+use crate::core::error_code::{FP0001, FP0002, FP0003, FP0154};
 use crate::diagnostics::DiagnosticSeverity;
 use crate::diagnostics::collector::{DiagnosticBatch, MultiDiagnosticCollector};
 use std::ops::Range;

@@ -312,7 +312,7 @@ impl TypeResolutionContext {
 
 /// Utility functions for type operations
 pub mod type_utils {
-    use super::*;
+    use super::{Arc, ModelProvider, TypeResolver};
 
     /// Create type resolver from ModelProvider
     pub fn create_resolver(model_provider: Arc<dyn ModelProvider + Send + Sync>) -> TypeResolver {

@@ -4,4 +4,12 @@ max_width = 100
 tab_spaces = 4
 newline_style = "Unix"
 use_small_heuristics = "Default"
+
+# Import organization (stable features)
 reorder_imports = true
+reorder_modules = true
+
+# Note: The following features require nightly rustfmt:
+# imports_granularity = "Module"
+# group_imports = "StdExternalCrate"
+# To use them, run: cargo +nightly fmt

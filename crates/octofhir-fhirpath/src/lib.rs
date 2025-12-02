@@ -74,7 +74,12 @@ pub mod analyzer;
 // Support modules
 pub mod diagnostics;
 pub mod path;
+pub mod prelude;
+pub mod testing;
 pub mod typing;
+
+// Imports for internal use
+use std::sync::Arc;
 
 // Re-export core types for convenience
 pub use crate::core::model_provider::EmptyModelProvider;
@@ -174,9 +179,6 @@ pub use crate::analyzer::{AnalysisContext, StaticAnalysisResult, StaticAnalyzer}
 /// # }
 /// ```
 pub async fn create_engine_with_empty_provider() -> Result<FhirPathEngine> {
-    use octofhir_fhir_model::EmptyModelProvider;
-    use std::sync::Arc;
-
     let registry = Arc::new(create_function_registry());
     let model_provider = Arc::new(EmptyModelProvider);
 

@@ -543,8 +543,6 @@ impl DiagnosticProcessor {
         suggestion: &crate::analyzer::AnalysisSuggestion,
         source: &str,
     ) -> Option<ProcessedDiagnostic> {
-        use crate::core::error_code::FP0010;
-
         // Map suggestion type to error code
         let error_code = match suggestion.suggestion_type {
             crate::analyzer::SuggestionType::Performance => FP0010,
@@ -760,8 +758,6 @@ impl HelpSystem {
     }
 
     fn initialize_help_content(&mut self) {
-        use crate::core::error_code::*;
-
         self.help_texts.insert(
             FP0001,
             "This is a general syntax error. Check the FHIRPath expression syntax.".to_string(),

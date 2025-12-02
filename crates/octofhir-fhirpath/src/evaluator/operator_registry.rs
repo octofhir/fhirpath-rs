@@ -10,6 +10,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::ast::{BinaryOperator, UnaryOperator};
 use crate::core::{FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::evaluator::operations::{
+    AddOperatorEvaluator, AndOperatorEvaluator, AsOperatorEvaluator, ConcatenateOperatorEvaluator,
+    ContainsOperatorEvaluator, DivideOperatorEvaluator, EqualsOperatorEvaluator,
+    EquivalentOperatorEvaluator, GreaterEqualOperatorEvaluator, GreaterThanOperatorEvaluator,
+    ImpliesOperatorEvaluator, InOperatorEvaluator, IntegerDivideOperatorEvaluator,
+    IsOperatorEvaluator, LessEqualOperatorEvaluator, LessThanOperatorEvaluator,
+    ModuloOperatorEvaluator, MultiplyOperatorEvaluator, NegateOperatorEvaluator,
+    NotEqualsOperatorEvaluator, NotEquivalentOperatorEvaluator, OrOperatorEvaluator,
+    SubtractOperatorEvaluator, UnionOperatorEvaluator, XorOperatorEvaluator,
+};
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Metadata for an operator describing its behavior and signature
@@ -59,14 +69,59 @@ pub enum Associativity {
     None,
 }
 
-/// Trait for evaluating operations
+/// Trait for evaluating FHIRPath operations (binary and unary operators).
+///
+/// Implement this trait to create custom operator implementations. Each operator
+/// evaluator is registered with the [`OperatorRegistry`] and invoked during
+/// expression evaluation when the corresponding operator is encountered.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use async_trait::async_trait;
+/// use octofhir_fhirpath::evaluator::operator_registry::{
+///     OperationEvaluator, OperatorMetadata, OperatorSignature, EmptyPropagation, Associativity
+/// };
+/// use octofhir_fhirpath::core::{FhirPathValue, Result, TypeSignature};
+/// use octofhir_fhirpath::evaluator::{EvaluationContext, EvaluationResult};
+///
+/// pub struct CustomOperator {
+///     metadata: OperatorMetadata,
+/// }
+///
+/// #[async_trait]
+/// impl OperationEvaluator for CustomOperator {
+///     async fn evaluate(
+///         &self,
+///         _input: Vec<FhirPathValue>,
+///         _context: &EvaluationContext,
+///         left: Vec<FhirPathValue>,
+///         right: Vec<FhirPathValue>,
+///     ) -> Result<EvaluationResult> {
+///         // Implement your operator logic here
+///         Ok(EvaluationResult::empty())
+///     }
+///
+///     fn metadata(&self) -> &OperatorMetadata {
+///         &self.metadata
+///     }
+/// }
+/// ```
 #[async_trait]
 pub trait OperationEvaluator: Send + Sync {
-    /// Evaluate the operation
-    /// - input: The input collection (for context)
-    /// - context: Evaluation context with variables and providers
-    /// - left: Left operand values (or operand for unary operations)
-    /// - right: Right operand values (empty for unary operations)
+    /// Evaluates the operation with the given operands.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - The input collection providing context for the operation
+    /// * `context` - The evaluation context containing variables, model provider, etc.
+    /// * `left` - Left operand values (or the only operand for unary operations)
+    /// * `right` - Right operand values (empty for unary operations)
+    ///
+    /// # Returns
+    ///
+    /// Returns the result of the operation wrapped in an [`EvaluationResult`],
+    /// or an error if the operation fails.
     async fn evaluate(
         &self,
         _input: Vec<FhirPathValue>,
@@ -75,10 +130,24 @@ pub trait OperationEvaluator: Send + Sync {
         right: Vec<FhirPathValue>,
     ) -> Result<EvaluationResult>;
 
-    /// Get metadata for this operation
+    /// Returns metadata describing this operator's behavior and signature.
+    ///
+    /// The metadata includes the operator name, description, type signature,
+    /// and behavioral flags like empty propagation and associativity.
     fn metadata(&self) -> &OperatorMetadata;
 
-    /// Check if the operation can handle the given types
+    /// Checks if this operator can handle operands of the given types.
+    ///
+    /// This method checks both the primary signature and any overloaded signatures
+    /// defined in the operator's metadata.
+    ///
+    /// # Arguments
+    ///
+    /// * `argument_types` - The types of the operands to check
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the operator can handle the given types.
     fn can_handle(&self, argument_types: &[FhirPathType]) -> bool {
         let metadata = self.metadata();
 
@@ -220,9 +289,6 @@ impl OperatorRegistryBuilder {
 
     /// Add default arithmetic operators (+, -, *, /, div, mod)
     pub fn with_arithmetic_operators(mut self) -> Self {
-        use crate::ast::BinaryOperator;
-        use crate::evaluator::operations::*;
-
         // Register arithmetic operators
         self.registry
             .register_binary_operator(BinaryOperator::Add, AddOperatorEvaluator::create());
@@ -254,9 +320,6 @@ impl OperatorRegistryBuilder {
 
     /// Add default comparison operators (=, !=, <, >, <=, >=, ~, !~)
     pub fn with_comparison_operators(mut self) -> Self {
-        use crate::ast::BinaryOperator;
-        use crate::evaluator::operations::*;
-
         // Register comparison operators
         self.registry
             .register_binary_operator(BinaryOperator::Equal, EqualsOperatorEvaluator::create());
@@ -296,9 +359,6 @@ impl OperatorRegistryBuilder {
 
     /// Add default logical operators (and, or, xor, implies)
     pub fn with_logical_operators(mut self) -> Self {
-        use crate::ast::BinaryOperator;
-        use crate::evaluator::operations::*;
-
         // Register logical operators
         self.registry
             .register_binary_operator(BinaryOperator::And, AndOperatorEvaluator::create());
@@ -314,9 +374,6 @@ impl OperatorRegistryBuilder {
 
     /// Add default collection operators (in, contains, union)
     pub fn with_collection_operators(mut self) -> Self {
-        use crate::ast::BinaryOperator;
-        use crate::evaluator::operations::*;
-
         // Register collection operators
         self.registry
             .register_binary_operator(BinaryOperator::Union, UnionOperatorEvaluator::create());
@@ -340,9 +397,6 @@ impl OperatorRegistryBuilder {
 
     /// Add default unary operators (not, -)
     pub fn with_unary_operators(mut self) -> Self {
-        use crate::ast::UnaryOperator;
-        use crate::evaluator::operations::*;
-
         // Register unary operators
         self.registry
             .register_unary_operator(UnaryOperator::Negate, NegateOperatorEvaluator::create());

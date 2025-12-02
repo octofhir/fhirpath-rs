@@ -132,96 +132,143 @@ pub mod trace_function;
 // CDA functions
 pub mod has_template_id_of_function;
 
-// Re-export all functions for convenience
-pub use abs_function::*;
-pub use aggregate_function::*;
-pub use all_function::*;
-pub use all_true_function::*;
-pub use any_true_function::*;
-pub use avg_function::*;
-pub use ceiling_function::*;
-pub use children_function::*;
-pub use coalesce_function::*;
-pub use combine_function::*;
-pub use comparable_function::*;
-pub use contains_function::*;
-pub use conversion::*;
-pub use count_function::*;
-pub use day_of_function::*;
-pub use decode_function::*;
-pub use define_variable_function::*;
-pub use descendants_function::*;
-pub use difference_function::*;
-pub use distinct_function::*;
-pub use duration_function::*;
-pub use empty_function::*;
-pub use encode_function::*;
-pub use ends_with_function::*;
-pub use escape_function::*;
-pub use exclude_function::*;
-pub use exists_function::*;
-pub use exp_function::*;
-pub use extension_function::*;
-pub use first_function::*;
-pub use floor_function::*;
-pub use has_template_id_of_function::*;
-pub use has_value_function::*;
-pub use high_boundary_function::*;
-pub use hour_of_function::*;
-pub use iif_function::*;
-pub use index_of_function::*;
-pub use intersect_function::*;
-pub use is_distinct_function::*;
-pub use join_function::*;
-pub use last_function::*;
-pub use last_index_of_function::*;
-pub use length_function::*;
-pub use ln_function::*;
-pub use log_function::*;
-pub use low_boundary_function::*;
-pub use lower_function::*;
-pub use matches_full_function::*;
-pub use matches_function::*;
-pub use max_function::*;
-pub use millisecond_function::*;
-pub use min_function::*;
-pub use minute_of_function::*;
-pub use month_of_function::*;
-pub use not_function::*;
-pub use now_function::*;
-pub use of_type_function::*;
-pub use power_function::*;
-pub use precision_function::*;
-pub use repeat_all_function::*;
-pub use repeat_function::*;
-pub use replace_function::*;
-pub use replace_matches_function::*;
-pub use resolve_function::*;
-pub use round_function::*;
-pub use second_of_function::*;
-pub use select_function::*;
-pub use single_function::*;
-pub use skip_function::*;
-pub use sort_function::*;
-pub use split_function::*;
-pub use sqrt_function::*;
-pub use starts_with_function::*;
-pub use subset_of_function::*;
-pub use substring_function::*;
-pub use sum_function::*;
-pub use superset_of_function::*;
-pub use tail_function::*;
-pub use take_function::*;
-pub use terminology::*;
-pub use timezone_offset_of_function::*;
-pub use to_chars_function::*;
-pub use today_function::*;
-pub use trace_function::*;
-pub use trim_function::*;
-pub use truncate_function::*;
-pub use type_checking::*;
-pub use unescape_function::*;
-pub use union_function::*;
-pub use upper_function::*;
-pub use where_function::*;
-pub use year_of_function::*;
+// Re-export function evaluators explicitly
+
+// Core collection functions
+pub use count_function::CountFunctionEvaluator;
+pub use empty_function::EmptyFunctionEvaluator;
+pub use exclude_function::ExcludeFunctionEvaluator;
+pub use extension_function::ExtensionFunctionEvaluator;
+pub use first_function::FirstFunctionEvaluator;
+pub use last_function::LastFunctionEvaluator;
+pub use of_type_function::OfTypeFunctionEvaluator;
+pub use select_function::SelectFunctionEvaluator;
+pub use where_function::WhereFunctionEvaluator;
+
+// Advanced collection functions
+pub use combine_function::CombineFunctionEvaluator;
+pub use distinct_function::DistinctFunctionEvaluator;
+pub use intersect_function::IntersectFunctionEvaluator;
+pub use single_function::SingleFunctionEvaluator;
+pub use skip_function::SkipFunctionEvaluator;
+pub use sort_function::SortFunctionEvaluator;
+pub use subset_of_function::SubsetOfFunctionEvaluator;
+pub use superset_of_function::SupersetOfFunctionEvaluator;
+pub use tail_function::TailFunctionEvaluator;
+pub use take_function::TakeFunctionEvaluator;
+pub use union_function::UnionFunctionEvaluator;
+
+// Existence functions
+pub use all_function::AllFunctionEvaluator;
+pub use all_true_function::AllTrueFunctionEvaluator;
+pub use any_true_function::AnyTrueFunctionEvaluator;
+pub use exists_function::ExistsFunctionEvaluator;
+
+// Navigation functions
+pub use coalesce_function::CoalesceFunctionEvaluator;
+pub use repeat_all_function::RepeatAllFunctionEvaluator;
+
+// String manipulation functions
+pub use boundary_utils::NumericBoundaries;
+pub use contains_function::ContainsFunctionEvaluator;
+pub use decode_function::DecodeFunctionEvaluator;
+pub use encode_function::EncodeFunctionEvaluator;
+pub use ends_with_function::EndsWithFunctionEvaluator;
+pub use escape_function::EscapeFunctionEvaluator;
+pub use join_function::JoinFunctionEvaluator;
+pub use lower_function::LowerFunctionEvaluator;
+pub use replace_function::ReplaceFunctionEvaluator;
+pub use replace_matches_function::ReplaceMatchesFunctionEvaluator;
+pub use split_function::SplitFunctionEvaluator;
+pub use starts_with_function::StartsWithFunctionEvaluator;
+pub use to_chars_function::ToCharsFunctionEvaluator;
+pub use trim_function::TrimFunctionEvaluator;
+pub use unescape_function::UnescapeFunctionEvaluator;
+pub use upper_function::UpperFunctionEvaluator;
+
+// Math functions
+pub use abs_function::AbsFunctionEvaluator;
+pub use avg_function::AvgFunctionEvaluator;
+pub use ceiling_function::CeilingFunctionEvaluator;
+pub use exp_function::ExpFunctionEvaluator;
+pub use floor_function::FloorFunctionEvaluator;
+pub use ln_function::LnFunctionEvaluator;
+pub use log_function::LogFunctionEvaluator;
+pub use max_function::MaxFunctionEvaluator;
+pub use min_function::MinFunctionEvaluator;
+pub use power_function::PowerFunctionEvaluator;
+pub use round_function::RoundFunctionEvaluator;
+pub use sqrt_function::SqrtFunctionEvaluator;
+pub use sum_function::SumFunctionEvaluator;
+pub use truncate_function::TruncateFunctionEvaluator;
+
+// Utility functions
+pub use define_variable_function::DefineVariableFunctionEvaluator;
+
+// Temporal functions
+pub use day_of_function::DayOfFunctionEvaluator;
+pub use difference_function::DifferenceFunctionEvaluator;
+pub use duration_function::DurationFunctionEvaluator;
+pub use hour_of_function::HourOfFunctionEvaluator;
+pub use millisecond_function::MillisecondFunctionEvaluator;
+pub use minute_of_function::MinuteOfFunctionEvaluator;
+pub use month_of_function::MonthOfFunctionEvaluator;
+pub use now_function::NowFunctionEvaluator;
+pub use second_of_function::SecondOfFunctionEvaluator;
+pub use timezone_offset_of_function::TimezoneOffsetOfFunctionEvaluator;
+pub use today_function::TodayFunctionEvaluator;
+pub use year_of_function::YearOfFunctionEvaluator;
+
+// Validation functions
+pub use has_value_function::HasValueFunctionEvaluator;
+
+// Logic functions
+pub use comparable_function::ComparableFunctionEvaluator;
+pub use not_function::NotFunctionEvaluator;
+
+// Navigation functions
+pub use children_function::ChildrenFunctionEvaluator;
+pub use descendants_function::DescendantsFunctionEvaluator;
+pub use repeat_function::RepeatFunctionEvaluator;
+pub use resolve_function::ResolveFunctionEvaluator;
+
+// Enhanced functions
+pub use high_boundary_function::HighBoundaryFunctionEvaluator;
+pub use index_of_function::IndexOfFunctionEvaluator;
+pub use is_distinct_function::IsDistinctFunctionEvaluator;
+pub use last_index_of_function::LastIndexOfFunctionEvaluator;
+pub use low_boundary_function::LowBoundaryFunctionEvaluator;
+pub use matches_full_function::MatchesFullFunctionEvaluator;
+pub use matches_function::MatchesFunctionEvaluator;
+pub use precision_function::PrecisionFunctionEvaluator;
+
+// Advanced functions
+pub use aggregate_function::AggregateFunctionEvaluator;
+pub use iif_function::IifFunctionEvaluator;
+pub use length_function::LengthFunctionEvaluator;
+pub use substring_function::SubstringFunctionEvaluator;
+
+// Utility functions
+pub use trace_function::TraceFunctionEvaluator;
+
+// CDA functions
+pub use has_template_id_of_function::HasTemplateIdOfFunctionEvaluator;
+
+// Re-export from submodules
+pub use conversion::{
+    ConvertsToBooleanFunctionEvaluator, ConvertsToDateFunctionEvaluator,
+    ConvertsToDateTimeFunctionEvaluator, ConvertsToDecimalFunctionEvaluator,
+    ConvertsToIntegerFunctionEvaluator, ConvertsToQuantityFunctionEvaluator,
+    ConvertsToStringFunctionEvaluator, ConvertsToTimeFunctionEvaluator, ToBooleanFunctionEvaluator,
+    ToDateFunctionEvaluator, ToDateTimeFunctionEvaluator, ToDecimalFunctionEvaluator,
+    ToIntegerFunctionEvaluator, ToQuantityFunctionEvaluator, ToStringFunctionEvaluator,
+    ToTimeFunctionEvaluator,
+};
+pub use terminology::{
+    ExpandFunctionEvaluator, LookupFunctionEvaluator, MemberOfFunctionEvaluator,
+    SimpleExpandFunctionEvaluator, SubsumedByFunctionEvaluator, SubsumesFunctionEvaluator,
+    TranslateFunctionEvaluator, ValidateCSFunctionEvaluator, ValidateVSFunctionEvaluator,
+};
+pub use type_checking::{
+    AsFunctionEvaluator, ConformsToFunctionEvaluator, IsFunctionEvaluator, TypeFunctionEvaluator,
+};

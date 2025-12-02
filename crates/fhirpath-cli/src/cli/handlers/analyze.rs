@@ -139,7 +139,7 @@ pub async fn handle_analyze(
 fn convert_diagnostic_to_ariadne(
     diagnostic: &octofhir_fhirpath::diagnostics::Diagnostic,
 ) -> octofhir_fhirpath::diagnostics::AriadneDiagnostic {
-    use octofhir_fhirpath::core::error_code::*;
+    use octofhir_fhirpath::core::error_code::{FP0001, FP0002};
     use octofhir_fhirpath::diagnostics::AriadneDiagnostic;
 
     let span = if let Some(location) = &diagnostic.location {

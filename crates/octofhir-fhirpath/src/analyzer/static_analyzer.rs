@@ -5,15 +5,17 @@
 
 use std::sync::Arc;
 
+use octofhir_fhir_model::{ModelProvider, TypeInfo};
+
 use crate::analyzer::{
     DiagnosticBuilder, ExpressionContext, FunctionAnalyzer, PropertyAnalyzer, TypeAnalyzer,
     UnionTypeAnalyzer,
 };
 use crate::ast::ExpressionNode;
+use crate::core::error_code::ErrorCode;
 use crate::core::{FhirPathError, SourceLocation};
 use crate::diagnostics::{AriadneDiagnostic, DiagnosticSeverity};
 use crate::parser::SemanticAnalyzer;
-use octofhir_fhir_model::{ModelProvider, TypeInfo};
 
 /// Comprehensive static analyzer combining all analysis capabilities
 pub struct StaticAnalyzer {
@@ -612,10 +614,12 @@ impl StaticAnalyzer {
         for i in 0..=a_len {
             matrix[i][0] = i;
         }
+        #[allow(clippy::needless_range_loop)]
         for j in 0..=b_len {
             matrix[0][j] = j;
         }
 
+        #[allow(clippy::needless_range_loop)]
         for i in 1..=a_len {
             for j in 1..=b_len {
                 let cost = if a_chars[i - 1] == b_chars[j - 1] {
@@ -1084,8 +1088,6 @@ impl StaticAnalyzer {
         &self,
         diagnostic: crate::diagnostics::Diagnostic,
     ) -> Result<AriadneDiagnostic, String> {
-        use crate::core::error_code::ErrorCode;
-
         let span = if let Some(loc) = &diagnostic.location {
             loc.offset..loc.offset + loc.length
         } else {
@@ -1143,8 +1145,6 @@ impl StaticAnalyzer {
         diagnostic: crate::diagnostics::Diagnostic,
         expression: &str,
     ) -> AriadneDiagnostic {
-        use crate::core::error_code::ErrorCode;
-
         let span = if let Some(loc) = &diagnostic.location {
             // Calculate accurate span based on the source location
             let start = std::cmp::min(loc.offset, expression.len());

@@ -125,6 +125,88 @@ just test-coverage
 
 ### 4. Code Style Guidelines
 
+#### Import Conventions
+
+Imports should follow this order (enforced by `cargo fmt`):
+
+```rust
+// 1. Standard library
+use std::collections::HashMap;
+use std::sync::Arc;
+
+// 2. External crates (alphabetically)
+use async_trait::async_trait;
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+
+// 3. Workspace crates
+use octofhir_fhir_model::ModelProvider;
+
+// 4. Local crate imports (crate::)
+use crate::core::{FhirPathValue, Result};
+use crate::evaluator::EvaluationContext;
+
+// 5. Parent/sibling modules (super::)
+use super::utils::helper_function;
+```
+
+#### Module Re-exports
+
+Always use **explicit re-exports**, never wildcard re-exports:
+
+```rust
+// Good
+pub use add_operator::AddOperatorEvaluator;
+
+// Bad - never use this
+pub use add_operator::*;
+```
+
+#### Function-Local Imports (PROHIBITED)
+
+**Never use function-local imports in non-test code.** All imports must be at the module level (top of the file).
+
+```rust
+// Good - imports at module level
+use crate::core::Collection;
+use crate::evaluator::EvaluationContext;
+
+fn evaluate(&self, context: &EvaluationContext) -> Result<Collection> {
+    // Use the imported types directly
+    Ok(Collection::empty())
+}
+
+// Bad - never use local imports in functions
+fn evaluate(&self, context: &EvaluationContext) -> Result<Collection> {
+    use crate::core::Collection;  // ❌ PROHIBITED
+    Ok(Collection::empty())
+}
+```
+
+**Why this matters:**
+
+- **Readability**: All dependencies are visible at the top of the file
+- **IDE support**: Better autocomplete and navigation
+- **Refactoring**: Easier to track and update imports
+- **Consistency**: Uniform code style across the codebase
+
+**Exception**: Test modules (`#[cfg(test)] mod tests { ... }`) may use `use super::*;` and other local imports for convenience.
+
+#### Error Handling
+
+- Use `crate::core::Result<T>` for fallible operations
+- Include context via error codes (FP0001-FP0200)
+- Never use `.unwrap()` in library code
+
+```rust
+// Good
+let value = collection.first()
+    .ok_or_else(|| FhirPathError::evaluation_error(FP0042, "Expected non-empty collection"))?;
+
+// Bad
+let value = collection.first().unwrap();
+```
+
 #### Rust Style
 - Follow **standard Rust formatting** (`cargo fmt`)
 - Use **meaningful variable names**

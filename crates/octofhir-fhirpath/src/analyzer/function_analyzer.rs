@@ -376,10 +376,12 @@ impl FunctionAnalyzer {
         for i in 0..=a_len {
             matrix[i][0] = i;
         }
+        #[allow(clippy::needless_range_loop)]
         for j in 0..=b_len {
             matrix[0][j] = j;
         }
 
+        #[allow(clippy::needless_range_loop)]
         for i in 1..=a_len {
             for j in 1..=b_len {
                 let cost = if a_chars[i - 1] == b_chars[j - 1] {

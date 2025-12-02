@@ -547,10 +547,12 @@ impl SemanticAnalyzer {
         for i in 0..=a_chars.len() {
             matrix[i][0] = i;
         }
+        #[allow(clippy::needless_range_loop)]
         for j in 0..=b_chars.len() {
             matrix[0][j] = j;
         }
 
+        #[allow(clippy::needless_range_loop)]
         for i in 1..=a_chars.len() {
             for j in 1..=b_chars.len() {
                 let cost = if a_chars[i - 1] == b_chars[j - 1] {

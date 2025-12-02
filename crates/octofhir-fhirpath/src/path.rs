@@ -369,7 +369,7 @@ impl PathBuilder {
 
 /// Utility functions for common path operations
 pub mod path_utils {
-    use super::*;
+    use super::{CanonicalPath, PathSegment};
 
     /// Create a path for resource root
     pub fn resource_root(resource_type: &str) -> CanonicalPath {

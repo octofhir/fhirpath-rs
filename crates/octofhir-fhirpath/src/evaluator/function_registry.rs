@@ -10,6 +10,138 @@ use serde::{Deserialize, Serialize};
 
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
+use crate::evaluator::functions::{
+    // Math functions
+    AbsFunctionEvaluator,
+    // Aggregate functions
+    AggregateFunctionEvaluator,
+    // Existence functions
+    AllFunctionEvaluator,
+    AllTrueFunctionEvaluator,
+    AnyTrueFunctionEvaluator,
+    // Type checking functions
+    AsFunctionEvaluator,
+    AvgFunctionEvaluator,
+    CeilingFunctionEvaluator,
+    // Utility functions
+    ChildrenFunctionEvaluator,
+    // Combining functions
+    CoalesceFunctionEvaluator,
+    ComparableFunctionEvaluator,
+    ConformsToFunctionEvaluator,
+    // String functions
+    ContainsFunctionEvaluator,
+    // Conversion functions
+    ConvertsToBooleanFunctionEvaluator,
+    ConvertsToDateFunctionEvaluator,
+    ConvertsToDateTimeFunctionEvaluator,
+    ConvertsToDecimalFunctionEvaluator,
+    ConvertsToIntegerFunctionEvaluator,
+    ConvertsToQuantityFunctionEvaluator,
+    ConvertsToStringFunctionEvaluator,
+    ConvertsToTimeFunctionEvaluator,
+    CountFunctionEvaluator,
+    // Date/Time functions
+    DayOfFunctionEvaluator,
+    DecodeFunctionEvaluator,
+    DefineVariableFunctionEvaluator,
+    DescendantsFunctionEvaluator,
+    DifferenceFunctionEvaluator,
+    // Subsetting functions
+    DistinctFunctionEvaluator,
+    DurationFunctionEvaluator,
+    EmptyFunctionEvaluator,
+    EncodeFunctionEvaluator,
+    EndsWithFunctionEvaluator,
+    EscapeFunctionEvaluator,
+    // Filtering and projection functions
+    ExcludeFunctionEvaluator,
+    ExistsFunctionEvaluator,
+    ExpFunctionEvaluator,
+    // Terminology functions
+    ExpandFunctionEvaluator,
+    ExtensionFunctionEvaluator,
+    FirstFunctionEvaluator,
+    FloorFunctionEvaluator,
+    HasTemplateIdOfFunctionEvaluator,
+    HasValueFunctionEvaluator,
+    HighBoundaryFunctionEvaluator,
+    HourOfFunctionEvaluator,
+    IifFunctionEvaluator,
+    IndexOfFunctionEvaluator,
+    IntersectFunctionEvaluator,
+    IsDistinctFunctionEvaluator,
+    IsFunctionEvaluator,
+    JoinFunctionEvaluator,
+    LastFunctionEvaluator,
+    LastIndexOfFunctionEvaluator,
+    LengthFunctionEvaluator,
+    LnFunctionEvaluator,
+    LogFunctionEvaluator,
+    LookupFunctionEvaluator,
+    LowBoundaryFunctionEvaluator,
+    LowerFunctionEvaluator,
+    MatchesFullFunctionEvaluator,
+    MatchesFunctionEvaluator,
+    MaxFunctionEvaluator,
+    MemberOfFunctionEvaluator,
+    MillisecondFunctionEvaluator,
+    MinFunctionEvaluator,
+    MinuteOfFunctionEvaluator,
+    MonthOfFunctionEvaluator,
+    NotFunctionEvaluator,
+    NowFunctionEvaluator,
+    OfTypeFunctionEvaluator,
+    PowerFunctionEvaluator,
+    PrecisionFunctionEvaluator,
+    RepeatAllFunctionEvaluator,
+    RepeatFunctionEvaluator,
+    ReplaceFunctionEvaluator,
+    ReplaceMatchesFunctionEvaluator,
+    ResolveFunctionEvaluator,
+    RoundFunctionEvaluator,
+    SecondOfFunctionEvaluator,
+    SelectFunctionEvaluator,
+    SimpleExpandFunctionEvaluator,
+    SingleFunctionEvaluator,
+    SkipFunctionEvaluator,
+    SortFunctionEvaluator,
+    SplitFunctionEvaluator,
+    SqrtFunctionEvaluator,
+    StartsWithFunctionEvaluator,
+    SubsetOfFunctionEvaluator,
+    SubstringFunctionEvaluator,
+    SubsumedByFunctionEvaluator,
+    SubsumesFunctionEvaluator,
+    SumFunctionEvaluator,
+    SupersetOfFunctionEvaluator,
+    TailFunctionEvaluator,
+    TakeFunctionEvaluator,
+    TimezoneOffsetOfFunctionEvaluator,
+    ToBooleanFunctionEvaluator,
+    ToCharsFunctionEvaluator,
+    ToDateFunctionEvaluator,
+    ToDateTimeFunctionEvaluator,
+    ToDecimalFunctionEvaluator,
+    ToIntegerFunctionEvaluator,
+    ToQuantityFunctionEvaluator,
+    ToStringFunctionEvaluator,
+    ToTimeFunctionEvaluator,
+    TodayFunctionEvaluator,
+    TraceFunctionEvaluator,
+    TranslateFunctionEvaluator,
+    TrimFunctionEvaluator,
+    TruncateFunctionEvaluator,
+    TypeFunctionEvaluator,
+    UnescapeFunctionEvaluator,
+    UnionFunctionEvaluator,
+    UpperFunctionEvaluator,
+    ValidateCSFunctionEvaluator,
+    ValidateVSFunctionEvaluator,
+    WhereFunctionEvaluator,
+    YearOfFunctionEvaluator,
+    combine_function,
+};
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Metadata for a function describing its behavior and signature
@@ -86,9 +218,10 @@ pub enum EmptyPropagation {
 }
 
 /// Argument evaluation strategy for function parameters
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum ArgumentEvaluationStrategy {
     /// Evaluate in current context (default)
+    #[default]
     Current,
     /// Evaluate in root context (combine, union, etc.)
     Root,
@@ -98,29 +231,18 @@ pub enum ArgumentEvaluationStrategy {
     Lazy,
 }
 
-impl Default for ArgumentEvaluationStrategy {
-    fn default() -> Self {
-        Self::Current
-    }
-}
-
 /// Null propagation strategy for function evaluation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum NullPropagationStrategy {
     /// No null propagation
     None,
     /// Propagate null if focus is empty/null
+    #[default]
     Focus,
     /// Propagate null if any argument is empty/null
     Arguments,
     /// Custom null handling
     Custom,
-}
-
-impl Default for NullPropagationStrategy {
-    fn default() -> Self {
-        Self::Focus
-    }
 }
 
 /// Function categories for organization
@@ -528,8 +650,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default existence functions (empty, exists, all, count, etc.)
     pub fn with_existence_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register existence functions
         self.registry
             .register_pure_function(EmptyFunctionEvaluator::create());
@@ -551,8 +671,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default filtering and projection functions (where, select, repeat, etc.)
     pub fn with_filtering_projection_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register filtering and projection functions
         self.registry
             .register_pure_function(ExcludeFunctionEvaluator::create());
@@ -574,8 +692,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default subsetting functions (first, last, tail, take, skip, etc.)
     pub fn with_subsetting_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register subsetting functions
         self.registry
             .register_pure_function(FirstFunctionEvaluator::create());
@@ -605,14 +721,11 @@ impl FunctionRegistryBuilder {
 
     /// Add default combining functions (union, combine)
     pub fn with_combining_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register combining functions
         self.registry
             .register_lazy_function(CoalesceFunctionEvaluator::create());
-        self.registry.register_pure_function(
-            crate::evaluator::functions::combine_function::CombineFunctionEvaluator::create(),
-        );
+        self.registry
+            .register_pure_function(combine_function::CombineFunctionEvaluator::create());
         self.registry
             .register_pure_function(UnionFunctionEvaluator::create());
 
@@ -621,8 +734,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default conversion functions (toString, toInteger, etc.)
     pub fn with_conversion_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register conversion functions
         self.registry
             .register_pure_function(ToStringFunctionEvaluator::create());
@@ -664,8 +775,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default string manipulation functions
     pub fn with_string_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register string manipulation functions
         self.registry
             .register_pure_function(EncodeFunctionEvaluator::create());
@@ -709,8 +818,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default math functions
     pub fn with_math_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register math functions
         self.registry
             .register_pure_function(AbsFunctionEvaluator::create());
@@ -746,8 +853,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default tree navigation functions
     pub fn with_tree_navigation_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register tree navigation functions
         self.registry
             .register_pure_function(ChildrenFunctionEvaluator::create());
@@ -761,8 +866,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default utility functions
     pub fn with_utility_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register utility functions
         self.registry
             .register_lazy_function(DefineVariableFunctionEvaluator::create());
@@ -834,8 +937,6 @@ impl FunctionRegistryBuilder {
 
     /// Add terminology functions (requires terminology provider)
     pub fn with_terminology_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register terminology functions (FHIRPath 3.0.0-ballot)
         self.registry
             .register_provider_pure_function(SimpleExpandFunctionEvaluator::create());
@@ -861,8 +962,6 @@ impl FunctionRegistryBuilder {
 
     /// Add default type functions
     pub fn with_type_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register type operations
         self.registry
             .register_lazy_function(IsFunctionEvaluator::create());
@@ -878,8 +977,6 @@ impl FunctionRegistryBuilder {
 
     /// Add aggregate functions
     pub fn with_aggregate_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register aggregate functions
         self.registry
             .register_lazy_function(AggregateFunctionEvaluator::create());
@@ -889,8 +986,6 @@ impl FunctionRegistryBuilder {
 
     /// Add CDA-specific functions
     pub fn with_cda_functions(mut self) -> Self {
-        use crate::evaluator::functions::*;
-
         // Register CDA functions
         self.registry
             .register_pure_function(HasTemplateIdOfFunctionEvaluator::create());

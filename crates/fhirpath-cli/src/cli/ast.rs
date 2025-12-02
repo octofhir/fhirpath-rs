@@ -48,7 +48,7 @@ pub fn add_type_information<'a>(
     base_type: Option<&'a str>,
 ) -> Pin<Box<dyn Future<Output = Result<AstNode, Box<dyn std::error::Error>>> + Send + 'a>> {
     Box::pin(async move {
-        use octofhir_fhirpath::ast::*;
+        use octofhir_fhirpath::ast::ExpressionNode;
 
         match original_ast {
             ExpressionNode::PropertyAccess(node) => {
@@ -372,7 +372,7 @@ pub fn convert_ast_to_lab_format(
     function_registry: Option<&octofhir_fhirpath::FunctionRegistry>,
     _model_provider: Option<&dyn octofhir_fhirpath::ModelProvider>,
 ) -> AstNode {
-    use octofhir_fhirpath::ast::*;
+    use octofhir_fhirpath::ast::ExpressionNode;
 
     match ast {
         ExpressionNode::Identifier(node) => {

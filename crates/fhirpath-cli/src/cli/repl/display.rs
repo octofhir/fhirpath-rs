@@ -15,7 +15,7 @@
 //! Display formatting for REPL output
 
 use anyhow::Error;
-use colored::*;
+use colored::Colorize;
 use octofhir_fhirpath::FhirPathValue;
 use octofhir_fhirpath::core::JsonValueExt;
 

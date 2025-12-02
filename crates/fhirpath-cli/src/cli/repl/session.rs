@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use colored::*;
+use colored::Colorize;
 use reedline::{
     ColumnarMenu, DefaultPrompt, Emacs, KeyCode, KeyModifiers, MenuBuilder, Reedline,
     ReedlineEvent, ReedlineMenu, Signal, default_emacs_keybindings,
