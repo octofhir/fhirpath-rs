@@ -688,6 +688,7 @@ impl Evaluator {
         match literal {
             LiteralValue::Boolean(b) => Ok(FhirPathValue::boolean(*b)),
             LiteralValue::Integer(i) => Ok(FhirPathValue::integer(*i)),
+            LiteralValue::Long(i) => Ok(FhirPathValue::long(*i)),
             LiteralValue::Decimal(d) => Ok(FhirPathValue::decimal(*d)),
             LiteralValue::String(s) => Ok(FhirPathValue::string(s.clone())),
             LiteralValue::Date(date) => Ok(FhirPathValue::date(date.clone())),

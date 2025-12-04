@@ -153,84 +153,107 @@ pub fn number_parser<'a>()
     ));
 
     // Allow optional leading '+' or '-' for polarity
-    choice((
+    let signed_number = choice((
         just('+').ignore_then(base_number),
         just('-')
             .ignore_then(base_number)
             .map(|num| format!("-{num}")),
         base_number,
-    ))
-    .then(
-        // Enhanced unit specification - supports both quoted ('mg') and unquoted units (days, hours, etc.)
-        just(' ')
-            .repeated()
-            .at_least(0)
-            .ignore_then(choice((
-                // Quoted units like 'mg', 'kg'
-                just('\'')
-                    .ignore_then(none_of(['\'']).repeated().collect::<String>())
-                    .then_ignore(just('\'')),
-                // Unquoted units like days, hours, weeks, months, years, milliseconds
-                choice((
-                    just("milliseconds").to("milliseconds".to_string()),
-                    just("millisecond").to("millisecond".to_string()),
-                    just("days").to("days".to_string()),
-                    just("day").to("day".to_string()),
-                    just("hours").to("hours".to_string()),
-                    just("hour").to("hour".to_string()),
-                    just("minutes").to("minutes".to_string()),
-                    just("minute").to("minute".to_string()),
-                    just("seconds").to("seconds".to_string()),
-                    just("second").to("second".to_string()),
-                    just("weeks").to("weeks".to_string()),
-                    just("week").to("week".to_string()),
-                    just("months").to("months".to_string()),
-                    just("month").to("month".to_string()),
-                    just("years").to("years".to_string()),
-                    just("year").to("year".to_string()),
-                )),
-            )))
-            .or_not(),
-    )
-    .map(|(number_str, unit): (String, Option<String>)| {
-        // Try to parse as decimal first (handles both integers and decimals)
-        match number_str.parse::<Decimal>() {
-            Ok(decimal) => {
-                if let Some(unit_str) = unit {
-                    // Create Quantity literal
-                    ExpressionNode::Literal(LiteralNode {
-                        value: LiteralValue::Quantity {
-                            value: decimal,
-                            unit: Some(unit_str),
-                        },
-                        location: None,
-                    })
-                } else if number_str.contains('.') {
-                    // Plain decimal
-                    ExpressionNode::Literal(LiteralNode {
-                        value: LiteralValue::Decimal(decimal),
-                        location: None,
-                    })
-                } else {
-                    // Try as integer first for whole numbers
-                    match number_str.parse::<i64>() {
+    ));
+
+    // Check for 'L' suffix (Long literal - FHIRPath v3.0.0-ballot STU)
+    signed_number
+        .then(just('L').or_not())
+        .then(
+            // Enhanced unit specification - supports both quoted ('mg') and unquoted units (days, hours, etc.)
+            // Note: Units are NOT allowed after Long literals (42L 'mg' is invalid)
+            just(' ')
+                .repeated()
+                .at_least(0)
+                .ignore_then(choice((
+                    // Quoted units like 'mg', 'kg'
+                    just('\'')
+                        .ignore_then(none_of(['\'']).repeated().collect::<String>())
+                        .then_ignore(just('\'')),
+                    // Unquoted units like days, hours, weeks, months, years, milliseconds
+                    choice((
+                        just("milliseconds").to("milliseconds".to_string()),
+                        just("millisecond").to("millisecond".to_string()),
+                        just("days").to("days".to_string()),
+                        just("day").to("day".to_string()),
+                        just("hours").to("hours".to_string()),
+                        just("hour").to("hour".to_string()),
+                        just("minutes").to("minutes".to_string()),
+                        just("minute").to("minute".to_string()),
+                        just("seconds").to("seconds".to_string()),
+                        just("second").to("second".to_string()),
+                        just("weeks").to("weeks".to_string()),
+                        just("week").to("week".to_string()),
+                        just("months").to("months".to_string()),
+                        just("month").to("month".to_string()),
+                        just("years").to("years".to_string()),
+                        just("year").to("year".to_string()),
+                    )),
+                )))
+                .or_not(),
+        )
+        .map(
+            |((number_str, is_long), unit): ((String, Option<char>), Option<String>)| {
+                // Handle Long literal (with 'L' suffix)
+                if is_long.is_some() {
+                    // Long literals cannot have units - if unit is present, ignore it
+                    // (or we could error, but for now we just ignore)
+                    return match number_str.parse::<i64>() {
                         Ok(num) => ExpressionNode::Literal(LiteralNode {
-                            value: LiteralValue::Integer(num),
+                            value: LiteralValue::Long(num),
                             location: None,
                         }),
                         Err(_) => ExpressionNode::Literal(LiteralNode {
-                            value: LiteralValue::Decimal(decimal),
+                            value: LiteralValue::String(format!("{number_str}L")),
                             location: None,
                         }),
-                    }
+                    };
                 }
-            }
-            Err(_) => ExpressionNode::Literal(LiteralNode {
-                value: LiteralValue::String(number_str),
-                location: None,
-            }),
-        }
-    })
+
+                // Try to parse as decimal first (handles both integers and decimals)
+                match number_str.parse::<Decimal>() {
+                    Ok(decimal) => {
+                        if let Some(unit_str) = unit {
+                            // Create Quantity literal
+                            ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::Quantity {
+                                    value: decimal,
+                                    unit: Some(unit_str),
+                                },
+                                location: None,
+                            })
+                        } else if number_str.contains('.') {
+                            // Plain decimal
+                            ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::Decimal(decimal),
+                                location: None,
+                            })
+                        } else {
+                            // Try as integer first for whole numbers
+                            match number_str.parse::<i64>() {
+                                Ok(num) => ExpressionNode::Literal(LiteralNode {
+                                    value: LiteralValue::Integer(num),
+                                    location: None,
+                                }),
+                                Err(_) => ExpressionNode::Literal(LiteralNode {
+                                    value: LiteralValue::Decimal(decimal),
+                                    location: None,
+                                }),
+                            }
+                        }
+                    }
+                    Err(_) => ExpressionNode::Literal(LiteralNode {
+                        value: LiteralValue::String(number_str),
+                        location: None,
+                    }),
+                }
+            },
+        )
 }
 
 /// Parser for boolean literals
@@ -894,6 +917,44 @@ mod tests {
         assert!(result.is_ok());
         if let Ok(ExpressionNode::Literal(lit)) = result {
             matches!(lit.value, LiteralValue::Decimal(_));
+        }
+    }
+
+    #[test]
+    fn test_number_parser_long() {
+        let parser = number_parser();
+
+        // Test basic long literal
+        let result = parser.parse("42L").into_result();
+        assert!(result.is_ok());
+        if let Ok(ExpressionNode::Literal(lit)) = result {
+            if let LiteralValue::Long(n) = lit.value {
+                assert_eq!(n, 42);
+            } else {
+                panic!("Expected Long literal, got {:?}", lit.value);
+            }
+        }
+
+        // Test zero long
+        let result = parser.parse("0L").into_result();
+        assert!(result.is_ok());
+        if let Ok(ExpressionNode::Literal(lit)) = result {
+            if let LiteralValue::Long(n) = lit.value {
+                assert_eq!(n, 0);
+            } else {
+                panic!("Expected Long literal, got {:?}", lit.value);
+            }
+        }
+
+        // Test negative long
+        let result = parser.parse("-5L").into_result();
+        assert!(result.is_ok());
+        if let Ok(ExpressionNode::Literal(lit)) = result {
+            if let LiteralValue::Long(n) = lit.value {
+                assert_eq!(n, -5);
+            } else {
+                panic!("Expected Long literal, got {:?}", lit.value);
+            }
         }
     }
 

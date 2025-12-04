@@ -20,6 +20,9 @@ pub enum LiteralValue {
     /// Integer literal (e.g., 42, -17)
     Integer(i64),
 
+    /// Long literal with 'L' suffix (e.g., 42L, -5L) - FHIRPath v3.0.0-ballot STU
+    Long(i64),
+
     /// Decimal literal (e.g., 3.14, -0.5)
     Decimal(Decimal),
 
@@ -65,6 +68,27 @@ impl LiteralValue {
             FhirPathError::parse_error(
                 FP0006,
                 format!("Invalid integer literal: {input}"),
+                input.to_string(),
+                None,
+            )
+        })
+    }
+
+    /// Parse a long literal (must end with 'L' suffix)
+    pub fn parse_long(input: &str) -> Result<Self, FhirPathError> {
+        let num_str = input.strip_suffix('L').ok_or_else(|| {
+            FhirPathError::parse_error(
+                FP0006,
+                format!("Long literal must end with 'L': {input}"),
+                input.to_string(),
+                None,
+            )
+        })?;
+
+        num_str.parse::<i64>().map(Self::Long).map_err(|_| {
+            FhirPathError::parse_error(
+                FP0006,
+                format!("Invalid long literal: {input}"),
                 input.to_string(),
                 None,
             )
@@ -210,6 +234,7 @@ impl LiteralValue {
         match self {
             Self::String(_) => "String",
             Self::Integer(_) => "Integer",
+            Self::Long(_) => "Long",
             Self::Decimal(_) => "Decimal",
             Self::Boolean(_) => "Boolean",
             Self::Date(_) => "Date",
@@ -224,6 +249,7 @@ impl LiteralValue {
         match self {
             Self::String(s) => crate::core::FhirPathValue::string(s.clone()),
             Self::Integer(i) => crate::core::FhirPathValue::integer(*i),
+            Self::Long(i) => crate::core::FhirPathValue::long(*i),
             Self::Decimal(d) => crate::core::FhirPathValue::decimal(*d),
             Self::Boolean(b) => crate::core::FhirPathValue::boolean(*b),
             Self::Date(d) => crate::core::FhirPathValue::date(d.clone()),
@@ -250,6 +276,7 @@ impl fmt::Display for LiteralValue {
                 write!(f, "'{escaped}'")
             }
             Self::Integer(i) => write!(f, "{i}"),
+            Self::Long(i) => write!(f, "{i}L"),
             Self::Decimal(d) => write!(f, "{d}"),
             Self::Boolean(b) => write!(f, "{b}"),
             Self::Date(d) => write!(f, "@{d}"),
@@ -276,6 +303,11 @@ impl LiteralValue {
     /// Create an integer literal
     pub fn integer(i: i64) -> Self {
         Self::Integer(i)
+    }
+
+    /// Create a long literal
+    pub fn long(i: i64) -> Self {
+        Self::Long(i)
     }
 
     /// Create a decimal literal
@@ -372,5 +404,40 @@ mod tests {
         assert_eq!(LiteralValue::string("test").to_string(), "'test'");
         assert_eq!(LiteralValue::integer(42).to_string(), "42");
         assert_eq!(LiteralValue::boolean(true).to_string(), "true");
+    }
+
+    #[test]
+    fn test_long_parsing() {
+        let literal = LiteralValue::parse_long("42L").unwrap();
+        assert_eq!(literal, LiteralValue::long(42));
+
+        let literal = LiteralValue::parse_long("-17L").unwrap();
+        assert_eq!(literal, LiteralValue::long(-17));
+
+        let literal = LiteralValue::parse_long("0L").unwrap();
+        assert_eq!(literal, LiteralValue::long(0));
+    }
+
+    #[test]
+    fn test_long_parsing_error() {
+        // Missing 'L' suffix
+        let result = LiteralValue::parse_long("42");
+        assert!(result.is_err());
+
+        // Invalid number
+        let result = LiteralValue::parse_long("abcL");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_long_display() {
+        assert_eq!(LiteralValue::long(42).to_string(), "42L");
+        assert_eq!(LiteralValue::long(-5).to_string(), "-5L");
+        assert_eq!(LiteralValue::long(0).to_string(), "0L");
+    }
+
+    #[test]
+    fn test_long_type_name() {
+        assert_eq!(LiteralValue::long(42).type_name(), "Long");
     }
 }

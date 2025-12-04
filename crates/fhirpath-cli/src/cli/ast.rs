@@ -224,6 +224,7 @@ pub fn add_type_information<'a>(
                 ast_node.return_type = match &node.value {
                     LiteralValue::String(_) => Some("string".to_string()),
                     LiteralValue::Integer(_) => Some("integer".to_string()),
+                    LiteralValue::Long(_) => Some("long".to_string()),
                     LiteralValue::Decimal(_) => Some("decimal".to_string()),
                     LiteralValue::Boolean(_) => Some("boolean".to_string()),
                     LiteralValue::Date(_) => Some("date".to_string()),
@@ -442,6 +443,7 @@ pub fn convert_ast_to_lab_format(
             let (name, return_type) = match &node.value {
                 LiteralValue::String(s) => (format!("\"{s}\""), "string"),
                 LiteralValue::Integer(i) => (i.to_string(), "integer"),
+                LiteralValue::Long(i) => (format!("{i}L"), "long"),
                 LiteralValue::Decimal(d) => (d.to_string(), "decimal"),
                 LiteralValue::Boolean(b) => (b.to_string(), "boolean"),
                 LiteralValue::Date(d) => (format!("@{d}"), "date"),

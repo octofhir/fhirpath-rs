@@ -541,6 +541,19 @@ impl FhirPathValue {
         Self::Integer(value, type_info, None)
     }
 
+    /// Create a new Long value with default TypeInfo (FHIRPath v3.0.0-ballot STU)
+    pub fn long(value: i64) -> Self {
+        let type_info = TypeInfo {
+            type_name: "Long".to_string(),
+            singleton: Some(true),
+            namespace: Some("System".to_string()),
+            name: Some("Long".to_string()),
+            is_empty: Some(false),
+        };
+        // Long is stored in the Integer variant with Long type info
+        Self::Integer(value, type_info, None)
+    }
+
     /// Get TypeInfo for this value (always available in Phase 1)
     pub fn type_info(&self) -> &TypeInfo {
         match self {
