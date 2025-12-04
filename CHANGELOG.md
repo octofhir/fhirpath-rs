@@ -1,4 +1,17 @@
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.28...v0.5.0) (2025-11-18)
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.30...v0.5.0) (2025-12-04)
+
+
+### Features
+
+* support LONG numbers from latest grammar changes ([6b9c91f](https://github.com/octofhir/fhirpath-rs/commit/6b9c91fa0c9f9359c3223429a7119952b0b30a54))
+
+
+
+## [0.4.30](https://github.com/octofhir/fhirpath-rs/compare/v0.4.29...v0.4.30) (2025-11-24)
+
+
+
+## [0.4.29](https://github.com/octofhir/fhirpath-rs/compare/v0.4.28...v0.4.29) (2025-11-18)
 
 
 ### Features
