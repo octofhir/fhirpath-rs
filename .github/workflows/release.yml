@@ -226,7 +226,7 @@ jobs:
           path: CHANGELOG.md
 
       - name: Download all binary artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: binary-*
           merge-multiple: true
@@ -355,7 +355,7 @@ jobs:
 
       - name: Download changelog artifact
         if: steps.publish.outputs.success == 'true'
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: changelog
           path: .
