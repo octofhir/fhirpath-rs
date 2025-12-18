@@ -1,4 +1,14 @@
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.30...v0.5.0) (2025-12-04)
+## [0.4.32](https://github.com/octofhir/fhirpath-rs/compare/v0.4.31...v0.4.32) (2025-12-18)
+
+
+### Bug Fixes
+
+* extension extracting ([24664b3](https://github.com/octofhir/fhirpath-rs/commit/24664b33d5853e9149ee483bd4233b57c86375d9))
+* failed analyzer tests ([ebfdf01](https://github.com/octofhir/fhirpath-rs/commit/ebfdf01491f2f87b9040d567923cac3bef19b2c4))
+
+
+
+## [0.4.31](https://github.com/octofhir/fhirpath-rs/compare/v0.4.30...v0.4.31) (2025-12-04)
 
 
 ### Features
