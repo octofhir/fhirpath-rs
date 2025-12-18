@@ -1,17 +1,10 @@
 #![cfg(test)]
 
 use super::models::{
-    ContextEvaluationInfo,
-    ContextItem,
-    EvaluationResultItem,
-    EvaluationResultSet,
-    EvaluationTiming,
-    OperationOutcome,
-    ParsedServerRequest,
-    PathSegment,
-    ParametersResource,
+    ContextEvaluationInfo, ContextItem, EvaluationResultItem, EvaluationResultSet,
+    EvaluationTiming, OperationOutcome, ParametersResource, ParsedServerRequest, PathSegment,
 };
-use super::response::{build_success_response, ParseDebugInfo, ResponseMetadata};
+use super::response::{ParseDebugInfo, ResponseMetadata, build_success_response};
 use super::version::ServerFhirVersion;
 use super::{handlers, registry};
 use octofhir_fhirpath::FhirPathValue;
@@ -28,9 +21,7 @@ fn operation_outcome_serializes() {
 
 #[tokio::test]
 async fn semantic_analysis_succeeds_for_patient_chain() {
-    let registry = registry::ServerRegistry::new()
-        .await
-        .expect("registry");
+    let registry = registry::ServerRegistry::new().await.expect("registry");
 
     let engine = registry
         .get_evaluation_engine(ServerFhirVersion::R4)
@@ -45,21 +36,16 @@ async fn semantic_analysis_succeeds_for_patient_chain() {
         .expect("get type")
         .expect("patient type available");
 
-    let result = parse_with_semantic_analysis(
-        "Patient.name.given",
-        model_provider,
-        Some(patient_type),
-    )
-    .await;
+    let result =
+        parse_with_semantic_analysis("Patient.name.given", model_provider, Some(patient_type))
+            .await;
 
     assert!(result.analysis.success, "semantic analysis should succeed");
 }
 
 #[tokio::test]
 async fn semantic_analysis_allows_of_type_navigation() {
-    let registry = registry::ServerRegistry::new()
-        .await
-        .expect("registry");
+    let registry = registry::ServerRegistry::new().await.expect("registry");
 
     let engine = registry
         .get_evaluation_engine(ServerFhirVersion::R4)
@@ -68,12 +54,9 @@ async fn semantic_analysis_allows_of_type_navigation() {
     let engine_guard = engine.lock_owned().await;
     let model_provider = engine_guard.get_model_provider();
 
-    let result = parse_with_semantic_analysis(
-        "Patient.name.ofType(HumanName).use",
-        model_provider,
-        None,
-    )
-    .await;
+    let result =
+        parse_with_semantic_analysis("Patient.name.ofType(HumanName).use", model_provider, None)
+            .await;
 
     assert!(
         result.analysis.success,
@@ -84,9 +67,7 @@ async fn semantic_analysis_allows_of_type_navigation() {
 
 #[tokio::test]
 async fn handle_request_accepts_context_navigation() {
-    let registry = registry::ServerRegistry::new()
-        .await
-        .expect("registry");
+    let registry = registry::ServerRegistry::new().await.expect("registry");
 
     let request_json = json!({
         "resourceType": "Parameters",
@@ -123,14 +104,18 @@ async fn handle_request_accepts_context_navigation() {
 
     let payload = response.0;
     assert_eq!(payload["resourceType"], "Parameters");
-    assert!(payload["parameter"].as_array().unwrap().iter().any(|entry| entry["name"] == "result"));
+    assert!(
+        payload["parameter"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["name"] == "result")
+    );
 }
 
 #[tokio::test]
 async fn handle_request_accepts_of_type_navigation() {
-    let registry = registry::ServerRegistry::new()
-        .await
-        .expect("registry");
+    let registry = registry::ServerRegistry::new().await.expect("registry");
 
     let request_json = json!({
         "resourceType": "Parameters",
@@ -157,7 +142,13 @@ async fn handle_request_accepts_of_type_navigation() {
 
     let payload = response.0;
     assert_eq!(payload["resourceType"], "Parameters");
-    assert!(payload["parameter"].as_array().unwrap().iter().any(|entry| entry["name"] == "result"));
+    assert!(
+        payload["parameter"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["name"] == "result")
+    );
 }
 
 #[test]
@@ -243,9 +234,7 @@ fn build_response_contains_metadata_and_results() {
 
 #[tokio::test]
 async fn handle_request_returns_full_extension_body() {
-    let registry = registry::ServerRegistry::new()
-        .await
-        .expect("registry");
+    let registry = registry::ServerRegistry::new().await.expect("registry");
 
     let request_json = json!({
         "resourceType": "Parameters",
@@ -287,7 +276,9 @@ async fn handle_request_returns_full_extension_body() {
         .expect("result parameter should exist");
 
     // Get the part array which contains the actual results
-    let parts = result_param["part"].as_array().expect("result should have parts");
+    let parts = result_param["part"]
+        .as_array()
+        .expect("result should have parts");
 
     // Should have exactly 1 result
     assert_eq!(parts.len(), 1, "Should return exactly 1 extension");
@@ -302,13 +293,11 @@ async fn handle_request_returns_full_extension_body() {
 
     // The extension value should contain both url and valueDateTime
     assert_eq!(
-        extension_value["url"],
-        "http://hl7.org/fhir/StructureDefinition/patient-birthTime",
+        extension_value["url"], "http://hl7.org/fhir/StructureDefinition/patient-birthTime",
         "Extension should have the correct URL"
     );
     assert_eq!(
-        extension_value["valueDateTime"],
-        "1974-12-25T14:35:45-05:00",
+        extension_value["valueDateTime"], "1974-12-25T14:35:45-05:00",
         "Extension should have the full valueDateTime field"
     );
 }

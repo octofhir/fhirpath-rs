@@ -27,4 +27,4 @@ pub mod test_support;
 pub use common::*;
 pub use test_support::*;
 // Re-export model providers from fhirschema crate
-pub use octofhir_fhirschema::model_provider::EmbeddedSchemaProvider;
+pub use octofhir_fhirschema::EmbeddedSchemaProvider;

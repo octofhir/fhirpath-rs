@@ -15,7 +15,7 @@
 //! Common utilities for development tools
 
 use octofhir_fhir_model::{FhirVersion, ModelProvider};
-use octofhir_fhirschema::model_provider::EmbeddedSchemaProvider;
+use octofhir_fhirschema::EmbeddedSchemaProvider;
 use std::env;
 use std::sync::Arc;
 
