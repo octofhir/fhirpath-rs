@@ -106,7 +106,8 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
                 if let Some(pe) = item.wrapped_primitive_element() {
                     for ext in &pe.extensions {
                         if ext.url == target_url {
-                            // Build minimal JSON with url to represent the extension
+                            // Build complete extension JSON including value and nested extensions
+                            let json = ext.to_json();
                             let type_info = TypeInfo {
                                 type_name: "Extension".to_string(),
                                 name: Some("Extension".to_string()),
@@ -114,7 +115,6 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
                                 namespace: Some("FHIR".to_string()),
                                 singleton: Some(true),
                             };
-                            let json = serde_json::json!({ "url": ext.url });
                             let extension_value =
                                 FhirPathValue::Resource(Arc::new(json), type_info, None);
                             matching_extensions.push(extension_value);

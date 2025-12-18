@@ -216,6 +216,8 @@ pub struct WrappedPrimitiveElement {
 pub struct WrappedExtension {
     /// Extension URL
     pub url: String,
+    /// Extension value key (e.g., "valueDateTime", "valueString")
+    pub value_key: Option<String>,
     /// Extension value
     pub value: Option<JsonValue>,
     /// Nested extensions
@@ -262,18 +264,41 @@ impl WrappedExtension {
     pub fn new(url: String) -> Self {
         Self {
             url,
+            value_key: None,
             value: None,
             extensions: Vec::new(),
         }
     }
 
-    /// Create with value
-    pub fn with_value(url: String, value: JsonValue) -> Self {
+    /// Create with value and key name
+    pub fn with_value(url: String, value_key: String, value: JsonValue) -> Self {
         Self {
             url,
+            value_key: Some(value_key),
             value: Some(value),
             extensions: Vec::new(),
         }
+    }
+
+    /// Convert to a complete JSON representation of the extension
+    pub fn to_json(&self) -> JsonValue {
+        let mut map = serde_json::Map::new();
+
+        // Add URL
+        map.insert("url".to_string(), JsonValue::String(self.url.clone()));
+
+        // Add value with its original key name (e.g., valueDateTime, valueString)
+        if let (Some(key), Some(value)) = (&self.value_key, &self.value) {
+            map.insert(key.clone(), value.clone());
+        }
+
+        // Add nested extensions if present
+        if !self.extensions.is_empty() {
+            let nested: Vec<JsonValue> = self.extensions.iter().map(|e| e.to_json()).collect();
+            map.insert("extension".to_string(), JsonValue::Array(nested));
+        }
+
+        JsonValue::Object(map)
     }
 }
 

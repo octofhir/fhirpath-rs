@@ -374,7 +374,7 @@ pub async fn fhirpath_lab_r6_handler(
     }
 }
 
-async fn handle_request(
+pub(crate) async fn handle_request(
     registry: &ServerRegistry,
     version: ServerFhirVersion,
     request: ParametersResource,

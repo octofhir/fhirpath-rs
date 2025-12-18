@@ -1024,10 +1024,8 @@ impl Evaluator {
                         if let Some(pe) = item.wrapped_primitive_element() {
                             for ext in &pe.extensions {
                                 if url_filter.as_ref().map(|u| u == &ext.url).unwrap_or(true) {
-                                    // Build minimal JSON for extension with URL so exists() works
-                                    let json = serde_json::json!({
-                                        "url": ext.url
-                                    });
+                                    // Build complete JSON for extension including value and nested extensions
+                                    let json = ext.to_json();
                                     let ext_value = FhirPathValue::Resource(
                                         std::sync::Arc::new(json),
                                         ext_type_info.clone(),
@@ -1863,19 +1861,19 @@ impl Evaluator {
                         .unwrap_or("")
                         .to_string();
 
-                    // Find a value[x] property if present
-                    let mut value_field: Option<serde_json::Value> = None;
+                    // Find a value[x] property if present (capture both key and value)
+                    let mut value_field: Option<(String, serde_json::Value)> = None;
                     if let Some(map) = obj.as_object() {
                         for (k, v) in map.iter() {
                             if k.starts_with("value") {
-                                value_field = Some(v.clone());
+                                value_field = Some((k.clone(), v.clone()));
                                 break;
                             }
                         }
                     }
 
-                    let mut ext = if let Some(v) = value_field {
-                        crate::core::WrappedExtension::with_value(url, v)
+                    let mut ext = if let Some((key, v)) = value_field {
+                        crate::core::WrappedExtension::with_value(url, key, v)
                     } else {
                         crate::core::WrappedExtension::new(url)
                     };

@@ -16,6 +16,8 @@ pub mod models;
 pub mod registry;
 pub mod response;
 pub mod results;
+#[cfg(test)]
+mod tests;
 pub mod trace;
 pub mod version;
 
