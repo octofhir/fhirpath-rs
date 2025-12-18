@@ -291,6 +291,21 @@ impl SemanticAnalyzer {
         let mut metadata = AnalysisMetadata::new();
         let name = &identifier.name;
 
+        // Chain-head rule: at the head of a navigation chain, allow treating the
+        // identifier as a known type to seed the chain (e.g., Patient.name)
+        // This check must come FIRST, before checking input_type, because even when
+        // we have a context type, expressions like "Patient.name" should recognize
+        // "Patient" as a type reference rather than trying to find it as a property
+        // on the context type.
+        if self.is_chain_head
+            && let Ok(Some(type_info)) = self.model_provider.get_type(name).await
+        {
+            metadata.type_info = Some(type_info.clone());
+            self.input_type = Some(type_info);
+            self.is_chain_head = false;
+            return Ok(metadata);
+        }
+
         // Try to use model provider for accurate type information
         if let Some(ref input_type) = self.input_type {
             // Special case: resourceType is always valid on Reference types
@@ -357,17 +372,6 @@ impl SemanticAnalyzer {
                 namespace: Some("System".to_string()),
                 name: Some("Any".to_string()),
             });
-            return Ok(metadata);
-        }
-
-        // Chain-head rule: at the head of a navigation chain, allow treating the
-        // identifier as a known type to seed the chain (e.g., Patient.name)
-        if self.is_chain_head
-            && let Ok(Some(type_info)) = self.model_provider.get_type(name).await
-        {
-            metadata.type_info = Some(type_info.clone());
-            self.input_type = Some(type_info);
-            self.is_chain_head = false;
             return Ok(metadata);
         }
 
