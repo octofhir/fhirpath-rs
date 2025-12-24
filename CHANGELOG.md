@@ -1,3 +1,12 @@
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.32...v0.5.0) (2025-12-24)
+
+
+### Features
+
+* support rootResource variable by default ([64186a7](https://github.com/octofhir/fhirpath-rs/commit/64186a72f44bf992331c2d3a0de9565a6044275a))
+
+
+
 ## [0.4.32](https://github.com/octofhir/fhirpath-rs/compare/v0.4.31...v0.4.32) (2025-12-18)
 
 
