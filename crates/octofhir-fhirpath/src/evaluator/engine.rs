@@ -440,7 +440,6 @@ impl FhirPathEvaluator for FhirPathEngine {
         let mut warnings = Vec::new();
 
         for constraint in constraints {
-            // Convert resource to collection for evaluation
             let collection = crate::core::Collection::from_json_resource(
                 resource.clone(),
                 Some(self.model_provider.clone()),
@@ -449,12 +448,16 @@ impl FhirPathEvaluator for FhirPathEngine {
             .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
             let eval_context = EvaluationContext::new(
-                collection,
+                collection.clone(),
                 self.model_provider.clone(),
                 self.terminology_provider.clone(),
                 self.validation_provider.clone(),
                 self.trace_provider.clone(),
             );
+
+            if let Some(first_value) = collection.first() {
+                eval_context.set_variable("rootResource".to_string(), first_value.clone());
+            }
 
             // Evaluate the constraint expression using internal engine method
             match FhirPathEngine::evaluate(self, &constraint.expression, &eval_context).await {

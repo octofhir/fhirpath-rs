@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 // Memory and system info
-use sysinfo::{Pid, System};
+use sysinfo::{Pid, ProcessesToUpdate, System};
 
 /// Format numbers in human-friendly format (K, M, etc.)
 fn format_ops_per_sec(ops_per_sec: f64) -> String {
@@ -411,7 +411,7 @@ fn list_expressions() {
 
 fn get_rss_bytes() -> Option<u64> {
     let mut sys = System::new();
-    sys.refresh_processes();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
     let pid = Pid::from_u32(std::process::id());
     sys.process(pid).map(|p| p.memory() * 1024)
 }
