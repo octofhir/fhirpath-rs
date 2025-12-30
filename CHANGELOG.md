@@ -1,4 +1,13 @@
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.32...v0.5.0) (2025-12-24)
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.33...v0.5.0) (2025-12-30)
+
+
+### Features
+
+* performance improved ([b05f368](https://github.com/octofhir/fhirpath-rs/commit/b05f368bb9bf031c73041821096cdea85f9034c4))
+
+
+
+## [0.4.33](https://github.com/octofhir/fhirpath-rs/compare/v0.4.32...v0.4.33) (2025-12-24)
 
 
 ### Features
