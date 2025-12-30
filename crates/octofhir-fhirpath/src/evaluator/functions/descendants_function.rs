@@ -2,14 +2,25 @@
 //!
 //! Retrieves all descendant elements of the current context
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
+use crate::core::model_provider::TypeInfo;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
+
+/// Static TypeInfo for Element type, reused across all descendant elements
+/// to avoid allocating a new TypeInfo for each descendant.
+static ELEMENT_TYPE_INFO: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
+    type_name: "Element".to_string(),
+    singleton: Some(true),
+    namespace: Some("FHIR".to_string()),
+    name: Some("Element".to_string()),
+    is_empty: Some(false),
+});
 
 pub struct DescendantsFunctionEvaluator {
     metadata: FunctionMetadata,
@@ -41,49 +52,70 @@ impl DescendantsFunctionEvaluator {
     }
 
     fn get_descendants(&self, value: &FhirPathValue) -> Vec<FhirPathValue> {
-        let mut descendants = Vec::new();
-
         match value {
             FhirPathValue::Resource(json, _type_info, _primitive) => {
-                // For JSON objects, recursively collect all nested values
-                self.collect_json_descendants(json, &mut descendants);
+                // Estimate capacity based on JSON structure to reduce reallocations
+                let estimated_size = Self::estimate_descendant_count(json);
+                let mut descendants = Vec::with_capacity(estimated_size);
+
+                // Use iterative approach with explicit stack to avoid recursion overhead
+                self.collect_json_descendants_iterative(json, &mut descendants);
+                descendants
             }
             _ => {
                 // For primitive types, no descendants
+                Vec::new()
             }
         }
-
-        descendants
     }
 
-    fn collect_json_descendants(
-        &self,
-        json: &serde_json::Value,
-        descendants: &mut Vec<FhirPathValue>,
-    ) {
+    /// Estimate the number of descendants for capacity pre-allocation.
+    /// This is a heuristic based on typical FHIR resource structure.
+    fn estimate_descendant_count(json: &serde_json::Value) -> usize {
         match json {
             serde_json::Value::Object(map) => {
-                for (_, value) in map {
-                    // Add the direct child
-                    if let Ok(fhir_value) = self.json_to_fhirpath_value(value) {
-                        descendants.push(fhir_value);
-                    }
-                    // Recursively add descendants of this child
-                    self.collect_json_descendants(value, descendants);
-                }
+                // Estimate ~3 descendants per top-level field on average
+                map.len() * 3
             }
-            serde_json::Value::Array(arr) => {
-                for item in arr {
-                    // Add each array item
-                    if let Ok(fhir_value) = self.json_to_fhirpath_value(item) {
-                        descendants.push(fhir_value);
+            serde_json::Value::Array(arr) => arr.len() * 2,
+            _ => 0,
+        }
+    }
+
+    /// Iterative implementation using explicit stack to avoid recursion overhead.
+    fn collect_json_descendants_iterative(
+        &self,
+        root: &serde_json::Value,
+        descendants: &mut Vec<FhirPathValue>,
+    ) {
+        // Use a stack of references to avoid cloning during traversal
+        let mut stack: Vec<&serde_json::Value> = vec![root];
+
+        while let Some(json) = stack.pop() {
+            match json {
+                serde_json::Value::Object(map) => {
+                    for (_, value) in map {
+                        // Add the direct child
+                        if let Ok(fhir_value) = self.json_to_fhirpath_value(value) {
+                            descendants.push(fhir_value);
+                        }
+                        // Push to stack for iterative processing (reverse order for DFS)
+                        stack.push(value);
                     }
-                    // Recursively add descendants of this item
-                    self.collect_json_descendants(item, descendants);
                 }
-            }
-            _ => {
-                // Primitive values don't have descendants
+                serde_json::Value::Array(arr) => {
+                    for item in arr {
+                        // Add each array item
+                        if let Ok(fhir_value) = self.json_to_fhirpath_value(item) {
+                            descendants.push(fhir_value);
+                        }
+                        // Push to stack for iterative processing
+                        stack.push(item);
+                    }
+                }
+                _ => {
+                    // Primitive values don't have descendants
+                }
             }
         }
     }
@@ -104,17 +136,11 @@ impl DescendantsFunctionEvaluator {
             }
             serde_json::Value::Bool(b) => Ok(FhirPathValue::boolean(*b)),
             serde_json::Value::Object(_) => {
-                // For complex objects, wrap as Resource
-                let type_info = crate::core::model_provider::TypeInfo {
-                    type_name: "Element".to_string(),
-                    singleton: Some(true),
-                    namespace: Some("FHIR".to_string()),
-                    name: Some("Element".to_string()),
-                    is_empty: Some(false),
-                };
+                // For complex objects, wrap as Resource using static TypeInfo
+                // This avoids allocating a new TypeInfo for each descendant element
                 Ok(FhirPathValue::Resource(
-                    json.clone().into(),
-                    type_info,
+                    Arc::new(json.clone()),
+                    ELEMENT_TYPE_INFO.clone(),
                     None,
                 ))
             }

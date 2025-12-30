@@ -24,8 +24,6 @@ watch = ["notify", "notify-debouncer-full"]
 all = ["cli", "repl", "tui", "server", "watch"]
 # Full feature set for development
 full = ["all"]
-# embedded-providers = ["octofhir-fhirschema/embedded-providers"]
-# dynamic-caching = ["octofhir-fhirschema/dynamic-caching"]
 
 [[bin]]
 name = "octofhir-fhirpath"
@@ -35,8 +33,8 @@ path = "src/main.rs"
 workspace = true
 
 [dependencies]
-octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-octofhir-fhirschema = { version = "0.3.10" }
+octofhir-fhirpath = { path = "../octofhir-fhirpath", features = ["lsp"] }
+octofhir-fhirschema = { version = "0.3.12" }
 octofhir-fhir-model = { workspace = true }
 
 # Server dependencies (optional)

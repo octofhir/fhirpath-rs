@@ -35,7 +35,7 @@ workspace = true
 
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-octofhir-fhirschema = { version = "0.3.11" }
+octofhir-fhirschema = { version = "0.3.12" }
 octofhir-fhir-model = { workspace = true }
 
 # Dev tools dependencies

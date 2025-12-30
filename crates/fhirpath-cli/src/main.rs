@@ -267,6 +267,10 @@ async fn async_main() -> anyhow::Result<()> {
             )
             .await;
         }
+
+        Commands::Lsp { transport, port } => {
+            handle_lsp(*transport, *port, model_provider).await?;
+        }
     }
 
     Ok(())
@@ -737,4 +741,41 @@ fn load_resource_from_input(input: &str) -> anyhow::Result<serde_json::Value> {
         .with_context(|| format!("Failed to parse JSON from file: {}", input))?;
 
     Ok(json_value)
+}
+
+/// Handle LSP command - start the FHIRPath Language Server
+async fn handle_lsp(
+    transport: fhirpath_cli::cli::LspTransport,
+    port: u16,
+    model_provider: Arc<EmbeddedModelProvider>,
+) -> anyhow::Result<()> {
+    use fhirpath_cli::cli::LspTransport;
+    use octofhir_fhirpath::lsp;
+
+    // Cast to trait object for the LSP server
+    let model_provider: Arc<dyn octofhir_fhir_model::provider::ModelProvider + Send + Sync> =
+        model_provider;
+
+    match transport {
+        LspTransport::Stdio => {
+            // Disable tracing output to stderr since LSP uses stdio
+            // The LSP protocol expects clean communication on stdin/stdout
+            tracing::info!("Starting FHIRPath LSP server with stdio transport");
+            lsp::run_stdio(model_provider)
+                .await
+                .map_err(|e| anyhow::anyhow!("LSP server error: {}", e))?;
+        }
+        LspTransport::Websocket => {
+            // WebSocket transport for web integration
+            eprintln!("🌐 Starting FHIRPath LSP server on WebSocket port {port}");
+            eprintln!("   Connect at ws://127.0.0.1:{port}");
+            eprintln!("   Press Ctrl+C to stop\n");
+
+            lsp::run_websocket(model_provider, port)
+                .await
+                .map_err(|e| anyhow::anyhow!("LSP WebSocket server error: {}", e))?;
+        }
+    }
+
+    Ok(())
 }

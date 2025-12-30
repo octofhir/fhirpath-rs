@@ -78,6 +78,10 @@ pub mod prelude;
 pub mod testing;
 pub mod typing;
 
+// LSP module (feature-gated)
+#[cfg(feature = "lsp")]
+pub mod lsp;
+
 // Imports for internal use
 use std::sync::Arc;
 

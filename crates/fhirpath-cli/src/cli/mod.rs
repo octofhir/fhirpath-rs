@@ -258,6 +258,15 @@ pub enum Commands {
         #[command(subcommand)]
         command: ConfigCommands,
     },
+    /// Start FHIRPath Language Server Protocol (LSP) server
+    Lsp {
+        /// Transport type (stdio or websocket)
+        #[arg(long, value_enum, default_value = "stdio")]
+        transport: LspTransport,
+        /// Port for WebSocket transport
+        #[arg(long, default_value = "8081")]
+        port: u16,
+    },
     // /// Start Terminal User Interface (TUI) - Advanced multi-panel REPL
     // Tui {
     //     /// JSON file containing FHIR resource to load initially
@@ -349,6 +358,15 @@ pub enum RegistryShowTarget {
     Auto,
     Function,
     Operator,
+}
+
+/// Transport type for LSP server
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum LspTransport {
+    /// Standard I/O transport (default for editors like VS Code, Neovim)
+    Stdio,
+    /// WebSocket transport (for web integration)
+    Websocket,
 }
 
 #[derive(Subcommand, Clone)]

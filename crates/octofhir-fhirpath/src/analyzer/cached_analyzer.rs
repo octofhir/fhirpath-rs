@@ -316,8 +316,8 @@ impl CachedSemanticAnalyzer {
     }
 
     /// Get cache statistics
-    pub async fn get_cache_statistics(&self) -> CacheStatistics {
-        let provider_info = self.cached_provider.get_cache_info().await;
+    pub fn get_cache_statistics(&self) -> CacheStatistics {
+        let provider_info = self.cached_provider.get_cache_info();
 
         CacheStatistics {
             expression_cache_size: self.analysis_cache.len(),
@@ -337,15 +337,15 @@ impl CachedSemanticAnalyzer {
     }
 
     /// Clear all caches
-    pub async fn clear_caches(&mut self) {
+    pub fn clear_caches(&mut self) {
         self.analysis_cache.clear();
-        self.cached_provider.clear_cache().await;
+        self.cached_provider.clear_cache();
         self.performance_metrics = PerformanceMetrics::new();
     }
 
     /// Optimize cache settings based on usage patterns
-    pub async fn optimize_cache_settings(&mut self) {
-        let stats = self.get_cache_statistics().await;
+    pub fn optimize_cache_settings(&mut self) {
+        let stats = self.get_cache_statistics();
         let metrics = &self.performance_metrics;
 
         // If cache hit ratio is low, increase cache size
@@ -360,7 +360,7 @@ impl CachedSemanticAnalyzer {
         }
 
         // Clean up expired entries
-        self.cached_provider.cleanup_expired().await;
+        self.cached_provider.cleanup_expired();
     }
 
     /// Check if analyzer is performing within targets
@@ -369,8 +369,8 @@ impl CachedSemanticAnalyzer {
     }
 
     /// Generate comprehensive performance report
-    pub async fn generate_performance_report(&self) -> String {
-        let cache_stats = self.get_cache_statistics().await;
+    pub fn generate_performance_report(&self) -> String {
+        let cache_stats = self.get_cache_statistics();
         let metrics_report = self.performance_metrics.report();
 
         format!(

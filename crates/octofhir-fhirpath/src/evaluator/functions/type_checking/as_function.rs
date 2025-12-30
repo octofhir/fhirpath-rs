@@ -279,16 +279,20 @@ impl LazyFunctionEvaluator for AsFunctionEvaluator {
             ));
         }
 
-        // Enforce singleton input per FHIRPath spec: as() requires input collection of at most one item
+        // Handle input collection based on size
+        // Per FHIRPath spec, as() should work on at most one item, but FHIR constraints
+        // like dom-3 use expressions like `%resource.descendants().as(canonical)` which
+        // pass multiple items. To support these standard constraints, we return empty
+        // for >1 items instead of erroring.
         let input_len = input.len();
         if input_len > 1 {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0055,
-                format!("as() requires a singleton input, found {input_len} items"),
-            ));
+            // Return empty collection for multiple items (lenient behavior for FHIR constraints)
+            return Ok(EvaluationResult {
+                value: Collection::empty(),
+            });
         }
 
-        // Process input collection
+        // Process input collection (0 or 1 item)
         let mut casted_items = Vec::new();
 
         for item in input {

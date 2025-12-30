@@ -70,6 +70,34 @@ impl EvaluationResult {
             true // Multiple values are truthy
         }
     }
+
+    /// Check if a FHIRPath constraint is satisfied.
+    ///
+    /// Per FHIR spec: "When a FHIRPath expression is used as an invariant,
+    /// if the expression returns empty ( { } ), the constraint is considered satisfied."
+    ///
+    /// Returns true (satisfied) for:
+    /// - Empty result (constraint not applicable)
+    /// - Single boolean true
+    /// - Non-boolean single value (truthy)
+    /// - Multiple values (truthy)
+    ///
+    /// Returns false (violated) only for:
+    /// - Single boolean false
+    pub fn is_constraint_satisfied(&self) -> bool {
+        if self.value.is_empty() {
+            // Empty means constraint is not applicable, so it passes
+            true
+        } else if self.value.len() == 1 {
+            match self.value.iter().next() {
+                Some(FhirPathValue::Boolean(b, _, _)) => *b,
+                Some(_) => true, // Non-empty single value is truthy
+                None => true,    // Should not happen, but treat as satisfied
+            }
+        } else {
+            true // Multiple values are truthy
+        }
+    }
 }
 
 /// Evaluation result with comprehensive metadata for CLI debugging

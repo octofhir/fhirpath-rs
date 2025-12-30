@@ -30,12 +30,16 @@ pub struct EvaluationContext {
     variables: LockFreeHashMap<String, FhirPathValue>,
     /// Parent context for variable scoping
     /// Variables are resolved by checking current scope, then walking parent chain
-    parent_context: Option<Box<EvaluationContext>>,
+    /// Using Arc instead of Box to avoid deep cloning of parent chain
+    parent_context: Option<Arc<EvaluationContext>>,
     /// Shared cache for resolved references to avoid repeated cloning and scanning
     resolution_cache: std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>>,
     /// Shared cache for TypeInfo to avoid repeated model provider calls
     /// Key: type name (e.g., "Patient", "HumanName"), Value: TypeInfo
     type_info_cache: std::sync::Arc<LockFreeHashMap<String, TypeInfo>>,
+    /// Shared root resource value for $this, %resource, %context aliases
+    /// Stored as Arc to avoid cloning the same value 5 times during context creation
+    root_resource: Option<Arc<FhirPathValue>>,
 }
 
 /// Helper to create well-known environment variables following FHIR specification
@@ -103,6 +107,10 @@ impl EvaluationContext {
         // Add %vs-[name] and %ext-[name] support
         // These will be dynamically resolved when accessed
 
+        // Wrap root value in Arc once to avoid 5x cloning for aliases
+        // (this, %resource, resource, %context, context all point to same value)
+        let root_resource = input_collection.first().cloned().map(Arc::new);
+
         let context = Self {
             input_collection: input_collection.clone(),
             model_provider,
@@ -119,29 +127,30 @@ impl EvaluationContext {
             parent_context: None,
             resolution_cache: std::sync::Arc::new(LockFreeHashMap::new()),
             type_info_cache: std::sync::Arc::new(LockFreeHashMap::new()),
+            root_resource,
         };
-
-        // Set $this to the root input collection for root-level evaluation
-        // This follows FHIRPath specification where $this refers to the current context
-        if let Some(root_value) = input_collection.first() {
-            // Set 'this' to the root input value per FHIRPath
-            context.set_variable("this".to_string(), root_value.clone());
-
-            // If the root is a Resource, also set %resource/%context convenience variables
-            if matches!(root_value, FhirPathValue::Resource(_, _, _)) {
-                context.set_variable("%resource".to_string(), root_value.clone());
-                context.set_variable("resource".to_string(), root_value.clone());
-                context.set_variable("%context".to_string(), root_value.clone());
-                context.set_variable("context".to_string(), root_value.clone());
-            }
-        }
 
         context
     }
 
     /// Get variable value using parent chain pattern
     pub fn get_variable(&self, name: &str) -> Option<FhirPathValue> {
-        // Check current scope first - papaya HashMap requires pin for access
+        // Check for root resource aliases first (cheap Arc clone instead of HashMap lookup)
+        // These are: $this, %resource, resource, %context, context
+        if let Some(ref root) = self.root_resource {
+            match name {
+                "this" => return Some(root.as_ref().clone()),
+                "resource" | "%resource" | "context" | "%context" => {
+                    // Only return if it's actually a Resource type
+                    if matches!(root.as_ref(), FhirPathValue::Resource(_, _, _)) {
+                        return Some(root.as_ref().clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Check current scope - papaya HashMap requires pin for access
         if let Some(value) = self.variables.pin().get(name) {
             return Some(value.clone());
         }
@@ -192,10 +201,12 @@ impl EvaluationContext {
             parent_context: None, // Independent context has no parent
             resolution_cache: self.resolution_cache.clone(),
             type_info_cache: self.type_info_cache.clone(),
+            root_resource: self.root_resource.clone(), // Share Arc reference
         }
     }
 
     /// Create nested context for defineVariable scoping
+    /// Uses Arc to share parent context without deep cloning
     pub fn nest(&self) -> Self {
         Self {
             input_collection: self.input_collection.clone(),
@@ -204,13 +215,15 @@ impl EvaluationContext {
             validation_provider: self.validation_provider.clone(),
             trace_provider: self.trace_provider.clone(),
             variables: LockFreeHashMap::new(), // Empty variables in nested scope
-            parent_context: Some(Box::new(self.clone())), // Parent chain
+            parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
             resolution_cache: self.resolution_cache.clone(),
             type_info_cache: self.type_info_cache.clone(),
+            root_resource: self.root_resource.clone(), // Share Arc reference
         }
     }
 
     /// Create child context with new input collection
+    /// Uses Arc to share parent context without deep cloning
     pub fn create_child_context(&self, new_input: Collection) -> Self {
         Self {
             input_collection: new_input,
@@ -219,9 +232,10 @@ impl EvaluationContext {
             validation_provider: self.validation_provider.clone(),
             trace_provider: self.trace_provider.clone(),
             variables: LockFreeHashMap::new(), // Empty variables for child context
-            parent_context: Some(Box::new(self.clone())), // Set parent to inherit variables
+            parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
             resolution_cache: self.resolution_cache.clone(),
             type_info_cache: self.type_info_cache.clone(),
+            root_resource: self.root_resource.clone(), // Share Arc reference
         }
     }
 
@@ -312,7 +326,8 @@ impl EvaluationContext {
 }
 
 /// Clone implementation for EvaluationContext
-/// Note: Parent context is cloned as well, creating a deep copy of the chain
+/// Note: Parent context and root_resource use Arc, so cloning only increments reference counts
+/// instead of creating deep copies
 impl Clone for EvaluationContext {
     fn clone(&self) -> Self {
         Self {
@@ -333,6 +348,7 @@ impl Clone for EvaluationContext {
             parent_context: self.parent_context.clone(),
             resolution_cache: self.resolution_cache.clone(),
             type_info_cache: self.type_info_cache.clone(),
+            root_resource: self.root_resource.clone(), // Arc clone is cheap
         }
     }
 }

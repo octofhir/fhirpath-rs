@@ -439,26 +439,28 @@ impl FhirPathEvaluator for FhirPathEngine {
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
 
+        // OPTIMIZATION: Create Collection and EvaluationContext ONCE, reuse for all constraints
+        // This avoids expensive cloning and context creation for each constraint
+        let collection = crate::core::Collection::from_json_resource(
+            resource.clone(),
+            Some(self.model_provider.clone()),
+        )
+        .await
+        .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
+
+        let eval_context = EvaluationContext::new(
+            collection.clone(),
+            self.model_provider.clone(),
+            self.terminology_provider.clone(),
+            self.validation_provider.clone(),
+            self.trace_provider.clone(),
+        );
+
+        if let Some(first_value) = collection.first() {
+            eval_context.set_variable("rootResource".to_string(), first_value.clone());
+        }
+
         for constraint in constraints {
-            let collection = crate::core::Collection::from_json_resource(
-                resource.clone(),
-                Some(self.model_provider.clone()),
-            )
-            .await
-            .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
-
-            let eval_context = EvaluationContext::new(
-                collection.clone(),
-                self.model_provider.clone(),
-                self.terminology_provider.clone(),
-                self.validation_provider.clone(),
-                self.trace_provider.clone(),
-            );
-
-            if let Some(first_value) = collection.first() {
-                eval_context.set_variable("rootResource".to_string(), first_value.clone());
-            }
-
             // Evaluate the constraint expression using internal engine method
             match FhirPathEngine::evaluate(self, &constraint.expression, &eval_context).await {
                 Ok(result) => {

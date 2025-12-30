@@ -75,6 +75,15 @@ reqwest = { workspace = true }
 # Optional diagnostic dependencies
 colored = { workspace = true }
 
+# Optional LSP dependencies
+async-lsp = { version = "0.2", features = ["tokio", "tracing"], optional = true }
+lsp-types = { version = "0.95", optional = true }
+tower = { version = "0.4", optional = true }
+tokio-util = { version = "0.7", features = ["compat"], optional = true }
+# WebSocket transport for LSP
+axum = { version = "0.8", features = ["ws"], optional = true }
+tower-http = { version = "0.6", features = ["cors"], optional = true }
+
 [dev-dependencies]
 divan = "0.1"
 pretty_assertions = "1.4.1"
@@ -85,3 +94,4 @@ rust_decimal_macros = "1.36"
 default = []
 mock-provider = [] # Include MockModelProvider for testing and development
 analysis = []      # Include static analysis features
+lsp = ["dep:async-lsp", "dep:lsp-types", "dep:tower", "dep:tokio-util", "dep:axum", "dep:tower-http"] # Language Server Protocol support
