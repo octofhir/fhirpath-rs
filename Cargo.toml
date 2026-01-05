@@ -47,7 +47,7 @@ uuid = { version = "1.19", features = ["v4", "serde"] }
 
 async-trait = "0.1"
 futures = "0.3"
-tokio = { version = "1.47.1", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 
 reqwest = { version = "0.12.22", features = [
     "json",
