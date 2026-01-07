@@ -30,7 +30,7 @@ use ratatui::{Frame, Terminal};
 use rust_decimal::Decimal;
 use serde_json::Value as JsonValue;
 
-use super::components::*;
+use super::components::{ComponentManager, ComponentResult};
 use super::config::TuiConfig;
 use super::events::{EventHandler, KeyBindings, TuiAction};
 use super::layout::{LayoutManager, PanelType};
@@ -1061,10 +1061,10 @@ impl TuiApp {
         match (key.code, key.modifiers) {
             (KeyCode::Enter, KeyModifiers::NONE) => {
                 let path = self.state.file_prompt_buffer.trim().to_string();
-                if !path.is_empty() {
-                    if let Err(e) = self.load_resource_from_file(&path).await {
-                        eprintln!("Failed to load file '{}': {}", path, e);
-                    }
+                if !path.is_empty()
+                    && let Err(e) = self.load_resource_from_file(&path).await
+                {
+                    eprintln!("Failed to load file '{}': {}", path, e);
                 }
                 // Exit prompt mode regardless of success
                 self.mode = AppMode::Normal;

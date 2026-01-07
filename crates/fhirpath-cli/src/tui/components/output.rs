@@ -193,7 +193,7 @@ impl OutputPanel {
         state: &AppState,
         theme: &TuiTheme,
         visible_range: Option<(usize, usize)>,
-    ) -> Line {
+    ) -> Line<'_> {
         let mut spans = Vec::new();
 
         spans.push(Span::styled(
@@ -258,7 +258,7 @@ impl OutputPanel {
         value: &FhirPathValue,
         max_preview_width: usize,
         theme: &TuiTheme,
-    ) -> ListItem {
+    ) -> ListItem<'_> {
         let mut spans: Vec<Span> = Vec::new();
         spans.push(Span::styled(
             format!("{:>4}", index + 1),

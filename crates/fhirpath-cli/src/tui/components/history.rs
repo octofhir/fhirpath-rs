@@ -88,16 +88,15 @@ impl TuiComponent for HistoryPanel {
                 ComponentResult::Handled
             }
             KeyCode::Enter => {
-                if let Some(selected) = self.scroll_state.selected_index {
-                    if state
+                if let Some(selected) = self.scroll_state.selected_index
+                    && state
                         .evaluation_history
                         .iter()
                         .rev()
                         .nth(selected)
                         .is_some()
-                    {
-                        return ComponentResult::LoadFromHistory(selected);
-                    }
+                {
+                    return ComponentResult::LoadFromHistory(selected);
                 }
                 ComponentResult::Handled
             }

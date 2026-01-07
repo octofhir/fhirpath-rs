@@ -142,15 +142,15 @@ impl FunctionAnalyzer {
         }
 
         // Validate input type (e.g., string functions require string input)
-        if let Some(ref required_input_type) = signature.input_type {
-            if let Some(input_type_diagnostic) = self.validate_input_type_new(
+        if let Some(ref required_input_type) = signature.input_type
+            && let Some(input_type_diagnostic) = self.validate_input_type_new(
                 function_name,
                 input_type,
                 required_input_type,
                 span.clone(),
-            ) {
-                diagnostics.push(input_type_diagnostic);
-            }
+            )
+        {
+            diagnostics.push(input_type_diagnostic);
         }
 
         // Validate argument count

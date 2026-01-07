@@ -501,30 +501,28 @@ impl Parameter {
                         .resource
                         .clone()
                         .ok_or_else(|| RequestError::invalid_value(self.name.clone()))?;
-                    if let Some(provider) = model_provider.clone() {
-                        if let Ok(value) = FhirPathValue::resource_with_model_provider(
+                    if let Some(provider) = model_provider.clone()
+                        && let Ok(value) = FhirPathValue::resource_with_model_provider(
                             json.clone(),
                             Some(provider),
                         )
                         .await
-                        {
-                            return Ok(value);
-                        }
+                    {
+                        return Ok(value);
                     }
                     Ok(FhirPathValue::resource(json))
                 }
                 _ => {
                     // Treat complex datatypes as resource-like structures for now.
                     let json = self.to_json_value()?;
-                    if let Some(provider) = model_provider {
-                        if let Ok(value) = FhirPathValue::resource_with_model_provider(
+                    if let Some(provider) = model_provider
+                        && let Ok(value) = FhirPathValue::resource_with_model_provider(
                             json.clone(),
                             Some(provider),
                         )
                         .await
-                        {
-                            return Ok(value);
-                        }
+                    {
+                        return Ok(value);
                     }
                     Ok(FhirPathValue::resource(json))
                 }

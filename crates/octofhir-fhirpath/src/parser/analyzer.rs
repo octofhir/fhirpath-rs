@@ -400,27 +400,27 @@ impl SemanticAnalyzer {
         self.is_chain_head = false;
 
         // Check for direct choice type access (e.g., valueQuantity instead of value)
-        if let Some(ref input_type) = self.input_type {
-            if let Some(base_property) = Self::get_choice_type_base(&prop.property) {
-                // Check if this is actually a choice property on this type
-                if self.is_choice_property(input_type, &base_property).await {
-                    analysis.success = false;
-                    analysis.add_diagnostic(Diagnostic {
-                        severity: DiagnosticSeverity::Error,
-                        code: DiagnosticCode {
-                            code: "DIRECT_CHOICE_TYPE_ACCESS".to_string(),
-                            namespace: Some("fhirpath".to_string()),
-                        },
-                        message: format!(
-                            "Cannot directly access choice type '{}'. Use '{}.ofType({})' instead",
-                            prop.property,
-                            base_property,
-                            Self::get_choice_type_suffix(&prop.property).unwrap_or_default()
-                        ),
-                        location: prop.location.clone(),
-                        related: vec![],
-                    });
-                }
+        if let Some(ref input_type) = self.input_type
+            && let Some(base_property) = Self::get_choice_type_base(&prop.property)
+        {
+            // Check if this is actually a choice property on this type
+            if self.is_choice_property(input_type, &base_property).await {
+                analysis.success = false;
+                analysis.add_diagnostic(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "DIRECT_CHOICE_TYPE_ACCESS".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: format!(
+                        "Cannot directly access choice type '{}'. Use '{}.ofType({})' instead",
+                        prop.property,
+                        base_property,
+                        Self::get_choice_type_suffix(&prop.property).unwrap_or_default()
+                    ),
+                    location: prop.location.clone(),
+                    related: vec![],
+                });
             }
         }
 
@@ -482,11 +482,7 @@ impl SemanticAnalyzer {
 
     /// Get the type suffix from a choice type access (e.g., "valueQuantity" -> "Quantity")
     fn get_choice_type_suffix(property: &str) -> Option<String> {
-        if let Some(base) = Self::get_choice_type_base(property) {
-            Some(property[base.len()..].to_string())
-        } else {
-            None
-        }
+        Self::get_choice_type_base(property).map(|base| property[base.len()..].to_string())
     }
 
     /// Check if a property is a choice property on a given type
@@ -503,16 +499,16 @@ impl SemanticAnalyzer {
             !choice_types.is_empty()
         } else {
             // Fallback: assume common choice properties on known types
-            match (type_name, property) {
-                ("Observation", "value") => true,
-                ("Observation", "effective") => true,
-                ("Condition", "onset") => true,
-                ("Condition", "abatement") => true,
-                ("MedicationRequest", "medication") => true,
-                ("Patient", "deceased") => true,
-                ("Patient", "multipleBirth") => true,
-                _ => false,
-            }
+            matches!(
+                (type_name, property),
+                ("Observation", "value")
+                    | ("Observation", "effective")
+                    | ("Condition", "onset")
+                    | ("Condition", "abatement")
+                    | ("MedicationRequest", "medication")
+                    | ("Patient", "deceased")
+                    | ("Patient", "multipleBirth")
+            )
         }
     }
 
@@ -973,24 +969,24 @@ impl SemanticAnalyzer {
         if Self::is_string_function(&method_call.method) {
             // Resolve the type of the object expression
             let object_type = self.resolve_node_type(&method_call.object).await;
-            if let Some(obj_type) = object_type {
-                if !Self::is_string_compatible_type(&obj_type) {
-                    analysis.success = false;
-                    analysis.add_diagnostic(Diagnostic {
-                        severity: DiagnosticSeverity::Error,
-                        code: DiagnosticCode {
-                            code: "STRING_FUNCTION_TYPE_MISMATCH".to_string(),
-                            namespace: Some("fhirpath".to_string()),
-                        },
-                        message: format!(
-                            "String function '{}' called on non-string type '{}'",
-                            method_call.method,
-                            obj_type.name.as_deref().unwrap_or(&obj_type.type_name)
-                        ),
-                        location: method_call.location.clone(),
-                        related: vec![],
-                    });
-                }
+            if let Some(obj_type) = object_type
+                && !Self::is_string_compatible_type(&obj_type)
+            {
+                analysis.success = false;
+                analysis.add_diagnostic(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "STRING_FUNCTION_TYPE_MISMATCH".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: format!(
+                        "String function '{}' called on non-string type '{}'",
+                        method_call.method,
+                        obj_type.name.as_deref().unwrap_or(&obj_type.type_name)
+                    ),
+                    location: method_call.location.clone(),
+                    related: vec![],
+                });
             }
         }
 

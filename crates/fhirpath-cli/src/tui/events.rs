@@ -286,12 +286,11 @@ impl KeyBindings {
             // Determine context from action string prefix
             if action_str.starts_with("global:") {
                 bindings.bind_global(key, action);
-            } else if let Some(panel_str) = action_str.strip_prefix("panel:") {
-                if let Some((panel_name, _)) = panel_str.split_once(':') {
-                    if let Ok(panel) = panel_name.parse::<PanelType>() {
-                        bindings.bind_panel(panel, key, action);
-                    }
-                }
+            } else if let Some(panel_str) = action_str.strip_prefix("panel:")
+                && let Some((panel_name, _)) = panel_str.split_once(':')
+                && let Ok(panel) = panel_name.parse::<PanelType>()
+            {
+                bindings.bind_panel(panel, key, action);
             }
         }
 

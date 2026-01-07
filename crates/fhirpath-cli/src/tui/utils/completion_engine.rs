@@ -149,28 +149,27 @@ impl CompletionEngine {
         if let Some(resource) = state.current_resource.as_ref() {
             Self::collect_properties_from_value(resource, &partial, &mut completions, &mut seen);
 
-            if let FhirPathValue::Resource(_, type_info, _) = resource {
-                if !completions.is_empty() {
-                    self.cache
-                        .properties
-                        .insert(type_info.type_name.clone(), completions.clone());
-                }
+            if let FhirPathValue::Resource(_, type_info, _) = resource
+                && !completions.is_empty()
+            {
+                self.cache
+                    .properties
+                    .insert(type_info.type_name.clone(), completions.clone());
             }
         }
 
-        if completions.is_empty() {
-            if let Some(resource_type) = context.current_resource_type.as_deref() {
-                if let Some(cached) = self.cache.properties.get(resource_type) {
-                    completions.extend(
-                        cached
-                            .iter()
-                            .filter(|item| {
-                                partial.is_empty() || item.text.to_lowercase().starts_with(&partial)
-                            })
-                            .cloned(),
-                    );
-                }
-            }
+        if completions.is_empty()
+            && let Some(resource_type) = context.current_resource_type.as_deref()
+            && let Some(cached) = self.cache.properties.get(resource_type)
+        {
+            completions.extend(
+                cached
+                    .iter()
+                    .filter(|item| {
+                        partial.is_empty() || item.text.to_lowercase().starts_with(&partial)
+                    })
+                    .cloned(),
+            );
         }
 
         Ok(completions)

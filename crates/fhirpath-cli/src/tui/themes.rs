@@ -570,7 +570,7 @@ impl StyleTheme {
 
 /// Theme utilities and helpers
 pub mod utils {
-    use super::*;
+    use super::{Color, TuiTheme};
 
     /// Blend two colors (simple average)
     pub fn blend_colors(color1: Color, color2: Color, ratio: f32) -> Color {

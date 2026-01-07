@@ -66,7 +66,7 @@ impl LspHandlers {
     pub fn did_open(&mut self, params: DidOpenTextDocumentParams) -> Vec<Diagnostic> {
         let uri = params.text_document.uri;
         let content = params.text_document.text;
-        let version = params.text_document.version as i32;
+        let version = params.text_document.version;
 
         self.documents.open(uri.clone(), content.clone(), version);
 
@@ -199,10 +199,9 @@ impl LspHandlers {
     /// Convert LSP Position to byte offset
     fn position_to_offset(text: &str, position: Position) -> Option<usize> {
         let mut offset = 0;
-        let mut current_line = 0u32;
 
-        for line in text.lines() {
-            if current_line == position.line {
+        for (current_line, line) in text.lines().enumerate() {
+            if current_line as u32 == position.line {
                 // Found the line, add character offset
                 let char_offset = line
                     .char_indices()
@@ -212,7 +211,6 @@ impl LspHandlers {
                 return Some(offset + char_offset);
             }
             offset += line.len() + 1; // +1 for newline
-            current_line += 1;
         }
 
         // Position beyond end of text

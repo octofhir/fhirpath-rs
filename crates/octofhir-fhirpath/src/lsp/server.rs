@@ -289,10 +289,9 @@ pub async fn run_websocket(
             while let Some(msg) = lsp_rx.recv().await {
                 if let Some(response) =
                     process_lsp_message(&msg, &handlers_clone, &response_tx_clone).await
+                    && response_tx_clone.send(response).is_err()
                 {
-                    if response_tx_clone.send(response).is_err() {
-                        break;
-                    }
+                    break;
                 }
             }
         });
@@ -306,10 +305,10 @@ pub async fn run_websocket(
                     }
                 }
                 Message::Binary(data) => {
-                    if let Ok(text) = String::from_utf8(data.to_vec()) {
-                        if lsp_tx.send(text).is_err() {
-                            break;
-                        }
+                    if let Ok(text) = String::from_utf8(data.to_vec())
+                        && lsp_tx.send(text).is_err()
+                    {
+                        break;
                     }
                 }
                 Message::Close(_) => break,

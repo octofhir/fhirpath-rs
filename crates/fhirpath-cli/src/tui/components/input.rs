@@ -117,16 +117,14 @@ impl TuiComponent for InputPanel {
 
                     let mut lines = vec![Line::from(vec![title_span])];
 
-                    if is_selected {
-                        if let Some(doc) = completion.documentation.as_deref() {
-                            let doc_line = Line::from(vec![Span::styled(
-                                doc,
-                                Style::default()
-                                    .fg(theme.colors.disabled_text)
-                                    .add_modifier(Modifier::ITALIC),
-                            )]);
-                            lines.push(doc_line);
-                        }
+                    if is_selected && let Some(doc) = completion.documentation.as_deref() {
+                        let doc_line = Line::from(vec![Span::styled(
+                            doc,
+                            Style::default()
+                                .fg(theme.colors.disabled_text)
+                                .add_modifier(Modifier::ITALIC),
+                        )]);
+                        lines.push(doc_line);
                     }
 
                     ListItem::new(lines)

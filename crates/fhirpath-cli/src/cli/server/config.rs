@@ -5,20 +5,15 @@
 use std::net::IpAddr;
 
 /// Trace provider configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum TraceConfig {
     /// No trace output (silent)
     None,
     /// Output traces to stderr (CLI mode)
+    #[default]
     Cli,
     /// Collect traces for API responses (server mode)
     Server,
-}
-
-impl Default for TraceConfig {
-    fn default() -> Self {
-        Self::Cli
-    }
 }
 
 /// Configuration for the FHIRPath Lab API server

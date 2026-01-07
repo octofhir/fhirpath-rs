@@ -219,23 +219,19 @@ impl TuiConfig {
             toml::from_str(&content).context("Failed to parse TOML configuration")?;
 
         // Create full config from serializable subset
-        let mut config = Self::default();
-
-        // Apply loaded settings
-        config.metadata = serializable.metadata;
-        config.features = serializable.features;
-        config.performance = serializable.performance;
-        config.ui_preferences = serializable.ui_preferences;
-        config.key_bindings = serializable.key_bindings;
-
-        // Load theme by name (keep default if theme not found)
-        config.theme =
-            TuiTheme::load_theme(&serializable.theme_name).unwrap_or_else(|| TuiTheme::default());
-
+        let mut metadata = serializable.metadata;
         // Update last modified time
-        config.metadata.last_modified = chrono::Utc::now().to_rfc3339();
+        metadata.last_modified = chrono::Utc::now().to_rfc3339();
 
-        Ok(config)
+        Ok(Self {
+            metadata,
+            features: serializable.features,
+            performance: serializable.performance,
+            ui_preferences: serializable.ui_preferences,
+            key_bindings: serializable.key_bindings,
+            theme: TuiTheme::load_theme(&serializable.theme_name).unwrap_or_default(),
+            ..Default::default()
+        })
     }
 
     /// Save configuration to file
@@ -289,16 +285,16 @@ impl TuiConfig {
     /// Load configuration with fallbacks
     pub fn load_with_fallbacks() -> Result<Self> {
         // Try to load from default location
-        if let Ok(config_path) = Self::default_config_path() {
-            if config_path.exists() {
-                match Self::load_from_file(&config_path) {
-                    Ok(config) => return Ok(config),
-                    Err(e) => {
-                        eprintln!(
-                            "Warning: Failed to load config from {:?}: {}",
-                            config_path, e
-                        );
-                    }
+        if let Ok(config_path) = Self::default_config_path()
+            && config_path.exists()
+        {
+            match Self::load_from_file(&config_path) {
+                Ok(config) => return Ok(config),
+                Err(e) => {
+                    eprintln!(
+                        "Warning: Failed to load config from {:?}: {}",
+                        config_path, e
+                    );
                 }
             }
         }

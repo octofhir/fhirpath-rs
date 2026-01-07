@@ -84,18 +84,18 @@ impl TuiComponent for VariablesPanel {
                 ComponentResult::Handled
             }
             KeyCode::Delete => {
-                if let Some(selected) = self.scroll_state.selected_index {
-                    if let Some(var_name) = var_names.get(selected) {
-                        return ComponentResult::UnsetVariable(var_name.clone());
-                    }
+                if let Some(selected) = self.scroll_state.selected_index
+                    && let Some(var_name) = var_names.get(selected)
+                {
+                    return ComponentResult::UnsetVariable(var_name.clone());
                 }
                 ComponentResult::Handled
             }
             KeyCode::Enter => {
-                if let Some(selected) = self.scroll_state.selected_index {
-                    if let Some(var_name) = var_names.get(selected) {
-                        return ComponentResult::EditVariable(var_name.clone());
-                    }
+                if let Some(selected) = self.scroll_state.selected_index
+                    && let Some(var_name) = var_names.get(selected)
+                {
+                    return ComponentResult::EditVariable(var_name.clone());
                 }
                 ComponentResult::Handled
             }

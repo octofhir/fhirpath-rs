@@ -554,52 +554,15 @@ pub(crate) async fn handle_request(
 
 fn expression_has_explicit_resource_head(expression: &str, resource_type: Option<&str>) -> bool {
     let trimmed = expression.trim_start();
-    if let Some(resource) = resource_type {
-        if trimmed.starts_with(resource) {
-            let next_char = trimmed.chars().nth(resource.len());
-            return next_char
-                .map(|c| c == '.' || c == '[' || c.is_whitespace())
-                .unwrap_or(true);
-        }
+    if let Some(resource) = resource_type
+        && trimmed.starts_with(resource)
+    {
+        let next_char = trimmed.chars().nth(resource.len());
+        return next_char
+            .map(|c| c == '.' || c == '[' || c.is_whitespace())
+            .unwrap_or(true);
     }
     false
-}
-
-#[cfg(test)]
-mod tests {
-    use super::expression_has_explicit_resource_head;
-
-    #[test]
-    fn detects_matching_resource_head() {
-        assert!(expression_has_explicit_resource_head(
-            "Patient.name",
-            Some("Patient")
-        ));
-        assert!(expression_has_explicit_resource_head(
-            "Observation.code.system",
-            Some("Observation")
-        ));
-        assert!(expression_has_explicit_resource_head(
-            "Patient ",
-            Some("Patient")
-        ));
-    }
-
-    #[test]
-    fn rejects_non_matching_or_missing_head() {
-        assert!(!expression_has_explicit_resource_head(
-            "name.given",
-            Some("Patient")
-        ));
-        assert!(!expression_has_explicit_resource_head(
-            "Patient.name",
-            Some("Observation")
-        ));
-        assert!(!expression_has_explicit_resource_head(
-            "%context.name",
-            Some("Patient")
-        ));
-    }
 }
 
 fn evaluator_label(version: ServerFhirVersion) -> String {
@@ -647,4 +610,41 @@ fn json_outcome(outcome: OperationOutcome) -> Json<JsonValue> {
         error!("Failed to serialize OperationOutcome: {}", error);
         serde_json::json!({"resourceType": "OperationOutcome", "issue": []})
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::expression_has_explicit_resource_head;
+
+    #[test]
+    fn detects_matching_resource_head() {
+        assert!(expression_has_explicit_resource_head(
+            "Patient.name",
+            Some("Patient")
+        ));
+        assert!(expression_has_explicit_resource_head(
+            "Observation.code.system",
+            Some("Observation")
+        ));
+        assert!(expression_has_explicit_resource_head(
+            "Patient ",
+            Some("Patient")
+        ));
+    }
+
+    #[test]
+    fn rejects_non_matching_or_missing_head() {
+        assert!(!expression_has_explicit_resource_head(
+            "name.given",
+            Some("Patient")
+        ));
+        assert!(!expression_has_explicit_resource_head(
+            "Patient.name",
+            Some("Observation")
+        ));
+        assert!(!expression_has_explicit_resource_head(
+            "%context.name",
+            Some("Patient")
+        ));
+    }
 }

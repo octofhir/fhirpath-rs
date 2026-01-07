@@ -76,7 +76,8 @@ glob = "0.3"             # File pattern matching for batch processing
 # TUI dependencies (optional)
 ratatui = { version = "0.30.0", optional = true }
 crossterm = { version = "0.29.0", optional = true }
-tui-textarea = { version = "0.7.0", optional = true }
+# Using git branch with ratatui 0.30.0 support until merged (PR #119)
+tui-textarea = { git = "https://github.com/0xferrous/tui-textarea.git", branch = "update-ratatui", optional = true }
 dirs = "6"  # Required for config file management
 toml = "0.9"
 ariadne = "0.6"

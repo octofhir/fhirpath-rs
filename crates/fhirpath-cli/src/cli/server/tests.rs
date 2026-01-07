@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use super::models::{
     ContextEvaluationInfo, ContextItem, EvaluationResultItem, EvaluationResultSet,
     EvaluationTiming, OperationOutcome, ParametersResource, ParsedServerRequest, PathSegment,

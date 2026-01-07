@@ -68,18 +68,18 @@ fn build_metadata_part(
     ));
     parts.push(make_string_part("expression", &request.expression));
 
-    if let Some(context_expr) = &request.context {
-        if !context_expr.is_empty() {
-            parts.push(make_string_part("context", context_expr));
-        }
+    if let Some(context_expr) = &request.context
+        && !context_expr.is_empty()
+    {
+        parts.push(make_string_part("context", context_expr));
     }
 
     parts.push(make_resource_part("resource", request.resource.clone()));
 
-    if let Some(term) = &request.terminology_server {
-        if !term.is_empty() {
-            parts.push(make_string_part("terminologyServerUrl", term));
-        }
+    if let Some(term) = &request.terminology_server
+        && !term.is_empty()
+    {
+        parts.push(make_string_part("terminologyServerUrl", term));
     }
 
     if !request.variables.is_empty() {

@@ -161,7 +161,7 @@ impl CompletionContext {
         // First segment is the base type (if it starts with uppercase)
         let first = segments[0].trim();
         let base_type =
-            if !first.is_empty() && first.chars().next().map_or(false, |c| c.is_uppercase()) {
+            if !first.is_empty() && first.chars().next().is_some_and(|c| c.is_uppercase()) {
                 Some(first.to_string())
             } else {
                 None
@@ -428,34 +428,18 @@ impl CompletionProvider {
 
     /// Generate constant completions (built-in + external)
     fn constant_completions(&self, lsp_context: &LspContext) -> Vec<CompletionItem> {
-        let mut items = Vec::new();
-
         // Built-in FHIRPath constants
-        items.push(Self::create_constant_item(
-            "%resource",
-            "Resource",
-            "The root resource being evaluated",
-        ));
-        items.push(Self::create_constant_item(
-            "%context",
-            "Element",
-            "The evaluation context element",
-        ));
-        items.push(Self::create_constant_item(
-            "%ucum",
-            "string",
-            "UCUM unit system URL",
-        ));
-        items.push(Self::create_constant_item(
-            "%sct",
-            "string",
-            "SNOMED CT system URL",
-        ));
-        items.push(Self::create_constant_item(
-            "%loinc",
-            "string",
-            "LOINC system URL",
-        ));
+        let mut items = vec![
+            Self::create_constant_item(
+                "%resource",
+                "Resource",
+                "The root resource being evaluated",
+            ),
+            Self::create_constant_item("%context", "Element", "The evaluation context element"),
+            Self::create_constant_item("%ucum", "string", "UCUM unit system URL"),
+            Self::create_constant_item("%sct", "string", "SNOMED CT system URL"),
+            Self::create_constant_item("%loinc", "string", "LOINC system URL"),
+        ];
 
         // External constants from context
         for (name, info) in &lsp_context.constants {

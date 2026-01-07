@@ -573,7 +573,7 @@ impl LayoutManager {
 
 /// Responsive layout utilities
 pub mod responsive {
-    use super::*;
+    use super::{LayoutMode, PanelProportions, PanelType};
 
     /// Determine optimal layout mode based on terminal size
     pub fn optimal_layout_mode(width: u16, height: u16) -> LayoutMode {

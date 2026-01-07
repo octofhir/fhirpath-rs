@@ -111,7 +111,7 @@ impl EvaluationContext {
         // (this, %resource, resource, %context, context all point to same value)
         let root_resource = input_collection.first().cloned().map(Arc::new);
 
-        let context = Self {
+        Self {
             input_collection: input_collection.clone(),
             model_provider,
             terminology_provider,
@@ -128,9 +128,7 @@ impl EvaluationContext {
             resolution_cache: std::sync::Arc::new(LockFreeHashMap::new()),
             type_info_cache: std::sync::Arc::new(LockFreeHashMap::new()),
             root_resource,
-        };
-
-        context
+        }
     }
 
     /// Get variable value using parent chain pattern
