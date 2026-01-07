@@ -1,4 +1,14 @@
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.33...v0.5.0) (2025-12-30)
+## [0.4.35](https://github.com/octofhir/fhirpath-rs/compare/v0.4.34...v0.4.35) (2026-01-07)
+
+
+### Bug Fixes
+
+* operator precedence handling ([79361b9](https://github.com/octofhir/fhirpath-rs/commit/79361b96651218baf3942498180cab5a4080005f))
+* ratatui fixes and clippy warnings ([ca2ac6d](https://github.com/octofhir/fhirpath-rs/commit/ca2ac6dafdb130c4f72474ddfadb42463b91a426))
+
+
+
+## [0.4.34](https://github.com/octofhir/fhirpath-rs/compare/v0.4.33...v0.4.34) (2025-12-30)
 
 
 ### Features
