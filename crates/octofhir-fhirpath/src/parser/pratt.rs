@@ -356,23 +356,23 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            // Union operator - precedence 9
-            infix(left(9), just('|').padded(), |left, _, right, _| {
-                ExpressionNode::Union(UnionNode {
+            // String concatenation - precedence 10 (same as additive, per FHIRPath spec level 5)
+            infix(left(10), just('&').padded(), |left, _, right, _| {
+                ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
+                    operator: BinaryOperator::Concatenate,
                     right: Box::new(right),
                     location: None,
                 })
             }),
         ));
 
-        // Layer 3: Medium precedence operators (relational, equality, membership, concatenation)
+        // Layer 3: Medium precedence operators (union, relational, equality, membership)
         let with_medium_precedence = with_high_precedence.pratt((
-            // String concatenation - precedence 8 (higher than relational and equality)
-            infix(left(8), just('&').padded(), |left, _, right, _| {
-                ExpressionNode::BinaryOperation(BinaryOperationNode {
+            // Union operator - precedence 8 (per FHIRPath spec level 7, binds looser than &)
+            infix(left(8), just('|').padded(), |left, _, right, _| {
+                ExpressionNode::Union(UnionNode {
                     left: Box::new(left),
-                    operator: BinaryOperator::Concatenate,
                     right: Box::new(right),
                     location: None,
                 })
@@ -838,6 +838,44 @@ mod tests {
                     expression, other
                 ),
             }
+        }
+    }
+
+    #[test]
+    fn test_union_vs_concatenation_precedence() {
+        // Per FHIRPath spec:
+        // - Level 5: +, -, & (concatenation) - binds tighter
+        // - Level 7: | (union) - binds looser
+        // Expression: 'A' & 'B' | 'C' & 'D'
+        // Should parse as: ('A' & 'B') | ('C' & 'D')
+        // NOT as: 'A' & ('B' | 'C') & 'D'
+        let result = parse("'A' & 'B' | 'C' & 'D'").unwrap();
+
+        // Top level should be Union, not Concatenation
+        if let ExpressionNode::Union(union_node) = result {
+            // Left side should be 'A' & 'B'
+            if let ExpressionNode::BinaryOperation(left_concat) = *union_node.left {
+                assert_eq!(
+                    left_concat.operator,
+                    BinaryOperator::Concatenate,
+                    "Left side should be concatenation"
+                );
+            } else {
+                panic!("Left side should be a binary operation (concatenation)");
+            }
+
+            // Right side should be 'C' & 'D'
+            if let ExpressionNode::BinaryOperation(right_concat) = *union_node.right {
+                assert_eq!(
+                    right_concat.operator,
+                    BinaryOperator::Concatenate,
+                    "Right side should be concatenation"
+                );
+            } else {
+                panic!("Right side should be a binary operation (concatenation)");
+            }
+        } else {
+            panic!("Top level should be Union, got: {:?}", result);
         }
     }
 }

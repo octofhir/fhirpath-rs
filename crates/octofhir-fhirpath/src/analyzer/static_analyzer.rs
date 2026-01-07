@@ -31,6 +31,8 @@ pub struct StaticAnalyzer {
     diagnostic_builder: DiagnosticBuilder,
     #[allow(dead_code)]
     semantic_analyzer: SemanticAnalyzer,
+    /// Model provider for type resolution
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
     /// Current source expression being analyzed (for span calculation)
     current_source: Option<String>,
 }
@@ -147,9 +149,99 @@ impl StaticAnalyzer {
             function_analyzer: FunctionAnalyzer::new(model_provider.clone(), function_registry),
             type_analyzer: TypeAnalyzer::new(model_provider.clone()),
             diagnostic_builder: DiagnosticBuilder::new(),
-            semantic_analyzer: SemanticAnalyzer::new(model_provider),
+            semantic_analyzer: SemanticAnalyzer::new(model_provider.clone()),
+            model_provider,
             current_source: None,
         }
+    }
+
+    /// Resolve the type of an expression given a starting context type
+    /// Returns the inferred type after traversing property accesses and method calls
+    fn resolve_expression_type<'a>(
+        &'a self,
+        expr: &'a ExpressionNode,
+        context_type: &'a TypeInfo,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = TypeInfo> + Send + 'a>> {
+        Box::pin(async move {
+            match expr {
+                ExpressionNode::Identifier(id) => {
+                    // Check if it's a resource type name
+                    if self.is_resource_type(&id.name) {
+                        TypeInfo {
+                            type_name: id.name.clone(),
+                            singleton: Some(true),
+                            is_empty: Some(false),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some(id.name.clone()),
+                        }
+                    } else {
+                        // It's a property access on context
+                        if let Ok(Some(element_type)) = self
+                            .model_provider
+                            .get_element_type(context_type, &id.name)
+                            .await
+                        {
+                            element_type
+                        } else {
+                            context_type.clone()
+                        }
+                    }
+                }
+                ExpressionNode::PropertyAccess(prop) => {
+                    // First resolve the object type
+                    let object_type = self
+                        .resolve_expression_type(&prop.object, context_type)
+                        .await;
+                    // Then get the property type
+                    if let Ok(Some(element_type)) = self
+                        .model_provider
+                        .get_element_type(&object_type, &prop.property)
+                        .await
+                    {
+                        element_type
+                    } else {
+                        object_type
+                    }
+                }
+                ExpressionNode::MethodCall(method) => {
+                    // Resolve the object type that the method is called on
+                    self.resolve_expression_type(&method.object, context_type)
+                        .await
+                }
+                _ => context_type.clone(),
+            }
+        })
+    }
+
+    /// Check if a name is a valid FHIR resource type
+    fn is_resource_type(&self, name: &str) -> bool {
+        // Common FHIR resource types
+        matches!(
+            name,
+            "Patient"
+                | "Observation"
+                | "Encounter"
+                | "Practitioner"
+                | "Organization"
+                | "Medication"
+                | "MedicationRequest"
+                | "Bundle"
+                | "Condition"
+                | "Procedure"
+                | "DiagnosticReport"
+                | "Immunization"
+                | "AllergyIntolerance"
+                | "CarePlan"
+                | "Appointment"
+                | "Claim"
+                | "Coverage"
+                | "Device"
+                | "DocumentReference"
+                | "Goal"
+                | "Location"
+                | "ServiceRequest"
+                | "Specimen"
+        )
     }
 
     /// Perform comprehensive static analysis on a single expression
@@ -980,6 +1072,11 @@ impl StaticAnalyzer {
                     }
                 }
                 ExpressionNode::MethodCall(method_node) => {
+                    // Resolve the type of the object the method is being called on
+                    let object_type = self
+                        .resolve_expression_type(&method_node.object, current_type)
+                        .await;
+
                     let span = method_node
                         .location
                         .clone()
@@ -989,7 +1086,7 @@ impl StaticAnalyzer {
                         .function_analyzer
                         .validate_function_call_new(
                             &method_node.method,
-                            current_type,
+                            &object_type, // Use resolved object type instead of context type
                             &method_node.arguments,
                             span,
                         )

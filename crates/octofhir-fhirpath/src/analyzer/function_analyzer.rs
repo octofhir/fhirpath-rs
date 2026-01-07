@@ -23,6 +23,8 @@ pub struct FunctionSignature {
     pub required_args: usize,
     pub optional_args: usize,
     pub input_requirements: InputRequirement,
+    /// Required input type (e.g., String for startsWith, endsWith)
+    pub input_type: Option<ArgumentType>,
     pub argument_types: Vec<ArgumentType>,
     pub return_type: ReturnType,
 }
@@ -139,6 +141,18 @@ impl FunctionAnalyzer {
             diagnostics.push(input_diagnostic);
         }
 
+        // Validate input type (e.g., string functions require string input)
+        if let Some(ref required_input_type) = signature.input_type {
+            if let Some(input_type_diagnostic) = self.validate_input_type_new(
+                function_name,
+                input_type,
+                required_input_type,
+                span.clone(),
+            ) {
+                diagnostics.push(input_type_diagnostic);
+            }
+        }
+
         // Validate argument count
         let provided_args = arguments.len();
         let min_args = signature.required_args;
@@ -232,6 +246,83 @@ impl FunctionAnalyzer {
                 }
             }
             _ => None,
+        }
+    }
+
+    /// Validate that input type matches required type for the function
+    fn validate_input_type_new(
+        &self,
+        function_name: &str,
+        input_type: &TypeInfo,
+        required_type: &ArgumentType,
+        span: std::ops::Range<usize>,
+    ) -> Option<AriadneDiagnostic> {
+        let actual_type = input_type.name.as_deref().unwrap_or(&input_type.type_name);
+
+        let is_compatible = match required_type {
+            ArgumentType::String => {
+                // Check if input is a string type
+                matches!(
+                    actual_type.to_lowercase().as_str(),
+                    "string"
+                        | "system.string"
+                        | "fhir.string"
+                        | "code"
+                        | "id"
+                        | "uri"
+                        | "url"
+                        | "canonical"
+                        | "markdown"
+                        | "oid"
+                        | "uuid"
+                )
+            }
+            ArgumentType::Numeric => {
+                matches!(
+                    actual_type.to_lowercase().as_str(),
+                    "integer"
+                        | "decimal"
+                        | "positiveint"
+                        | "unsignedint"
+                        | "integer64"
+                        | "system.integer"
+                        | "system.decimal"
+                )
+            }
+            ArgumentType::Boolean => {
+                matches!(
+                    actual_type.to_lowercase().as_str(),
+                    "boolean" | "system.boolean"
+                )
+            }
+            ArgumentType::Type(expected) => actual_type.eq_ignore_ascii_case(expected),
+            ArgumentType::Any | ArgumentType::Expression => true,
+        };
+
+        if !is_compatible {
+            let expected_type_str = match required_type {
+                ArgumentType::String => "String",
+                ArgumentType::Numeric => "Integer or Decimal",
+                ArgumentType::Boolean => "Boolean",
+                ArgumentType::Type(t) => t.as_str(),
+                _ => "compatible type",
+            };
+
+            Some(AriadneDiagnostic {
+                severity: DiagnosticSeverity::Error,
+                error_code: FP0053,
+                message: format!(
+                    "{function_name} function requires {expected_type_str} input, but got '{actual_type}'"
+                ),
+                span,
+                help: Some(format!(
+                    "The {function_name}() function can only be called on {expected_type_str} values"
+                )),
+                note: None,
+                related: Vec::new(),
+            })
+        } else {
+            None
         }
     }
 
@@ -732,6 +823,7 @@ impl FunctionAnalyzer {
                 required_args: 0,
                 optional_args: 0,
                 input_requirements: InputRequirement::Collection,
+                input_type: None,
                 argument_types: vec![],
                 return_type: ReturnType::Numeric,
             }),
@@ -740,6 +832,7 @@ impl FunctionAnalyzer {
                 required_args: 0,
                 optional_args: 0,
                 input_requirements: InputRequirement::Collection,
+                input_type: None,
                 argument_types: vec![],
                 return_type: ReturnType::Numeric,
             }),
@@ -748,6 +841,7 @@ impl FunctionAnalyzer {
                 required_args: 0,
                 optional_args: 0,
                 input_requirements: InputRequirement::Collection,
+                input_type: None,
                 argument_types: vec![],
                 return_type: ReturnType::SameAsInput,
             }),
@@ -758,6 +852,7 @@ impl FunctionAnalyzer {
                 required_args: 0,
                 optional_args: 0,
                 input_requirements: InputRequirement::Collection,
+                input_type: None,
                 argument_types: vec![],
                 return_type: ReturnType::SameAsInput,
             }),
@@ -766,6 +861,7 @@ impl FunctionAnalyzer {
                 required_args: 1,
                 optional_args: 0,
                 input_requirements: InputRequirement::Collection,
+                input_type: None,
                 argument_types: vec![ArgumentType::Numeric],
                 return_type: ReturnType::SameAsInput,
             }),
@@ -776,6 +872,7 @@ impl FunctionAnalyzer {
                 required_args: 0,
                 optional_args: 0,
                 input_requirements: InputRequirement::Any,
+                input_type: None,
                 argument_types: vec![],
                 return_type: ReturnType::Boolean,
             }),
@@ -784,6 +881,7 @@ impl FunctionAnalyzer {
                 required_args: 1,
                 optional_args: 0,
                 input_requirements: InputRequirement::Collection,
+                input_type: None,
                 argument_types: vec![ArgumentType::Expression],
                 return_type: ReturnType::Boolean,
             }),
@@ -792,16 +890,18 @@ impl FunctionAnalyzer {
                 required_args: 0,
                 optional_args: 0,
                 input_requirements: InputRequirement::Collection,
+                input_type: None,
                 argument_types: vec![],
                 return_type: ReturnType::Boolean,
             }),
 
-            // String functions
+            // String functions (require String input)
             "length" => Some(FunctionSignature {
                 name: function_name.to_string(),
                 required_args: 0,
                 optional_args: 0,
                 input_requirements: InputRequirement::Singleton,
+                input_type: Some(ArgumentType::String),
                 argument_types: vec![],
                 return_type: ReturnType::Numeric,
             }),
@@ -810,6 +910,7 @@ impl FunctionAnalyzer {
                 required_args: 1,
                 optional_args: 1,
                 input_requirements: InputRequirement::Singleton,
+                input_type: Some(ArgumentType::String),
                 argument_types: vec![ArgumentType::Numeric, ArgumentType::Numeric],
                 return_type: ReturnType::String,
             }),
@@ -818,9 +919,37 @@ impl FunctionAnalyzer {
                 required_args: 1,
                 optional_args: 0,
                 input_requirements: InputRequirement::Singleton,
+                input_type: Some(ArgumentType::String),
                 argument_types: vec![ArgumentType::String],
                 return_type: ReturnType::Boolean,
             }),
+            "matches" | "replaceMatches" | "replace" | "upper" | "lower" | "toChars"
+            | "indexOf" | "trim" | "split" | "join" | "encode" | "decode" => {
+                Some(FunctionSignature {
+                    name: function_name.to_string(),
+                    required_args: if matches!(
+                        function_name,
+                        "upper" | "lower" | "toChars" | "trim"
+                    ) {
+                        0
+                    } else {
+                        1
+                    },
+                    optional_args: if matches!(function_name, "replaceMatches" | "replace") {
+                        1
+                    } else {
+                        0
+                    },
+                    input_requirements: InputRequirement::Singleton,
+                    input_type: Some(ArgumentType::String),
+                    argument_types: vec![ArgumentType::String],
+                    return_type: if matches!(function_name, "matches") {
+                        ReturnType::Boolean
+                    } else {
+                        ReturnType::String
+                    },
+                })
+            }
 
             // Context functions (no input required)
             "now" | "today" | "timeOfDay" => Some(FunctionSignature {
@@ -828,6 +957,7 @@ impl FunctionAnalyzer {
                 required_args: 0,
                 optional_args: 0,
                 input_requirements: InputRequirement::None,
+                input_type: None,
                 argument_types: vec![],
                 return_type: ReturnType::Type(match function_name {
                     "now" => "DateTime".to_string(),
@@ -843,6 +973,7 @@ impl FunctionAnalyzer {
                 required_args: 1,
                 optional_args: 0,
                 input_requirements: InputRequirement::Collection,
+                input_type: None,
                 argument_types: vec![ArgumentType::Expression],
                 return_type: ReturnType::SameAsInput,
             }),

@@ -280,16 +280,17 @@ impl LazyFunctionEvaluator for AsFunctionEvaluator {
         }
 
         // Handle input collection based on size
-        // Per FHIRPath spec, as() should work on at most one item, but FHIR constraints
-        // like dom-3 use expressions like `%resource.descendants().as(canonical)` which
-        // pass multiple items. To support these standard constraints, we return empty
-        // for >1 items instead of erroring.
+        // Per FHIRPath spec, as() requires at most one item in the input collection.
+        // If there are multiple items, it's an error.
         let input_len = input.len();
         if input_len > 1 {
-            // Return empty collection for multiple items (lenient behavior for FHIR constraints)
-            return Ok(EvaluationResult {
-                value: Collection::empty(),
-            });
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0053,
+                format!(
+                    "as() function requires input collection with at most 1 item, got {}",
+                    input_len
+                ),
+            ));
         }
 
         // Process input collection (0 or 1 item)

@@ -210,7 +210,7 @@ jobs:
           cache-on-failure: true
 
       - name: Cache cargo tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/bin
           key: ${{ runner.os }}-cargo-tools-tarpaulin-${{ hashFiles('~/.cargo/bin/cargo-tarpaulin') }}
@@ -256,7 +256,7 @@ jobs:
           cache-on-failure: true
 
       - name: Cache cargo tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/bin
           key: ${{ runner.os }}-cargo-tools-audit-${{ hashFiles('~/.cargo/bin/cargo-audit') }}

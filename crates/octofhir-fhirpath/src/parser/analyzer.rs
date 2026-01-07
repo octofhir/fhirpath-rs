@@ -399,6 +399,31 @@ impl SemanticAnalyzer {
         // Mark that we're no longer at chain head
         self.is_chain_head = false;
 
+        // Check for direct choice type access (e.g., valueQuantity instead of value)
+        if let Some(ref input_type) = self.input_type {
+            if let Some(base_property) = Self::get_choice_type_base(&prop.property) {
+                // Check if this is actually a choice property on this type
+                if self.is_choice_property(input_type, &base_property).await {
+                    analysis.success = false;
+                    analysis.add_diagnostic(Diagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        code: DiagnosticCode {
+                            code: "DIRECT_CHOICE_TYPE_ACCESS".to_string(),
+                            namespace: Some("fhirpath".to_string()),
+                        },
+                        message: format!(
+                            "Cannot directly access choice type '{}'. Use '{}.ofType({})' instead",
+                            prop.property,
+                            base_property,
+                            Self::get_choice_type_suffix(&prop.property).unwrap_or_default()
+                        ),
+                        location: prop.location.clone(),
+                        related: vec![],
+                    });
+                }
+            }
+        }
+
         // Then analyze the property access
         let identifier = IdentifierNode {
             name: prop.property.clone(),
@@ -406,6 +431,89 @@ impl SemanticAnalyzer {
         };
 
         self.analyze_identifier(&identifier, analysis).await
+    }
+
+    /// Get the base property name from a choice type access (e.g., "valueQuantity" -> "value")
+    fn get_choice_type_base(property: &str) -> Option<String> {
+        // Common choice type bases in FHIR
+        let choice_bases = [
+            "value",
+            "effective",
+            "onset",
+            "abatement",
+            "occurrence",
+            "timing",
+            "product",
+            "medication",
+            "item",
+            "allowed",
+            "used",
+            "serviced",
+            "location",
+            "deceased",
+            "multipleBirth",
+            "born",
+            "age",
+            "performed",
+            "scheduled",
+            "collected",
+            "subject",
+            "answer",
+            "initial",
+            "default",
+            "fixed",
+            "pattern",
+            "example",
+            "min",
+            "max",
+        ];
+
+        for base in &choice_bases {
+            if property.starts_with(base) && property.len() > base.len() {
+                let suffix = &property[base.len()..];
+                // Check if suffix starts with uppercase (type name)
+                if suffix.chars().next().is_some_and(|c| c.is_uppercase()) {
+                    return Some((*base).to_string());
+                }
+            }
+        }
+        None
+    }
+
+    /// Get the type suffix from a choice type access (e.g., "valueQuantity" -> "Quantity")
+    fn get_choice_type_suffix(property: &str) -> Option<String> {
+        if let Some(base) = Self::get_choice_type_base(property) {
+            Some(property[base.len()..].to_string())
+        } else {
+            None
+        }
+    }
+
+    /// Check if a property is a choice property on a given type
+    async fn is_choice_property(&self, type_info: &TypeInfo, property: &str) -> bool {
+        // Extract type name from TypeInfo
+        let type_name = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+
+        // Check with model provider
+        if let Ok(Some(choice_types)) = self
+            .model_provider
+            .get_choice_types(type_name, property)
+            .await
+        {
+            !choice_types.is_empty()
+        } else {
+            // Fallback: assume common choice properties on known types
+            match (type_name, property) {
+                ("Observation", "value") => true,
+                ("Observation", "effective") => true,
+                ("Condition", "onset") => true,
+                ("Condition", "abatement") => true,
+                ("MedicationRequest", "medication") => true,
+                ("Patient", "deceased") => true,
+                ("Patient", "multipleBirth") => true,
+                _ => false,
+            }
+        }
     }
 
     /// Analyze literal node (always valid)
@@ -499,6 +607,19 @@ impl SemanticAnalyzer {
             literal.value,
             LiteralValue::Integer(_) | LiteralValue::Decimal(_)
         )
+    }
+
+    /// Check if an expression is a call to an unordered collection method (children, descendants)
+    fn is_unordered_collection_method(node: &ExpressionNode) -> bool {
+        match node {
+            ExpressionNode::MethodCall(method_call) => {
+                method_call.method == "children" || method_call.method == "descendants"
+            }
+            ExpressionNode::FunctionCall(func_call) => {
+                func_call.name == "children" || func_call.name == "descendants"
+            }
+            _ => false,
+        }
     }
 
     /// Get the string representation of a number literal
@@ -733,6 +854,27 @@ impl SemanticAnalyzer {
         // The method call is not at the chain head since it has an object
         self.is_chain_head = false;
 
+        // Check for order-dependent functions (skip, take) on unordered collections (children, descendants)
+        if (method_call.method == "skip" || method_call.method == "take")
+            && Self::is_unordered_collection_method(&method_call.object)
+        {
+            analysis.success = false;
+            analysis.add_diagnostic(Diagnostic {
+                severity: DiagnosticSeverity::Error,
+                code: DiagnosticCode {
+                    code: "UNORDERED_COLLECTION".to_string(),
+                    namespace: Some("fhirpath".to_string()),
+                },
+                message: format!(
+                    "Function '{}' cannot be used on unordered collection. \
+                     The result of children() and descendants() has no defined order",
+                    method_call.method
+                ),
+                location: method_call.location.clone(),
+                related: vec![],
+            });
+        }
+
         // Check for specific method type validation
         if method_call.method == "iif" && !method_call.arguments.is_empty() {
             // Analyze the first argument (condition) - should be boolean
@@ -827,8 +969,151 @@ impl SemanticAnalyzer {
             }
         }
 
+        // Validate string function input types
+        if Self::is_string_function(&method_call.method) {
+            // Resolve the type of the object expression
+            let object_type = self.resolve_node_type(&method_call.object).await;
+            if let Some(obj_type) = object_type {
+                if !Self::is_string_compatible_type(&obj_type) {
+                    analysis.success = false;
+                    analysis.add_diagnostic(Diagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        code: DiagnosticCode {
+                            code: "STRING_FUNCTION_TYPE_MISMATCH".to_string(),
+                            namespace: Some("fhirpath".to_string()),
+                        },
+                        message: format!(
+                            "String function '{}' called on non-string type '{}'",
+                            method_call.method,
+                            obj_type.name.as_deref().unwrap_or(&obj_type.type_name)
+                        ),
+                        location: method_call.location.clone(),
+                        related: vec![],
+                    });
+                }
+            }
+        }
+
         self.is_chain_head = prev_chain_head;
         Ok(AnalysisMetadata::new())
+    }
+
+    /// Check if a function name is a string function that requires string input
+    fn is_string_function(name: &str) -> bool {
+        matches!(
+            name,
+            "startsWith"
+                | "endsWith"
+                | "contains"
+                | "matches"
+                | "replaceMatches"
+                | "replace"
+                | "length"
+                | "substring"
+                | "upper"
+                | "lower"
+                | "toChars"
+                | "indexOf"
+                | "trim"
+                | "split"
+                | "join"
+                | "encode"
+                | "decode"
+        )
+    }
+
+    /// Check if a type is compatible with string functions
+    fn is_string_compatible_type(type_info: &TypeInfo) -> bool {
+        let type_name = type_info
+            .name
+            .as_deref()
+            .unwrap_or(&type_info.type_name)
+            .to_lowercase();
+        matches!(
+            type_name.as_str(),
+            "string"
+                | "system.string"
+                | "fhir.string"
+                | "code"
+                | "id"
+                | "uri"
+                | "url"
+                | "canonical"
+                | "markdown"
+                | "oid"
+                | "uuid"
+                | "base64binary"
+        )
+    }
+
+    /// Resolve the type of an expression node
+    async fn resolve_node_type(&self, expr: &ExpressionNode) -> Option<TypeInfo> {
+        match expr {
+            ExpressionNode::Identifier(id) => {
+                // Check if it's a resource type
+                let common_resources = [
+                    "Patient",
+                    "Observation",
+                    "Encounter",
+                    "Practitioner",
+                    "Organization",
+                    "Appointment",
+                ];
+                if common_resources.contains(&id.name.as_str()) {
+                    Some(TypeInfo {
+                        type_name: id.name.clone(),
+                        singleton: Some(true),
+                        is_empty: Some(false),
+                        namespace: Some("FHIR".to_string()),
+                        name: Some(id.name.clone()),
+                    })
+                } else if let Some(ref input_type) = self.input_type {
+                    // Try to get element type from model provider
+                    self.model_provider
+                        .get_element_type(input_type, &id.name)
+                        .await
+                        .ok()
+                        .flatten()
+                } else {
+                    None
+                }
+            }
+            ExpressionNode::PropertyAccess(prop) => {
+                // Recursively resolve object type, then get property type
+                let object_type = Box::pin(self.resolve_node_type(&prop.object)).await;
+                if let Some(obj_type) = object_type {
+                    self.model_provider
+                        .get_element_type(&obj_type, &prop.property)
+                        .await
+                        .ok()
+                        .flatten()
+                } else {
+                    None
+                }
+            }
+            ExpressionNode::MethodCall(method) => {
+                // Return the type of the object the method is called on
+                Box::pin(self.resolve_node_type(&method.object)).await
+            }
+            ExpressionNode::Literal(lit) => {
+                // Literals have known types
+                let type_name = match &lit.value {
+                    LiteralValue::String(_) => "string",
+                    LiteralValue::Integer(_) => "integer",
+                    LiteralValue::Decimal(_) => "decimal",
+                    LiteralValue::Boolean(_) => "boolean",
+                    _ => "Any",
+                };
+                Some(TypeInfo {
+                    type_name: type_name.to_string(),
+                    singleton: Some(true),
+                    is_empty: Some(false),
+                    namespace: Some("System".to_string()),
+                    name: Some(type_name.to_string()),
+                })
+            }
+            _ => None,
+        }
     }
 
     /// Reset analyzer state

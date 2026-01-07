@@ -1,12 +1,11 @@
 //! Error handling for the FHIRPath HTTP server
 
-use crate::cli::server::models::RequestError;
+use crate::cli::server::models::{OperationOutcome, RequestError};
 use axum::{
     Json,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde_json::json;
 use thiserror::Error;
 
 /// Server-specific errors
@@ -45,68 +44,67 @@ pub enum ServerError {
 
 impl IntoResponse for ServerError {
     fn into_response(self) -> Response {
-        let (status, error_code, message) = match self {
+        // Map errors to FHIR OperationOutcome issue codes:
+        // - "invalid" - Content invalid against the specification
+        // - "not-found" - Resource not found
+        // - "not-supported" - Feature not supported
+        // - "processing" - Processing issues
+        // - "exception" - Internal error/exception
+        let (status, issue_code, message) = match self {
             ServerError::Evaluation(ref e) => (
                 StatusCode::BAD_REQUEST,
-                "EVALUATION_ERROR",
+                "processing",
                 format!("FHIRPath evaluation failed: {}", e),
             ),
             ServerError::Analysis(ref e) => (
                 StatusCode::BAD_REQUEST,
-                "ANALYSIS_ERROR",
+                "invalid",
                 format!("Expression analysis failed: {}", e),
             ),
             ServerError::Model(ref e) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "MODEL_ERROR",
+                "exception",
                 format!("Model provider error: {}", e),
             ),
             ServerError::InvalidFhirVersion { ref version } => (
                 StatusCode::BAD_REQUEST,
-                "INVALID_FHIR_VERSION",
+                "not-supported",
                 format!(
                     "Unsupported FHIR version: {}. Supported versions: r4, r4b, r5, r6",
                     version
                 ),
             ),
             ServerError::NotSupported(ref msg) => {
-                (StatusCode::NOT_IMPLEMENTED, "NOT_SUPPORTED", msg.clone())
+                (StatusCode::NOT_IMPLEMENTED, "not-supported", msg.clone())
             }
             ServerError::FileNotFound { ref filename } => (
                 StatusCode::NOT_FOUND,
-                "FILE_NOT_FOUND",
+                "not-found",
                 format!("File not found: {}", filename),
             ),
             ServerError::InvalidJson(ref e) => (
                 StatusCode::BAD_REQUEST,
-                "INVALID_JSON",
+                "invalid",
                 format!("Invalid JSON format: {}", e),
             ),
             ServerError::BadRequest { ref message } => {
-                (StatusCode::BAD_REQUEST, "BAD_REQUEST", message.clone())
+                (StatusCode::BAD_REQUEST, "invalid", message.clone())
             }
             ServerError::Io(ref e) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "IO_ERROR",
+                "exception",
                 format!("File system error: {}", e),
             ),
             ServerError::Internal(ref e) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "INTERNAL_ERROR",
+                "exception",
                 format!("Internal server error: {}", e),
             ),
         };
 
-        let body = Json(json!({
-            "error": {
-                "code": error_code,
-                "message": message,
-                "details": format!("{:?}", self),
-            },
-            "success": false,
-        }));
-
-        (status, body).into_response()
+        // Return FHIR-compliant OperationOutcome
+        let outcome = OperationOutcome::error(issue_code, &message, Some(format!("{:?}", self)));
+        (status, Json(outcome)).into_response()
     }
 }
 

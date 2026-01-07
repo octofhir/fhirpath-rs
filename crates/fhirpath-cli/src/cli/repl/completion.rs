@@ -644,6 +644,7 @@ impl Completer for FhirPathCompleter {
                         span: Span::new(start + 1, pos), // Start after the ':'
                         append_whitespace: true,
                         style: None,
+                        match_indices: None,
                     });
                 }
             }
@@ -660,6 +661,7 @@ impl Completer for FhirPathCompleter {
                     span: Span::new(start, pos),
                     append_whitespace: false,
                     style: None,
+                    match_indices: None,
                 });
             }
 
@@ -681,6 +683,7 @@ impl Completer for FhirPathCompleter {
                         span: Span::new(property_start, pos),
                         append_whitespace: false,
                         style: None,
+                        match_indices: None,
                     });
                 }
             }
@@ -696,6 +699,7 @@ impl Completer for FhirPathCompleter {
                         span: Span::new(start, pos),
                         append_whitespace: false,
                         style: None,
+                        match_indices: None,
                     });
                 }
             }
@@ -710,6 +714,7 @@ impl Completer for FhirPathCompleter {
                     span: Span::new(start, pos),
                     append_whitespace: false,
                     style: None,
+                    match_indices: None,
                 });
             }
         }

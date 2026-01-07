@@ -143,7 +143,7 @@ jobs:
           copy target\${{ matrix.target }}\release\octofhir-fhirpath.exe release-artifacts\octofhir-fhirpath-${{ matrix.postfix }}.exe
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: binary-${{ matrix.postfix }}
           path: release-artifacts/*
@@ -220,13 +220,13 @@ jobs:
           git-user-email: 'actions@github.com'
 
       - name: Upload changelog artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: changelog
           path: CHANGELOG.md
 
       - name: Download all binary artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: binary-*
           merge-multiple: true
@@ -355,7 +355,7 @@ jobs:
 
       - name: Download changelog artifact
         if: steps.publish.outputs.success == 'true'
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: changelog
           path: .
