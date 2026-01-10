@@ -1484,7 +1484,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-cli"
-version = "0.4.34"
+version = "0.4.35"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -1532,7 +1532,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-dev-tools"
-version = "0.4.34"
+version = "0.4.35"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3031,7 +3031,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath"
-version = "0.4.34"
+version = "0.4.35"
 dependencies = [
  "anyhow",
  "ariadne",

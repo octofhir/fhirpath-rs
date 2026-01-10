@@ -154,10 +154,17 @@ impl DivideOperatorEvaluator {
                         (None, Some(r)) => Some(format!("1/{r}")),
                         (Some(l), Some(r)) => Some(format!("{l}/{r}")),
                     };
+                    // Combine codes the same way as units for consistency
+                    let combined_code = match (lc, rc) {
+                        (None, None) => None,
+                        (Some(l), None) => Some(l.clone()),
+                        (None, Some(r)) => Some(format!("1/{r}")),
+                        (Some(l), Some(r)) => Some(format!("{l}/{r}")),
+                    };
                     Ok(Some(FhirPathValue::quantity_with_components(
                         *lv / *rv,
                         combined_unit,
-                        lc.clone().or_else(|| rc.clone()),
+                        combined_code,
                         ls.clone().or_else(|| rs.clone()),
                     )))
                 }

@@ -150,6 +150,39 @@ fn units_are_equivalent(unit1: &str, unit2: &str) -> bool {
     false
 }
 
+/// Map UCUM time units to FHIRPath calendar units for equivalence checking.
+/// Per FHIRPath spec: `1 year` is equivalent to `1 'a'`, `1 month` is equivalent to `1 'mo'`, etc.
+/// Note: These are equivalent (~) but not equal (=) because UCUM uses fixed durations
+/// (e.g., 'a' = 365.25 days) while FHIRPath calendar units are variable length.
+fn ucum_to_calendar_unit(ucum_unit: &str) -> Option<CalendarUnit> {
+    match ucum_unit {
+        "a" => Some(CalendarUnit::Year),
+        "mo" => Some(CalendarUnit::Month),
+        "wk" => Some(CalendarUnit::Week),
+        "d" => Some(CalendarUnit::Day),
+        "h" => Some(CalendarUnit::Hour),
+        "min" => Some(CalendarUnit::Minute),
+        "s" => Some(CalendarUnit::Second),
+        "ms" => Some(CalendarUnit::Millisecond),
+        _ => None,
+    }
+}
+
+/// Map FHIRPath calendar unit to its equivalent UCUM unit
+#[allow(dead_code)]
+fn calendar_to_ucum_unit(cal_unit: CalendarUnit) -> &'static str {
+    match cal_unit {
+        CalendarUnit::Year => "a",
+        CalendarUnit::Month => "mo",
+        CalendarUnit::Week => "wk",
+        CalendarUnit::Day => "d",
+        CalendarUnit::Hour => "h",
+        CalendarUnit::Minute => "min",
+        CalendarUnit::Second => "s",
+        CalendarUnit::Millisecond => "ms",
+    }
+}
+
 /// Compare two quantities and return an Ordering (for <, >, <= comparisons)
 pub fn compare_quantities(
     left_value: Decimal,
@@ -213,8 +246,41 @@ pub fn are_quantities_equivalent(
     right_unit: &Option<String>,
     right_calendar_unit: &Option<CalendarUnit>,
 ) -> Result<bool, QuantityError> {
+    are_quantities_equivalent_with_codes(
+        left_value,
+        left_unit,
+        None, // No code available in legacy signature
+        left_calendar_unit,
+        right_value,
+        right_unit,
+        None, // No code available in legacy signature
+        right_calendar_unit,
+    )
+}
+
+/// Check if two quantities are equivalent, with optional UCUM code fields
+/// This extended version allows passing the FHIR `code` field which contains
+/// the canonical UCUM code (e.g., "a" for year) separate from the display `unit` (e.g., "year")
+pub fn are_quantities_equivalent_with_codes(
+    left_value: Decimal,
+    left_unit: &Option<String>,
+    left_code: Option<&str>,
+    left_calendar_unit: &Option<CalendarUnit>,
+    right_value: Decimal,
+    right_unit: &Option<String>,
+    right_code: Option<&str>,
+    right_calendar_unit: &Option<CalendarUnit>,
+) -> Result<bool, QuantityError> {
+    // Use code if available, otherwise fall back to unit
+    let effective_left_unit = left_code
+        .map(|s| s.to_string())
+        .or_else(|| left_unit.clone());
+    let effective_right_unit = right_code
+        .map(|s| s.to_string())
+        .or_else(|| right_unit.clone());
+
     // Handle simple cases first
-    match (left_unit, right_unit) {
+    match (&effective_left_unit, &effective_right_unit) {
         // Both have no units - compare values directly
         (None, None) => Ok((left_value - right_value).abs() < Decimal::new(1, 10)),
 
@@ -233,9 +299,50 @@ pub fn are_quantities_equivalent(
 
         // Different units - need conversion
         (Some(lu), Some(ru)) => {
-            // First check if they are calendar units
+            // First check if they are both calendar units
             if let (Some(left_cal), Some(right_cal)) = (left_calendar_unit, right_calendar_unit) {
                 return compare_calendar_quantities(left_value, *left_cal, right_value, *right_cal);
+            }
+
+            // Handle cross-type comparison: UCUM time unit vs calendar unit
+            // Per FHIRPath spec: `1 year` is equivalent to `1 'a'`, etc.
+            match (left_calendar_unit, right_calendar_unit) {
+                // Left is calendar, right might be UCUM time unit
+                (Some(left_cal), None) => {
+                    if let Some(right_cal) = ucum_to_calendar_unit(ru) {
+                        return compare_calendar_quantities(
+                            left_value,
+                            *left_cal,
+                            right_value,
+                            right_cal,
+                        );
+                    }
+                }
+                // Right is calendar, left might be UCUM time unit
+                (None, Some(right_cal)) => {
+                    if let Some(left_cal) = ucum_to_calendar_unit(lu) {
+                        return compare_calendar_quantities(
+                            left_value,
+                            left_cal,
+                            right_value,
+                            *right_cal,
+                        );
+                    }
+                }
+                // Neither is calendar, but both might be UCUM time units that map to calendar
+                (None, None) => {
+                    if let (Some(left_cal), Some(right_cal)) =
+                        (ucum_to_calendar_unit(lu), ucum_to_calendar_unit(ru))
+                    {
+                        return compare_calendar_quantities(
+                            left_value,
+                            left_cal,
+                            right_value,
+                            right_cal,
+                        );
+                    }
+                }
+                _ => {}
             }
 
             // Try UCUM conversion for equivalence
@@ -253,8 +360,41 @@ pub fn are_quantities_equal(
     right_unit: &Option<String>,
     right_calendar_unit: &Option<CalendarUnit>,
 ) -> Result<bool, QuantityError> {
+    are_quantities_equal_with_codes(
+        left_value,
+        left_unit,
+        None,
+        left_calendar_unit,
+        right_value,
+        right_unit,
+        None,
+        right_calendar_unit,
+    )
+}
+
+/// Check if two quantities are equal, with optional UCUM code fields
+/// This extended version allows passing the FHIR `code` field which contains
+/// the canonical UCUM code (e.g., "a" for year) separate from the display `unit` (e.g., "year")
+pub fn are_quantities_equal_with_codes(
+    left_value: Decimal,
+    left_unit: &Option<String>,
+    left_code: Option<&str>,
+    left_calendar_unit: &Option<CalendarUnit>,
+    right_value: Decimal,
+    right_unit: &Option<String>,
+    right_code: Option<&str>,
+    right_calendar_unit: &Option<CalendarUnit>,
+) -> Result<bool, QuantityError> {
+    // Use code if available, otherwise fall back to unit
+    let effective_left_unit = left_code
+        .map(|s| s.to_string())
+        .or_else(|| left_unit.clone());
+    let effective_right_unit = right_code
+        .map(|s| s.to_string())
+        .or_else(|| right_unit.clone());
+
     // Handle simple cases first
-    match (left_unit, right_unit) {
+    match (&effective_left_unit, &effective_right_unit) {
         // Both have no units - compare values directly
         (None, None) => Ok((left_value - right_value).abs() < Decimal::new(1, 10)),
 
@@ -643,6 +783,50 @@ pub fn divide_quantities(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_ucum_to_calendar_mapping() {
+        // Test that UCUM time units map to calendar units
+        assert_eq!(ucum_to_calendar_unit("a"), Some(CalendarUnit::Year));
+        assert_eq!(ucum_to_calendar_unit("mo"), Some(CalendarUnit::Month));
+        assert_eq!(ucum_to_calendar_unit("wk"), Some(CalendarUnit::Week));
+        assert_eq!(ucum_to_calendar_unit("d"), Some(CalendarUnit::Day));
+        assert_eq!(ucum_to_calendar_unit("h"), Some(CalendarUnit::Hour));
+        assert_eq!(ucum_to_calendar_unit("min"), Some(CalendarUnit::Minute));
+        assert_eq!(ucum_to_calendar_unit("s"), Some(CalendarUnit::Second));
+        assert_eq!(ucum_to_calendar_unit("ms"), Some(CalendarUnit::Millisecond));
+        // Non-time units should return None
+        assert_eq!(ucum_to_calendar_unit("kg"), None);
+        assert_eq!(ucum_to_calendar_unit("m"), None);
+    }
+
+    #[test]
+    fn test_ucum_a_vs_calendar_year_equivalence() {
+        // Per FHIRPath spec: 1 'a' ~ 1 year should be true
+        let result = are_quantities_equivalent(
+            Decimal::new(1, 0),
+            &Some("a".to_string()),
+            &None, // UCUM, not calendar
+            Decimal::new(1, 0),
+            &Some("year".to_string()),
+            &Some(CalendarUnit::Year),
+        );
+        assert!(result.unwrap(), "1 'a' should be equivalent to 1 year");
+    }
+
+    #[test]
+    fn test_calendar_year_vs_ucum_a_equivalence() {
+        // Same test in reverse order
+        let result = are_quantities_equivalent(
+            Decimal::new(1, 0),
+            &Some("year".to_string()),
+            &Some(CalendarUnit::Year),
+            Decimal::new(1, 0),
+            &Some("a".to_string()),
+            &None, // UCUM, not calendar
+        );
+        assert!(result.unwrap(), "1 year should be equivalent to 1 'a'");
+    }
 
     #[test]
     fn test_same_unit_equivalence() {

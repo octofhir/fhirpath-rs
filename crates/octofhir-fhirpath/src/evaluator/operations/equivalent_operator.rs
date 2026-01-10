@@ -181,18 +181,30 @@ impl EquivalentOperatorEvaluator {
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lcode,
                     calendar_unit: lc,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    code: rcode,
                     calendar_unit: rc,
                     ..
                 },
             ) => {
                 // Use the quantity utilities for proper unit conversion
-                match quantity_utils::are_quantities_equivalent(*lv, lu, lc, *rv, ru, rc) {
+                // Pass the code fields for UCUM-aware comparison
+                match quantity_utils::are_quantities_equivalent_with_codes(
+                    *lv,
+                    lu,
+                    lcode.as_deref(),
+                    lc,
+                    *rv,
+                    ru,
+                    rcode.as_deref(),
+                    rc,
+                ) {
                     Ok(result) => Some(result),
                     Err(_) => Some(false), // Conversion failed, not equivalent
                 }

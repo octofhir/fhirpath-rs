@@ -180,12 +180,14 @@ impl EqualsOperatorEvaluator {
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    code: lcode,
                     calendar_unit: lc,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    code: rcode,
                     calendar_unit: rc,
                     ..
                 },
@@ -195,13 +197,19 @@ impl EqualsOperatorEvaluator {
                 let right_has_cal = rc.is_some();
                 if left_has_cal ^ right_has_cal {
                     // One side is calendar unit, other side might be UCUM
-                    let (cal_value, cal_unit, other_value, other_unit_opt) = if left_has_cal {
-                        (*lv, lc.unwrap(), *rv, ru)
-                    } else {
-                        (*rv, rc.unwrap(), *lv, lu)
-                    };
+                    // Use code if available, otherwise fall back to unit
+                    let (cal_value, cal_unit, other_value, other_unit_opt, other_code_opt) =
+                        if left_has_cal {
+                            (*lv, lc.unwrap(), *rv, ru, rcode)
+                        } else {
+                            (*rv, rc.unwrap(), *lv, lu, lcode)
+                        };
 
-                    if let Some(other_unit) = other_unit_opt.as_deref() {
+                    // Prefer code over unit for UCUM comparison
+                    let effective_other_unit =
+                        other_code_opt.as_deref().or(other_unit_opt.as_deref());
+
+                    if let Some(other_unit) = effective_other_unit {
                         match (cal_unit, other_unit) {
                             (crate::core::CalendarUnit::Day, "d") => {
                                 return Some((cal_value - other_value).abs() < Decimal::new(1, 10));
@@ -220,7 +228,17 @@ impl EqualsOperatorEvaluator {
                 }
 
                 // Use the quantity utilities for exact equality comparison
-                match quantity_utils::are_quantities_equal(*lv, lu, lc, *rv, ru, rc) {
+                // Pass the code fields for UCUM-aware comparison
+                match quantity_utils::are_quantities_equal_with_codes(
+                    *lv,
+                    lu,
+                    lcode.as_deref(),
+                    lc,
+                    *rv,
+                    ru,
+                    rcode.as_deref(),
+                    rc,
+                ) {
                     Ok(result) => Some(result),
                     Err(_) => Some(false), // Conversion failed, not equal
                 }
