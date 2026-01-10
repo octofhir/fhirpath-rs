@@ -1,3 +1,12 @@
+## [0.4.36](https://github.com/octofhir/fhirpath-rs/compare/v0.4.35...v0.4.36) (2026-01-10)
+
+
+### Bug Fixes
+
+* calendar unit comparasion ([debb5b5](https://github.com/octofhir/fhirpath-rs/commit/debb5b546383257b36d2a2029564ae7f633c8b8c))
+
+
+
 ## [0.4.35](https://github.com/octofhir/fhirpath-rs/compare/v0.4.34...v0.4.35) (2026-01-07)
 
 
