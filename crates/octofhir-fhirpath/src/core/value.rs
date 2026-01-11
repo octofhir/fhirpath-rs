@@ -63,6 +63,8 @@ impl JsonValueExt for JsonValue {
 pub mod utils {
     use super::{FhirPathValue, JsonValue, async_recursion};
     use crate::core::model_provider::ModelProvider;
+    use rust_decimal::Decimal;
+    use rust_decimal::prelude::FromPrimitive;
     use std::sync::Arc;
 
     /// Infer FHIR type from JSON object structure
@@ -92,7 +94,7 @@ pub mod utils {
                     None
                 }
             })
-            .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
+            .map(|f| Decimal::from_f64(f).unwrap_or(Decimal::ZERO))
             .unwrap_or_default();
 
         let unit_display = obj
@@ -119,7 +121,11 @@ pub mod utils {
                 if let Some(i) = n.as_i64() {
                     FhirPathValue::integer(i)
                 } else if let Some(f) = n.as_f64() {
-                    FhirPathValue::decimal(rust_decimal::Decimal::try_from(f).unwrap_or_default())
+                    if let Some(decimal) = Decimal::from_f64(f) {
+                        FhirPathValue::decimal(decimal)
+                    } else {
+                        FhirPathValue::string(n.to_string())
+                    }
                 } else {
                     FhirPathValue::string(n.to_string())
                 }
@@ -157,9 +163,13 @@ pub mod utils {
                 if let Some(i) = n.as_i64() {
                     Ok(FhirPathValue::integer(i))
                 } else if let Some(f) = n.as_f64() {
-                    Ok(FhirPathValue::decimal(
-                        rust_decimal::Decimal::try_from(f).unwrap_or_default(),
-                    ))
+                    let decimal = Decimal::from_f64(f).ok_or_else(|| {
+                        crate::core::FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0054,
+                            format!("Invalid decimal value: {f}"),
+                        )
+                    })?;
+                    Ok(FhirPathValue::decimal(decimal))
                 } else {
                     Ok(FhirPathValue::string(n.to_string()))
                 }

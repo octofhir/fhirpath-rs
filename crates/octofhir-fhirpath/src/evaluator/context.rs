@@ -27,7 +27,7 @@ pub struct EvaluationContext {
     trace_provider: Option<SharedTraceProvider>,
     /// Variables defined in current scope (includes system variables like $this, $index, $total)
     /// Using lock-free HashMap for high-performance variable access
-    variables: LockFreeHashMap<String, FhirPathValue>,
+    variables: Arc<LockFreeHashMap<String, FhirPathValue>>,
     /// Parent context for variable scoping
     /// Variables are resolved by checking current scope, then walking parent chain
     /// Using Arc instead of Box to avoid deep cloning of parent chain
@@ -122,13 +122,20 @@ impl EvaluationContext {
                 for (key, value) in variables {
                     lock_free_map.pin().insert(key, value);
                 }
-                lock_free_map
+                Arc::new(lock_free_map)
             },
             parent_context: None,
             resolution_cache: std::sync::Arc::new(LockFreeHashMap::new()),
             type_info_cache: std::sync::Arc::new(LockFreeHashMap::new()),
             root_resource,
         }
+    }
+
+    /// Get root resource if available
+    pub fn root_resource_value(&self) -> Option<FhirPathValue> {
+        self.root_resource
+            .as_ref()
+            .map(|root| root.as_ref().clone())
     }
 
     /// Get variable value using parent chain pattern
@@ -149,7 +156,7 @@ impl EvaluationContext {
         }
 
         // Check current scope - papaya HashMap requires pin for access
-        if let Some(value) = self.variables.pin().get(name) {
+        if let Some(value) = self.variables.as_ref().pin().get(name) {
             return Some(value.clone());
         }
 
@@ -164,7 +171,7 @@ impl EvaluationContext {
     /// Set variable in current scope
     pub fn set_variable(&self, name: String, value: FhirPathValue) {
         // papaya HashMap provides lock-free concurrent insertion with pin
-        self.variables.pin().insert(name, value);
+        self.variables.as_ref().pin().insert(name, value);
     }
 
     /// Create independent context for union operations (isolates user-defined variables)
@@ -194,7 +201,7 @@ impl EvaluationContext {
                 for (key, value) in vars {
                     lock_free_map.pin().insert(key, value);
                 }
-                lock_free_map
+                Arc::new(lock_free_map)
             },
             parent_context: None, // Independent context has no parent
             resolution_cache: self.resolution_cache.clone(),
@@ -212,7 +219,7 @@ impl EvaluationContext {
             terminology_provider: self.terminology_provider.clone(),
             validation_provider: self.validation_provider.clone(),
             trace_provider: self.trace_provider.clone(),
-            variables: LockFreeHashMap::new(), // Empty variables in nested scope
+            variables: Arc::new(LockFreeHashMap::new()), // Empty variables in nested scope
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
             resolution_cache: self.resolution_cache.clone(),
             type_info_cache: self.type_info_cache.clone(),
@@ -229,7 +236,7 @@ impl EvaluationContext {
             terminology_provider: self.terminology_provider.clone(),
             validation_provider: self.validation_provider.clone(),
             trace_provider: self.trace_provider.clone(),
-            variables: LockFreeHashMap::new(), // Empty variables for child context
+            variables: Arc::new(LockFreeHashMap::new()), // Empty variables for child context
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
             resolution_cache: self.resolution_cache.clone(),
             type_info_cache: self.type_info_cache.clone(),
@@ -324,7 +331,7 @@ impl EvaluationContext {
 }
 
 /// Clone implementation for EvaluationContext
-/// Note: Parent context and root_resource use Arc, so cloning only increments reference counts
+/// Note: shared fields use Arc, so cloning increments reference counts
 /// instead of creating deep copies
 impl Clone for EvaluationContext {
     fn clone(&self) -> Self {
@@ -334,15 +341,7 @@ impl Clone for EvaluationContext {
             terminology_provider: self.terminology_provider.clone(),
             validation_provider: self.validation_provider.clone(),
             trace_provider: self.trace_provider.clone(),
-            variables: {
-                // Clone all variables to preserve defineVariable state
-                let new_map = LockFreeHashMap::new();
-                // Copy all variables from the current context
-                for (key, value) in self.variables.pin().iter() {
-                    new_map.pin().insert(key.clone(), value.clone());
-                }
-                new_map
-            },
+            variables: self.variables.clone(),
             parent_context: self.parent_context.clone(),
             resolution_cache: self.resolution_cache.clone(),
             type_info_cache: self.type_info_cache.clone(),

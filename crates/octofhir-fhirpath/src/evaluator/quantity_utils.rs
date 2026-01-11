@@ -6,6 +6,7 @@
 use crate::core::{FhirPathValue, types::CalendarUnit};
 use octofhir_ucum::{evaluate_owned, parse_expression, precision::to_f64};
 use rust_decimal::Decimal;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 /// Parse a string into a Quantity according to FHIRPath rules used by convertsToQuantity()/toQuantity().
@@ -78,6 +79,14 @@ pub fn parse_string_to_quantity_value(s: &str) -> Option<FhirPathValue> {
     }
 
     None
+}
+
+fn normalize_ucum_unit(unit: &str) -> Cow<'_, str> {
+    match unit.trim() {
+        "°C" => Cow::Borrowed("Cel"),
+        "°F" => Cow::Borrowed("[degF]"),
+        _ => Cow::Borrowed(unit),
+    }
 }
 
 /// Result of a quantity conversion operation
@@ -520,11 +529,14 @@ fn convert_and_compare_ucum_ordering(
     right_value: Decimal,
     right_unit: &str,
 ) -> Result<Option<std::cmp::Ordering>, QuantityError> {
+    let left_unit_normalized = normalize_ucum_unit(left_unit);
+    let right_unit_normalized = normalize_ucum_unit(right_unit);
+
     // Parse both units
-    let left_expr = parse_expression(left_unit)
+    let left_expr = parse_expression(left_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
 
-    let right_expr = parse_expression(right_unit)
+    let right_expr = parse_expression(right_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
 
     // Evaluate both units
@@ -561,11 +573,14 @@ fn convert_and_compare_ucum_equivalence(
     right_value: Decimal,
     right_unit: &str,
 ) -> Result<bool, QuantityError> {
+    let left_unit_normalized = normalize_ucum_unit(left_unit);
+    let right_unit_normalized = normalize_ucum_unit(right_unit);
+
     // Parse both units
-    let left_expr = parse_expression(left_unit)
+    let left_expr = parse_expression(left_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
 
-    let right_expr = parse_expression(right_unit)
+    let right_expr = parse_expression(right_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
 
     // Evaluate both units
@@ -604,11 +619,14 @@ fn convert_and_compare_ucum(
     right_value: Decimal,
     right_unit: &str,
 ) -> Result<bool, QuantityError> {
+    let left_unit_normalized = normalize_ucum_unit(left_unit);
+    let right_unit_normalized = normalize_ucum_unit(right_unit);
+
     // Parse both units
-    let left_expr = parse_expression(left_unit)
+    let left_expr = parse_expression(left_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
 
-    let right_expr = parse_expression(right_unit)
+    let right_expr = parse_expression(right_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
 
     // Evaluate both units
@@ -641,11 +659,14 @@ pub fn are_ucum_units_comparable(left_unit: &str, right_unit: &str) -> Result<bo
         return Ok(true);
     }
 
+    let left_unit_normalized = normalize_ucum_unit(left_unit);
+    let right_unit_normalized = normalize_ucum_unit(right_unit);
+
     // Parse both units
-    let left_expr = parse_expression(left_unit)
+    let left_expr = parse_expression(left_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
 
-    let right_expr = parse_expression(right_unit)
+    let right_expr = parse_expression(right_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
 
     // Evaluate both units
@@ -667,11 +688,14 @@ fn convert_ucum_quantity(
     from_unit: &str,
     to_unit: &str,
 ) -> Result<ConversionResult, QuantityError> {
+    let from_unit_normalized = normalize_ucum_unit(from_unit);
+    let to_unit_normalized = normalize_ucum_unit(to_unit);
+
     // Parse both units
-    let from_expr = parse_expression(from_unit)
+    let from_expr = parse_expression(from_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{from_unit}': {e}")))?;
 
-    let to_expr = parse_expression(to_unit)
+    let to_expr = parse_expression(to_unit_normalized.as_ref())
         .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{to_unit}': {e}")))?;
 
     // Evaluate both units
@@ -695,14 +719,16 @@ fn convert_ucum_quantity(
     let factor = to_f64(from_eval.factor) / to_f64(to_eval.factor);
     let converted_value = value * Decimal::try_from(factor).unwrap_or_default();
 
+    let to_unit_value = to_unit_normalized.as_ref();
+
     // Try to find the target unit record
-    let ucum_unit = octofhir_ucum::find_unit(to_unit).map(|u| Arc::new(u.clone()));
+    let ucum_unit = octofhir_ucum::find_unit(to_unit_value).map(|u| Arc::new(u.clone()));
 
     Ok(ConversionResult {
         value: converted_value,
-        unit: Some(to_unit.to_string()),
+        unit: Some(to_unit_value.to_string()),
         ucum_unit,
-        calendar_unit: CalendarUnit::from_str(to_unit),
+        calendar_unit: CalendarUnit::from_str(to_unit_value),
     })
 }
 

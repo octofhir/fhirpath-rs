@@ -4,6 +4,7 @@
 //! for debugging, profiling, and development tool support.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -16,6 +17,8 @@ use serde::{Deserialize, Serialize};
 pub struct MetadataCollector {
     /// Node evaluation information
     node_evaluations: Arc<Mutex<Vec<NodeEvaluationInfo>>>,
+    /// Monotonic counter for evaluation IDs
+    node_evaluation_counter: AtomicUsize,
     /// Type resolution tracking
     type_resolutions: Arc<Mutex<Vec<TypeResolutionInfo>>>,
     /// Cache performance statistics
@@ -255,6 +258,7 @@ impl MetadataCollector {
     pub fn new() -> Self {
         Self {
             node_evaluations: Arc::new(Mutex::new(Vec::new())),
+            node_evaluation_counter: AtomicUsize::new(0),
             type_resolutions: Arc::new(Mutex::new(Vec::new())),
             cache_stats: Arc::new(Mutex::new(CacheStats::default())),
             trace_events: Arc::new(Mutex::new(Vec::new())),
@@ -268,6 +272,7 @@ impl MetadataCollector {
     pub fn with_session_id(session_id: String) -> Self {
         Self {
             node_evaluations: Arc::new(Mutex::new(Vec::new())),
+            node_evaluation_counter: AtomicUsize::new(0),
             type_resolutions: Arc::new(Mutex::new(Vec::new())),
             cache_stats: Arc::new(Mutex::new(CacheStats::default())),
             trace_events: Arc::new(Mutex::new(Vec::new())),
@@ -282,6 +287,11 @@ impl MetadataCollector {
         if let Ok(mut evaluations) = self.node_evaluations.lock() {
             evaluations.push(info);
         }
+    }
+
+    /// Get the next evaluation ID
+    pub fn next_evaluation_id(&self) -> usize {
+        self.node_evaluation_counter.fetch_add(1, Ordering::Relaxed)
     }
 
     /// Record type resolution information
@@ -490,6 +500,7 @@ impl MetadataCollector {
         if let Ok(mut evaluations) = self.node_evaluations.lock() {
             evaluations.clear();
         }
+        self.node_evaluation_counter.store(0, Ordering::Relaxed);
         if let Ok(mut resolutions) = self.type_resolutions.lock() {
             resolutions.clear();
         }

@@ -12,6 +12,7 @@ use crate::evaluator::function_registry::{
     FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
 };
 use crate::evaluator::{EvaluationContext, EvaluationResult};
+use serde_json::Value as JsonValue;
 
 /// Resolve function evaluator
 pub struct ResolveFunctionEvaluator {
@@ -62,6 +63,56 @@ impl ResolveFunctionEvaluator {
         }
     }
 
+    fn ensure_bundle_index(&self, resource_json: &serde_json::Value, context: &EvaluationContext) {
+        const BUNDLE_INDEX_MARKER: &str = "bundle-index-ready";
+        let cache = context.resolution_cache();
+        let cache_guard = cache.pin();
+        if cache_guard.get(BUNDLE_INDEX_MARKER).is_some() {
+            return;
+        }
+
+        if let Some(rt) = resource_json.get("resourceType")
+            && let Some(rt_str) = rt.as_str()
+            && rt_str == "Bundle"
+            && let Some(entries_array) = resource_json.get("entry")
+            && let Some(entries) = entries_array.as_array()
+        {
+            for entry in entries {
+                if let Some(entry_resource) = entry.get("resource")
+                    && let Some(resource_type) = entry_resource
+                        .get("resourceType")
+                        .and_then(|rt| rt.as_str())
+                    && let Some(id) = entry_resource.get("id").and_then(|id_val| id_val.as_str())
+                {
+                    let key = format!("bundle:{resource_type}/{id}");
+                    cache_guard.insert(key, Arc::new(entry_resource.clone()));
+                }
+            }
+        }
+
+        cache_guard.insert(BUNDLE_INDEX_MARKER.to_string(), Arc::new(JsonValue::Null));
+    }
+
+    fn resolve_contained_reference_from_json(
+        &self,
+        resource_json: &serde_json::Value,
+        id: &str,
+    ) -> Option<std::sync::Arc<serde_json::Value>> {
+        if let Some(contained_array) = resource_json.get("contained")
+            && let Some(contained_list) = contained_array.as_array()
+        {
+            for contained_resource in contained_list {
+                if let Some(item_id) = contained_resource.get("id")
+                    && let Some(id_str) = item_id.as_str()
+                    && id_str == id
+                {
+                    return Some(Arc::new(contained_resource.clone()));
+                }
+            }
+        }
+        None
+    }
+
     /// Resolve reference within the current resource tree
     fn resolve_reference_in_tree(
         &self,
@@ -86,23 +137,10 @@ impl ResolveFunctionEvaluator {
 
         // Determine the appropriate root for resolution.
         // Prefer variables that actually hold a Resource, walking parent scopes via get_variable.
-        let mut root_resource_opt: Option<FhirPathValue> = None;
-        let var_names = [
-            "%resource",
-            "resource",
-            "%context",
-            "context",
-            "this",
-            "$this",
-        ];
-        for name in var_names {
-            if let Some(v) = context.get_variable(name)
-                && matches!(v, FhirPathValue::Resource(_, _, _))
-            {
-                root_resource_opt = Some(v);
-                break;
-            }
-        }
+        let mut root_resource_opt = context
+            .root_resource_value()
+            .filter(|value| matches!(value, FhirPathValue::Resource(_, _, _)));
+
         // Fall back to finding any Resource in the current input collection
         if root_resource_opt.is_none() {
             for v in context.input_collection().iter() {
@@ -113,20 +151,42 @@ impl ResolveFunctionEvaluator {
             }
         }
 
-        let result = if let Some(root_resource) = root_resource_opt {
-            // Create a single-item collection containing the root resource
-            let root_collection = crate::core::Collection::from(vec![root_resource]);
+        let result = if let Some(FhirPathValue::Resource(resource_json, _type_info, _primitive)) =
+            root_resource_opt.as_ref()
+        {
+            if reference.contains('/') {
+                if let Some(rt) = resource_json.get("resourceType")
+                    && let Some(rt_str) = rt.as_str()
+                {
+                    if rt_str == "Bundle" {
+                        self.ensure_bundle_index(resource_json.as_ref(), context);
+                        return context.resolution_cache().pin().get(&cache_key).cloned();
+                    }
+
+                    if let Some((resource_type, id)) = reference.split_once('/') {
+                        let matches_type = rt_str == resource_type;
+                        let matches_id = resource_json
+                            .get("id")
+                            .and_then(|id_val| id_val.as_str())
+                            .map(|id_str| id_str == id)
+                            .unwrap_or(false);
+
+                        if matches_type && matches_id {
+                            return Some(resource_json.clone());
+                        }
+                    }
+                }
+
+                return None;
+            }
 
             // Handle different reference types
             if let Some(stripped) = reference.strip_prefix('#') {
                 // Internal contained resource reference
-                self.resolve_contained_reference(stripped, &root_collection)
-            } else if reference.contains('/') {
-                // Relative reference (Resource/id)
-                self.resolve_bundle_reference(reference, &root_collection)
+                self.resolve_contained_reference_from_json(resource_json.as_ref(), stripped)
             } else {
                 // Simple id reference - check contained resources
-                self.resolve_contained_reference(reference, &root_collection)
+                self.resolve_contained_reference_from_json(resource_json.as_ref(), reference)
             }
         } else {
             None
@@ -141,103 +201,6 @@ impl ResolveFunctionEvaluator {
         }
 
         result
-    }
-
-    /// Resolve contained resource reference and return the resolved JSON
-    fn resolve_contained_reference(
-        &self,
-        id: &str,
-        root_collection: &crate::core::Collection,
-    ) -> Option<std::sync::Arc<serde_json::Value>> {
-        // Look through all items in the root collection
-        for item in root_collection.iter() {
-            if let FhirPathValue::Resource(resource_json, _type_info, _primitive) = item {
-                // Check contained resources
-                if let Some(contained_array) = resource_json.get("contained")
-                    && let Some(contained_list) = contained_array.as_array()
-                {
-                    for contained_resource in contained_list {
-                        if let Some(item_id) = contained_resource.get("id")
-                            && let Some(id_str) = item_id.as_str()
-                            && id_str == id
-                        {
-                            return Some(Arc::new(contained_resource.clone()));
-                        }
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    /// Resolve Bundle entry reference and return the resolved JSON
-    fn resolve_bundle_reference(
-        &self,
-        reference: &str,
-        root_collection: &crate::core::Collection,
-    ) -> Option<std::sync::Arc<serde_json::Value>> {
-        // Parse reference (e.g., "Patient/123")
-        let parts: Vec<&str> = reference.split('/').collect();
-        if parts.len() != 2 {
-            return None;
-        }
-        let (resource_type, id) = (parts[0], parts[1]);
-
-        // Look through all items in the root collection
-        for item in root_collection.iter() {
-            if let FhirPathValue::Resource(resource_json, _type_info, _primitive) = item {
-                // Check if this is a Bundle
-                if let Some(rt) = resource_json.get("resourceType")
-                    && let Some(rt_str) = rt.as_str()
-                {
-                    if rt_str == "Bundle" {
-                        // Search in Bundle entries
-                        if let Some(entries_array) = resource_json.get("entry")
-                            && let Some(entries) = entries_array.as_array()
-                        {
-                            for entry in entries {
-                                if let Some(entry_resource) = entry.get("resource") {
-                                    // Check resource type and id
-                                    let matches_type = entry_resource
-                                        .get("resourceType")
-                                        .and_then(|rt| rt.as_str())
-                                        .map(|rt_str| rt_str == resource_type)
-                                        .unwrap_or(false);
-
-                                    let matches_id = entry_resource
-                                        .get("id")
-                                        .and_then(|id_val| id_val.as_str())
-                                        .map(|id_str| id_str == id)
-                                        .unwrap_or(false);
-
-                                    if matches_type && matches_id {
-                                        return Some(Arc::new(entry_resource.clone()));
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Direct resource - check if it matches
-                        let matches_type = resource_json
-                            .get("resourceType")
-                            .and_then(|rt| rt.as_str())
-                            .map(|rt_str| rt_str == resource_type)
-                            .unwrap_or(false);
-
-                        let matches_id = resource_json
-                            .get("id")
-                            .and_then(|id_val| id_val.as_str())
-                            .map(|id_str| id_str == id)
-                            .unwrap_or(false);
-
-                        if matches_type && matches_id {
-                            return Some(resource_json.clone());
-                        }
-                    }
-                }
-            }
-        }
-        None
     }
 }
 
@@ -278,10 +241,8 @@ impl ProviderPureFunctionEvaluator for ResolveFunctionEvaluator {
 
                     // Obtain precise TypeInfo from ModelProvider if available
                     let type_info = context
-                        .model_provider()
-                        .get_type(resource_type)
+                        .get_or_fetch_type_info(resource_type)
                         .await
-                        .unwrap_or(None)
                         .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
                             type_name: resource_type.to_string(),
                             singleton: Some(true),

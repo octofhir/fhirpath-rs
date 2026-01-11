@@ -4,6 +4,7 @@ use octofhir_ucum::{UnitRecord, find_unit};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::sync::{Arc, LazyLock};
@@ -553,6 +554,14 @@ impl fmt::Display for CalendarUnit {
     }
 }
 
+fn normalize_ucum_unit(unit: &str) -> Cow<'_, str> {
+    match unit.trim() {
+        "°C" => Cow::Borrowed("Cel"),
+        "°F" => Cow::Borrowed("[degF]"),
+        _ => Cow::Borrowed(unit),
+    }
+}
+
 impl FhirPathValue {
     /// Create an integer value with default TypeInfo
     pub fn integer(value: i64) -> Self {
@@ -1024,10 +1033,11 @@ impl FhirPathValue {
         let mut resolved_system = system;
 
         let (ucum_unit, calendar_unit) = if let Some(ref code_str) = code {
-            if let Some(cal_unit) = CalendarUnit::from_str(code_str) {
+            let normalized = normalize_ucum_unit(code_str);
+            if let Some(cal_unit) = CalendarUnit::from_str(normalized.as_ref()) {
                 (None, Some(cal_unit))
             } else {
-                match find_unit(code_str) {
+                match find_unit(normalized.as_ref()) {
                     Some(ucum) => {
                         if resolved_system.is_none() {
                             resolved_system = Some("http://unitsofmeasure.org".to_string());
@@ -1038,10 +1048,11 @@ impl FhirPathValue {
                 }
             }
         } else if let Some(ref unit_str) = unit {
-            if let Some(cal_unit) = CalendarUnit::from_str(unit_str) {
+            let normalized = normalize_ucum_unit(unit_str);
+            if let Some(cal_unit) = CalendarUnit::from_str(normalized.as_ref()) {
                 (None, Some(cal_unit))
             } else {
-                match find_unit(unit_str) {
+                match find_unit(normalized.as_ref()) {
                     Some(ucum) => {
                         if resolved_system.is_none() {
                             resolved_system = Some("http://unitsofmeasure.org".to_string());

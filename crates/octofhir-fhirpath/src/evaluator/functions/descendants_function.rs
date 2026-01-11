@@ -22,6 +22,15 @@ static ELEMENT_TYPE_INFO: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
     is_empty: Some(false),
 });
 
+/// Static TypeInfo for Reference type, reused for reference elements.
+static REFERENCE_TYPE_INFO: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
+    type_name: "Reference".to_string(),
+    singleton: Some(true),
+    namespace: Some("FHIR".to_string()),
+    name: Some("Reference".to_string()),
+    is_empty: Some(false),
+});
+
 pub struct DescendantsFunctionEvaluator {
     metadata: FunctionMetadata,
 }
@@ -95,22 +104,42 @@ impl DescendantsFunctionEvaluator {
             match json {
                 serde_json::Value::Object(map) => {
                     for (_, value) in map {
-                        // Add the direct child
-                        if let Ok(fhir_value) = self.json_to_fhirpath_value(value) {
-                            descendants.push(fhir_value);
+                        match value {
+                            serde_json::Value::Array(_) => {
+                                stack.push(value);
+                            }
+                            serde_json::Value::Object(_) => {
+                                if let Ok(fhir_value) = self.json_to_fhirpath_value(value) {
+                                    descendants.push(fhir_value);
+                                }
+                                stack.push(value);
+                            }
+                            _ => {
+                                if let Ok(fhir_value) = self.json_to_fhirpath_value(value) {
+                                    descendants.push(fhir_value);
+                                }
+                            }
                         }
-                        // Push to stack for iterative processing (reverse order for DFS)
-                        stack.push(value);
                     }
                 }
                 serde_json::Value::Array(arr) => {
                     for item in arr {
-                        // Add each array item
-                        if let Ok(fhir_value) = self.json_to_fhirpath_value(item) {
-                            descendants.push(fhir_value);
+                        match item {
+                            serde_json::Value::Array(_) => {
+                                stack.push(item);
+                            }
+                            serde_json::Value::Object(_) => {
+                                if let Ok(fhir_value) = self.json_to_fhirpath_value(item) {
+                                    descendants.push(fhir_value);
+                                }
+                                stack.push(item);
+                            }
+                            _ => {
+                                if let Ok(fhir_value) = self.json_to_fhirpath_value(item) {
+                                    descendants.push(fhir_value);
+                                }
+                            }
                         }
-                        // Push to stack for iterative processing
-                        stack.push(item);
                     }
                 }
                 _ => {
@@ -135,12 +164,26 @@ impl DescendantsFunctionEvaluator {
                 }
             }
             serde_json::Value::Bool(b) => Ok(FhirPathValue::boolean(*b)),
-            serde_json::Value::Object(_) => {
-                // For complex objects, wrap as Resource using static TypeInfo
-                // This avoids allocating a new TypeInfo for each descendant element
+            serde_json::Value::Object(map) => {
+                let type_info = if let Some(resource_type) =
+                    map.get("resourceType").and_then(|value| value.as_str())
+                {
+                    TypeInfo {
+                        type_name: resource_type.to_string(),
+                        singleton: Some(true),
+                        namespace: Some("FHIR".to_string()),
+                        name: Some(resource_type.to_string()),
+                        is_empty: Some(false),
+                    }
+                } else if map.get("reference").is_some() {
+                    REFERENCE_TYPE_INFO.clone()
+                } else {
+                    ELEMENT_TYPE_INFO.clone()
+                };
+
                 Ok(FhirPathValue::Resource(
                     Arc::new(json.clone()),
-                    ELEMENT_TYPE_INFO.clone(),
+                    type_info,
                     None,
                 ))
             }

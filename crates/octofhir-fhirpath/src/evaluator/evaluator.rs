@@ -104,6 +104,138 @@ impl Evaluator {
         self.evaluate_node_inner(node, context).await
     }
 
+    fn is_this_variable(node: &ExpressionNode) -> bool {
+        match node {
+            ExpressionNode::Variable(variable) => {
+                variable.name == "$this" || variable.name == "this"
+            }
+            ExpressionNode::Parenthesized(inner) => Self::is_this_variable(inner),
+            _ => false,
+        }
+    }
+
+    fn is_reference_type_check(node: &ExpressionNode) -> bool {
+        match node {
+            ExpressionNode::TypeCheck(check) => {
+                check.target_type == "Reference" && Self::is_this_variable(&check.expression)
+            }
+            ExpressionNode::Parenthesized(inner) => Self::is_reference_type_check(inner),
+            _ => false,
+        }
+    }
+
+    fn descendants_receiver(node: &ExpressionNode) -> Option<&ExpressionNode> {
+        match node {
+            ExpressionNode::MethodCall(method_call)
+                if method_call.method == "descendants" && method_call.arguments.is_empty() =>
+            {
+                Some(&method_call.object)
+            }
+            ExpressionNode::Parenthesized(inner) => Self::descendants_receiver(inner),
+            _ => None,
+        }
+    }
+
+    fn collect_reference_descendants(
+        &self,
+        root: &serde_json::Value,
+        results: &mut Vec<FhirPathValue>,
+    ) {
+        let mut stack = vec![root];
+        while let Some(value) = stack.pop() {
+            match value {
+                serde_json::Value::Object(map) => {
+                    if map
+                        .get("resourceType")
+                        .and_then(|value| value.as_str())
+                        .is_some()
+                    {
+                        for child in map.values() {
+                            if matches!(
+                                child,
+                                serde_json::Value::Object(_) | serde_json::Value::Array(_)
+                            ) {
+                                stack.push(child);
+                            }
+                        }
+                    } else if map.get("reference").is_some() {
+                        let type_info = crate::core::model_provider::TypeInfo {
+                            type_name: "Reference".to_string(),
+                            singleton: Some(true),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some("Reference".to_string()),
+                            is_empty: Some(false),
+                        };
+                        results.push(FhirPathValue::Resource(
+                            Arc::new(value.clone()),
+                            type_info,
+                            None,
+                        ));
+                        for child in map.values() {
+                            if matches!(
+                                child,
+                                serde_json::Value::Object(_) | serde_json::Value::Array(_)
+                            ) {
+                                stack.push(child);
+                            }
+                        }
+                    } else {
+                        for child in map.values() {
+                            if matches!(
+                                child,
+                                serde_json::Value::Object(_) | serde_json::Value::Array(_)
+                            ) {
+                                stack.push(child);
+                            }
+                        }
+                    }
+                }
+                serde_json::Value::Array(arr) => {
+                    for item in arr {
+                        if matches!(
+                            item,
+                            serde_json::Value::Object(_) | serde_json::Value::Array(_)
+                        ) {
+                            stack.push(item);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    async fn try_evaluate_descendants_reference_where(
+        &self,
+        method_call: &crate::ast::expression::MethodCallNode,
+        context: &EvaluationContext,
+    ) -> Result<Option<EvaluationResult>> {
+        if method_call.method != "where" || method_call.arguments.len() != 1 {
+            return Ok(None);
+        }
+
+        if !Self::is_reference_type_check(&method_call.arguments[0]) {
+            return Ok(None);
+        }
+
+        let receiver = match Self::descendants_receiver(&method_call.object) {
+            Some(receiver) => receiver,
+            None => return Ok(None),
+        };
+
+        let receiver_result = self.evaluate_node_inner(receiver, context).await?;
+        let mut results = Vec::new();
+        for item in receiver_result.value.iter() {
+            if let FhirPathValue::Resource(json, _, _) = item {
+                self.collect_reference_descendants(json.as_ref(), &mut results);
+            }
+        }
+
+        Ok(Some(EvaluationResult {
+            value: Collection::from(results),
+        }))
+    }
+
     /// Inner evaluation method to handle recursion
     #[async_recursion]
     async fn evaluate_node_inner(
@@ -179,6 +311,13 @@ impl Evaluator {
                     .await
             }
             ExpressionNode::MethodCall(method_call) => {
+                if let Some(result) = self
+                    .try_evaluate_descendants_reference_where(method_call, context)
+                    .await?
+                {
+                    return Ok(result);
+                }
+
                 // Evaluate receiver first, then call method with receiver as input
                 let object_result = self
                     .evaluate_node_inner(&method_call.object, context)
@@ -188,7 +327,7 @@ impl Evaluator {
                     &method_call.method,
                     &method_call.arguments,
                     context,
-                    Some(object_result.value.values().to_vec()),
+                    Some(object_result.value),
                 )
                 .await
             }
@@ -288,23 +427,29 @@ impl Evaluator {
             .evaluate_node_with_collector(node, context, &metadata_collector, 0)
             .await?;
 
-        // Build comprehensive metadata summary
-        // TODO: Implement proper metadata collection summary
-        let metadata_summary = super::metadata_collector::EvaluationSummary {
-            session_id: "temp".to_string(),
-            total_execution_time: std::time::Duration::from_millis(0),
-            total_node_evaluations: 0,
-            total_type_resolutions: 0,
-            successful_evaluations: 1,
-            failed_evaluations: 0,
-            cache_hit_rate: 0.0,
-            average_evaluation_time: std::time::Duration::from_millis(0),
-            max_depth: 0,
-            function_calls: 0,
-            operator_evaluations: 0,
-        };
+        let metadata_summary = metadata_collector.generate_summary();
 
         Ok(EvaluationResultWithMetadata::new(result, metadata_summary))
+    }
+
+    fn node_kind(node: &ExpressionNode) -> &'static str {
+        match node {
+            ExpressionNode::Literal(_) => "Literal",
+            ExpressionNode::Identifier(_) => "Identifier",
+            ExpressionNode::BinaryOperation(_) => "BinaryOperation",
+            ExpressionNode::UnaryOperation(_) => "UnaryOperation",
+            ExpressionNode::FunctionCall(_) => "FunctionCall",
+            ExpressionNode::IndexAccess(_) => "IndexAccess",
+            ExpressionNode::PropertyAccess(_) => "PropertyAccess",
+            ExpressionNode::MethodCall(_) => "MethodCall",
+            ExpressionNode::Collection(_) => "Collection",
+            ExpressionNode::Variable(_) => "Variable",
+            ExpressionNode::Parenthesized(_) => "Parenthesized",
+            ExpressionNode::Union(_) => "Union",
+            ExpressionNode::TypeCheck(_) => "TypeCheck",
+            ExpressionNode::TypeCast(_) => "TypeCast",
+            _ => "Unknown",
+        }
     }
 
     /// Evaluate an AST node with metadata collection tracking
@@ -320,12 +465,8 @@ impl Evaluator {
         use std::time::Instant;
 
         let start_time = Instant::now();
-        let node_type = format!("{node:?}")
-            .split('(')
-            .next()
-            .unwrap_or("Unknown")
-            .to_string();
-        let evaluation_id = collector.node_evaluations().len();
+        let node_type = Self::node_kind(node).to_string();
+        let evaluation_id = collector.next_evaluation_id();
 
         // Record evaluation start
         collector.record_trace_event(TraceEvent::EvaluationStart {
@@ -502,7 +643,7 @@ impl Evaluator {
                         &method_call.method,
                         &method_call.arguments,
                         context,
-                        Some(object_result.value.values().to_vec()),
+                        Some(object_result.value),
                     )
                     .await;
                 let method_time = method_start.elapsed();
@@ -2307,15 +2448,15 @@ impl Evaluator {
         function_name: &str,
         arguments: &[ExpressionNode],
         context: &EvaluationContext,
-        input_override: Option<Vec<FhirPathValue>>,
+        input_override: Option<Collection>,
     ) -> Result<EvaluationResult> {
         // Get the function evaluator wrapper from the registry
         if let Some(wrapper) = self.function_registry.get_function_wrapper(function_name) {
             let metadata = wrapper.metadata();
 
             // Determine input values (method calls can override input)
-            let input_values: Vec<FhirPathValue> =
-                input_override.unwrap_or_else(|| context.input_collection().values().to_vec());
+            let input_values: Collection =
+                input_override.unwrap_or_else(|| context.input_collection().clone());
 
             // Check null propagation strategy against the actual function input (supports method calls)
             use crate::evaluator::function_registry::NullPropagationStrategy;
@@ -2357,7 +2498,12 @@ impl Evaluator {
                     let async_evaluator = AsyncNodeEvaluator::new(self);
 
                     lazy_evaluator
-                        .evaluate(input_values, context, arguments.to_vec(), async_evaluator)
+                        .evaluate(
+                            input_values.into_vec(),
+                            context,
+                            arguments.to_vec(),
+                            async_evaluator,
+                        )
                         .await
                 }
                 crate::evaluator::function_registry::FunctionEvaluatorWrapper::Standard(
@@ -2381,7 +2527,7 @@ impl Evaluator {
 
                             standard_evaluator
                                 .evaluate(
-                                    input_values,
+                                    input_values.into_vec(),
                                     context,
                                     arguments.to_vec(),
                                     async_evaluator,
@@ -2405,7 +2551,7 @@ impl Evaluator {
         evaluator: &std::sync::Arc<dyn crate::evaluator::function_registry::PureFunctionEvaluator>,
         arguments: &[ExpressionNode],
         context: &EvaluationContext,
-        input_values: Vec<FhirPathValue>,
+        input_values: Collection,
     ) -> Result<EvaluationResult> {
         let metadata = evaluator.metadata();
 
@@ -2414,7 +2560,7 @@ impl Evaluator {
         // and the function does not require Root argument evaluation.
         let receiver_context = if !input_values.is_empty() {
             Some(EvaluationContext::new(
-                Collection::from(input_values.clone()),
+                input_values.clone(),
                 self.model_provider.clone(),
                 self.terminology_provider.clone(),
                 self.validation_provider.clone(),
@@ -2458,7 +2604,9 @@ impl Evaluator {
         }
 
         // Call the pure function with pre-evaluated arguments
-        evaluator.evaluate(input_values, evaluated_args).await
+        evaluator
+            .evaluate(input_values.into_vec(), evaluated_args)
+            .await
     }
 
     /// Evaluate a provider-dependent pure function (terminology, model, or trace provider needed)
@@ -2469,7 +2617,7 @@ impl Evaluator {
         >,
         arguments: &[ExpressionNode],
         context: &EvaluationContext,
-        input_values: Vec<FhirPathValue>,
+        input_values: Collection,
     ) -> Result<EvaluationResult> {
         let metadata = evaluator.metadata();
 
@@ -2499,7 +2647,7 @@ impl Evaluator {
 
         // Call the provider pure function with pre-evaluated arguments and context for providers
         evaluator
-            .evaluate(input_values, evaluated_args, context)
+            .evaluate(input_values.into_vec(), evaluated_args, context)
             .await
     }
 

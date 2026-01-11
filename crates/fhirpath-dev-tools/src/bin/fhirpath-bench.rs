@@ -153,10 +153,12 @@ pub fn get_sample_patient() -> serde_json::Value {
 }
 
 pub fn get_sample_bundle() -> serde_json::Value {
-    // Load bundle-medium.json from the specs directory
-    let bundle_path = "specs/fhirpath/tests/input/bundle-medium.json";
+    // Load bundle-medium.json from the test cases directory
+    let bundle_path = "test-cases/input/bundle-medium.json";
 
-    match std::fs::read_to_string(bundle_path) {
+    match std::fs::read_to_string(bundle_path)
+        .or_else(|_| std::fs::read_to_string("specs/fhirpath/tests/input/bundle-medium.json"))
+    {
         Ok(content) => {
             serde_json::from_str(&content).unwrap_or_else(|e| {
                 eprintln!("Failed to parse bundle-medium.json: {e}");
@@ -410,10 +412,16 @@ fn list_expressions() {
 }
 
 fn get_rss_bytes() -> Option<u64> {
-    let mut sys = System::new();
-    sys.refresh_processes(ProcessesToUpdate::All, true);
     let pid = Pid::from_u32(std::process::id());
-    sys.process(pid).map(|p| p.memory() * 1024)
+    let mut sys = System::new();
+    sys.refresh_memory();
+    sys.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
+    let process = sys.process(pid)?;
+    let memory = process.memory();
+    let total_memory = sys.total_memory();
+    let uses_bytes = total_memory > 1_000_000_000;
+    let memory_bytes = if uses_bytes { memory } else { memory * 1024 };
+    Some(memory_bytes)
 }
 
 fn format_bytes(bytes: u64) -> String {
@@ -679,14 +687,9 @@ fn parse_and_format_results(benchmark_output: &str, mem_start_end: Option<(u64, 
         }
 
         // Extract expression between backticks
-        let expr = if let Some(start) = l.find('`') {
-            if let Some(end_rel) = l[start + 1..].find('`') {
-                &l[start + 1..start + 1 + end_rel]
-            } else {
-                continue;
-            }
-        } else {
-            continue;
+        let expr = match l.split('`').nth(1) {
+            Some(expr) => expr,
+            None => continue,
         };
 
         // Extract ops/sec numeric value (for averaging) and format string
