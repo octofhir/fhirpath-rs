@@ -1,3 +1,12 @@
+## [0.4.37](https://github.com/octofhir/fhirpath-rs/compare/v0.4.36...v0.4.37) (2026-01-12)
+
+
+### Performance Improvements
+
+* improve descendants function ([2672150](https://github.com/octofhir/fhirpath-rs/commit/26721508b782015d90541b6d8923856fef203fba))
+
+
+
 ## [0.4.36](https://github.com/octofhir/fhirpath-rs/compare/v0.4.35...v0.4.36) (2026-01-10)
 
 
