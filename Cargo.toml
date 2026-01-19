@@ -59,7 +59,7 @@ clap = { version = "4", features = ["derive"] }
 human-panic = "2.0"
 
 # Optional diagnostic dependencies
-colored = "3.0.0"
+colored = "3.1.1"
 
 [workspace.lints.rust]
 missing_docs = "allow"
