@@ -1,4 +1,13 @@
-## [0.4.37](https://github.com/octofhir/fhirpath-rs/compare/v0.4.36...v0.4.37) (2026-01-12)
+## [0.4.38](https://github.com/octofhir/fhirpath-rs/compare/v0.4.37...v0.4.38) (2026-01-21)
+
+
+### Bug Fixes
+
+* value() function ([a3fadba](https://github.com/octofhir/fhirpath-rs/commit/a3fadba48f2fb6d111bf9dd59e833d513b55a926))
+
+
+
+## [0.4.37](https://github.com/octofhir/fhirpath-rs/compare/v0.4.36...v0.4.37) (2026-01-11)
 
 
 ### Performance Improvements
