@@ -327,6 +327,36 @@ impl OfTypeFunctionEvaluator {
                     _ => false,
                 }
             }
+            // FHIR dateTime type (note: lowercase "datetime" used in evaluator)
+            "dateTime" | "FHIR.dateTime" => match item {
+                FhirPathValue::DateTime(_, _, _) => true, // Any DateTime value matches
+                _ => false,
+            },
+            // System.DateTime type
+            "DateTime" | "System.DateTime" => match item {
+                FhirPathValue::DateTime(_, _, _) => true, // Any DateTime value matches
+                _ => false,
+            },
+            // FHIR date type (note: lowercase "date" used in evaluator)
+            "date" | "FHIR.date" => match item {
+                FhirPathValue::Date(_, _, _) => true, // Any Date value matches
+                _ => false,
+            },
+            // System.Date type
+            "Date" | "System.Date" => match item {
+                FhirPathValue::Date(_, _, _) => true, // Any Date value matches
+                _ => false,
+            },
+            // FHIR time type (note: lowercase "time" used in evaluator)
+            "time" | "FHIR.time" => match item {
+                FhirPathValue::Time(_, _, _) => true, // Any Time value matches
+                _ => false,
+            },
+            // System.Time type
+            "Time" | "System.Time" => match item {
+                FhirPathValue::Time(_, _, _) => true, // Any Time value matches
+                _ => false,
+            },
             _ => {
                 // For complex types, use ModelProvider for inheritance checking
                 let model_provider = context.model_provider();

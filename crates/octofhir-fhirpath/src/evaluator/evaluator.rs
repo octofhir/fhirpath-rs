@@ -1750,11 +1750,20 @@ impl Evaluator {
                                 )
                             }
                         }
-                        _ => FhirPathValue::wrap_value(
-                            crate::core::value::utils::json_to_fhirpath_value(element.clone()),
-                            element_type_info.clone(),
-                            None,
-                        ),
+                        _ => {
+                            // Check for temporal types in arrays
+                            if self.is_temporal_type(&element_type_info.type_name) {
+                                self.convert_temporal_value(element, &element_type_info)?
+                            } else {
+                                FhirPathValue::wrap_value(
+                                    crate::core::value::utils::json_to_fhirpath_value(
+                                        element.clone(),
+                                    ),
+                                    element_type_info.clone(),
+                                    None,
+                                )
+                            }
+                        }
                     };
                     results.push(fhir_value);
                 }
@@ -1810,14 +1819,23 @@ impl Evaluator {
                         results.push(fhir_value);
                     }
                 } else {
-                    // Primitive values - use json conversion but wrap with correct type info
-                    let base_value =
-                        crate::core::value::utils::json_to_fhirpath_value(property_value.clone());
-                    results.push(FhirPathValue::wrap_value(
-                        base_value,
-                        element_type_info.clone(),
-                        None,
-                    ));
+                    // Primitive values - check for temporal types first
+                    if self.is_temporal_type(&element_type_info.type_name) {
+                        // Convert temporal values to proper FhirPathValue types
+                        let temporal_value =
+                            self.convert_temporal_value(property_value, &element_type_info)?;
+                        results.push(temporal_value);
+                    } else {
+                        // Use json conversion but wrap with correct type info
+                        let base_value = crate::core::value::utils::json_to_fhirpath_value(
+                            property_value.clone(),
+                        );
+                        results.push(FhirPathValue::wrap_value(
+                            base_value,
+                            element_type_info.clone(),
+                            None,
+                        ));
+                    }
                 }
             }
         }
@@ -1980,14 +1998,12 @@ impl Evaluator {
         let primitive_element = self.get_primitive_element(parent_object, property_name);
 
         // Handle temporal parsing for date/datetime/time types
-        let parsed_value = if self.is_temporal_type(&type_info.type_name) {
-            self.parse_temporal_if_needed(value, type_info)?
+        // Convert directly to appropriate FhirPathValue type instead of going through json_to_fhirpath_value
+        let base_value = if self.is_temporal_type(&type_info.type_name) {
+            self.convert_temporal_value(&value, type_info)?
         } else {
-            value
+            crate::core::value::utils::json_to_fhirpath_value(value)
         };
-
-        // Convert to FhirPathValue and wrap with metadata
-        let base_value = crate::core::value::utils::json_to_fhirpath_value(parsed_value);
 
         // Build wrapped primitive element with extensions if present
         let wrapped_primitive = primitive_element.map(|pe_json| {
@@ -2072,89 +2088,54 @@ impl Evaluator {
         )
     }
 
-    /// Parse temporal value if needed
-    fn parse_temporal_if_needed(
+    /// Convert a JSON value to the appropriate FhirPathValue for temporal types
+    fn convert_temporal_value(
         &self,
-        value: serde_json::Value,
+        value: &serde_json::Value,
         type_info: &crate::core::model_provider::TypeInfo,
-    ) -> Result<serde_json::Value> {
-        match type_info.type_name.to_lowercase().as_str() {
-            "date" => {
-                if let Some(date_str) = value.as_str() {
-                    // Basic date validation (YYYY-MM-DD format)
-                    if date_str.len() >= 4 && date_str.chars().nth(4) == Some('-') {
-                        Ok(value)
+    ) -> Result<FhirPathValue> {
+        let type_name_lower = type_info.type_name.to_lowercase();
+
+        match value {
+            serde_json::Value::String(s) => match type_name_lower.as_str() {
+                "datetime" | "instant" => {
+                    // Parse as DateTime
+                    if let Some(parsed) = crate::core::temporal::PrecisionDateTime::parse(s) {
+                        Ok(FhirPathValue::DateTime(parsed, type_info.clone(), None))
                     } else {
-                        Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0054,
-                            format!("Invalid date format: {date_str}"),
-                        ))
+                        // Fallback to string if parsing fails
+                        Ok(FhirPathValue::String(s.clone(), type_info.clone(), None))
                     }
-                } else {
-                    Ok(value)
                 }
-            }
-            "datetime" => {
-                if let Some(datetime_str) = value.as_str() {
-                    // FHIR dateTime allows partial precision (YYYY | YYYY-MM | YYYY-MM-DD | full dateTime)
-                    // Accept if it matches a simple partial date pattern or contains a 'T'.
-                    let looks_like_partial_date = {
-                        let s = datetime_str;
-                        // Accept years like 2012, 2012-05, 2012-05-06
-                        let bytes = s.as_bytes();
-                        let is_digit = |c: u8| c.is_ascii_digit();
-                        if bytes.len() == 4 {
-                            bytes.iter().all(|b| is_digit(*b))
-                        } else if bytes.len() >= 7 && s.chars().nth(4) == Some('-') {
-                            // Roughly validate YYYY-.. prefix
-                            bytes[0..4].iter().all(|b| is_digit(*b))
-                        } else {
-                            false
-                        }
-                    };
-                    if datetime_str.contains('T') || looks_like_partial_date {
-                        Ok(value)
+                "date" => {
+                    // Parse as Date
+                    if let Some(parsed) = crate::core::temporal::PrecisionDate::parse(s) {
+                        Ok(FhirPathValue::Date(parsed, type_info.clone(), None))
                     } else {
-                        // Be permissive: do not error hard for dateTime strings; pass through
-                        Ok(value)
+                        // Fallback to string if parsing fails
+                        Ok(FhirPathValue::String(s.clone(), type_info.clone(), None))
                     }
-                } else {
-                    Ok(value)
                 }
-            }
-            "instant" => {
-                if let Some(datetime_str) = value.as_str() {
-                    // instant must include full date, time, and timezone; require 'T' presence
-                    if datetime_str.contains('T') {
-                        Ok(value)
+                "time" => {
+                    // Parse as Time
+                    if let Some(parsed) = crate::core::temporal::PrecisionTime::parse(s) {
+                        Ok(FhirPathValue::Time(parsed, type_info.clone(), None))
                     } else {
-                        Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0054,
-                            format!(
-                                "Invalid instant format (expected full dateTime with time): {datetime_str}"
-                            ),
-                        ))
+                        // Fallback to string if parsing fails
+                        Ok(FhirPathValue::String(s.clone(), type_info.clone(), None))
                     }
-                } else {
-                    Ok(value)
                 }
-            }
-            "time" => {
-                if let Some(time_str) = value.as_str() {
-                    // Basic time validation (HH:MM format at minimum)
-                    if time_str.len() >= 5 && time_str.chars().nth(2) == Some(':') {
-                        Ok(value)
-                    } else {
-                        Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0054,
-                            format!("Invalid time format: {time_str}"),
-                        ))
-                    }
-                } else {
-                    Ok(value)
+                _ => {
+                    // Unknown temporal type, return as string
+                    Ok(FhirPathValue::String(s.clone(), type_info.clone(), None))
                 }
+            },
+            _ => {
+                // Non-string value, use default conversion
+                Ok(crate::core::value::utils::json_to_fhirpath_value(
+                    value.clone(),
+                ))
             }
-            _ => Ok(value),
         }
     }
 
