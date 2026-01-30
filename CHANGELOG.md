@@ -1,3 +1,12 @@
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.38...v0.5.0) (2026-01-30)
+
+
+### Features
+
+* improve speed by reduce clone and memory allocation ([617cab1](https://github.com/octofhir/fhirpath-rs/commit/617cab1a98b56d4f533e59a2a975fd5f3014e718))
+
+
+
 ## [0.4.38](https://github.com/octofhir/fhirpath-rs/compare/v0.4.37...v0.4.38) (2026-01-21)
 
 
