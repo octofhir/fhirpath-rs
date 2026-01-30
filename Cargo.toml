@@ -19,39 +19,39 @@ homepage = "https://github.com/octofhir/fhirpath-rs"
 # Core dependencies
 anyhow = "1"
 base64 = "0.22.1"
-chrono = { version = "0.4.41", features = ["serde"] }
+chrono = { version = "0.4.43", features = ["serde"] }
 glob = "0.3"
 hex = "0.4"
 indexmap = "2.13.0"
 log = "0.4"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
-octofhir-fhir-model = { version = "0.1.7", features = ["serde", "http-client"] }
+octofhir-fhir-model = { version = "0.1.8", features = ["serde", "http-client"] }
 octofhir-canonical-manager = { version = "0.1.26" }
 papaya = "0.2"
 url = "2.5"
 percent-encoding = "2.3"
-parking_lot = "0.12.4"
-regex = "1.11.1"
+parking_lot = "0.12.5"
+regex = "1.12.2"
 rust_decimal = { version = "1.40.0", features = ["serde-with-str"] }
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
 quick-xml = "0.39"
-smallvec = { version = "1.13", features = ["serde", "const_new"] }
+smallvec = { version = "1.15", features = ["serde", "const_new"] }
 thiserror = "2"
 once_cell = "1.21"
 pprof = { version = "0.15.0", features = ["flamegraph"] }
 
 rayon = "1"
 tracing = "0.1"
-uuid = { version = "1.19", features = ["v4", "serde"] }
+uuid = { version = "1.20", features = ["v4", "serde"] }
 
 async-trait = "0.1"
 futures = "0.3"
-tokio = { version = "1.47.1", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 
-reqwest = { version = "0.12.22", features = [
+reqwest = { version = "0.13", features = [
     "json",
-    "rustls-tls",
+    "rustls",
 ], default-features = false }
 
 # CLI dependencies

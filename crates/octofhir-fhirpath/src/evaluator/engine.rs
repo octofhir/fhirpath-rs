@@ -13,8 +13,8 @@ use crate::parser;
 use async_trait::async_trait;
 use octofhir_fhir_model::{
     CompiledExpression, ErrorSeverity, EvaluationResult as ModelEvaluationResult,
-    FhirPathConstraint, FhirPathEvaluator, TerminologyProvider, ValidationError,
-    ValidationProvider, ValidationResult, Variables,
+    FhirPathConstraint, FhirPathEvaluator, JsonVariables, TerminologyProvider, ValidationError,
+    ValidationProvider, ValidationResult,
 };
 use serde_json::Value as JsonValue;
 
@@ -153,6 +153,41 @@ impl FhirPathEngine {
     /// Get validation provider
     pub fn get_validation_provider(&self) -> Option<Arc<dyn ValidationProvider>> {
         self.validation_provider.clone()
+    }
+
+    /// Build evaluation context with JSON variables directly (no EvaluationResult round-trip).
+    async fn build_context_with_json_variables(
+        &self,
+        context: &JsonValue,
+        variables: &JsonVariables,
+    ) -> octofhir_fhir_model::Result<EvaluationContext> {
+        let context_arc = Arc::new(context.clone());
+        let collection = crate::core::Collection::from_json_resource_arc(
+            context_arc,
+            Some(self.model_provider.clone()),
+        )
+        .await
+        .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
+
+        let eval_context = EvaluationContext::new(
+            collection,
+            self.model_provider.clone(),
+            self.terminology_provider.clone(),
+            self.validation_provider.clone(),
+            self.trace_provider.clone(),
+        );
+
+        // Convert Arc<JsonValue> variables directly to FhirPathValue::Resource (no deep clone)
+        for (name, json_arc) in variables.iter() {
+            let fhir_value = FhirPathValue::resource_from_arc(json_arc.clone());
+
+            eval_context.set_variable(name.clone(), fhir_value.clone());
+            if !name.starts_with('%') {
+                eval_context.set_variable(format!("%{}", name), fhir_value);
+            }
+        }
+
+        Ok(eval_context)
     }
 
     /// Auto-prepend resource type if expression doesn't start with capital letter
@@ -328,40 +363,11 @@ impl FhirPathEvaluator for FhirPathEngine {
         &self,
         expression: &str,
         context: &JsonValue,
-        variables: &Variables,
+        variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<ModelEvaluationResult> {
-        // Convert JsonValue to our Collection format
-        let collection = crate::core::Collection::from_json_resource(
-            context.clone(),
-            Some(self.model_provider.clone()),
-        )
-        .await
-        .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
-
-        // Create evaluation context with variables
-        let eval_context = EvaluationContext::new(
-            collection,
-            self.model_provider.clone(),
-            self.terminology_provider.clone(),
-            self.validation_provider.clone(),
-            self.trace_provider.clone(),
-        );
-
-        // Add variables to context - convert from ModelEvaluationResult to FhirPathValue
-        for (name, value) in variables.iter() {
-            let fhir_value = crate::evaluator::result::eval_result_to_fhirpath_value(
-                value,
-                Some(self.model_provider.clone()),
-            );
-
-            // Support both % prefix and bare names for variables
-            eval_context.set_variable(name.clone(), fhir_value.clone());
-
-            // If name doesn't start with %, also set %name version
-            if !name.starts_with('%') {
-                eval_context.set_variable(format!("%{}", name), fhir_value);
-            }
-        }
+        let eval_context = self
+            .build_context_with_json_variables(context, variables)
+            .await?;
 
         // Evaluate using our internal engine
         let result = self
@@ -371,6 +377,25 @@ impl FhirPathEvaluator for FhirPathEngine {
 
         // Convert to ModelEvaluationResult
         Ok(result.to_evaluation_result())
+    }
+
+    /// Optimized constraint evaluation that skips expensive result conversion.
+    async fn evaluate_constraint_with_variables(
+        &self,
+        expression: &str,
+        context: &JsonValue,
+        variables: &JsonVariables,
+    ) -> octofhir_fhir_model::Result<bool> {
+        let eval_context = self
+            .build_context_with_json_variables(context, variables)
+            .await?;
+
+        let result = self
+            .evaluate(expression, &eval_context)
+            .await
+            .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
+
+        Ok(result.is_constraint_satisfied())
     }
 
     /// Compile an expression for reuse

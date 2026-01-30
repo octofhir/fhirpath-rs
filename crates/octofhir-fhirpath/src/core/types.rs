@@ -19,10 +19,11 @@ use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 pub use octofhir_fhir_model::{EvaluationResult, IntoEvaluationResult, TypeInfoResult};
 // New wrapped primitive element for Phase 1 implementation
 
-/// A collection of FHIRPath values - the fundamental evaluation result type
+/// A collection of FHIRPath values - the fundamental evaluation result type.
+/// Uses Arc<Vec<>> for cheap cloning when creating child evaluation contexts.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Collection {
-    values: Vec<FhirPathValue>,
+    values: Arc<Vec<FhirPathValue>>,
     is_ordered: bool,
     mixed: bool, // Flag indicating this collection contains mixed types
 }
@@ -31,7 +32,7 @@ impl Collection {
     /// Create a new empty collection (ordered by default)
     pub fn empty() -> Self {
         Self {
-            values: Vec::new(),
+            values: Arc::new(Vec::new()),
             is_ordered: true,
             mixed: false,
         }
@@ -40,7 +41,7 @@ impl Collection {
     /// Create an empty collection with explicit ordering
     pub fn empty_with_ordering(is_ordered: bool) -> Self {
         Self {
-            values: Vec::new(),
+            values: Arc::new(Vec::new()),
             is_ordered,
             mixed: false,
         }
@@ -49,7 +50,7 @@ impl Collection {
     /// Create a collection with a single value (ordered by default)
     pub fn single(value: FhirPathValue) -> Self {
         Self {
-            values: vec![value],
+            values: Arc::new(vec![value]),
             is_ordered: true,
             mixed: false,
         }
@@ -58,7 +59,7 @@ impl Collection {
     /// Create a collection from a vector of values (ordered by default)
     pub fn from_values(values: Vec<FhirPathValue>) -> Self {
         Self {
-            values,
+            values: Arc::new(values),
             is_ordered: true,
             mixed: false,
         }
@@ -74,10 +75,20 @@ impl Collection {
         Ok(Self::from_values(vec![resource_value]))
     }
 
+    /// Create a collection from Arc-wrapped JSON resource (avoids deep clone)
+    pub async fn from_json_resource_arc(
+        json: Arc<JsonValue>,
+        model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
+    ) -> crate::core::Result<Self> {
+        let resource_value =
+            FhirPathValue::resource_with_model_provider_arc(json, model_provider).await?;
+        Ok(Self::from_values(vec![resource_value]))
+    }
+
     /// Create a collection from a vector with explicit ordering
     pub fn from_values_with_ordering(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
         Self {
-            values,
+            values: Arc::new(values),
             is_ordered,
             mixed: false,
         }
@@ -86,7 +97,7 @@ impl Collection {
     /// Create a mixed collection (for collections containing different types)
     pub fn from_values_mixed(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
         Self {
-            values,
+            values: Arc::new(values),
             is_ordered,
             mixed: true,
         }
@@ -139,12 +150,12 @@ impl Collection {
 
     /// Add a value to the collection
     pub fn push(&mut self, value: FhirPathValue) {
-        self.values.push(value);
+        Arc::make_mut(&mut self.values).push(value);
     }
 
     /// Convert to vector
     pub fn into_vec(self) -> Vec<FhirPathValue> {
-        self.values
+        Arc::try_unwrap(self.values).unwrap_or_else(|arc| (*arc).clone())
     }
 
     /// Convert to serde_json::Value
@@ -174,7 +185,9 @@ impl IntoIterator for Collection {
     type IntoIter = std::vec::IntoIter<FhirPathValue>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.values.into_iter()
+        Arc::try_unwrap(self.values)
+            .unwrap_or_else(|arc| (*arc).clone())
+            .into_iter()
     }
 }
 
@@ -987,6 +1000,35 @@ impl FhirPathValue {
         Self::Resource(Arc::new(json), type_info, None)
     }
 
+    /// Create a resource value from an already Arc-wrapped JSON (avoids clone)
+    pub fn resource_from_arc(json: Arc<JsonValue>) -> Self {
+        let inferred_type = json
+            .as_object()
+            .and_then(|obj| obj.get("resourceType"))
+            .and_then(|rt| rt.as_str())
+            .map(|s| s.to_string());
+
+        let type_info = if let Some(resource_type) = inferred_type {
+            TypeInfo {
+                type_name: resource_type.clone(),
+                singleton: Some(true),
+                namespace: Some("FHIR".to_string()),
+                name: Some(resource_type),
+                is_empty: Some(false),
+            }
+        } else {
+            TypeInfo {
+                type_name: "Resource".to_string(),
+                singleton: Some(true),
+                namespace: Some("FHIR".to_string()),
+                name: Some("Resource".to_string()),
+                is_empty: Some(false),
+            }
+        };
+
+        Self::Resource(json, type_info, None)
+    }
+
     /// Create a resource value with ModelProvider-aware type resolution
     pub async fn resource_with_model_provider(
         json: JsonValue,
@@ -1011,6 +1053,27 @@ impl FhirPathValue {
 
         // Fallback to default resource TypeInfo
         Ok(Self::resource(json))
+    }
+
+    /// Create a resource value with ModelProvider-aware type resolution from Arc (avoids deep clone)
+    pub async fn resource_with_model_provider_arc(
+        json: Arc<JsonValue>,
+        model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
+    ) -> crate::core::Result<Self> {
+        if let Some(provider) = model_provider
+            && let Some(resource_type) = extract_resource_type(&json)
+        {
+            match provider.get_type(&resource_type).await {
+                Ok(Some(type_info)) => {
+                    return Ok(Self::Resource(json, type_info, None));
+                }
+                Ok(None) => {}
+                Err(_) => {}
+            }
+        }
+
+        // Fallback to default resource TypeInfo
+        Ok(Self::resource_from_arc(json))
     }
 
     /// Create a resource value with TypeInfo

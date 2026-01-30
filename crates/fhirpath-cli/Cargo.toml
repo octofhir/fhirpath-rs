@@ -34,7 +34,7 @@ workspace = true
 
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath", features = ["lsp"] }
-octofhir-fhirschema = { version = "0.3.14" }
+octofhir-fhirschema = { version = "0.3.15"}
 octofhir-fhir-model = { workspace = true }
 
 # Server dependencies (optional)
@@ -67,7 +67,7 @@ human-panic = "2.0"
 indicatif = "0.18.3"     # Progress bars and spinners
 console = "0.16"         # Terminal utilities and styling
 dialoguer = "0.12"       # Interactive prompts
-comfy-table = "7.1"      # Beautiful tables
+comfy-table = "7.2"      # Beautiful tables
 nu-ansi-term = "0.50"    # Advanced ANSI colors
 notify = { version = "8", optional = true }           # File system watcher for watch mode
 notify-debouncer-full = { version = "0.6", optional = true }  # Debounced file watching
@@ -84,5 +84,5 @@ ariadne = "0.6"
 tempfile = "3"
 
 [dev-dependencies]
-assert_cmd = "2.0"
+assert_cmd = "2.1"
 predicates = "3.1"
