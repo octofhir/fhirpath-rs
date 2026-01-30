@@ -49,5 +49,5 @@ clap = { workspace = true }
 chrono = { workspace = true }
 quick-xml = { workspace = true }
 roxmltree = "0.21"
-sysinfo = "0.37"
+sysinfo = "0.38"
 pprof = { version = "0.15", features = ["flamegraph"] }
