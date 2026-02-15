@@ -1,3 +1,12 @@
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.40...v0.5.0) (2026-02-15)
+
+
+### Features
+
+* %server, %factory and missed FHIR specific functions ([d4ce624](https://github.com/octofhir/fhirpath-rs/commit/d4ce624cfdafcec500448b82ed726fff24cc3a42))
+
+
+
 ## [0.4.40](https://github.com/octofhir/fhirpath-rs/compare/v0.4.39...v0.4.40) (2026-02-15)
 
 
