@@ -1,4 +1,13 @@
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.38...v0.5.0) (2026-01-30)
+## [0.4.40](https://github.com/octofhir/fhirpath-rs/compare/v0.4.39...v0.4.40) (2026-02-15)
+
+
+### Bug Fixes
+
+* quantity number serialization ([81eab35](https://github.com/octofhir/fhirpath-rs/commit/81eab3518091717bd993953f91d14407b5afa636))
+
+
+
+## [0.4.39](https://github.com/octofhir/fhirpath-rs/compare/v0.4.38...v0.4.39) (2026-01-30)
 
 
 ### Features
