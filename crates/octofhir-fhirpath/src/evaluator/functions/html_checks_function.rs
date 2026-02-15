@@ -292,8 +292,21 @@ impl PureFunctionEvaluator for HtmlChecksFunctionEvaluator {
         }
 
         for item in &input {
+            let xhtml_owned;
             let xhtml = match item {
                 FhirPathValue::String(s, _, _) => s.as_str(),
+                // When constraints are evaluated on primitive elements (like xhtml div),
+                // the value may be wrapped as Resource(JsonValue::String(...))
+                FhirPathValue::Resource(json, _, _) => {
+                    if let Some(s) = json.as_str() {
+                        xhtml_owned = s.to_string();
+                        xhtml_owned.as_str()
+                    } else {
+                        return Ok(EvaluationResult {
+                            value: crate::core::Collection::single(FhirPathValue::boolean(false)),
+                        });
+                    }
+                }
                 _ => {
                     return Ok(EvaluationResult {
                         value: crate::core::Collection::single(FhirPathValue::boolean(false)),
