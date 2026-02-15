@@ -4,6 +4,7 @@ use crate::cli::server::models::{
     TraceOutput, TracePart, canonical_decimal_string, path_segments_to_string,
 };
 use octofhir_fhirpath::FhirPathValue;
+use rust_decimal::prelude::ToPrimitive;
 use serde_json::{Number as JsonNumber, Value as JsonValue, json};
 
 const JSON_VALUE_EXTENSION_URL: &str = "http://fhir.forms-lab.com/StructureDefinition/json-value";
@@ -325,8 +326,9 @@ fn parameter_from_value(datatype: &str, value: &FhirPathValue) -> Parameter {
             ucum_unit: _,
             ..
         } => {
+            let quantity_json_value = decimal_to_json_number(quantity_value);
             let mut quantity = json!({
-                "value": canonical_decimal_string(quantity_value),
+                "value": quantity_json_value,
             });
             if let Some(unit) = unit {
                 quantity["unit"] = JsonValue::String(unit.clone());
@@ -525,6 +527,22 @@ fn make_resource_part(name: &str, resource: JsonValue) -> Parameter {
     }
 }
 
+/// Convert a `Decimal` to a `JsonValue::Number`, preserving precision.
+/// Whole numbers (scale 0 or trailing-zero fractional) serialize as integers (e.g. `1`),
+/// while fractional values serialize as floats (e.g. `1.5`).
+fn decimal_to_json_number(d: &rust_decimal::Decimal) -> JsonValue {
+    if d.fract().is_zero() {
+        // No fractional part → emit as integer to avoid "1.0"
+        if let Some(i) = d.to_i64() {
+            return JsonValue::Number(JsonNumber::from(i));
+        }
+    }
+    d.to_f64()
+        .and_then(JsonNumber::from_f64)
+        .map(JsonValue::Number)
+        .unwrap_or_else(|| JsonValue::String(canonical_decimal_string(d)))
+}
+
 fn context_path_from_segments(
     request: &ParsedServerRequest,
     context: &ContextItem,
@@ -567,10 +585,12 @@ mod tests {
         let parameter = parameter_from_value("Quantity", &quantity);
         let value = parameter.value.value_quantity.expect("quantity value");
 
-        assert_eq!(
-            value["value"],
-            JsonValue::String(canonical_decimal_string(&quantity_value))
+        assert!(
+            value["value"].is_number(),
+            "quantity value should be a JSON number, got: {:?}",
+            value["value"]
         );
+        assert_eq!(value["value"].as_f64().unwrap(), 1.5);
         assert_eq!(value["unit"], JsonValue::String("mg".to_string()));
         assert_eq!(
             value["system"],

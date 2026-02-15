@@ -2,6 +2,7 @@
 
 use octofhir_ucum::{UnitRecord, find_unit};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::borrow::Cow;
@@ -18,6 +19,21 @@ use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 // Import the new evaluation types from fhir-model-rs
 pub use octofhir_fhir_model::{EvaluationResult, IntoEvaluationResult, TypeInfoResult};
 // New wrapped primitive element for Phase 1 implementation
+
+/// Convert a `Decimal` to a `JsonValue::Number`, preserving precision.
+/// Whole numbers serialize as JSON integers (e.g. `1`), while
+/// fractional values serialize as JSON floats (e.g. `1.5`).
+fn decimal_to_json_number(d: &Decimal) -> JsonValue {
+    if d.fract().is_zero() {
+        if let Some(i) = d.to_i64() {
+            return JsonValue::Number(serde_json::Number::from(i));
+        }
+    }
+    d.to_f64()
+        .and_then(serde_json::Number::from_f64)
+        .map(JsonValue::Number)
+        .unwrap_or_else(|| JsonValue::String(d.to_string()))
+}
 
 /// A collection of FHIRPath values - the fundamental evaluation result type.
 /// Uses Arc<Vec<>> for cheap cloning when creating child evaluation contexts.
@@ -1400,15 +1416,7 @@ impl FhirPathValue {
                 ..
             } => {
                 let mut map = serde_json::Map::new();
-                if let Ok(f) = value.to_string().parse::<f64>() {
-                    if let Some(n) = serde_json::Number::from_f64(f) {
-                        map.insert("value".to_string(), JsonValue::Number(n));
-                    } else {
-                        map.insert("value".to_string(), JsonValue::String(value.to_string()));
-                    }
-                } else {
-                    map.insert("value".to_string(), JsonValue::String(value.to_string()));
-                }
+                map.insert("value".to_string(), decimal_to_json_number(value));
                 if let Some(unit) = unit {
                     map.insert("unit".to_string(), JsonValue::String(unit.clone()));
                 }
