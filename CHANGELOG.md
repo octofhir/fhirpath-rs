@@ -1,4 +1,13 @@
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.40...v0.5.0) (2026-02-15)
+## [0.4.42](https://github.com/octofhir/fhirpath-rs/compare/v0.4.41...v0.4.42) (2026-02-15)
+
+
+### Bug Fixes
+
+* htmlChecks function behaviour ([210b1ef](https://github.com/octofhir/fhirpath-rs/commit/210b1ef19cb44f574d5fd249f159033609c40d79))
+
+
+
+## [0.4.41](https://github.com/octofhir/fhirpath-rs/compare/v0.4.40...v0.4.41) (2026-02-15)
 
 
 ### Features
