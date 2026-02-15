@@ -13,8 +13,8 @@ use crate::parser;
 use async_trait::async_trait;
 use octofhir_fhir_model::{
     CompiledExpression, ErrorSeverity, EvaluationResult as ModelEvaluationResult,
-    FhirPathConstraint, FhirPathEvaluator, JsonVariables, TerminologyProvider, ValidationError,
-    ValidationProvider, ValidationResult,
+    FhirPathConstraint, FhirPathEvaluator, JsonVariables, ServerProvider, TerminologyProvider,
+    ValidationError, ValidationProvider, ValidationResult,
 };
 use serde_json::Value as JsonValue;
 
@@ -43,6 +43,8 @@ pub struct FhirPathEngine {
     trace_provider: Option<SharedTraceProvider>,
     /// Optional validation provider for profile validation
     validation_provider: Option<Arc<dyn ValidationProvider>>,
+    /// Optional server provider for %server operations and resolve() fallback
+    server_provider: Option<Arc<dyn ServerProvider>>,
     /// AST compilation cache to avoid reparsing hot expressions
     /// Uses LRU eviction when cache is full
     ast_cache: moka::sync::Cache<String, Arc<ExpressionNode>>,
@@ -77,6 +79,7 @@ impl FhirPathEngine {
             terminology_provider: None,
             trace_provider: None,
             validation_provider: None,
+            server_provider: None,
             ast_cache,
         })
     }
@@ -106,6 +109,7 @@ impl FhirPathEngine {
             terminology_provider: None,
             trace_provider: None,
             validation_provider: None,
+            server_provider: None,
             ast_cache,
         })
     }
@@ -127,6 +131,12 @@ impl FhirPathEngine {
     /// Add validation provider to engine
     pub fn with_validation_provider(mut self, provider: Arc<dyn ValidationProvider>) -> Self {
         self.validation_provider = Some(provider);
+        self
+    }
+
+    /// Add server provider to engine for %server operations and resolve() fallback
+    pub fn with_server_provider(mut self, provider: Arc<dyn ServerProvider>) -> Self {
+        self.server_provider = Some(provider);
         self
     }
 
@@ -155,6 +165,11 @@ impl FhirPathEngine {
         self.validation_provider.clone()
     }
 
+    /// Get server provider
+    pub fn get_server_provider(&self) -> Option<Arc<dyn ServerProvider>> {
+        self.server_provider.clone()
+    }
+
     /// Build evaluation context with JSON variables directly (no EvaluationResult round-trip).
     async fn build_context_with_json_variables(
         &self,
@@ -169,12 +184,13 @@ impl FhirPathEngine {
         .await
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
-        let eval_context = EvaluationContext::new(
+        let eval_context = EvaluationContext::new_with_server(
             collection,
             self.model_provider.clone(),
             self.terminology_provider.clone(),
             self.validation_provider.clone(),
             self.trace_provider.clone(),
+            self.server_provider.clone(),
         );
 
         // Convert Arc<JsonValue> variables directly to FhirPathValue::Resource (no deep clone)
@@ -340,12 +356,13 @@ impl FhirPathEvaluator for FhirPathEngine {
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
         // Create evaluation context
-        let eval_context = EvaluationContext::new(
+        let eval_context = EvaluationContext::new_with_server(
             collection,
             self.model_provider.clone(),
             self.terminology_provider.clone(),
             self.validation_provider.clone(),
             self.trace_provider.clone(),
+            self.server_provider.clone(),
         );
 
         // Evaluate using our internal engine
@@ -473,12 +490,13 @@ impl FhirPathEvaluator for FhirPathEngine {
         .await
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
-        let eval_context = EvaluationContext::new(
+        let eval_context = EvaluationContext::new_with_server(
             collection.clone(),
             self.model_provider.clone(),
             self.terminology_provider.clone(),
             self.validation_provider.clone(),
             self.trace_provider.clone(),
+            self.server_provider.clone(),
         );
 
         if let Some(first_value) = collection.first() {

@@ -108,12 +108,13 @@ pub async fn handle_pipe_mode(
             }
         };
 
-        let eval_context = octofhir_fhirpath::EvaluationContext::new(
+        let eval_context = octofhir_fhirpath::EvaluationContext::new_with_server(
             context_collection,
             model_provider_arc,
             engine.get_terminology_provider(),
             engine.get_validation_provider(),
             None,
+            engine.get_server_provider(),
         );
 
         // Evaluate

@@ -1,0 +1,170 @@
+{
+  "name": "factory_functions",
+  "description": "Tests for %factory variable and factory functions: Coding, Extension, Identifier, HumanName, ContactPoint, Address, Quantity, CodeableConcept, create, withExtension, withProperty",
+  "source": "custom",
+  "category": "other",
+  "tests": [
+    {
+      "name": "testFactoryCoding",
+      "expression": "%factory.Coding('http://loinc.org', '29463-7', 'Body Weight').code",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["29463-7"],
+      "tags": ["custom", "factory", "Coding"],
+      "subcategory": "factory",
+      "description": "factory.Coding creates a Coding with system, code, display"
+    },
+    {
+      "name": "testFactoryCodingSystem",
+      "expression": "%factory.Coding('http://loinc.org', '29463-7').system",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["http://loinc.org"],
+      "tags": ["custom", "factory", "Coding"],
+      "subcategory": "factory",
+      "description": "factory.Coding system field is set correctly"
+    },
+    {
+      "name": "testFactoryCodingDisplay",
+      "expression": "%factory.Coding('http://loinc.org', '29463-7', 'Body Weight').display",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["Body Weight"],
+      "tags": ["custom", "factory", "Coding"],
+      "subcategory": "factory",
+      "description": "factory.Coding display field is set correctly"
+    },
+    {
+      "name": "testFactoryExtension",
+      "expression": "%factory.Extension('http://example.org/ext', 'test-value').url",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["http://example.org/ext"],
+      "tags": ["custom", "factory", "Extension"],
+      "subcategory": "factory",
+      "description": "factory.Extension creates an Extension with url and value"
+    },
+    {
+      "name": "testFactoryExtensionValue",
+      "expression": "%factory.Extension('http://example.org/ext', 'hello').valueString",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["hello"],
+      "tags": ["custom", "factory", "Extension"],
+      "subcategory": "factory",
+      "description": "factory.Extension sets valueString for string value"
+    },
+    {
+      "name": "testFactoryIdentifier",
+      "expression": "%factory.Identifier('http://example.org/ids', 'ABC123').value",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["ABC123"],
+      "tags": ["custom", "factory", "Identifier"],
+      "subcategory": "factory",
+      "description": "factory.Identifier creates an Identifier with system and value"
+    },
+    {
+      "name": "testFactoryIdentifierSystem",
+      "expression": "%factory.Identifier('http://example.org/ids', 'ABC123').system",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["http://example.org/ids"],
+      "tags": ["custom", "factory", "Identifier"],
+      "subcategory": "factory",
+      "description": "factory.Identifier system field is set correctly"
+    },
+    {
+      "name": "testFactoryHumanName",
+      "expression": "%factory.HumanName('Doe').family",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["Doe"],
+      "tags": ["custom", "factory", "HumanName"],
+      "subcategory": "factory",
+      "description": "factory.HumanName creates a HumanName with family"
+    },
+    {
+      "name": "testFactoryContactPoint",
+      "expression": "%factory.ContactPoint('phone', '+1-555-0100').value",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["+1-555-0100"],
+      "tags": ["custom", "factory", "ContactPoint"],
+      "subcategory": "factory",
+      "description": "factory.ContactPoint creates a ContactPoint with system and value"
+    },
+    {
+      "name": "testFactoryAddress",
+      "expression": "%factory.Address({}, 'Boston', 'MA', '02101', 'US').city",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["Boston"],
+      "tags": ["custom", "factory", "Address"],
+      "subcategory": "factory",
+      "description": "factory.Address creates an Address with city"
+    },
+    {
+      "name": "testFactoryQuantity",
+      "expression": "%factory.Quantity('http://unitsofmeasure.org', 'kg', 75).code",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["kg"],
+      "tags": ["custom", "factory", "Quantity"],
+      "subcategory": "factory",
+      "description": "factory.Quantity creates a Quantity with system and code"
+    },
+    {
+      "name": "testFactoryCodeableConcept",
+      "expression": "%factory.CodeableConcept(%factory.Coding('http://loinc.org', '29463-7'), 'Body Weight').text",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["Body Weight"],
+      "tags": ["custom", "factory", "CodeableConcept"],
+      "subcategory": "factory",
+      "description": "factory.CodeableConcept creates a CodeableConcept with coding and text"
+    },
+    {
+      "name": "testFactoryCreate",
+      "expression": "%factory.create('Patient').resourceType",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["Patient"],
+      "tags": ["custom", "factory", "create"],
+      "subcategory": "factory",
+      "description": "factory.create creates an empty resource with resourceType"
+    },
+    {
+      "name": "testFactoryWithProperty",
+      "expression": "%factory.withProperty(%factory.create('Patient'), 'active', true).active",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "outputTypes": ["boolean"],
+      "tags": ["custom", "factory", "withProperty"],
+      "subcategory": "factory",
+      "description": "factory.withProperty sets a property on an instance"
+    },
+    {
+      "name": "testFactoryWithExtension",
+      "expression": "%factory.withExtension(%factory.create('Patient'), 'http://example.org/ext', 'val').extension.url",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["http://example.org/ext"],
+      "tags": ["custom", "factory", "withExtension"],
+      "subcategory": "factory",
+      "description": "factory.withExtension adds an extension to an instance"
+    },
+    {
+      "name": "testFactoryExists",
+      "expression": "%factory.exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "outputTypes": ["boolean"],
+      "tags": ["custom", "factory"],
+      "subcategory": "factory",
+      "description": "%factory variable exists in context"
+    }
+  ]
+}

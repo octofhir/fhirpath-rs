@@ -40,12 +40,13 @@ pub async fn evaluate_context_items(
 
     let input_collection = Collection::single(root_value.clone());
 
-    let evaluation_context = EvaluationContext::new(
+    let evaluation_context = EvaluationContext::new_with_server(
         input_collection,
         model_provider.clone(),
         terminology_provider.clone(),
         validation_provider.clone(),
         trace_provider.clone(),
+        engine.get_server_provider(),
     );
 
     initialise_variables(&evaluation_context, &model_provider, &request.variables).await?;

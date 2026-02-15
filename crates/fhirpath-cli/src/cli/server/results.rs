@@ -42,12 +42,13 @@ pub async fn evaluate_expression_for_contexts(
         let trace_shared: SharedTraceProvider = trace_provider_impl.clone();
 
         let collection = Collection::single(context_item.value.clone());
-        let evaluation_context = EvaluationContext::new(
+        let evaluation_context = EvaluationContext::new_with_server(
             collection,
             model_provider.clone(),
             terminology_provider.clone(),
             validation_provider.clone(),
             Some(trace_shared),
+            engine.get_server_provider(),
         );
 
         initialise_variables(&evaluation_context, &model_provider, &request.variables).await?;

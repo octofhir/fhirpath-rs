@@ -127,6 +127,8 @@ pub struct EngineBuilder {
     enable_validation: bool,
     enable_terminology: bool,
     enable_trace: bool,
+    enable_server: bool,
+    server_url: Option<String>,
 }
 
 impl EngineBuilder {
@@ -136,6 +138,8 @@ impl EngineBuilder {
             enable_validation: true,
             enable_terminology: true,
             enable_trace: true,
+            enable_server: true,
+            server_url: None,
         }
     }
 
@@ -156,6 +160,16 @@ impl EngineBuilder {
 
     pub fn with_trace(mut self, enable: bool) -> Self {
         self.enable_trace = enable;
+        self
+    }
+
+    pub fn with_server(mut self, enable: bool) -> Self {
+        self.enable_server = enable;
+        self
+    }
+
+    pub fn with_server_url(mut self, url: String) -> Self {
+        self.server_url = Some(url);
         self
     }
 
@@ -205,6 +219,32 @@ impl EngineBuilder {
                 let tx_arc: Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> =
                     Arc::new(tx);
                 engine = engine.with_terminology_provider(tx_arc);
+            }
+        }
+
+        // Add server provider
+        if self.enable_server {
+            let server_base_url = if let Some(url) = self.server_url {
+                url
+            } else if let Ok(url) = std::env::var("FHIR_SERVER_URL") {
+                url
+            } else {
+                let version_path = match provider.get_fhir_version().await {
+                    Ok(octofhir_fhir_model::provider::FhirVersion::R4) => "baseR4",
+                    Ok(octofhir_fhir_model::provider::FhirVersion::R4B) => "baseR4",
+                    Ok(octofhir_fhir_model::provider::FhirVersion::R5) => "baseR5",
+                    Ok(octofhir_fhir_model::provider::FhirVersion::R6) => "baseR5",
+                    _ => "baseR4",
+                };
+                format!("https://hapi.fhir.org/{version_path}")
+            };
+
+            if let Ok(server_provider) =
+                octofhir_fhir_model::HttpServerProvider::new(server_base_url)
+            {
+                let server_arc: Arc<dyn octofhir_fhir_model::ServerProvider> =
+                    Arc::new(server_provider);
+                engine = engine.with_server_provider(server_arc);
             }
         }
 

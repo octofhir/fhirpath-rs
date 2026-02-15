@@ -28,8 +28,10 @@ pub mod take_function;
 pub mod union_function;
 
 // Existence functions
+pub mod all_false_function;
 pub mod all_function;
 pub mod all_true_function;
+pub mod any_false_function;
 pub mod any_true_function;
 pub mod exists_function;
 
@@ -84,6 +86,7 @@ pub mod minute_of_function;
 pub mod month_of_function;
 pub mod now_function;
 pub mod second_of_function;
+pub mod time_of_day_function;
 pub mod timezone_offset_of_function;
 pub mod today_function;
 pub mod year_of_function;
@@ -132,6 +135,20 @@ pub mod trace_function;
 // CDA functions
 pub mod has_template_id_of_function;
 
+// FHIR-specific functions
+pub mod check_modifiers_function;
+pub mod element_definition_function;
+pub mod get_value_function;
+pub mod html_checks_function;
+pub mod slice_function;
+pub mod weight_function;
+
+// Factory functions (%factory variable)
+pub mod factory;
+
+// Server functions (%server variable)
+pub mod server;
+
 // Re-export function evaluators explicitly
 
 // Core collection functions
@@ -159,8 +176,10 @@ pub use take_function::TakeFunctionEvaluator;
 pub use union_function::UnionFunctionEvaluator;
 
 // Existence functions
+pub use all_false_function::AllFalseFunctionEvaluator;
 pub use all_function::AllFunctionEvaluator;
 pub use all_true_function::AllTrueFunctionEvaluator;
+pub use any_false_function::AnyFalseFunctionEvaluator;
 pub use any_true_function::AnyTrueFunctionEvaluator;
 pub use exists_function::ExistsFunctionEvaluator;
 
@@ -215,6 +234,7 @@ pub use minute_of_function::MinuteOfFunctionEvaluator;
 pub use month_of_function::MonthOfFunctionEvaluator;
 pub use now_function::NowFunctionEvaluator;
 pub use second_of_function::SecondOfFunctionEvaluator;
+pub use time_of_day_function::TimeOfDayFunctionEvaluator;
 pub use timezone_offset_of_function::TimezoneOffsetOfFunctionEvaluator;
 pub use today_function::TodayFunctionEvaluator;
 pub use year_of_function::YearOfFunctionEvaluator;
@@ -254,6 +274,14 @@ pub use trace_function::TraceFunctionEvaluator;
 // CDA functions
 pub use has_template_id_of_function::HasTemplateIdOfFunctionEvaluator;
 
+// FHIR-specific functions
+pub use check_modifiers_function::CheckModifiersFunctionEvaluator;
+pub use element_definition_function::ElementDefinitionFunctionEvaluator;
+pub use get_value_function::GetValueFunctionEvaluator;
+pub use html_checks_function::HtmlChecksFunctionEvaluator;
+pub use slice_function::SliceFunctionEvaluator;
+pub use weight_function::WeightFunctionEvaluator;
+
 // Re-export from submodules
 pub use conversion::{
     ConvertsToBooleanFunctionEvaluator, ConvertsToDateFunctionEvaluator,
@@ -264,10 +292,26 @@ pub use conversion::{
     ToIntegerFunctionEvaluator, ToQuantityFunctionEvaluator, ToStringFunctionEvaluator,
     ToTimeFunctionEvaluator,
 };
+pub use factory::{
+    FactoryAddressFunctionEvaluator, FactoryCodeableConceptFunctionEvaluator,
+    FactoryCodingFunctionEvaluator, FactoryContactPointFunctionEvaluator,
+    FactoryCreateFunctionEvaluator, FactoryExtensionFunctionEvaluator,
+    FactoryHumanNameFunctionEvaluator, FactoryIdentifierFunctionEvaluator,
+    FactoryQuantityFunctionEvaluator, FactoryWithExtensionFunctionEvaluator,
+    FactoryWithPropertyFunctionEvaluator,
+};
+pub use server::{
+    ServerApplyFunctionEvaluator, ServerAtFunctionEvaluator, ServerCapabilitiesFunctionEvaluator,
+    ServerCreateFunctionEvaluator, ServerDeleteFunctionEvaluator,
+    ServerEverythingFunctionEvaluator, ServerPatchFunctionEvaluator, ServerReadFunctionEvaluator,
+    ServerSearchFunctionEvaluator, ServerTransformFunctionEvaluator, ServerUpdateFunctionEvaluator,
+    ServerValidateFunctionEvaluator,
+};
 pub use terminology::{
-    ExpandFunctionEvaluator, LookupFunctionEvaluator, MemberOfFunctionEvaluator,
-    SimpleExpandFunctionEvaluator, SubsumedByFunctionEvaluator, SubsumesFunctionEvaluator,
-    TranslateFunctionEvaluator, ValidateCSFunctionEvaluator, ValidateVSFunctionEvaluator,
+    AtFunctionEvaluator, ExpandFunctionEvaluator, LookupFunctionEvaluator,
+    MemberOfFunctionEvaluator, SimpleExpandFunctionEvaluator, SubsumedByFunctionEvaluator,
+    SubsumesFunctionEvaluator, TranslateFunctionEvaluator, ValidateCSFunctionEvaluator,
+    ValidateVSFunctionEvaluator,
 };
 pub use type_checking::{
     AsFunctionEvaluator, ConformsToFunctionEvaluator, IsFunctionEvaluator, TypeFunctionEvaluator,

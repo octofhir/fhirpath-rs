@@ -9,6 +9,7 @@ pub mod engine;
 pub mod environment_variables;
 #[allow(clippy::module_inception)]
 pub mod evaluator;
+pub mod factory_variable;
 pub mod function_registry;
 pub mod functions;
 pub mod metadata_collector;
@@ -16,6 +17,7 @@ pub mod operations;
 pub mod operator_registry;
 pub mod quantity_utils;
 pub mod result;
+pub mod server_variable;
 pub mod terminologies_variable;
 
 #[cfg(test)]

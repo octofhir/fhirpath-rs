@@ -24,10 +24,10 @@ pub use octofhir_fhir_model::{EvaluationResult, IntoEvaluationResult, TypeInfoRe
 /// Whole numbers serialize as JSON integers (e.g. `1`), while
 /// fractional values serialize as JSON floats (e.g. `1.5`).
 fn decimal_to_json_number(d: &Decimal) -> JsonValue {
-    if d.fract().is_zero() {
-        if let Some(i) = d.to_i64() {
-            return JsonValue::Number(serde_json::Number::from(i));
-        }
+    if d.fract().is_zero()
+        && let Some(i) = d.to_i64()
+    {
+        return JsonValue::Number(serde_json::Number::from(i));
     }
     d.to_f64()
         .and_then(serde_json::Number::from_f64)

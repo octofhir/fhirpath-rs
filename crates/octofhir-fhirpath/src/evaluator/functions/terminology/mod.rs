@@ -4,6 +4,7 @@
 //! to interact with FHIR terminology services.
 
 // Function modules
+pub mod at_function;
 pub mod expand_function;
 pub mod lookup_function;
 pub mod member_of_function;
@@ -15,6 +16,7 @@ pub mod validate_cs_function;
 pub mod validate_vs_function;
 
 // Re-export terminology function evaluators explicitly
+pub use at_function::AtFunctionEvaluator;
 pub use expand_function::ExpandFunctionEvaluator;
 pub use lookup_function::LookupFunctionEvaluator;
 pub use member_of_function::MemberOfFunctionEvaluator;

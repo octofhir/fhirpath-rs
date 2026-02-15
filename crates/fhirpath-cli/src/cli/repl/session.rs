@@ -369,12 +369,13 @@ impl ReplSession {
 
         // Create evaluation context using the engine's providers
         let model_provider = self.engine.get_model_provider();
-        let context = EvaluationContext::new(
+        let context = EvaluationContext::new_with_server(
             collection,
             model_provider,
             self.engine.get_terminology_provider(),
             self.engine.get_validation_provider(),
             self.engine.get_trace_provider(),
+            self.engine.get_server_provider(),
         );
 
         // Add REPL variables to evaluation context
@@ -531,12 +532,13 @@ impl ReplSession {
         let input_value = FhirPathValue::resource(input_json.as_ref().clone());
         let collection = Collection::single(input_value);
         let model_provider = self.engine.get_model_provider();
-        let context = EvaluationContext::new(
+        let context = EvaluationContext::new_with_server(
             collection,
             model_provider,
             self.engine.get_terminology_provider(),
             self.engine.get_validation_provider(),
             self.engine.get_trace_provider(),
+            self.engine.get_server_provider(),
         );
 
         // Add REPL variables to evaluation context

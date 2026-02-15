@@ -1,0 +1,170 @@
+{
+  "name": "fhir_functions",
+  "description": "Tests for newly implemented FHIRPath functions: allFalse, anyFalse, timeOfDay, getValue, checkModifiers, htmlChecks, weight, slice",
+  "source": "custom",
+  "category": "other",
+  "tests": [
+    {
+      "name": "testAllFalse1",
+      "expression": "(true | false).select(false).allFalse()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "tags": ["custom", "allFalse"],
+      "outputTypes": ["boolean"],
+      "subcategory": "existence",
+      "description": "allFalse returns true when all items are false"
+    },
+    {
+      "name": "testAllFalse2",
+      "expression": "(true | false).select(true).allFalse()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [false],
+      "tags": ["custom", "allFalse"],
+      "outputTypes": ["boolean"],
+      "subcategory": "existence",
+      "description": "allFalse returns false when any item is true"
+    },
+    {
+      "name": "testAllFalseEmpty",
+      "expression": "Patient.name.where(false).allFalse()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "tags": ["custom", "allFalse"],
+      "outputTypes": ["boolean"],
+      "subcategory": "existence",
+      "description": "allFalse returns true on empty collection"
+    },
+    {
+      "name": "testAllFalseMixed",
+      "expression": "Patient.name.select(period.exists()).allFalse()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [false],
+      "tags": ["custom", "allFalse"],
+      "outputTypes": ["boolean"],
+      "subcategory": "existence",
+      "description": "allFalse with mixed boolean values from patient names"
+    },
+    {
+      "name": "testAnyFalse1",
+      "expression": "Patient.name.select(given.exists()).anyFalse()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [false],
+      "tags": ["custom", "anyFalse"],
+      "outputTypes": ["boolean"],
+      "subcategory": "existence",
+      "description": "anyFalse returns false when all items are true"
+    },
+    {
+      "name": "testAnyFalse2",
+      "expression": "Patient.name.select(period.exists()).anyFalse()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "tags": ["custom", "anyFalse"],
+      "outputTypes": ["boolean"],
+      "subcategory": "existence",
+      "description": "anyFalse returns true when at least one item is false"
+    },
+    {
+      "name": "testAnyFalseEmpty",
+      "expression": "Patient.name.where(false).anyFalse()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [false],
+      "tags": ["custom", "anyFalse"],
+      "outputTypes": ["boolean"],
+      "subcategory": "existence",
+      "description": "anyFalse returns false on empty collection"
+    },
+    {
+      "name": "testTimeOfDay1",
+      "expression": "timeOfDay().exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "tags": ["custom", "timeOfDay"],
+      "outputTypes": ["boolean"],
+      "subcategory": "utility",
+      "description": "timeOfDay returns a non-empty value"
+    },
+    {
+      "name": "testGetValue1",
+      "expression": "Patient.active.getValue()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "tags": ["custom", "getValue"],
+      "outputTypes": ["boolean"],
+      "subcategory": "fhir",
+      "description": "getValue on boolean primitive returns the boolean value"
+    },
+    {
+      "name": "testGetValue2",
+      "expression": "Patient.gender.getValue()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": ["male"],
+      "tags": ["custom", "getValue"],
+      "subcategory": "fhir",
+      "description": "getValue on string primitive returns the string value"
+    },
+    {
+      "name": "testGetValueEmpty",
+      "expression": "Patient.name.where(false).getValue()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": ["custom", "getValue"],
+      "subcategory": "fhir",
+      "description": "getValue on empty collection returns empty"
+    },
+    {
+      "name": "testCheckModifiers1",
+      "expression": "Patient.checkModifiers().exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "tags": ["custom", "checkModifiers"],
+      "outputTypes": ["boolean"],
+      "subcategory": "fhir",
+      "description": "checkModifiers passes when no modifier extensions present"
+    },
+    {
+      "name": "testHtmlChecks1",
+      "expression": "'<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>Hello</p></div>'.htmlChecks()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [true],
+      "tags": ["custom", "htmlChecks"],
+      "outputTypes": ["boolean"],
+      "subcategory": "fhir",
+      "description": "htmlChecks passes for valid FHIR XHTML"
+    },
+    {
+      "name": "testHtmlChecks2",
+      "expression": "'<script>alert(1)</script>'.htmlChecks()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [false],
+      "tags": ["custom", "htmlChecks"],
+      "outputTypes": ["boolean"],
+      "subcategory": "fhir",
+      "description": "htmlChecks fails for disallowed script tag"
+    },
+    {
+      "name": "testHtmlChecksEmpty",
+      "expression": "Patient.name.where(false).htmlChecks()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": ["custom", "htmlChecks"],
+      "subcategory": "fhir",
+      "description": "htmlChecks on empty returns empty"
+    }
+  ]
+}

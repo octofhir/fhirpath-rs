@@ -202,6 +202,42 @@ impl ResolveFunctionEvaluator {
 
         result
     }
+
+    /// Try to resolve a reference using the server provider (fallback)
+    ///
+    /// Only attempts server resolution for references in the form `Type/id`.
+    /// Contained references (#id) are never resolved via server.
+    async fn resolve_reference_on_server(
+        &self,
+        reference: &str,
+        context: &EvaluationContext,
+    ) -> Option<std::sync::Arc<serde_json::Value>> {
+        // Only resolve Type/id references on server
+        if reference.starts_with('#') || !reference.contains('/') {
+            return None;
+        }
+
+        // Check if server provider is available
+        let server_provider = context.server_provider()?;
+
+        // Parse reference into type and id
+        let (resource_type, id) = reference.split_once('/')?;
+
+        // Attempt server read
+        match server_provider.read(resource_type, id).await {
+            Ok(Some(json)) => {
+                let arc_json = Arc::new(json);
+                // Cache for future lookups
+                let cache_key = format!("bundle:{reference}");
+                context
+                    .resolution_cache()
+                    .pin()
+                    .insert(cache_key, arc_json.clone());
+                Some(arc_json)
+            }
+            _ => None,
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -230,9 +266,18 @@ impl ProviderPureFunctionEvaluator for ResolveFunctionEvaluator {
         for value in &input {
             if let Some(reference_string) = self.extract_reference(value) {
                 // Resolve reference within the current resource tree
-                if let Some(resolved_json) =
-                    self.resolve_reference_in_tree(&reference_string, context)
-                {
+                let resolved_json = self.resolve_reference_in_tree(&reference_string, context);
+
+                // If tree-based resolution fails, try server provider as fallback
+                let resolved_json = match resolved_json {
+                    Some(json) => Some(json),
+                    None => {
+                        self.resolve_reference_on_server(&reference_string, context)
+                            .await
+                    }
+                };
+
+                if let Some(resolved_json) = resolved_json {
                     // Determine resource type
                     let resource_type = resolved_json
                         .get("resourceType")

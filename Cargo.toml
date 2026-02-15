@@ -25,13 +25,13 @@ hex = "0.4"
 indexmap = "2.13.0"
 log = "0.4"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
-octofhir-fhir-model = { version = "0.1.8", features = ["serde", "http-client"] }
+octofhir-fhir-model = { version="0.1.9",  features = ["serde", "http-client"] }
 octofhir-canonical-manager = { version = "0.1.26" }
 papaya = "0.2"
 url = "2.5"
 percent-encoding = "2.3"
 parking_lot = "0.12.5"
-regex = "1.12.2"
+regex = "1.12.3"
 rust_decimal = { version = "1.40.0", features = ["serde-with-str"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
@@ -43,7 +43,7 @@ pprof = { version = "0.15.0", features = ["flamegraph"] }
 
 rayon = "1"
 tracing = "0.1"
-uuid = { version = "1.20", features = ["v4", "serde"] }
+uuid = { version = "1.21", features = ["v4", "serde"] }
 
 async-trait = "0.1"
 futures = "0.3"

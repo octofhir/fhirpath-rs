@@ -16,13 +16,17 @@ use crate::evaluator::functions::{
     // Aggregate functions
     AggregateFunctionEvaluator,
     // Existence functions
+    AllFalseFunctionEvaluator,
     AllFunctionEvaluator,
     AllTrueFunctionEvaluator,
+    AnyFalseFunctionEvaluator,
     AnyTrueFunctionEvaluator,
     // Type checking functions
     AsFunctionEvaluator,
     AvgFunctionEvaluator,
     CeilingFunctionEvaluator,
+    // FHIR-specific functions
+    CheckModifiersFunctionEvaluator,
     // Utility functions
     ChildrenFunctionEvaluator,
     // Combining functions
@@ -50,6 +54,7 @@ use crate::evaluator::functions::{
     // Subsetting functions
     DistinctFunctionEvaluator,
     DurationFunctionEvaluator,
+    ElementDefinitionFunctionEvaluator,
     EmptyFunctionEvaluator,
     EncodeFunctionEvaluator,
     EndsWithFunctionEvaluator,
@@ -61,12 +66,26 @@ use crate::evaluator::functions::{
     // Terminology functions
     ExpandFunctionEvaluator,
     ExtensionFunctionEvaluator,
+    // Factory functions
+    FactoryAddressFunctionEvaluator,
+    FactoryCodeableConceptFunctionEvaluator,
+    FactoryCodingFunctionEvaluator,
+    FactoryContactPointFunctionEvaluator,
+    FactoryCreateFunctionEvaluator,
+    FactoryExtensionFunctionEvaluator,
+    FactoryHumanNameFunctionEvaluator,
+    FactoryIdentifierFunctionEvaluator,
+    FactoryQuantityFunctionEvaluator,
+    FactoryWithExtensionFunctionEvaluator,
+    FactoryWithPropertyFunctionEvaluator,
     FirstFunctionEvaluator,
     FloorFunctionEvaluator,
+    GetValueFunctionEvaluator,
     HasTemplateIdOfFunctionEvaluator,
     HasValueFunctionEvaluator,
     HighBoundaryFunctionEvaluator,
     HourOfFunctionEvaluator,
+    HtmlChecksFunctionEvaluator,
     IifFunctionEvaluator,
     IndexOfFunctionEvaluator,
     IntersectFunctionEvaluator,
@@ -102,9 +121,23 @@ use crate::evaluator::functions::{
     RoundFunctionEvaluator,
     SecondOfFunctionEvaluator,
     SelectFunctionEvaluator,
+    // Server functions
+    ServerApplyFunctionEvaluator,
+    ServerAtFunctionEvaluator,
+    ServerCapabilitiesFunctionEvaluator,
+    ServerCreateFunctionEvaluator,
+    ServerDeleteFunctionEvaluator,
+    ServerEverythingFunctionEvaluator,
+    ServerPatchFunctionEvaluator,
+    ServerReadFunctionEvaluator,
+    ServerSearchFunctionEvaluator,
+    ServerTransformFunctionEvaluator,
+    ServerUpdateFunctionEvaluator,
+    ServerValidateFunctionEvaluator,
     SimpleExpandFunctionEvaluator,
     SingleFunctionEvaluator,
     SkipFunctionEvaluator,
+    SliceFunctionEvaluator,
     SortFunctionEvaluator,
     SplitFunctionEvaluator,
     SqrtFunctionEvaluator,
@@ -117,6 +150,7 @@ use crate::evaluator::functions::{
     SupersetOfFunctionEvaluator,
     TailFunctionEvaluator,
     TakeFunctionEvaluator,
+    TimeOfDayFunctionEvaluator,
     TimezoneOffsetOfFunctionEvaluator,
     ToBooleanFunctionEvaluator,
     ToCharsFunctionEvaluator,
@@ -138,6 +172,7 @@ use crate::evaluator::functions::{
     UpperFunctionEvaluator,
     ValidateCSFunctionEvaluator,
     ValidateVSFunctionEvaluator,
+    WeightFunctionEvaluator,
     WhereFunctionEvaluator,
     YearOfFunctionEvaluator,
     combine_function,
@@ -664,7 +699,11 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_pure_function(AllTrueFunctionEvaluator::create());
         self.registry
+            .register_pure_function(AllFalseFunctionEvaluator::create());
+        self.registry
             .register_pure_function(AnyTrueFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(AnyFalseFunctionEvaluator::create());
 
         self
     }
@@ -874,6 +913,8 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_pure_function(TodayFunctionEvaluator::create());
         self.registry
+            .register_pure_function(TimeOfDayFunctionEvaluator::create());
+        self.registry
             .register_lazy_function(TraceFunctionEvaluator::create());
 
         // Register temporal extraction functions
@@ -956,6 +997,7 @@ impl FunctionRegistryBuilder {
             .register_lazy_function(TranslateFunctionEvaluator::create());
         self.registry
             .register_lazy_function(MemberOfFunctionEvaluator::create());
+        // Note: at() is now registered in with_server_functions() to handle both %server and %terminologies
 
         self
     }
@@ -980,6 +1022,83 @@ impl FunctionRegistryBuilder {
         // Register aggregate functions
         self.registry
             .register_lazy_function(AggregateFunctionEvaluator::create());
+
+        self
+    }
+
+    /// Add FHIR-specific functions (getValue, checkModifiers, htmlChecks, weight, elementDefinition, slice)
+    pub fn with_fhir_functions(mut self) -> Self {
+        self.registry
+            .register_pure_function(GetValueFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(CheckModifiersFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(HtmlChecksFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(WeightFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ElementDefinitionFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(SliceFunctionEvaluator::create());
+
+        self
+    }
+
+    /// Add server functions (%server variable operations)
+    pub fn with_server_functions(mut self) -> Self {
+        // Unified at() handles both %server.at() and %terminologies.at()
+        self.registry
+            .register_pure_function(ServerAtFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerReadFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerCreateFunctionEvaluator::create_evaluator());
+        self.registry
+            .register_provider_pure_function(ServerUpdateFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerDeleteFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerSearchFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerPatchFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerCapabilitiesFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerValidateFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerTransformFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerEverythingFunctionEvaluator::create());
+        self.registry
+            .register_provider_pure_function(ServerApplyFunctionEvaluator::create());
+
+        self
+    }
+
+    /// Add factory functions (%factory variable operations)
+    pub fn with_factory_functions(mut self) -> Self {
+        self.registry
+            .register_pure_function(FactoryExtensionFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryIdentifierFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryHumanNameFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryContactPointFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryAddressFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryQuantityFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryCodingFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryCodeableConceptFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryCreateFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryWithExtensionFunctionEvaluator::create());
+        self.registry
+            .register_pure_function(FactoryWithPropertyFunctionEvaluator::create());
 
         self
     }
@@ -1020,6 +1139,9 @@ pub fn create_function_registry() -> FunctionRegistry {
         .with_terminology_functions()
         .with_type_functions()
         .with_aggregate_functions()
+        .with_fhir_functions()
+        .with_factory_functions()
+        .with_server_functions()
         .with_cda_functions()
         .build()
 }
