@@ -1,3 +1,12 @@
+## [0.4.43](https://github.com/octofhir/fhirpath-rs/compare/v0.4.42...v0.4.43) (2026-02-19)
+
+
+### Bug Fixes
+
+* use TypeInfo::clone for context item type information ([da7ae2e](https://github.com/octofhir/fhirpath-rs/commit/da7ae2ea8251729b346d1343aa2c023f2b6be0e1))
+
+
+
 ## [0.4.42](https://github.com/octofhir/fhirpath-rs/compare/v0.4.41...v0.4.42) (2026-02-15)
 
 
