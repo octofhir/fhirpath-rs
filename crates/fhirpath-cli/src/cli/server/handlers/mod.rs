@@ -474,7 +474,7 @@ pub(crate) async fn handle_request(
     } else if let Some(ref root) = context_semantic_root {
         Some(root.clone())
     } else if let Some(first_item) = context_items.first() {
-        Some(first_item.value.type_info().clone())
+        Some(TypeInfo::clone(first_item.value.type_info()))
     } else {
         resource_type_info.clone()
     };
