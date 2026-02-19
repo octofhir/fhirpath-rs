@@ -283,10 +283,10 @@ impl LessThanOperatorEvaluator {
 impl OperationEvaluator for LessThanOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Empty propagation: if either operand is empty, result is empty
         if left.is_empty() || right.is_empty() {

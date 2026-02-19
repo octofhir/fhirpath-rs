@@ -41,11 +41,7 @@ impl ExtensionFunctionEvaluator {
 
 #[async_trait]
 impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         // Check argument count
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -85,13 +81,13 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
                         if let Some(url_str) = extension.get("url").and_then(|u| u.as_str())
                             && url_str == target_url
                         {
-                            let type_info = TypeInfo {
+                            let type_info = Arc::new(TypeInfo {
                                 type_name: "Extension".to_string(),
                                 name: Some("Extension".to_string()),
                                 is_empty: Some(false),
                                 namespace: Some("FHIR".to_string()),
                                 singleton: Some(true),
-                            };
+                            });
                             let extension_value = FhirPathValue::Resource(
                                 Arc::new(extension.clone()),
                                 type_info,
@@ -108,13 +104,13 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
                         if ext.url == target_url {
                             // Build complete extension JSON including value and nested extensions
                             let json = ext.to_json();
-                            let type_info = TypeInfo {
+                            let type_info = Arc::new(TypeInfo {
                                 type_name: "Extension".to_string(),
                                 name: Some("Extension".to_string()),
                                 is_empty: Some(false),
                                 namespace: Some("FHIR".to_string()),
                                 singleton: Some(true),
-                            };
+                            });
                             let extension_value =
                                 FhirPathValue::Resource(Arc::new(json), type_info, None);
                             matching_extensions.push(extension_value);

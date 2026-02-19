@@ -63,11 +63,7 @@ impl FactoryCodeableConceptFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for FactoryCodeableConceptFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if input.len() != 1 || !is_factory_variable(&input[0]) {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0058,
@@ -107,7 +103,7 @@ impl PureFunctionEvaluator for FactoryCodeableConceptFunctionEvaluator {
             cc.insert("text".to_string(), serde_json::Value::String(s.clone()));
         }
 
-        let type_info = TypeInfo::new_complex("CodeableConcept");
+        let type_info = Arc::new(TypeInfo::new_complex("CodeableConcept"));
         Ok(EvaluationResult {
             value: Collection::single(FhirPathValue::resource_wrapped(
                 serde_json::Value::Object(cc),

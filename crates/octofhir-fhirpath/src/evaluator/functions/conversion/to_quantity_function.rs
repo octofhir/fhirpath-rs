@@ -3,7 +3,7 @@
 //! The toQuantity function converts a value to a quantity.
 //! Syntax: value.toQuantity()
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -44,11 +44,7 @@ impl ToQuantityFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for ToQuantityFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,

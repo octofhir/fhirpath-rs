@@ -173,12 +173,11 @@ impl FhirPathEngine {
     /// Build evaluation context with JSON variables directly (no EvaluationResult round-trip).
     async fn build_context_with_json_variables(
         &self,
-        context: &JsonValue,
+        context: Arc<JsonValue>,
         variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<EvaluationContext> {
-        let context_arc = Arc::new(context.clone());
         let collection = crate::core::Collection::from_json_resource_arc(
-            context_arc,
+            context,
             Some(self.model_provider.clone()),
         )
         .await
@@ -345,11 +344,11 @@ impl FhirPathEvaluator for FhirPathEngine {
     async fn evaluate(
         &self,
         expression: &str,
-        context: &JsonValue,
+        context: Arc<JsonValue>,
     ) -> octofhir_fhir_model::Result<ModelEvaluationResult> {
-        // Convert JsonValue to our Collection format
-        let collection = crate::core::Collection::from_json_resource(
-            context.clone(),
+        // Convert JsonValue to our Collection format (zero-copy via Arc)
+        let collection = crate::core::Collection::from_json_resource_arc(
+            context,
             Some(self.model_provider.clone()),
         )
         .await
@@ -379,7 +378,7 @@ impl FhirPathEvaluator for FhirPathEngine {
     async fn evaluate_with_variables(
         &self,
         expression: &str,
-        context: &JsonValue,
+        context: Arc<JsonValue>,
         variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<ModelEvaluationResult> {
         let eval_context = self
@@ -400,7 +399,7 @@ impl FhirPathEvaluator for FhirPathEngine {
     async fn evaluate_constraint_with_variables(
         &self,
         expression: &str,
-        context: &JsonValue,
+        context: Arc<JsonValue>,
         variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<bool> {
         let eval_context = self
@@ -475,7 +474,7 @@ impl FhirPathEvaluator for FhirPathEngine {
     /// Validate FHIR constraints
     async fn validate_constraints(
         &self,
-        resource: &JsonValue,
+        resource: Arc<JsonValue>,
         constraints: &[FhirPathConstraint],
     ) -> octofhir_fhir_model::Result<ValidationResult> {
         let mut errors = Vec::new();
@@ -483,8 +482,8 @@ impl FhirPathEvaluator for FhirPathEngine {
 
         // OPTIMIZATION: Create Collection and EvaluationContext ONCE, reuse for all constraints
         // This avoids expensive cloning and context creation for each constraint
-        let collection = crate::core::Collection::from_json_resource(
-            resource.clone(),
+        let collection = crate::core::Collection::from_json_resource_arc(
+            resource,
             Some(self.model_provider.clone()),
         )
         .await

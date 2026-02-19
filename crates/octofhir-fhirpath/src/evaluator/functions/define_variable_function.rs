@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -67,7 +67,7 @@ impl DefineVariableFunctionEvaluator {
 impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -170,14 +170,13 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
             } else if input.len() == 1 {
                 input.first().cloned().unwrap_or(FhirPathValue::Empty)
             } else {
-                FhirPathValue::Collection(crate::core::Collection::from(input.clone()))
+                FhirPathValue::Collection(input.clone())
             };
             context.set_variable(variable_name, variable_value);
         } else {
             // Two-parameter form: defineVariable(name, value) - evaluate value expression
             // Evaluate the value expression in an isolated child scope based on the current input
-            let child_context =
-                context.create_child_context(crate::core::Collection::from(input.clone()));
+            let child_context = context.create_child_context(input.clone());
             let value_ctx = child_context.nest();
             let value_result = evaluator.evaluate(&args[1], &value_ctx).await?;
 
@@ -197,9 +196,7 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
         }
 
         // Return original focus (input collection) - variable is now available in current scope
-        Ok(EvaluationResult {
-            value: crate::core::Collection::from(input),
-        })
+        Ok(EvaluationResult { value: input })
     }
 
     fn metadata(&self) -> &FunctionMetadata {

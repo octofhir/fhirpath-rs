@@ -68,11 +68,7 @@ impl IsDistinctFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for IsDistinctFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::FP0053,

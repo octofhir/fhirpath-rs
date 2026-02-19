@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -72,7 +72,7 @@ impl SubsumesFunctionEvaluator {
     /// Extract subsumption parameters based on argument count
     fn extract_subsumption_params(
         input: &[FhirPathValue],
-        args: &[Vec<FhirPathValue>],
+        args: &[Collection],
     ) -> Result<(String, String, String)> {
         match args.len() {
             1 => {
@@ -203,8 +203,8 @@ impl SubsumesFunctionEvaluator {
 impl ProviderPureFunctionEvaluator for SubsumesFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        args: Vec<Collection>,
         context: &crate::evaluator::EvaluationContext,
     ) -> Result<EvaluationResult> {
         if args.is_empty() || args.len() > 3 {
@@ -223,7 +223,8 @@ impl ProviderPureFunctionEvaluator for SubsumesFunctionEvaluator {
         })?;
 
         // Extract subsumption parameters
-        let (system, parent_code, child_code) = Self::extract_subsumption_params(&input, &args)?;
+        let (system, parent_code, child_code) =
+            Self::extract_subsumption_params(input.values(), &args)?;
 
         // Perform subsumption test
         match terminology_provider

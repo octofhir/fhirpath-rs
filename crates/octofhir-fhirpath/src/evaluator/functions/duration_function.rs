@@ -107,8 +107,8 @@ impl DurationFunctionEvaluator {
 impl PureFunctionEvaluator for DurationFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         // Empty collection or single item returns empty
         if input.len() != 2 {
@@ -167,7 +167,10 @@ mod tests {
     #[tokio::test]
     async fn test_duration_empty_collection() {
         let evaluator = DurationFunctionEvaluator::create();
-        let result = evaluator.evaluate(vec![], vec![]).await.unwrap();
+        let result = evaluator
+            .evaluate(Collection::empty(), vec![])
+            .await
+            .unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -178,7 +181,7 @@ mod tests {
             NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             TemporalPrecision::Day,
         ));
-        let result = evaluator.evaluate(vec![date], vec![]).await.unwrap();
+        let result = evaluator.evaluate(vec![date].into(), vec![]).await.unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -194,7 +197,7 @@ mod tests {
             TemporalPrecision::Day,
         ));
         let result = evaluator
-            .evaluate(vec![date1, date2], vec![])
+            .evaluate(vec![date1, date2].into(), vec![])
             .await
             .unwrap();
 
@@ -219,7 +222,7 @@ mod tests {
             TemporalPrecision::Day,
         ));
         let result = evaluator
-            .evaluate(vec![date1, date2], vec![])
+            .evaluate(vec![date1, date2].into(), vec![])
             .await
             .unwrap();
 
@@ -244,7 +247,7 @@ mod tests {
             TemporalPrecision::Day,
         ));
         let result = evaluator
-            .evaluate(vec![date1, date2], vec![])
+            .evaluate(vec![date1, date2].into(), vec![])
             .await
             .unwrap();
 
@@ -277,7 +280,10 @@ mod tests {
             .unwrap(),
             TemporalPrecision::Second,
         ));
-        let result = evaluator.evaluate(vec![dt1, dt2], vec![]).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![dt1, dt2].into(), vec![])
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
@@ -300,7 +306,7 @@ mod tests {
             TemporalPrecision::Second,
         ));
         let result = evaluator
-            .evaluate(vec![time1, time2], vec![])
+            .evaluate(vec![time1, time2].into(), vec![])
             .await
             .unwrap();
 
@@ -325,7 +331,7 @@ mod tests {
             TemporalPrecision::Second,
         ));
         let result = evaluator
-            .evaluate(vec![time1, time2], vec![])
+            .evaluate(vec![time1, time2].into(), vec![])
             .await
             .unwrap();
 
@@ -349,7 +355,10 @@ mod tests {
             NaiveTime::from_hms_opt(10, 0, 0).unwrap(),
             TemporalPrecision::Second,
         ));
-        let result = evaluator.evaluate(vec![date, time], vec![]).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![date, time].into(), vec![])
+            .await
+            .unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -365,7 +374,7 @@ mod tests {
             TemporalPrecision::Day,
         ));
         let result = evaluator
-            .evaluate(vec![date1, date2], vec![])
+            .evaluate(vec![date1, date2].into(), vec![])
             .await
             .unwrap();
 

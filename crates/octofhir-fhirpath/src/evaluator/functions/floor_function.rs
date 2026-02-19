@@ -6,8 +6,7 @@
 use rust_decimal::prelude::*;
 use std::sync::Arc;
 
-use crate::Collection;
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -51,8 +50,8 @@ impl FloorFunctionEvaluator {
 impl PureFunctionEvaluator for FloorFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(

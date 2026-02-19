@@ -61,14 +61,14 @@ impl OrOperatorEvaluator {
 impl OperationEvaluator for OrOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Extract boolean values from both operands
-        let left_bool = self.extract_boolean(&left);
-        let right_bool = self.extract_boolean(&right);
+        let left_bool = self.extract_boolean(left.values());
+        let right_bool = self.extract_boolean(right.values());
 
         // Three-valued logic for OR:
         // If either operand is true, result is true (short-circuit)
@@ -137,7 +137,7 @@ mod tests {
         let right = vec![FhirPathValue::boolean(true)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -160,7 +160,7 @@ mod tests {
         let right = vec![FhirPathValue::boolean(false)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -183,7 +183,7 @@ mod tests {
         let right = vec![FhirPathValue::boolean(false)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -206,7 +206,7 @@ mod tests {
         let right = vec![]; // Empty collection
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -229,7 +229,7 @@ mod tests {
         let right = vec![]; // Empty collection
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

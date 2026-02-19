@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -155,7 +155,7 @@ impl LookupFunctionEvaluator {
 impl LazyFunctionEvaluator for LookupFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -176,7 +176,8 @@ impl LazyFunctionEvaluator for LookupFunctionEvaluator {
         })?;
 
         // Get system and code
-        let (system, code) = Self::get_system_and_code(&input, &args, context, evaluator).await?;
+        let (system, code) =
+            Self::get_system_and_code(input.values(), &args, context, evaluator).await?;
 
         // Perform concept lookup
         match terminology_provider

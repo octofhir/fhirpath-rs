@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathValue, Result};
+use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -56,19 +56,13 @@ impl PureFunctionEvaluator for CombineFunctionEvaluator {
         &self.metadata
     }
 
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.is_empty() {
-            return Ok(EvaluationResult {
-                value: crate::core::Collection::from(input),
-            });
+            return Ok(EvaluationResult { value: input });
         }
 
         // Get the other collection from pre-evaluated arguments
-        let other_values: Vec<FhirPathValue> = args[0].clone();
+        let other_values = args[0].clone();
 
         // Combine collections (simple concatenation)
         let combined: Vec<FhirPathValue> = input.into_iter().chain(other_values).collect();

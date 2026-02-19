@@ -186,11 +186,7 @@ impl DifferenceFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for DifferenceFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         // Validate input: need exactly 1 temporal value in input
         if input.len() != 1 {
             return Ok(EvaluationResult {
@@ -326,7 +322,10 @@ mod tests {
             vec![FhirPathValue::string("years".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(-1));
     }
@@ -346,7 +345,10 @@ mod tests {
             vec![FhirPathValue::string("years".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(1));
     }
@@ -366,7 +368,10 @@ mod tests {
             vec![FhirPathValue::string("months".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(-2));
     }
@@ -386,7 +391,10 @@ mod tests {
             vec![FhirPathValue::string("days".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(-14));
     }
@@ -415,7 +423,10 @@ mod tests {
             vec![FhirPathValue::string("hours".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(-2));
     }
@@ -435,7 +446,10 @@ mod tests {
             vec![FhirPathValue::string("minutes".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(-30));
     }
@@ -455,7 +469,10 @@ mod tests {
             vec![FhirPathValue::string("weeks".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -474,7 +491,10 @@ mod tests {
             vec![FhirPathValue::string("days".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -493,7 +513,10 @@ mod tests {
             vec![FhirPathValue::string("days".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(0));
     }
@@ -514,7 +537,10 @@ mod tests {
             vec![FhirPathValue::string("days".to_string())],
         ];
 
-        let result = evaluator.evaluate(input, args).await.unwrap();
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await
+            .unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(-366));
     }

@@ -15,7 +15,7 @@ use chrono::Timelike;
 use std::sync::Arc;
 
 use crate::core::temporal::TemporalPrecision;
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -59,8 +59,8 @@ impl MillisecondFunctionEvaluator {
 impl PureFunctionEvaluator for MillisecondFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(
@@ -149,7 +149,7 @@ mod tests {
         let precision_time = PrecisionTime::new(time, TemporalPrecision::Millisecond);
         let input = vec![FhirPathValue::time(precision_time)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(250)));
     }
@@ -163,7 +163,7 @@ mod tests {
         let precision_time = PrecisionTime::new(time, TemporalPrecision::Millisecond);
         let input = vec![FhirPathValue::time(precision_time)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(0)));
     }
@@ -177,7 +177,7 @@ mod tests {
         let precision_time = PrecisionTime::new(time, TemporalPrecision::Millisecond);
         let input = vec![FhirPathValue::time(precision_time)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(999)));
     }
@@ -194,7 +194,7 @@ mod tests {
             PrecisionDateTime::new(datetime.and_utc().into(), TemporalPrecision::Millisecond);
         let input = vec![FhirPathValue::datetime(precision_datetime)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(250)));
     }
@@ -211,7 +211,7 @@ mod tests {
             PrecisionDateTime::new(datetime.and_utc().into(), TemporalPrecision::Millisecond);
         let input = vec![FhirPathValue::datetime(precision_datetime)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(1)));
     }
@@ -225,7 +225,7 @@ mod tests {
         let precision_time = PrecisionTime::new(time, TemporalPrecision::Second);
         let input = vec![FhirPathValue::time(precision_time)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 0); // Empty collection
     }
 
@@ -238,7 +238,7 @@ mod tests {
         let precision_time = PrecisionTime::new(time, TemporalPrecision::Minute);
         let input = vec![FhirPathValue::time(precision_time)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 0); // Empty collection
     }
 
@@ -254,7 +254,7 @@ mod tests {
             PrecisionDateTime::new(datetime.and_utc().into(), TemporalPrecision::Second);
         let input = vec![FhirPathValue::datetime(precision_datetime)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 0); // Empty collection
     }
 
@@ -270,7 +270,7 @@ mod tests {
             PrecisionDateTime::new(datetime.and_utc().into(), TemporalPrecision::Day);
         let input = vec![FhirPathValue::datetime(precision_datetime)];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 0); // Empty collection
     }
 
@@ -281,7 +281,7 @@ mod tests {
         // {}.millisecond() → {}
         let input = vec![];
 
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 0); // Empty collection
     }
 
@@ -292,7 +292,7 @@ mod tests {
         // 123.millisecond() → error
         let input = vec![FhirPathValue::integer(123)];
 
-        let result = evaluator.evaluate(input, vec![]).await;
+        let result = evaluator.evaluate(input.into(), vec![]).await;
         assert!(result.is_err());
         assert!(
             result
@@ -309,7 +309,7 @@ mod tests {
         // 'string'.millisecond() → error
         let input = vec![FhirPathValue::string("string".to_string())];
 
-        let result = evaluator.evaluate(input, vec![]).await;
+        let result = evaluator.evaluate(input.into(), vec![]).await;
         assert!(result.is_err());
         assert!(
             result
@@ -333,7 +333,7 @@ mod tests {
             FhirPathValue::time(precision_time2),
         ];
 
-        let result = evaluator.evaluate(input, vec![]).await;
+        let result = evaluator.evaluate(input.into(), vec![]).await;
         assert!(result.is_err());
         assert!(
             result
@@ -354,7 +354,9 @@ mod tests {
         // millisecond() takes no arguments
         let args = vec![vec![FhirPathValue::integer(1)]];
 
-        let result = evaluator.evaluate(input, args).await;
+        let result = evaluator
+            .evaluate(input.into(), args.into_iter().map(Into::into).collect())
+            .await;
         assert!(result.is_err());
         assert!(
             result

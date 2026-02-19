@@ -355,24 +355,24 @@ pub fn eval_result_to_fhirpath_value(
     }
 }
 
-/// Convert TypeInfoResult to TypeInfo
-fn convert_type_info_result_to_type_info(type_info_result: &Option<TypeInfoResult>) -> TypeInfo {
+/// Convert TypeInfoResult to Arc<TypeInfo>
+fn convert_type_info_result_to_type_info(
+    type_info_result: &Option<TypeInfoResult>,
+) -> std::sync::Arc<TypeInfo> {
     if let Some(tir) = type_info_result {
-        TypeInfo {
+        std::sync::Arc::new(TypeInfo {
             type_name: tir.name.clone(),
             singleton: Some(true),
             is_empty: Some(false),
             namespace: Some(tir.namespace.clone()),
             name: Some(tir.name.clone()),
-        }
+        })
     } else {
-        TypeInfo {
-            type_name: "Any".to_string(),
-            singleton: Some(true),
-            is_empty: Some(false),
-            namespace: Some("System".to_string()),
-            name: Some("Any".to_string()),
-        }
+        static ANY_TYPE: std::sync::LazyLock<std::sync::Arc<TypeInfo>> =
+            std::sync::LazyLock::new(|| {
+                std::sync::Arc::new(TypeInfo::system_type("Any".to_string(), true))
+            });
+        ANY_TYPE.clone()
     }
 }
 

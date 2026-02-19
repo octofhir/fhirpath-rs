@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
@@ -244,8 +244,8 @@ impl ResolveFunctionEvaluator {
 impl ProviderPureFunctionEvaluator for ResolveFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        args: Vec<Collection>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {
@@ -288,12 +288,14 @@ impl ProviderPureFunctionEvaluator for ResolveFunctionEvaluator {
                     let type_info = context
                         .get_or_fetch_type_info(resource_type)
                         .await
-                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
-                            type_name: resource_type.to_string(),
-                            singleton: Some(true),
-                            namespace: Some("FHIR".to_string()),
-                            name: Some(resource_type.to_string()),
-                            is_empty: Some(false),
+                        .unwrap_or_else(|| {
+                            Arc::new(crate::core::model_provider::TypeInfo {
+                                type_name: resource_type.to_string(),
+                                singleton: Some(true),
+                                namespace: Some("FHIR".to_string()),
+                                name: Some(resource_type.to_string()),
+                                is_empty: Some(false),
+                            })
                         });
 
                     // Wrap the resolved JSON as a Resource with correct type info

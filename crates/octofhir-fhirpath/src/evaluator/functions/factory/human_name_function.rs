@@ -93,7 +93,7 @@ impl FactoryHumanNameFunctionEvaluator {
     }
 }
 
-fn extract_string(args: &[Vec<FhirPathValue>], index: usize) -> Option<String> {
+fn extract_string(args: &[Collection], index: usize) -> Option<String> {
     args.get(index)
         .and_then(|a| a.first())
         .and_then(|v| match v {
@@ -102,7 +102,7 @@ fn extract_string(args: &[Vec<FhirPathValue>], index: usize) -> Option<String> {
         })
 }
 
-fn extract_string_collection(args: &[Vec<FhirPathValue>], index: usize) -> Vec<String> {
+fn extract_string_collection(args: &[Collection], index: usize) -> Vec<String> {
     args.get(index)
         .map(|a| {
             a.iter()
@@ -117,11 +117,7 @@ fn extract_string_collection(args: &[Vec<FhirPathValue>], index: usize) -> Vec<S
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for FactoryHumanNameFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if input.len() != 1 || !is_factory_variable(&input[0]) {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0058,
@@ -167,7 +163,7 @@ impl PureFunctionEvaluator for FactoryHumanNameFunctionEvaluator {
             name.insert("use".to_string(), serde_json::Value::String(use_val));
         }
 
-        let type_info = TypeInfo::new_complex("HumanName");
+        let type_info = Arc::new(TypeInfo::new_complex("HumanName"));
         Ok(EvaluationResult {
             value: Collection::single(FhirPathValue::resource_wrapped(
                 serde_json::Value::Object(name),

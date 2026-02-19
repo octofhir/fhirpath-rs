@@ -98,10 +98,10 @@ impl IsOperatorEvaluator {
 impl OperationEvaluator for IsOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Spec: If left operand is empty, result is empty (not false)
         if left.is_empty() {
@@ -243,10 +243,10 @@ impl AsOperatorEvaluator {
 impl OperationEvaluator for AsOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Spec: If left operand is empty, result is empty
         if left.is_empty() {
@@ -300,12 +300,15 @@ impl OperationEvaluator for AsOperatorEvaluator {
                         format!("ModelProvider error getting type '{type_name}': {e}"),
                     )
                 })?
-                .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
-                    type_name: type_name.to_string(),
-                    singleton: Some(true),
-                    namespace: None,
-                    name: Some(type_name.to_string()),
-                    is_empty: Some(false),
+                .map(Arc::new)
+                .unwrap_or_else(|| {
+                    Arc::new(crate::core::model_provider::TypeInfo {
+                        type_name: type_name.to_string(),
+                        singleton: Some(true),
+                        namespace: None,
+                        name: Some(type_name.to_string()),
+                        is_empty: Some(false),
+                    })
                 });
 
             // Return the value with updated type info
@@ -387,7 +390,7 @@ mod tests {
         let right = vec![FhirPathValue::string("Boolean".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -410,7 +413,7 @@ mod tests {
         let right = vec![FhirPathValue::string("boolean".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -433,7 +436,7 @@ mod tests {
         let right = vec![FhirPathValue::string("Integer".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -456,7 +459,7 @@ mod tests {
         let right = vec![FhirPathValue::string("boolean".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

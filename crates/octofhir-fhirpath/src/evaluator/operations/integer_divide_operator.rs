@@ -102,10 +102,10 @@ impl IntegerDivideOperatorEvaluator {
 impl OperationEvaluator for IntegerDivideOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Empty propagation: if either operand is empty, result is empty
         if left.is_empty() || right.is_empty() {
@@ -191,7 +191,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(5)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -214,7 +214,7 @@ mod tests {
         let right = vec![FhirPathValue::decimal(Decimal::new(52, 1))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -237,7 +237,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(0)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

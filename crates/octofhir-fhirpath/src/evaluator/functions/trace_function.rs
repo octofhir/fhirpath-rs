@@ -213,7 +213,7 @@ fn format_trace_resource(json: &JsonValue, depth: usize) -> String {
 impl LazyFunctionEvaluator for TraceFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -299,9 +299,7 @@ impl LazyFunctionEvaluator for TraceFunctionEvaluator {
         }
 
         // Return the input collection unchanged
-        Ok(EvaluationResult {
-            value: crate::core::Collection::from_values(input),
-        })
+        Ok(EvaluationResult { value: input })
     }
 
     fn metadata(&self) -> &FunctionMetadata {

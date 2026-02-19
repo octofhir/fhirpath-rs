@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
@@ -57,8 +57,8 @@ impl SimpleExpandFunctionEvaluator {
 impl ProviderPureFunctionEvaluator for SimpleExpandFunctionEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        _input: Collection,
+        _args: Vec<Collection>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         // Check if terminology provider is available

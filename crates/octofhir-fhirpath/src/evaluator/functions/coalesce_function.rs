@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -60,7 +60,7 @@ impl CoalesceFunctionEvaluator {
 impl LazyFunctionEvaluator for CoalesceFunctionEvaluator {
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        _input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,

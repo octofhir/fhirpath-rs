@@ -207,7 +207,11 @@ pub mod utils {
                         });
 
                     // Create properly typed resource
-                    Ok(FhirPathValue::Resource(Arc::new(json), type_info, None))
+                    Ok(FhirPathValue::Resource(
+                        Arc::new(json),
+                        Arc::new(type_info),
+                        None,
+                    ))
                 } else {
                     // Check if this is a special FHIR type that should be converted to a specific FhirPathValue
                     if let Some(fhir_type) = infer_fhir_type_from_json(obj) {

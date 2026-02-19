@@ -49,8 +49,8 @@ impl ToCharsFunctionEvaluator {
 impl PureFunctionEvaluator for ToCharsFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(

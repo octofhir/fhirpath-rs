@@ -63,11 +63,7 @@ impl FactoryExtensionFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for FactoryExtensionFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if input.len() != 1 || !is_factory_variable(&input[0]) {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0058,
@@ -93,7 +89,7 @@ impl PureFunctionEvaluator for FactoryExtensionFunctionEvaluator {
             add_extension_value(&mut ext, value_arg);
         }
 
-        let type_info = TypeInfo::new_complex("Extension");
+        let type_info = Arc::new(TypeInfo::new_complex("Extension"));
         Ok(EvaluationResult {
             value: Collection::single(FhirPathValue::resource_wrapped(
                 serde_json::Value::Object(ext),

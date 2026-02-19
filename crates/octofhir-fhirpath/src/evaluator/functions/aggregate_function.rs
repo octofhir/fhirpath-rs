@@ -70,7 +70,7 @@ impl AggregateFunctionEvaluator {
 impl LazyFunctionEvaluator for AggregateFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,

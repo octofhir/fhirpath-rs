@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -54,11 +54,7 @@ impl UnionFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for UnionFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -70,7 +66,7 @@ impl PureFunctionEvaluator for UnionFunctionEvaluator {
         let other_values = args[0].clone();
 
         // Combine the input and other collections
-        let mut result_values = input;
+        let mut result_values = input.into_vec();
         result_values.extend(other_values);
 
         // Remove duplicates while preserving order

@@ -292,10 +292,10 @@ impl EquivalentOperatorEvaluator {
 impl OperationEvaluator for EquivalentOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Equivalence has different empty handling than equality:
         // - If both are empty, result is true
@@ -407,7 +407,7 @@ mod tests {
         let right = vec![FhirPathValue::boolean(true)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -430,7 +430,7 @@ mod tests {
         let right = vec![FhirPathValue::string("HELLO".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -453,7 +453,7 @@ mod tests {
         let right = vec![FhirPathValue::string("hello".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -476,7 +476,7 @@ mod tests {
         let right = vec![];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -499,7 +499,7 @@ mod tests {
         let right = vec![]; // Empty collection
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::ast::{ExpressionNode, LiteralNode, LiteralValue};
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -58,7 +58,7 @@ impl RepeatFunctionEvaluator {
 impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -78,7 +78,7 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
         let mut current_items = input;
         // Track type tags for decision about seed placement
         let seed_type_tags: std::collections::HashSet<&'static str> =
-            original_input.iter().map(|v| Self::type_tag(v)).collect();
+            original_input.iter().map(Self::type_tag).collect();
         let mut produced_type_tags: std::collections::HashSet<&'static str> = Default::default();
 
         // Track original items to avoid infinite loops
@@ -186,7 +186,7 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
                 break;
             }
 
-            current_items = new_items;
+            current_items = Collection::from_values(new_items);
         }
 
         // Place seeds only for numeric/temporal/quantity sequences; never include seeds for complex/object traversals

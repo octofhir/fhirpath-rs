@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{BinaryOperator, UnaryOperator};
-use crate::core::{FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::core::{Collection, FhirPathType, Result, TypeSignature};
 use crate::evaluator::operations::{
     AddOperatorEvaluator, AndOperatorEvaluator, AsOperatorEvaluator, ConcatenateOperatorEvaluator,
     ContainsOperatorEvaluator, DivideOperatorEvaluator, EqualsOperatorEvaluator,
@@ -93,10 +93,10 @@ pub enum Associativity {
 /// impl OperationEvaluator for CustomOperator {
 ///     async fn evaluate(
 ///         &self,
-///         _input: Vec<FhirPathValue>,
+///         _input: Collection,
 ///         _context: &EvaluationContext,
-///         left: Vec<FhirPathValue>,
-///         right: Vec<FhirPathValue>,
+///         left: Collection,
+///         right: Collection,
 ///     ) -> Result<EvaluationResult> {
 ///         // Implement your operator logic here
 ///         Ok(EvaluationResult::empty())
@@ -124,10 +124,10 @@ pub trait OperationEvaluator: Send + Sync {
     /// or an error if the operation fails.
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        _input: Collection,
         context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult>;
 
     /// Returns metadata describing this operator's behavior and signature.

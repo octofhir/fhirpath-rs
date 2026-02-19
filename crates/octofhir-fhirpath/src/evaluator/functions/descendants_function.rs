@@ -14,21 +14,25 @@ use crate::evaluator::function_registry::{
 
 /// Static TypeInfo for Element type, reused across all descendant elements
 /// to avoid allocating a new TypeInfo for each descendant.
-static ELEMENT_TYPE_INFO: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
-    type_name: "Element".to_string(),
-    singleton: Some(true),
-    namespace: Some("FHIR".to_string()),
-    name: Some("Element".to_string()),
-    is_empty: Some(false),
+static ELEMENT_TYPE_INFO: LazyLock<Arc<TypeInfo>> = LazyLock::new(|| {
+    Arc::new(TypeInfo {
+        type_name: "Element".to_string(),
+        singleton: Some(true),
+        namespace: Some("FHIR".to_string()),
+        name: Some("Element".to_string()),
+        is_empty: Some(false),
+    })
 });
 
 /// Static TypeInfo for Reference type, reused for reference elements.
-static REFERENCE_TYPE_INFO: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
-    type_name: "Reference".to_string(),
-    singleton: Some(true),
-    namespace: Some("FHIR".to_string()),
-    name: Some("Reference".to_string()),
-    is_empty: Some(false),
+static REFERENCE_TYPE_INFO: LazyLock<Arc<TypeInfo>> = LazyLock::new(|| {
+    Arc::new(TypeInfo {
+        type_name: "Reference".to_string(),
+        singleton: Some(true),
+        namespace: Some("FHIR".to_string()),
+        name: Some("Reference".to_string()),
+        is_empty: Some(false),
+    })
 });
 
 pub struct DescendantsFunctionEvaluator {
@@ -168,13 +172,13 @@ impl DescendantsFunctionEvaluator {
                 let type_info = if let Some(resource_type) =
                     map.get("resourceType").and_then(|value| value.as_str())
                 {
-                    TypeInfo {
+                    Arc::new(TypeInfo {
                         type_name: resource_type.to_string(),
                         singleton: Some(true),
                         namespace: Some("FHIR".to_string()),
                         name: Some(resource_type.to_string()),
                         is_empty: Some(false),
-                    }
+                    })
                 } else if map.get("reference").is_some() {
                     REFERENCE_TYPE_INFO.clone()
                 } else {
@@ -198,11 +202,7 @@ impl DescendantsFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for DescendantsFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::FP0053,

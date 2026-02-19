@@ -59,7 +59,7 @@ impl SelectFunctionEvaluator {
 impl LazyFunctionEvaluator for SelectFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,

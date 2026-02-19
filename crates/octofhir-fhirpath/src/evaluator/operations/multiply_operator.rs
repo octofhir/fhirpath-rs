@@ -191,10 +191,10 @@ impl MultiplyOperatorEvaluator {
 impl OperationEvaluator for MultiplyOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Empty propagation: if either operand is empty, result is empty
         if left.is_empty() || right.is_empty() {
@@ -309,7 +309,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(7)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -328,7 +328,7 @@ mod tests {
         let right = vec![FhirPathValue::decimal(dec!(4.0))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -347,7 +347,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(3)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -369,7 +369,7 @@ mod tests {
         let right = vec![FhirPathValue::decimal(dec!(2.0))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -391,7 +391,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(5), Some("m".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -415,7 +415,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(3), Some("m".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -438,7 +438,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(4), Some("cm".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -460,7 +460,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(2), Some("kg".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -484,7 +484,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(3), Some("m".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -506,7 +506,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(3), Some("1".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -528,7 +528,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(5), Some("1".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -552,7 +552,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(5), Some("s".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -577,7 +577,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(5), Some("m".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -598,7 +598,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(5)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -614,7 +614,7 @@ mod tests {
         let right = vec![];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -632,7 +632,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(4), None)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -654,7 +654,7 @@ mod tests {
         let right = vec![FhirPathValue::quantity(dec!(4), Some("kg".to_string()))];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

@@ -191,10 +191,10 @@ impl LessEqualOperatorEvaluator {
 impl OperationEvaluator for LessEqualOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         if left.is_empty() || right.is_empty() {
             return Ok(EvaluationResult {

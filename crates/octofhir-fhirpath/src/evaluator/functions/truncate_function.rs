@@ -6,7 +6,7 @@
 use rust_decimal::prelude::*;
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -50,8 +50,8 @@ impl TruncateFunctionEvaluator {
 impl PureFunctionEvaluator for TruncateFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(

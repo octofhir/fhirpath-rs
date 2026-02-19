@@ -198,11 +198,7 @@ fn is_resource_type(type_name: &str) -> bool {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for FactoryCreateFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         // Check if called on %factory variable OR as a standalone factory function
         let is_factory = input.len() == 1 && is_factory_variable(&input[0]);
         if !is_factory {
@@ -235,7 +231,7 @@ impl PureFunctionEvaluator for FactoryCreateFunctionEvaluator {
             );
         }
 
-        let type_info = TypeInfo::new_complex(clean_type);
+        let type_info = Arc::new(TypeInfo::new_complex(clean_type));
         Ok(EvaluationResult {
             value: Collection::single(FhirPathValue::resource_wrapped(
                 serde_json::Value::Object(obj),

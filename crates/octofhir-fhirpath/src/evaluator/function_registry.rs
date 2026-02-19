@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathValue, Result};
+use crate::core::{Collection, Result};
 use crate::evaluator::functions::{
     // Math functions
     AbsFunctionEvaluator,
@@ -324,7 +324,7 @@ pub trait FunctionEvaluator: Send + Sync {
     /// - evaluator: Async evaluator for argument expressions
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        _input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -395,12 +395,9 @@ pub trait FunctionEvaluator: Send + Sync {
 pub trait PureFunctionEvaluator: Send + Sync {
     /// Evaluate the function with pre-evaluated arguments
     /// - input: The input collection that the function operates on
-    /// - args: Pre-evaluated function arguments (each `Vec<FhirPathValue>` is one argument)
-    async fn evaluate(
-        &self,
-        _input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult>;
+    /// - args: Pre-evaluated function arguments (each Collection is one argument)
+    async fn evaluate(&self, _input: Collection, args: Vec<Collection>)
+    -> Result<EvaluationResult>;
 
     /// Get metadata for this function
     fn metadata(&self) -> &FunctionMetadata;
@@ -412,12 +409,12 @@ pub trait PureFunctionEvaluator: Send + Sync {
 pub trait ProviderPureFunctionEvaluator: Send + Sync {
     /// Evaluate the function with pre-evaluated arguments and provider access
     /// - input: The input collection that the function operates on
-    /// - args: Pre-evaluated function arguments (each `Vec<FhirPathValue>` is one argument)
+    /// - args: Pre-evaluated function arguments (each Collection is one argument)
     /// - context: Evaluation context providing access to terminology/model/trace providers
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        _input: Collection,
+        args: Vec<Collection>,
         context: &crate::evaluator::EvaluationContext,
     ) -> Result<EvaluationResult>;
 
@@ -437,7 +434,7 @@ pub trait LazyFunctionEvaluator: Send + Sync {
     /// - evaluator: Async evaluator for argument expressions
     async fn evaluate(
         &self,
-        _input: Vec<FhirPathValue>,
+        _input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,

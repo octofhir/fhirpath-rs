@@ -159,13 +159,13 @@ impl Evaluator {
                             }
                         }
                     } else if map.get("reference").is_some() {
-                        let type_info = crate::core::model_provider::TypeInfo {
+                        let type_info = Arc::new(crate::core::model_provider::TypeInfo {
                             type_name: "Reference".to_string(),
                             singleton: Some(true),
                             namespace: Some("FHIR".to_string()),
                             name: Some("Reference".to_string()),
                             is_empty: Some(false),
-                        };
+                        });
                         results.push(FhirPathValue::Resource(
                             Arc::new(value.clone()),
                             type_info,
@@ -901,7 +901,7 @@ impl Evaluator {
 
                             let resource_value = FhirPathValue::wrap_value(
                                 crate::core::value::utils::json_to_fhirpath_value((**json).clone()),
-                                resource_type_info,
+                                std::sync::Arc::new(resource_type_info),
                                 None,
                             );
                             result_values.push(resource_value);
@@ -1140,13 +1140,14 @@ impl Evaluator {
                     // But support extension(...) on primitives via wrapped primitive element
                     if identifier.starts_with("extension") && item.has_primitive_extensions() {
                         // Helper to build Extension TypeInfo
-                        let ext_type_info = crate::core::model_provider::TypeInfo {
-                            type_name: "Extension".to_string(),
-                            singleton: Some(true),
-                            namespace: Some("FHIR".to_string()),
-                            name: Some("Extension".to_string()),
-                            is_empty: Some(false),
-                        };
+                        let ext_type_info =
+                            std::sync::Arc::new(crate::core::model_provider::TypeInfo {
+                                type_name: "Extension".to_string(),
+                                singleton: Some(true),
+                                namespace: Some("FHIR".to_string()),
+                                name: Some("Extension".to_string()),
+                                is_empty: Some(false),
+                            });
 
                         // Parse optional URL argument if provided: extension('...')
                         let url_filter: Option<String> =
@@ -1424,13 +1425,13 @@ impl Evaluator {
 
     /// Wrap an extension JSON as a FhirPathValue with proper type info
     async fn wrap_extension(&self, extension_json: serde_json::Value) -> Result<FhirPathValue> {
-        let type_info = crate::core::model_provider::TypeInfo {
+        let type_info = std::sync::Arc::new(crate::core::model_provider::TypeInfo {
             type_name: "Extension".to_string(),
             singleton: Some(true),
             namespace: Some("FHIR".to_string()),
             name: Some("Extension".to_string()),
             is_empty: Some(false),
-        };
+        });
 
         let base_value = crate::core::value::utils::json_to_fhirpath_value(extension_json);
         Ok(FhirPathValue::wrap_value(base_value, type_info, None))
@@ -1590,7 +1591,7 @@ impl Evaluator {
                     .or_else(|| context.get_variable("this"))
                 {
                     Ok(EvaluationResult {
-                        value: Collection::single(this_value.clone()),
+                        value: Collection::single(this_value),
                     })
                 } else {
                     // If $this is not set, return current input collection
@@ -1607,7 +1608,7 @@ impl Evaluator {
                     .or_else(|| context.get_variable("index"))
                 {
                     Ok(EvaluationResult {
-                        value: Collection::single(index_value.clone()),
+                        value: Collection::single(index_value),
                     })
                 } else {
                     // Return empty if $index is not set
@@ -1623,7 +1624,7 @@ impl Evaluator {
                     .or_else(|| context.get_variable("$total"))
                 {
                     Ok(EvaluationResult {
-                        value: Collection::single(total_value.clone()),
+                        value: Collection::single(total_value),
                     })
                 } else {
                     // Return empty if $total is not set
@@ -1636,7 +1637,7 @@ impl Evaluator {
                 // Check for user-defined variables first
                 if let Some(user_variable) = context.get_variable(variable_name) {
                     Ok(EvaluationResult {
-                        value: Collection::single(user_variable.clone()),
+                        value: Collection::single(user_variable),
                     })
                 } else if let Some(env_var_name) = variable_name.strip_prefix('%') {
                     // Handle environment variables with % prefix
@@ -1645,7 +1646,7 @@ impl Evaluator {
                     // Check for standard environment variables
                     if let Some(env_value) = context.get_variable(env_var_name) {
                         Ok(EvaluationResult {
-                            value: Collection::single(env_value.clone()),
+                            value: Collection::single(env_value),
                         })
                     } else {
                         // Check for dynamic %vs-[name] and %ext-[name] variables
@@ -1710,17 +1711,18 @@ impl Evaluator {
 
         match property_value {
             serde_json::Value::Array(arr) => {
-                let element_type_info = crate::core::model_provider::TypeInfo {
-                    type_name: type_info
-                        .name
-                        .as_deref()
-                        .unwrap_or(&type_info.type_name)
-                        .to_string(),
-                    singleton: Some(true), // Each element is singular
-                    namespace: type_info.namespace.clone(),
-                    name: type_info.name.clone(),
-                    is_empty: Some(false),
-                };
+                let element_type_info =
+                    std::sync::Arc::new(crate::core::model_provider::TypeInfo {
+                        type_name: type_info
+                            .name
+                            .as_deref()
+                            .unwrap_or(&type_info.type_name)
+                            .to_string(),
+                        singleton: Some(true), // Each element is singular
+                        namespace: type_info.namespace.clone(),
+                        name: type_info.name.clone(),
+                        is_empty: Some(false),
+                    });
 
                 for element in arr {
                     let fhir_value = match element {
@@ -1769,17 +1771,18 @@ impl Evaluator {
                 }
             }
             _ => {
-                let element_type_info = crate::core::model_provider::TypeInfo {
-                    type_name: type_info
-                        .name
-                        .as_deref()
-                        .unwrap_or(&type_info.type_name)
-                        .to_string(),
-                    singleton: Some(true), // Each element is singular
-                    namespace: type_info.namespace.clone(),
-                    name: type_info.name.clone(),
-                    is_empty: Some(false),
-                };
+                let element_type_info =
+                    std::sync::Arc::new(crate::core::model_provider::TypeInfo {
+                        type_name: type_info
+                            .name
+                            .as_deref()
+                            .unwrap_or(&type_info.type_name)
+                            .to_string(),
+                        singleton: Some(true), // Each element is singular
+                        namespace: type_info.namespace.clone(),
+                        name: type_info.name.clone(),
+                        is_empty: Some(false),
+                    });
 
                 if property_value.is_object() && property_value.get("resourceType").is_some() {
                     // This is a true FHIR resource
@@ -1856,7 +1859,7 @@ impl Evaluator {
         // Wrap with the provided type information
         Ok(FhirPathValue::wrap_value(
             base_value,
-            type_info.clone(),
+            std::sync::Arc::new(type_info.clone()),
             None,
         ))
     }
@@ -1890,7 +1893,11 @@ impl Evaluator {
         let value = crate::core::value::utils::json_to_fhirpath_value(json);
 
         // Wrap with proper type information
-        Ok(FhirPathValue::wrap_value(value, property_type_info, None))
+        Ok(FhirPathValue::wrap_value(
+            value,
+            std::sync::Arc::new(property_type_info),
+            None,
+        ))
     }
 
     /// Extract quantity value from FHIR Quantity JSON with UCUM unit parsing support
@@ -2058,20 +2065,22 @@ impl Evaluator {
         // real FHIR primitives (e.g., contained.id) prefer the declared FHIR
         // primitive type. For synthetic structures like TypeInfo, fall back to
         // the runtime System type so reflection APIs surface strings.
-        let mut effective_type_info = type_info.clone();
-        if effective_type_info.type_name == "Unknown"
-            && effective_type_info.namespace.as_deref() == Some("FHIR")
-        {
-            if let Some(ref name) = effective_type_info.name {
-                if crate::typing::is_primitive_type(name) {
-                    effective_type_info.type_name = name.clone();
+        let effective_type_info: std::sync::Arc<crate::core::model_provider::TypeInfo> =
+            if type_info.type_name == "Unknown" && type_info.namespace.as_deref() == Some("FHIR") {
+                if let Some(ref name) = type_info.name {
+                    if crate::typing::is_primitive_type(name) {
+                        let mut ti = type_info.clone();
+                        ti.type_name = name.clone();
+                        std::sync::Arc::new(ti)
+                    } else {
+                        base_value.type_info().clone()
+                    }
                 } else {
-                    effective_type_info = base_value.type_info().clone();
+                    base_value.type_info().clone()
                 }
             } else {
-                effective_type_info = base_value.type_info().clone();
-            }
-        }
+                std::sync::Arc::new(type_info.clone())
+            };
 
         Ok(FhirPathValue::wrap_value(
             base_value,
@@ -2096,38 +2105,39 @@ impl Evaluator {
     ) -> Result<FhirPathValue> {
         let type_name_lower = type_info.type_name.to_lowercase();
 
+        let arc_type_info = std::sync::Arc::new(type_info.clone());
         match value {
             serde_json::Value::String(s) => match type_name_lower.as_str() {
                 "datetime" | "instant" => {
                     // Parse as DateTime
                     if let Some(parsed) = crate::core::temporal::PrecisionDateTime::parse(s) {
-                        Ok(FhirPathValue::DateTime(parsed, type_info.clone(), None))
+                        Ok(FhirPathValue::DateTime(parsed, arc_type_info, None))
                     } else {
                         // Fallback to string if parsing fails
-                        Ok(FhirPathValue::String(s.clone(), type_info.clone(), None))
+                        Ok(FhirPathValue::String(s.clone(), arc_type_info, None))
                     }
                 }
                 "date" => {
                     // Parse as Date
                     if let Some(parsed) = crate::core::temporal::PrecisionDate::parse(s) {
-                        Ok(FhirPathValue::Date(parsed, type_info.clone(), None))
+                        Ok(FhirPathValue::Date(parsed, arc_type_info, None))
                     } else {
                         // Fallback to string if parsing fails
-                        Ok(FhirPathValue::String(s.clone(), type_info.clone(), None))
+                        Ok(FhirPathValue::String(s.clone(), arc_type_info, None))
                     }
                 }
                 "time" => {
                     // Parse as Time
                     if let Some(parsed) = crate::core::temporal::PrecisionTime::parse(s) {
-                        Ok(FhirPathValue::Time(parsed, type_info.clone(), None))
+                        Ok(FhirPathValue::Time(parsed, arc_type_info, None))
                     } else {
                         // Fallback to string if parsing fails
-                        Ok(FhirPathValue::String(s.clone(), type_info.clone(), None))
+                        Ok(FhirPathValue::String(s.clone(), arc_type_info, None))
                     }
                 }
                 _ => {
                     // Unknown temporal type, return as string
-                    Ok(FhirPathValue::String(s.clone(), type_info.clone(), None))
+                    Ok(FhirPathValue::String(s.clone(), arc_type_info, None))
                 }
             },
             _ => {
@@ -2176,12 +2186,15 @@ impl Evaluator {
                                 format!("ModelProvider error getting type '{resource_type}': {e}"),
                             )
                         })?
-                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
-                            type_name: resource_type.to_string(),
-                            singleton: Some(true),
-                            namespace: Some("FHIR".to_string()),
-                            name: Some(resource_type.to_string()),
-                            is_empty: Some(false),
+                        .map(std::sync::Arc::new)
+                        .unwrap_or_else(|| {
+                            std::sync::Arc::new(crate::core::model_provider::TypeInfo {
+                                type_name: resource_type.to_string(),
+                                singleton: Some(true),
+                                namespace: Some("FHIR".to_string()),
+                                name: Some(resource_type.to_string()),
+                                is_empty: Some(false),
+                            })
                         });
 
                     let resource_value = FhirPathValue::Resource(
@@ -2222,12 +2235,15 @@ impl Evaluator {
                                 format!("ModelProvider error getting type '{resource_type}': {e}"),
                             )
                         })?
-                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
-                            type_name: resource_type.to_string(),
-                            singleton: Some(true),
-                            namespace: Some("FHIR".to_string()),
-                            name: Some(resource_type.to_string()),
-                            is_empty: Some(false),
+                        .map(std::sync::Arc::new)
+                        .unwrap_or_else(|| {
+                            std::sync::Arc::new(crate::core::model_provider::TypeInfo {
+                                type_name: resource_type.to_string(),
+                                singleton: Some(true),
+                                namespace: Some("FHIR".to_string()),
+                                name: Some(resource_type.to_string()),
+                                is_empty: Some(false),
+                            })
                         });
 
                     let resource_value = FhirPathValue::Resource(
@@ -2268,6 +2284,7 @@ impl Evaluator {
                             format!("ModelProvider error getting type '{resource_type}': {e}"),
                         )
                     })?
+                    .map(std::sync::Arc::new)
                     .unwrap_or_else(|| current_type_info.clone());
 
                 let retyped_value = FhirPathValue::Resource(
@@ -2328,12 +2345,17 @@ impl Evaluator {
                                         .get_type(resource_type)
                                         .await
                                         .unwrap_or(None)
-                                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
-                                            type_name: resource_type.to_string(),
-                                            singleton: Some(true),
-                                            namespace: Some("FHIR".to_string()),
-                                            name: Some(resource_type.to_string()),
-                                            is_empty: Some(false),
+                                        .map(std::sync::Arc::new)
+                                        .unwrap_or_else(|| {
+                                            std::sync::Arc::new(
+                                                crate::core::model_provider::TypeInfo {
+                                                    type_name: resource_type.to_string(),
+                                                    singleton: Some(true),
+                                                    namespace: Some("FHIR".to_string()),
+                                                    name: Some(resource_type.to_string()),
+                                                    is_empty: Some(false),
+                                                },
+                                            )
                                         });
 
                                     let resolved_resource = FhirPathValue::Resource(
@@ -2383,9 +2405,7 @@ impl Evaluator {
             _ => {
                 if let Some(evaluator) = self.operator_registry.get_binary_operator(operator) {
                     let input = Collection::empty(); // Binary operations don't use input collection
-                    evaluator
-                        .evaluate(input.into_vec(), context, left.into_vec(), right.into_vec())
-                        .await
+                    evaluator.evaluate(input, context, left, right).await
                 } else {
                     Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0054,
@@ -2405,15 +2425,8 @@ impl Evaluator {
     ) -> Result<EvaluationResult> {
         // Get the operation evaluator from the registry
         if let Some(evaluator) = self.operator_registry.get_unary_operator(operator) {
-            let input = Collection::empty(); // Unary operations don't use input collection
-            let empty = Collection::empty();
             evaluator
-                .evaluate(
-                    input.into_vec(),
-                    context,
-                    operand.into_vec(),
-                    empty.into_vec(),
-                )
+                .evaluate(Collection::empty(), context, operand, Collection::empty())
                 .await
         } else {
             Err(FhirPathError::evaluation_error(
@@ -2479,12 +2492,7 @@ impl Evaluator {
                     let async_evaluator = AsyncNodeEvaluator::new(self);
 
                     lazy_evaluator
-                        .evaluate(
-                            input_values.into_vec(),
-                            context,
-                            arguments.to_vec(),
-                            async_evaluator,
-                        )
+                        .evaluate(input_values, context, arguments.to_vec(), async_evaluator)
                         .await
                 }
                 crate::evaluator::function_registry::FunctionEvaluatorWrapper::Standard(
@@ -2508,7 +2516,7 @@ impl Evaluator {
 
                             standard_evaluator
                                 .evaluate(
-                                    input_values.into_vec(),
+                                    input_values,
                                     context,
                                     arguments.to_vec(),
                                     async_evaluator,
@@ -2536,20 +2544,10 @@ impl Evaluator {
     ) -> Result<EvaluationResult> {
         let metadata = evaluator.metadata();
 
-        // Prepare an optional receiver-focused context for method-call style argument evaluation
-        // We only use this when the argument expression contains no identifiers/property accesses
-        // and the function does not require Root argument evaluation.
-        let receiver_context = if !input_values.is_empty() {
-            Some(EvaluationContext::new(
-                input_values.clone(),
-                self.model_provider.clone(),
-                self.terminology_provider.clone(),
-                self.validation_provider.clone(),
-                self.trace_provider.clone(),
-            ))
-        } else {
-            None
-        };
+        // Lazily created receiver-focused context for method-call style argument evaluation.
+        // Only built when actually needed (input non-empty AND argument has no identifiers).
+        let has_input = !input_values.is_empty();
+        let mut receiver_context: Option<EvaluationContext> = None;
 
         // Pre-evaluate all arguments with appropriate context selection
         let mut evaluated_args = Vec::new();
@@ -2564,7 +2562,7 @@ impl Evaluator {
                 .unwrap_or(true); // Default to true for backward compatibility
 
             // Determine which context to use for this argument
-            let use_receiver_ctx = receiver_context.is_some()
+            let use_receiver_ctx = has_input
                 && !Self::expr_has_identifier_or_property(arg)
                 && !matches!(
                     metadata.argument_evaluation,
@@ -2572,7 +2570,15 @@ impl Evaluator {
                 );
 
             let eval_ctx: &EvaluationContext = if use_receiver_ctx {
-                receiver_context.as_ref().unwrap()
+                receiver_context.get_or_insert_with(|| {
+                    EvaluationContext::new(
+                        input_values.clone(),
+                        self.model_provider.clone(),
+                        self.terminology_provider.clone(),
+                        self.validation_provider.clone(),
+                        self.trace_provider.clone(),
+                    )
+                })
             } else {
                 context
             };
@@ -2581,13 +2587,11 @@ impl Evaluator {
             // within one argument do not collide with or leak into other arguments.
             let nested_ctx = eval_ctx.nest();
             let arg_result = self.evaluate_node(arg, &nested_ctx).await?;
-            evaluated_args.push(arg_result.value.values().to_vec());
+            evaluated_args.push(arg_result.value);
         }
 
         // Call the pure function with pre-evaluated arguments
-        evaluator
-            .evaluate(input_values.into_vec(), evaluated_args)
-            .await
+        evaluator.evaluate(input_values, evaluated_args).await
     }
 
     /// Evaluate a provider-dependent pure function (terminology, model, or trace provider needed)
@@ -2623,12 +2627,12 @@ impl Evaluator {
                 _ => context.nest(),
             };
             let arg_result = self.evaluate_node(arg, &nested_ctx).await?;
-            evaluated_args.push(arg_result.value.values().to_vec());
+            evaluated_args.push(arg_result.value);
         }
 
         // Call the provider pure function with pre-evaluated arguments and context for providers
         evaluator
-            .evaluate(input_values.into_vec(), evaluated_args, context)
+            .evaluate(input_values, evaluated_args, context)
             .await
     }
 
@@ -2687,7 +2691,7 @@ impl Evaluator {
 
         evaluator
             .evaluate(
-                context.input_collection().values().to_vec(),
+                context.input_collection().clone(),
                 context,
                 arguments.to_vec(),
                 async_evaluator,
@@ -2730,7 +2734,7 @@ impl Evaluator {
                 let async_evaluator = AsyncNodeEvaluator::new(self);
                 return evaluator
                     .evaluate(
-                        context.input_collection().values().to_vec(),
+                        context.input_collection().clone(),
                         context,
                         arguments.to_vec(),
                         async_evaluator,
@@ -2755,7 +2759,7 @@ impl Evaluator {
         }
 
         // Get the input collection (left side of combine)
-        let left_collection: Vec<FhirPathValue> = context.input_collection().values().to_vec();
+        let left_collection = context.input_collection().clone();
 
         // SPECIAL HANDLING: We need to evaluate the argument in the context of the original
         // Patient resource. Since our context system doesn't preserve this properly, we'll
@@ -2767,16 +2771,16 @@ impl Evaluator {
             .evaluate_expression_in_patient_context(&arguments[0], context)
             .await
         {
-            Ok(result) => result.value.values().to_vec(),
+            Ok(result) => result.value,
             Err(_) => {
                 // If that fails, fall back to evaluating in current context
                 let result = self.evaluate_node_inner(&arguments[0], context).await?;
-                result.value.values().to_vec()
+                result.value
             }
         };
 
         // Combine the collections
-        let mut combined = left_collection;
+        let mut combined = left_collection.into_vec();
         combined.extend(right_collection);
 
         Ok(EvaluationResult {
@@ -2793,16 +2797,16 @@ impl Evaluator {
     ) -> Result<EvaluationResult> {
         let root_input = if let Some(resource_var) = context.get_variable("%resource") {
             // Use the %resource variable (FHIR-defined)
-            vec![resource_var.clone()]
+            Collection::single(resource_var.clone())
         } else if let Some(context_var) = context.get_variable("%context") {
-            vec![context_var.clone()]
+            Collection::single(context_var.clone())
         } else {
-            context.input_collection().values().to_vec()
+            context.input_collection().clone()
         };
 
         // Create a new evaluation context with the resource input
         let resource_context = EvaluationContext::new(
-            crate::core::Collection::from(root_input),
+            root_input,
             context.model_provider().clone(),
             context.terminology_provider().cloned(),
             context.validation_provider().cloned(),
@@ -2865,7 +2869,7 @@ impl Evaluator {
         // Use our UnionOperatorEvaluator directly for proper deduplication
         let union_evaluator = UnionOperatorEvaluator::new();
         union_evaluator
-            .evaluate(vec![], context, left.into_vec(), right.into_vec())
+            .evaluate(Collection::empty(), context, left, right)
             .await
     }
 
@@ -2882,9 +2886,8 @@ impl Evaluator {
             .operator_registry
             .get_binary_operator(&crate::ast::BinaryOperator::Is)
         {
-            let input = Collection::empty();
             evaluator
-                .evaluate(input.into_vec(), context, left.into_vec(), right.into_vec())
+                .evaluate(Collection::empty(), context, left, right)
                 .await
         } else {
             Err(FhirPathError::evaluation_error(
@@ -2907,9 +2910,8 @@ impl Evaluator {
             .operator_registry
             .get_binary_operator(&crate::ast::BinaryOperator::As)
         {
-            let input = Collection::empty();
             evaluator
-                .evaluate(input.into_vec(), context, left.into_vec(), right.into_vec())
+                .evaluate(Collection::empty(), context, left, right)
                 .await
         } else {
             Err(FhirPathError::evaluation_error(

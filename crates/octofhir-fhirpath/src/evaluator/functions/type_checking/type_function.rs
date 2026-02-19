@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -114,11 +114,7 @@ impl TypeFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for TypeFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -138,16 +134,16 @@ impl PureFunctionEvaluator for TypeFunctionEvaluator {
             });
 
             // Convert to FhirPathValue::Resource to represent the type object
-            let default_type_info = crate::core::model_provider::TypeInfo {
+            let default_type_info = Arc::new(crate::core::model_provider::TypeInfo {
                 type_name: "TypeInfo".to_string(),
                 singleton: Some(true),
                 namespace: Some("System".to_string()),
                 name: Some("TypeInfo".to_string()),
                 is_empty: Some(false),
-            };
+            });
 
             results.push(FhirPathValue::Resource(
-                std::sync::Arc::new(type_info),
+                Arc::new(type_info),
                 default_type_info,
                 None, // No primitive element
             ));

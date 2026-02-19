@@ -64,8 +64,8 @@ impl AvgFunctionEvaluator {
 impl PureFunctionEvaluator for AvgFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         // Empty collection returns empty
         if input.is_empty() {
@@ -252,7 +252,7 @@ mod tests {
             FhirPathValue::integer(4),
             FhirPathValue::integer(5),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -266,7 +266,7 @@ mod tests {
 
         // {1, 2}.avg() = 1.5
         let input = vec![FhirPathValue::integer(1), FhirPathValue::integer(2)];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -280,7 +280,7 @@ mod tests {
 
         // {10}.avg() = 10.0
         let input = vec![FhirPathValue::integer(10)];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -298,7 +298,7 @@ mod tests {
             FhirPathValue::decimal(dec!(2.5)),
             FhirPathValue::decimal(dec!(3.0)),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
 
         if let Some(FhirPathValue::Decimal(d, ..)) = result.value.first() {
@@ -320,7 +320,7 @@ mod tests {
             FhirPathValue::decimal(dec!(0.2)),
             FhirPathValue::decimal(dec!(0.3)),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -338,7 +338,7 @@ mod tests {
             FhirPathValue::decimal(dec!(2.5)),
             FhirPathValue::integer(3),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
 
         if let Some(FhirPathValue::Decimal(d, ..)) = result.value.first() {
@@ -356,7 +356,7 @@ mod tests {
 
         // {}.avg() = {}
         let input = vec![];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -370,7 +370,7 @@ mod tests {
             FhirPathValue::Empty,
             FhirPathValue::integer(3),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -388,7 +388,7 @@ mod tests {
             FhirPathValue::string("string"),
             FhirPathValue::integer(3),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -417,7 +417,7 @@ mod tests {
                 Some("http://unitsofmeasure.org".to_string()),
             ),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
 
         if let Some(FhirPathValue::Quantity { value, unit, .. }) = result.value.first() {
@@ -438,7 +438,7 @@ mod tests {
             FhirPathValue::integer(0),
             FhirPathValue::integer(5),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),

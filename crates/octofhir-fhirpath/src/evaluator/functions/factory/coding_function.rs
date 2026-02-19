@@ -77,7 +77,7 @@ impl FactoryCodingFunctionEvaluator {
     }
 }
 
-fn extract_string(args: &[Vec<FhirPathValue>], index: usize) -> Option<String> {
+fn extract_string(args: &[Collection], index: usize) -> Option<String> {
     args.get(index)
         .and_then(|a| a.first())
         .and_then(|v| match v {
@@ -88,11 +88,7 @@ fn extract_string(args: &[Vec<FhirPathValue>], index: usize) -> Option<String> {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for FactoryCodingFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if input.len() != 1 || !is_factory_variable(&input[0]) {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0058,
@@ -125,7 +121,7 @@ impl PureFunctionEvaluator for FactoryCodingFunctionEvaluator {
             coding.insert("version".to_string(), serde_json::Value::String(version));
         }
 
-        let type_info = TypeInfo::new_complex("Coding");
+        let type_info = Arc::new(TypeInfo::new_complex("Coding"));
         Ok(EvaluationResult {
             value: Collection::single(FhirPathValue::resource_wrapped(
                 serde_json::Value::Object(coding),

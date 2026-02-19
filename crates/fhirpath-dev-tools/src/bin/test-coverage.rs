@@ -520,7 +520,7 @@ mod integration_test_runner {
                 let exists = !result.is_empty();
                 Collection::single(FhirPathValue::Boolean(
                     exists,
-                    octofhir_fhir_model::TypeInfo::system_type("Boolean".to_string(), true),
+                    octofhir_fhir_model::type_constants::BOOLEAN_TYPE.clone(),
                     None,
                 ))
             } else {

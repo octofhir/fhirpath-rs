@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -96,11 +96,7 @@ impl LastIndexOfFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for LastIndexOfFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -145,12 +141,12 @@ impl PureFunctionEvaluator for LastIndexOfFunctionEvaluator {
                 }
                 _ => {
                     // Single item collection search
-                    Self::find_last_item_index(&input, search_value)
+                    Self::find_last_item_index(input.values(), search_value)
                 }
             }
         } else {
             // Multi-item collection search
-            Self::find_last_item_index(&input, search_value)
+            Self::find_last_item_index(input.values(), search_value)
         };
 
         Ok(EvaluationResult {

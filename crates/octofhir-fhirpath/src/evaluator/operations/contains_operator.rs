@@ -48,12 +48,12 @@ impl ContainsOperatorEvaluator {
     ) -> Result<bool> {
         for item in haystack {
             // Use the equals operator to compare values
-            let item_vec = vec![item.clone()];
-            let needle_vec = vec![needle.clone()];
+            let item_col = Collection::single(item.clone());
+            let needle_col = Collection::single(needle.clone());
 
             let equals_result = self
                 .equals_evaluator
-                .evaluate(vec![], context, item_vec, needle_vec)
+                .evaluate(Collection::empty(), context, item_col, needle_col)
                 .await?;
 
             // If equals returns true, we found a match
@@ -71,10 +71,10 @@ impl ContainsOperatorEvaluator {
 impl OperationEvaluator for ContainsOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Empty propagation: if right is empty, result is empty
         // If left is empty, result is false (empty collection contains nothing)
@@ -106,7 +106,7 @@ impl OperationEvaluator for ContainsOperatorEvaluator {
             }
             _ => {
                 // Left side is a single value, treat it as a collection of one
-                let contains_member = self.contains_member(&left, needle, context).await?;
+                let contains_member = self.contains_member(left.values(), needle, context).await?;
                 Ok(EvaluationResult {
                     value: Collection::single(FhirPathValue::boolean(contains_member)),
                 })
@@ -182,7 +182,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(2)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -209,7 +209,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(4)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -236,7 +236,7 @@ mod tests {
         let right = vec![FhirPathValue::string("hello".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -259,7 +259,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(42)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -282,7 +282,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(24)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -305,7 +305,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(42)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -331,7 +331,7 @@ mod tests {
         let right = vec![]; // Empty
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

@@ -1,7 +1,7 @@
 //! Exists function implementation
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathValue, Result};
+use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -50,7 +50,7 @@ impl ExistsFunctionEvaluator {
 impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,

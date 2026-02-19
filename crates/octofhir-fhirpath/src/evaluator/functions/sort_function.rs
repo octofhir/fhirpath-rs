@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathValue, Result};
+use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -114,7 +114,7 @@ impl SortKey {
 impl LazyFunctionEvaluator for SortFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -128,7 +128,7 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
 
         // If no arguments, sort by the items themselves
         if args.is_empty() {
-            let mut sorted_items = input;
+            let mut sorted_items = input.into_vec();
             sorted_items.sort_by(|a, b| {
                 let key = SortKey {
                     values: vec![a.clone()],

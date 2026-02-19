@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -124,7 +124,7 @@ impl ValidateCSFunctionEvaluator {
 impl LazyFunctionEvaluator for ValidateCSFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -145,7 +145,7 @@ impl LazyFunctionEvaluator for ValidateCSFunctionEvaluator {
         })?;
 
         // Extract code
-        let code = Self::extract_code(&input)?;
+        let code = Self::extract_code(input.values())?;
 
         // Get code system URL
         let code_system_url = Self::get_code_system_url(&args[0], context, evaluator).await?;

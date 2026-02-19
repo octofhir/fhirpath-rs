@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FP0063, FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FP0063, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
@@ -64,8 +64,8 @@ impl ProviderPureFunctionEvaluator for ConformsToFunctionEvaluator {
 
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        args: Vec<Collection>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         // Validate we have exactly one argument
@@ -231,7 +231,11 @@ mod tests {
 
         // Evaluate function - should return empty when no ValidationProvider
         let result = function
-            .evaluate(input_values, args, &context)
+            .evaluate(
+                input_values.into(),
+                args.into_iter().map(Into::into).collect(),
+                &context,
+            )
             .await
             .expect("Function evaluation should succeed");
 
@@ -254,7 +258,11 @@ mod tests {
 
         // Evaluate function - should return empty for non-single input
         let result = function
-            .evaluate(input_values, args, &context)
+            .evaluate(
+                input_values.into(),
+                args.into_iter().map(Into::into).collect(),
+                &context,
+            )
             .await
             .expect("Function evaluation should succeed");
 
@@ -282,7 +290,11 @@ mod tests {
 
         // Evaluate function - should return empty for non-single input
         let result = function
-            .evaluate(input_values, args, &context)
+            .evaluate(
+                input_values.into(),
+                args.into_iter().map(Into::into).collect(),
+                &context,
+            )
             .await
             .expect("Function evaluation should succeed");
 
@@ -310,7 +322,11 @@ mod tests {
 
         // Evaluate function - should return empty for empty structure
         let result = function
-            .evaluate(input_values, args, &context)
+            .evaluate(
+                input_values.into(),
+                args.into_iter().map(Into::into).collect(),
+                &context,
+            )
             .await
             .expect("Function evaluation should succeed");
 

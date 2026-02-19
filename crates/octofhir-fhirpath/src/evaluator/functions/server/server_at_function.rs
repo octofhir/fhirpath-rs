@@ -52,11 +52,7 @@ impl ServerAtFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for ServerAtFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         let url = match args.first().and_then(|a| a.first()) {
             Some(FhirPathValue::String(s, _, _)) => s.clone(),
             _ => {

@@ -53,8 +53,8 @@ impl ServerUpdateFunctionEvaluator {
 impl ProviderPureFunctionEvaluator for ServerUpdateFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        args: Vec<Collection>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         if input.len() != 1 || !is_server_variable(&input[0]) {

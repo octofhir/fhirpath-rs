@@ -44,10 +44,10 @@ impl NotEquivalentOperatorEvaluator {
 impl OperationEvaluator for NotEquivalentOperatorEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Use the equivalent evaluator and negate the result
         let equivalent_result = self
@@ -120,7 +120,7 @@ mod tests {
         let right = vec![FhirPathValue::boolean(true)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -143,7 +143,7 @@ mod tests {
         let right = vec![FhirPathValue::boolean(false)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -166,7 +166,7 @@ mod tests {
         let right = vec![FhirPathValue::string("HELLO".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -189,7 +189,7 @@ mod tests {
         let right = vec![FhirPathValue::string("World".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -212,7 +212,7 @@ mod tests {
         let right = vec![];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -235,7 +235,7 @@ mod tests {
         let right = vec![]; // Empty collection
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

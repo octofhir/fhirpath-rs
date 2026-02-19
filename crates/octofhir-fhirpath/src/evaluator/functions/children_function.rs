@@ -112,11 +112,7 @@ impl ChildrenFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for ChildrenFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(crate::core::FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,

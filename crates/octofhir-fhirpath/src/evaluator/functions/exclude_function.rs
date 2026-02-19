@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -104,11 +104,7 @@ impl ExcludeFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for ExcludeFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -118,9 +114,7 @@ impl PureFunctionEvaluator for ExcludeFunctionEvaluator {
 
         // Handle empty exclude criteria - propagate empty collections
         if args[0].is_empty() {
-            return Ok(EvaluationResult {
-                value: crate::core::Collection::from(input),
-            });
+            return Ok(EvaluationResult { value: input });
         }
 
         let exclude_values = &args[0];

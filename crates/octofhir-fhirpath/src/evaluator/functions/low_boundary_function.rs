@@ -59,11 +59,7 @@ impl LowBoundaryFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.len() > 1 {
             return Err(FhirPathError::evaluation_error(
                 FP0053,

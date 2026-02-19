@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -53,11 +53,7 @@ impl HasTemplateIdOfFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -88,22 +84,15 @@ impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
             }
         };
 
-        // Handle empty input - check context input instead
-        let elements_to_check = if input.is_empty() {
-            // When called as a function (not method), use the context input
-            vec![] // For pure functions, we can't access context, return empty
-        } else {
-            input
-        };
-
-        if elements_to_check.is_empty() {
+        // Handle empty input
+        if input.is_empty() {
             return Ok(EvaluationResult {
                 value: crate::core::Collection::single(FhirPathValue::boolean(false)),
             });
         }
 
         // Check each element for the template ID
-        for element in &elements_to_check {
+        for element in &input {
             if let FhirPathValue::Resource(json, type_info, _) = element
                 && has_template_id(json, &type_info.type_name, template_id)
             {

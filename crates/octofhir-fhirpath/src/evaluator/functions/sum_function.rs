@@ -166,8 +166,8 @@ impl SumFunctionEvaluator {
 impl PureFunctionEvaluator for SumFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         // Empty collection returns empty
         if input.is_empty() {
@@ -237,7 +237,7 @@ mod tests {
             FhirPathValue::integer(3),
             FhirPathValue::integer(4),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(10)));
     }
@@ -252,7 +252,7 @@ mod tests {
             FhirPathValue::decimal(dec!(2.5)),
             FhirPathValue::decimal(dec!(3.0)),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -270,7 +270,7 @@ mod tests {
             FhirPathValue::decimal(dec!(2.5)),
             FhirPathValue::integer(3),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -284,7 +284,7 @@ mod tests {
 
         // {}.sum() = {}
         let input = vec![];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -294,7 +294,7 @@ mod tests {
 
         // {42}.sum() = 42
         let input = vec![FhirPathValue::integer(42)];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(42)));
     }
@@ -309,7 +309,7 @@ mod tests {
             FhirPathValue::Empty,
             FhirPathValue::integer(3),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(4)));
     }
@@ -324,7 +324,7 @@ mod tests {
             FhirPathValue::string("string"),
             FhirPathValue::integer(3),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -353,7 +353,7 @@ mod tests {
                 Some("http://unitsofmeasure.org".to_string()),
             ),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
 
         if let Some(FhirPathValue::Quantity { value, unit, .. }) = result.value.first() {

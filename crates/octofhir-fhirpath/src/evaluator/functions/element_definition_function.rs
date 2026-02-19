@@ -51,8 +51,8 @@ impl ElementDefinitionFunctionEvaluator {
 impl ProviderPureFunctionEvaluator for ElementDefinitionFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        args: Vec<Collection>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {
@@ -97,13 +97,13 @@ impl ProviderPureFunctionEvaluator for ElementDefinitionFunctionEvaluator {
                 }
             }
 
-            let type_info = crate::core::model_provider::TypeInfo {
+            let type_info = Arc::new(crate::core::model_provider::TypeInfo {
                 type_name: "ElementDefinition".to_string(),
                 name: Some("ElementDefinition".to_string()),
                 is_empty: Some(false),
                 namespace: Some("FHIR".to_string()),
                 singleton: Some(true),
-            };
+            });
 
             return Ok(EvaluationResult {
                 value: Collection::single(FhirPathValue::Resource(

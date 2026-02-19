@@ -15,6 +15,10 @@ use super::error_code::FP0051;
 use super::model_provider::utils::extract_resource_type;
 use super::model_provider::{ModelProvider, TypeInfo};
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+use octofhir_fhir_model::type_constants::{
+    BOOLEAN_TYPE, DATE_TYPE, DATETIME_TYPE, DECIMAL_TYPE, INTEGER_TYPE, LONG_TYPE, QUANTITY_TYPE,
+    STRING_TYPE, TIME_TYPE,
+};
 
 // Import the new evaluation types from fhir-model-rs
 pub use octofhir_fhir_model::{EvaluationResult, IntoEvaluationResult, TypeInfoResult};
@@ -213,6 +217,15 @@ impl std::iter::FromIterator<FhirPathValue> for Collection {
     }
 }
 
+impl<'a> IntoIterator for &'a Collection {
+    type Item = &'a FhirPathValue;
+    type IntoIter = std::slice::Iter<'a, FhirPathValue>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.iter()
+    }
+}
+
 impl std::ops::Index<usize> for Collection {
     type Output = FhirPathValue;
 
@@ -337,25 +350,37 @@ impl WrappedExtension {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FhirPathValue {
     /// Boolean value with TypeInfo and optional wrapped primitive element
-    Boolean(bool, TypeInfo, Option<WrappedPrimitiveElement>),
+    Boolean(bool, Arc<TypeInfo>, Option<WrappedPrimitiveElement>),
 
     /// Integer value (64-bit signed) with TypeInfo and optional wrapped primitive element
-    Integer(i64, TypeInfo, Option<WrappedPrimitiveElement>),
+    Integer(i64, Arc<TypeInfo>, Option<WrappedPrimitiveElement>),
 
     /// Decimal value (high-precision) with TypeInfo and optional wrapped primitive element
-    Decimal(Decimal, TypeInfo, Option<WrappedPrimitiveElement>),
+    Decimal(Decimal, Arc<TypeInfo>, Option<WrappedPrimitiveElement>),
 
     /// String value with TypeInfo and optional wrapped primitive element
-    String(String, TypeInfo, Option<WrappedPrimitiveElement>),
+    String(String, Arc<TypeInfo>, Option<WrappedPrimitiveElement>),
 
     /// Date value with precision tracking, TypeInfo and optional wrapped primitive element
-    Date(PrecisionDate, TypeInfo, Option<WrappedPrimitiveElement>),
+    Date(
+        PrecisionDate,
+        Arc<TypeInfo>,
+        Option<WrappedPrimitiveElement>,
+    ),
 
     /// DateTime value with timezone and precision tracking, TypeInfo and optional wrapped primitive element
-    DateTime(PrecisionDateTime, TypeInfo, Option<WrappedPrimitiveElement>),
+    DateTime(
+        PrecisionDateTime,
+        Arc<TypeInfo>,
+        Option<WrappedPrimitiveElement>,
+    ),
 
     /// Time value with precision tracking, TypeInfo and optional wrapped primitive element
-    Time(PrecisionTime, TypeInfo, Option<WrappedPrimitiveElement>),
+    Time(
+        PrecisionTime,
+        Arc<TypeInfo>,
+        Option<WrappedPrimitiveElement>,
+    ),
 
     /// Quantity value with UCUM unit support, TypeInfo and optional wrapped primitive element
     Quantity {
@@ -372,13 +397,17 @@ pub enum FhirPathValue {
         /// Calendar unit for non-UCUM time units (year, month, week, day)
         calendar_unit: Option<CalendarUnit>,
         /// Type information from ModelProvider
-        type_info: TypeInfo,
+        type_info: Arc<TypeInfo>,
         /// Optional wrapped primitive element
         primitive_element: Option<WrappedPrimitiveElement>,
     },
 
     /// Resource/complex type with TypeInfo for FHIR schema validation
-    Resource(Arc<JsonValue>, TypeInfo, Option<WrappedPrimitiveElement>),
+    Resource(
+        Arc<JsonValue>,
+        Arc<TypeInfo>,
+        Option<WrappedPrimitiveElement>,
+    ),
 
     /// Collection of values (the fundamental FHIRPath concept)
     Collection(Collection),
@@ -594,31 +623,17 @@ fn normalize_ucum_unit(unit: &str) -> Cow<'_, str> {
 impl FhirPathValue {
     /// Create an integer value with default TypeInfo
     pub fn integer(value: i64) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Integer".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Integer".to_string()),
-            is_empty: Some(false),
-        };
-        Self::Integer(value, type_info, None)
+        Self::Integer(value, INTEGER_TYPE.clone(), None)
     }
 
     /// Create a new Long value with default TypeInfo (FHIRPath v3.0.0-ballot STU)
     pub fn long(value: i64) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Long".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Long".to_string()),
-            is_empty: Some(false),
-        };
         // Long is stored in the Integer variant with Long type info
-        Self::Integer(value, type_info, None)
+        Self::Integer(value, LONG_TYPE.clone(), None)
     }
 
     /// Get TypeInfo for this value (always available in Phase 1)
-    pub fn type_info(&self) -> &TypeInfo {
+    pub fn type_info(&self) -> &Arc<TypeInfo> {
         match self {
             Self::Boolean(_, type_info, _)
             | Self::Integer(_, type_info, _)
@@ -630,24 +645,20 @@ impl FhirPathValue {
             | Self::Resource(_, type_info, _) => type_info,
             Self::Quantity { type_info, .. } => type_info,
             Self::Collection(_) => {
-                // Return a reference to a static lazy TypeInfo
-                static COLLECTION_TYPE: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
-                    type_name: "Collection".to_string(),
-                    singleton: Some(false),
-                    namespace: Some("System".to_string()),
-                    name: Some("Collection".to_string()),
-                    is_empty: Some(false),
+                static COLLECTION_TYPE: LazyLock<Arc<TypeInfo>> = LazyLock::new(|| {
+                    Arc::new(TypeInfo::system_type("Collection".to_string(), false))
                 });
                 &COLLECTION_TYPE
             }
             Self::Empty => {
-                // Return a reference to a static lazy TypeInfo
-                static EMPTY_TYPE: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
-                    type_name: "Empty".to_string(),
-                    singleton: Some(true),
-                    namespace: Some("System".to_string()),
-                    name: Some("Empty".to_string()),
-                    is_empty: Some(true),
+                static EMPTY_TYPE: LazyLock<Arc<TypeInfo>> = LazyLock::new(|| {
+                    Arc::new(TypeInfo {
+                        type_name: "Empty".to_string(),
+                        singleton: Some(true),
+                        namespace: Some("System".to_string()),
+                        name: Some("Empty".to_string()),
+                        is_empty: Some(true),
+                    })
                 });
                 &EMPTY_TYPE
             }
@@ -681,7 +692,7 @@ impl FhirPathValue {
     /// Wrap a value with TypeInfo and optional primitive element
     pub fn wrap_value(
         value: Self,
-        type_info: TypeInfo,
+        type_info: Arc<TypeInfo>,
         primitive_element: Option<WrappedPrimitiveElement>,
     ) -> Self {
         match value {
@@ -726,23 +737,25 @@ impl FhirPathValue {
 
     /// Unwrap the raw value without TypeInfo or primitive element
     pub fn unwrap_value(&self) -> Self {
-        let default_type_info = TypeInfo {
-            type_name: "Unknown".to_string(),
-            singleton: Some(true),
-            namespace: None,
-            name: Some("Unknown".to_string()),
-            is_empty: Some(false),
-        };
+        static UNKNOWN_TYPE: LazyLock<Arc<TypeInfo>> = LazyLock::new(|| {
+            Arc::new(TypeInfo {
+                type_name: "Unknown".to_string(),
+                singleton: Some(true),
+                namespace: None,
+                name: Some("Unknown".to_string()),
+                is_empty: Some(false),
+            })
+        });
 
         match self {
-            Self::Boolean(v, _, _) => Self::Boolean(*v, default_type_info.clone(), None),
-            Self::Integer(v, _, _) => Self::Integer(*v, default_type_info.clone(), None),
-            Self::Decimal(v, _, _) => Self::Decimal(*v, default_type_info.clone(), None),
-            Self::String(v, _, _) => Self::String(v.clone(), default_type_info.clone(), None),
-            Self::Date(v, _, _) => Self::Date(v.clone(), default_type_info.clone(), None),
-            Self::DateTime(v, _, _) => Self::DateTime(v.clone(), default_type_info.clone(), None),
-            Self::Time(v, _, _) => Self::Time(v.clone(), default_type_info.clone(), None),
-            Self::Resource(v, _, _) => Self::Resource(v.clone(), default_type_info.clone(), None),
+            Self::Boolean(v, _, _) => Self::Boolean(*v, UNKNOWN_TYPE.clone(), None),
+            Self::Integer(v, _, _) => Self::Integer(*v, UNKNOWN_TYPE.clone(), None),
+            Self::Decimal(v, _, _) => Self::Decimal(*v, UNKNOWN_TYPE.clone(), None),
+            Self::String(v, _, _) => Self::String(v.clone(), UNKNOWN_TYPE.clone(), None),
+            Self::Date(v, _, _) => Self::Date(v.clone(), UNKNOWN_TYPE.clone(), None),
+            Self::DateTime(v, _, _) => Self::DateTime(v.clone(), UNKNOWN_TYPE.clone(), None),
+            Self::Time(v, _, _) => Self::Time(v.clone(), UNKNOWN_TYPE.clone(), None),
+            Self::Resource(v, _, _) => Self::Resource(v.clone(), UNKNOWN_TYPE.clone(), None),
             Self::Quantity {
                 value,
                 unit,
@@ -752,7 +765,6 @@ impl FhirPathValue {
                 calendar_unit,
                 ..
             } => {
-                // Ensure system field has default value for UCUM units when not already set
                 let resolved_system = if system.is_none() && ucum_unit.is_some() {
                     Some("http://unitsofmeasure.org".to_string())
                 } else {
@@ -766,7 +778,7 @@ impl FhirPathValue {
                     system: resolved_system,
                     ucum_unit: ucum_unit.clone(),
                     calendar_unit: *calendar_unit,
-                    type_info: default_type_info,
+                    type_info: UNKNOWN_TYPE.clone(),
                     primitive_element: None,
                 }
             }
@@ -950,99 +962,49 @@ impl FhirPathValue {
 
     /// Create a string value with default TypeInfo
     pub fn string(s: impl Into<String>) -> Self {
-        let type_info = TypeInfo {
-            type_name: "String".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("String".to_string()),
-            is_empty: Some(false),
-        };
-        Self::String(s.into(), type_info, None)
+        Self::String(s.into(), STRING_TYPE.clone(), None)
     }
 
     /// Create a decimal value with default TypeInfo
     pub fn decimal(d: impl Into<Decimal>) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Decimal".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Decimal".to_string()),
-            is_empty: Some(false),
-        };
-        Self::Decimal(d.into(), type_info, None)
+        Self::Decimal(d.into(), DECIMAL_TYPE.clone(), None)
     }
 
     /// Create a boolean value with default TypeInfo
     pub fn boolean(b: bool) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Boolean".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Boolean".to_string()),
-            is_empty: Some(false),
-        };
-        Self::Boolean(b, type_info, None)
+        Self::Boolean(b, BOOLEAN_TYPE.clone(), None)
     }
 
     /// Create a resource value from JSON with default TypeInfo
     pub fn resource(json: JsonValue) -> Self {
-        // Try to infer concrete FHIR resource type from the JSON payload
-        let inferred_type = json
-            .as_object()
-            .and_then(|obj| obj.get("resourceType"))
-            .and_then(|rt| rt.as_str())
-            .map(|s| s.to_string());
-
-        let type_info = if let Some(resource_type) = inferred_type {
-            // Set precise FHIR resource typing when resourceType is present
-            TypeInfo {
-                type_name: resource_type.clone(),
-                singleton: Some(true),
-                namespace: Some("FHIR".to_string()),
-                name: Some(resource_type),
-                is_empty: Some(false),
-            }
-        } else {
-            // Fallback to generic Resource typing
-            TypeInfo {
-                type_name: "Resource".to_string(),
-                singleton: Some(true),
-                namespace: Some("FHIR".to_string()),
-                name: Some("Resource".to_string()),
-                is_empty: Some(false),
-            }
-        };
-
+        let type_info = Self::infer_resource_type_info(&json);
         Self::Resource(Arc::new(json), type_info, None)
     }
 
     /// Create a resource value from an already Arc-wrapped JSON (avoids clone)
     pub fn resource_from_arc(json: Arc<JsonValue>) -> Self {
+        let type_info = Self::infer_resource_type_info(&json);
+        Self::Resource(json, type_info, None)
+    }
+
+    /// Infer Arc<TypeInfo> from a JSON resource's resourceType field
+    fn infer_resource_type_info(json: &JsonValue) -> Arc<TypeInfo> {
         let inferred_type = json
             .as_object()
             .and_then(|obj| obj.get("resourceType"))
-            .and_then(|rt| rt.as_str())
-            .map(|s| s.to_string());
+            .and_then(|rt| rt.as_str());
 
-        let type_info = if let Some(resource_type) = inferred_type {
-            TypeInfo {
-                type_name: resource_type.clone(),
+        if let Some(resource_type) = inferred_type {
+            Arc::new(TypeInfo {
+                type_name: resource_type.to_string(),
                 singleton: Some(true),
                 namespace: Some("FHIR".to_string()),
-                name: Some(resource_type),
+                name: Some(resource_type.to_string()),
                 is_empty: Some(false),
-            }
+            })
         } else {
-            TypeInfo {
-                type_name: "Resource".to_string(),
-                singleton: Some(true),
-                namespace: Some("FHIR".to_string()),
-                name: Some("Resource".to_string()),
-                is_empty: Some(false),
-            }
-        };
-
-        Self::Resource(json, type_info, None)
+            Arc::new(TypeInfo::new_complex("Resource"))
+        }
     }
 
     /// Create a resource value with ModelProvider-aware type resolution
@@ -1050,24 +1012,17 @@ impl FhirPathValue {
         json: JsonValue,
         model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
     ) -> crate::core::Result<Self> {
-        if let Some(provider) = model_provider {
-            // Try to extract resourceType and get proper TypeInfo
-            if let Some(resource_type) = extract_resource_type(&json) {
-                match provider.get_type(&resource_type).await {
-                    Ok(Some(type_info)) => {
-                        return Ok(Self::Resource(Arc::new(json), type_info, None));
-                    }
-                    Ok(None) => {
-                        // Type not found in model provider, fall through to default
-                    }
-                    Err(_) => {
-                        // Error getting type, fall through to default
-                    }
+        if let Some(provider) = model_provider
+            && let Some(resource_type) = extract_resource_type(&json)
+        {
+            match provider.get_type(&resource_type).await {
+                Ok(Some(type_info)) => {
+                    return Ok(Self::Resource(Arc::new(json), Arc::new(type_info), None));
                 }
+                Ok(None) => {}
+                Err(_) => {}
             }
         }
-
-        // Fallback to default resource TypeInfo
         Ok(Self::resource(json))
     }
 
@@ -1081,24 +1036,22 @@ impl FhirPathValue {
         {
             match provider.get_type(&resource_type).await {
                 Ok(Some(type_info)) => {
-                    return Ok(Self::Resource(json, type_info, None));
+                    return Ok(Self::Resource(json, Arc::new(type_info), None));
                 }
                 Ok(None) => {}
                 Err(_) => {}
             }
         }
-
-        // Fallback to default resource TypeInfo
         Ok(Self::resource_from_arc(json))
     }
 
     /// Create a resource value with TypeInfo
-    pub fn resource_wrapped(json: JsonValue, type_info: TypeInfo) -> Self {
+    pub fn resource_wrapped(json: JsonValue, type_info: Arc<TypeInfo>) -> Self {
         Self::Resource(Arc::new(json), type_info, None)
     }
 
     /// Create a wrapped value with type information
-    pub fn wrapped_with_type_info(data: JsonValue, type_info: TypeInfo) -> Self {
+    pub fn wrapped_with_type_info(data: JsonValue, type_info: Arc<TypeInfo>) -> Self {
         Self::Resource(Arc::new(data), type_info, None)
     }
 
@@ -1145,14 +1098,6 @@ impl FhirPathValue {
             (None, None)
         };
 
-        let type_info = TypeInfo {
-            type_name: "Quantity".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Quantity".to_string()),
-            is_empty: Some(false),
-        };
-
         Self::Quantity {
             value,
             unit,
@@ -1160,7 +1105,7 @@ impl FhirPathValue {
             system: resolved_system,
             ucum_unit,
             calendar_unit,
-            type_info,
+            type_info: QUANTITY_TYPE.clone(),
             primitive_element: None,
         }
     }
@@ -1177,14 +1122,6 @@ impl FhirPathValue {
 
     /// Create a quantity value with explicit calendar unit
     pub fn calendar_quantity(value: Decimal, calendar_unit: CalendarUnit) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Quantity".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Quantity".to_string()),
-            is_empty: Some(false),
-        };
-
         Self::Quantity {
             value,
             unit: Some(calendar_unit.to_string()),
@@ -1192,57 +1129,31 @@ impl FhirPathValue {
             system: None,
             ucum_unit: None,
             calendar_unit: Some(calendar_unit),
-            type_info,
+            type_info: QUANTITY_TYPE.clone(),
             primitive_element: None,
         }
     }
 
     /// Create a date value with default TypeInfo
     pub fn date(date: PrecisionDate) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Date".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Date".to_string()),
-            is_empty: Some(false),
-        };
-        Self::Date(date, type_info, None)
+        Self::Date(date, DATE_TYPE.clone(), None)
     }
 
     /// Create a datetime value with default TypeInfo
     pub fn datetime(datetime: PrecisionDateTime) -> Self {
-        let type_info = TypeInfo {
-            type_name: "DateTime".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("DateTime".to_string()),
-            is_empty: Some(false),
-        };
-        Self::DateTime(datetime, type_info, None)
+        Self::DateTime(datetime, DATETIME_TYPE.clone(), None)
     }
 
     /// Create a time value with default TypeInfo
     pub fn time(time: PrecisionTime) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Time".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Time".to_string()),
-            is_empty: Some(false),
-        };
-        Self::Time(time, type_info, None)
+        Self::Time(time, TIME_TYPE.clone(), None)
     }
 
     /// Create a JSON value (for compatibility) with default TypeInfo
     pub fn json_value(json: JsonValue) -> Self {
-        let type_info = TypeInfo {
-            type_name: "Json".to_string(),
-            singleton: Some(true),
-            namespace: Some("System".to_string()),
-            name: Some("Json".to_string()),
-            is_empty: Some(false),
-        };
-        Self::Resource(Arc::new(json), type_info, None)
+        static JSON_TYPE: LazyLock<Arc<TypeInfo>> =
+            LazyLock::new(|| Arc::new(TypeInfo::system_type("Json".to_string(), true)));
+        Self::Resource(Arc::new(json), JSON_TYPE.clone(), None)
     }
 
     /// Create a collection value
@@ -1435,7 +1346,10 @@ impl FhirPathValue {
     }
 
     /// Create a new value with updated type info
-    pub fn with_type_info(&self, new_type_info: crate::core::model_provider::TypeInfo) -> Self {
+    pub fn with_type_info(
+        &self,
+        new_type_info: Arc<crate::core::model_provider::TypeInfo>,
+    ) -> Self {
         match self {
             Self::Boolean(b, _, primitive) => Self::Boolean(*b, new_type_info, primitive.clone()),
             Self::Integer(i, _, primitive) => Self::Integer(*i, new_type_info, primitive.clone()),
@@ -1631,85 +1545,68 @@ impl FhirPathValue {
             EvaluationResult::Boolean(b, type_info) => {
                 let ti = type_info
                     .as_ref()
-                    .map(|ti| TypeInfo {
-                        type_name: ti.name.clone(),
-                        singleton: Some(true),
-                        namespace: Some(ti.namespace.clone()),
-                        name: Some(ti.name.clone()),
-                        is_empty: Some(false),
+                    .map(|ti| {
+                        Arc::new(TypeInfo {
+                            type_name: ti.name.clone(),
+                            singleton: Some(true),
+                            namespace: Some(ti.namespace.clone()),
+                            name: Some(ti.name.clone()),
+                            is_empty: Some(false),
+                        })
                     })
-                    .unwrap_or_else(|| TypeInfo {
-                        type_name: "Boolean".to_string(),
-                        singleton: Some(true),
-                        namespace: Some("System".to_string()),
-                        name: Some("Boolean".to_string()),
-                        is_empty: Some(false),
-                    });
+                    .unwrap_or_else(|| BOOLEAN_TYPE.clone());
                 Self::Boolean(*b, ti, None)
             }
             EvaluationResult::Integer(i, type_info) => {
                 let ti = type_info
                     .as_ref()
-                    .map(|ti| TypeInfo {
-                        type_name: ti.name.clone(),
-                        singleton: Some(true),
-                        namespace: Some(ti.namespace.clone()),
-                        name: Some(ti.name.clone()),
-                        is_empty: Some(false),
+                    .map(|ti| {
+                        Arc::new(TypeInfo {
+                            type_name: ti.name.clone(),
+                            singleton: Some(true),
+                            namespace: Some(ti.namespace.clone()),
+                            name: Some(ti.name.clone()),
+                            is_empty: Some(false),
+                        })
                     })
-                    .unwrap_or_else(|| TypeInfo {
-                        type_name: "Integer".to_string(),
-                        singleton: Some(true),
-                        namespace: Some("System".to_string()),
-                        name: Some("Integer".to_string()),
-                        is_empty: Some(false),
-                    });
+                    .unwrap_or_else(|| INTEGER_TYPE.clone());
                 Self::Integer(*i, ti, None)
             }
             EvaluationResult::String(s, type_info) => {
                 let ti = type_info
                     .as_ref()
-                    .map(|ti| TypeInfo {
-                        type_name: ti.name.clone(),
-                        singleton: Some(true),
-                        namespace: Some(ti.namespace.clone()),
-                        name: Some(ti.name.clone()),
-                        is_empty: Some(false),
+                    .map(|ti| {
+                        Arc::new(TypeInfo {
+                            type_name: ti.name.clone(),
+                            singleton: Some(true),
+                            namespace: Some(ti.namespace.clone()),
+                            name: Some(ti.name.clone()),
+                            is_empty: Some(false),
+                        })
                     })
-                    .unwrap_or_else(|| TypeInfo {
-                        type_name: "String".to_string(),
-                        singleton: Some(true),
-                        namespace: Some("System".to_string()),
-                        name: Some("String".to_string()),
-                        is_empty: Some(false),
-                    });
+                    .unwrap_or_else(|| STRING_TYPE.clone());
                 Self::String(s.clone(), ti, None)
             }
             EvaluationResult::Decimal(d, type_info) => {
                 let ti = type_info
                     .as_ref()
-                    .map(|ti| TypeInfo {
-                        type_name: ti.name.clone(),
-                        singleton: Some(true),
-                        namespace: Some(ti.namespace.clone()),
-                        name: Some(ti.name.clone()),
-                        is_empty: Some(false),
+                    .map(|ti| {
+                        Arc::new(TypeInfo {
+                            type_name: ti.name.clone(),
+                            singleton: Some(true),
+                            namespace: Some(ti.namespace.clone()),
+                            name: Some(ti.name.clone()),
+                            is_empty: Some(false),
+                        })
                     })
-                    .unwrap_or_else(|| TypeInfo {
-                        type_name: "Decimal".to_string(),
-                        singleton: Some(true),
-                        namespace: Some("System".to_string()),
-                        name: Some("Decimal".to_string()),
-                        is_empty: Some(false),
-                    });
+                    .unwrap_or_else(|| DECIMAL_TYPE.clone());
                 Self::Decimal(*d, ti, None)
             }
             EvaluationResult::Collection { items, .. } => {
                 let values = items.iter().map(Self::from_evaluation_result).collect();
                 Self::Collection(Collection::from_values(values))
             }
-            // Add other variants as needed
-            _ => Self::Empty, // Fallback for unhandled cases
+            _ => Self::Empty,
         }
     }
 }

@@ -59,7 +59,7 @@ impl ServerReadFunctionEvaluator {
     }
 }
 
-fn extract_string(args: &[Vec<FhirPathValue>], index: usize) -> Option<String> {
+fn extract_string(args: &[Collection], index: usize) -> Option<String> {
     args.get(index)
         .and_then(|a| a.first())
         .and_then(|v| match v {
@@ -72,8 +72,8 @@ fn extract_string(args: &[Vec<FhirPathValue>], index: usize) -> Option<String> {
 impl ProviderPureFunctionEvaluator for ServerReadFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        args: Vec<Collection>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         if input.len() != 1 || !is_server_variable(&input[0]) {

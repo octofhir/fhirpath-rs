@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use crate::ast::{ExpressionNode, LiteralNode, LiteralValue};
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -138,7 +138,7 @@ impl RepeatAllFunctionEvaluator {
 impl LazyFunctionEvaluator for RepeatAllFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
@@ -218,7 +218,7 @@ impl RepeatAllFunctionEvaluator {
     /// Iterative implementation to prevent stack overflow
     async fn repeat_all_iterative(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         projection_expr: &ExpressionNode,
         context: &EvaluationContext,
         evaluator: &AsyncNodeEvaluator<'_>,

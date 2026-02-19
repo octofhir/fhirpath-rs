@@ -88,10 +88,10 @@ impl NegateOperatorEvaluator {
 impl OperationEvaluator for NegateOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        _right: Vec<FhirPathValue>, // Empty for unary operations
+        left: Collection,
+        _right: Collection, // Empty for unary operations
     ) -> Result<EvaluationResult> {
         if left.is_empty() {
             return Ok(EvaluationResult {

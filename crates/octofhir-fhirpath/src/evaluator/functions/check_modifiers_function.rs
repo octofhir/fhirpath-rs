@@ -55,11 +55,7 @@ impl CheckModifiersFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for CheckModifiersFunctionEvaluator {
-    async fn evaluate(
-        &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
-    ) -> Result<EvaluationResult> {
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         // Collect allowed modifier extension URLs from all arguments
         let mut allowed_urls: Vec<String> = Vec::new();
         for arg_values in &args {
@@ -93,9 +89,7 @@ impl PureFunctionEvaluator for CheckModifiersFunctionEvaluator {
         }
 
         // Return input unchanged if no unknown modifiers
-        Ok(EvaluationResult {
-            value: Collection::from_values(input),
-        })
+        Ok(EvaluationResult { value: input })
     }
 
     fn metadata(&self) -> &FunctionMetadata {

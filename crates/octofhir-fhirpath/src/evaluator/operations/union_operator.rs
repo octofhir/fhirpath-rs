@@ -40,13 +40,13 @@ impl UnionOperatorEvaluator {
 impl OperationEvaluator for UnionOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Union combines both collections and removes duplicates
-        let mut result_values = left;
+        let mut result_values = left.into_vec();
         result_values.extend(right);
 
         // Remove duplicates while preserving order
@@ -134,7 +134,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(3), FhirPathValue::integer(4)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -160,7 +160,7 @@ mod tests {
         let right = vec![];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

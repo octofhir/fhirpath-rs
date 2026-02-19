@@ -44,10 +44,10 @@ impl NotEqualsOperatorEvaluator {
 impl OperationEvaluator for NotEqualsOperatorEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Use the equals evaluator and negate the result
         let equals_result = self
@@ -120,7 +120,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(43)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -143,7 +143,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(42)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

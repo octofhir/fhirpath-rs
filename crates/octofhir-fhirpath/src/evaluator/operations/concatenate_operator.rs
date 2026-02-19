@@ -89,10 +89,10 @@ impl ConcatenateOperatorEvaluator {
 impl OperationEvaluator for ConcatenateOperatorEvaluator {
     async fn evaluate(
         &self,
-        __input: Vec<FhirPathValue>,
+        __input: Collection,
         _context: &EvaluationContext,
-        left: Vec<FhirPathValue>,
-        right: Vec<FhirPathValue>,
+        left: Collection,
+        right: Collection,
     ) -> Result<EvaluationResult> {
         // Handle empty collections - treat as empty strings
         let left_str = if left.is_empty() {
@@ -214,7 +214,7 @@ mod tests {
         let right = vec![FhirPathValue::string(" World".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -240,7 +240,7 @@ mod tests {
         let right = vec![FhirPathValue::integer(42)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -266,7 +266,7 @@ mod tests {
         let right = vec![FhirPathValue::string(" items".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -292,7 +292,7 @@ mod tests {
         let right = vec![FhirPathValue::boolean(true)];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -319,7 +319,7 @@ mod tests {
         let right = vec![]; // Empty collection
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 
@@ -334,7 +334,7 @@ mod tests {
         let right = vec![FhirPathValue::string("World".to_string())];
 
         let result = evaluator
-            .evaluate(vec![], &context, left, right)
+            .evaluate(Collection::empty(), &context, left.into(), right.into())
             .await
             .unwrap();
 

@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
@@ -57,10 +57,7 @@ impl ExpandFunctionEvaluator {
     }
 
     /// Extract value set URL from input or parameter
-    async fn get_value_set_url(
-        input: &[FhirPathValue],
-        args: &[Vec<FhirPathValue>],
-    ) -> Result<String> {
+    async fn get_value_set_url(input: &[FhirPathValue], args: &[Collection]) -> Result<String> {
         // Check if this is being called on %terminologies variable
         let is_terminologies_call = input.len() == 1 && is_terminologies_variable(&input[0]);
 
@@ -153,8 +150,8 @@ impl ExpandFunctionEvaluator {
 impl ProviderPureFunctionEvaluator for ExpandFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        args: Vec<Collection>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         // Enforce that terminology functions are only callable on %terminologies
@@ -190,7 +187,7 @@ impl ProviderPureFunctionEvaluator for ExpandFunctionEvaluator {
         };
 
         // Get value set URL
-        let value_set_url = Self::get_value_set_url(&input, &args).await?;
+        let value_set_url = Self::get_value_set_url(input.values(), &args).await?;
 
         // Perform value set expansion
         match terminology_provider

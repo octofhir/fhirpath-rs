@@ -113,8 +113,8 @@ impl WeightFunctionEvaluator {
 impl ProviderPureFunctionEvaluator for WeightFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        args: Vec<Collection>,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {

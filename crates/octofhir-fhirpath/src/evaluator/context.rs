@@ -4,29 +4,77 @@
 //! parent chain pattern for variable scoping.
 
 use papaya::HashMap as LockFreeHashMap;
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use crate::core::model_provider::TypeInfo;
 use crate::core::trace::SharedTraceProvider;
 use crate::core::{Collection, FhirPathValue, ModelProvider};
 use octofhir_fhir_model::{ServerProvider, TerminologyProvider, ValidationProvider};
 
+/// Cached base environment variables (sct, loinc, ucum, vs-*, ext-*).
+/// Built once via LazyLock, shared across all EvaluationContext instances.
+static BASE_ENV_VARIABLES: LazyLock<Arc<LockFreeHashMap<String, FhirPathValue>>> =
+    LazyLock::new(|| {
+        let env_vars = crate::evaluator::environment_variables::EnvironmentVariables::new();
+        let map = LockFreeHashMap::new();
+
+        {
+            let guard = map.pin();
+
+            // Standard FHIR environment variables
+            if let Some(sct_url) = env_vars.sct_url {
+                guard.insert("sct".to_string(), FhirPathValue::string(sct_url));
+            }
+            if let Some(loinc_url) = env_vars.loinc_url {
+                guard.insert("loinc".to_string(), FhirPathValue::string(loinc_url));
+            }
+
+            // Value set variables (%vs-*)
+            for (name, url) in env_vars.value_sets {
+                guard.insert(format!("vs-{name}"), FhirPathValue::string(url));
+            }
+
+            // Extension variables (%ext-*)
+            for (name, url) in env_vars.extensions {
+                guard.insert(format!("ext-{name}"), FhirPathValue::string(url));
+            }
+
+            // Custom variables (strip % prefix)
+            for (key, value) in env_vars.custom_variables {
+                let var_name = if let Some(stripped) = key.strip_prefix('%') {
+                    stripped.to_string()
+                } else {
+                    key
+                };
+                guard.insert(var_name, value);
+            }
+        }
+
+        Arc::new(map)
+    });
+
+/// Shared state that is identical across all child/nested contexts created
+/// from the same root. Consolidating these behind a single Arc reduces clone
+/// cost from ~12 Arc increments to ~5.
+struct SharedContextState {
+    model_provider: Arc<dyn ModelProvider + Send + Sync>,
+    terminology_provider: Option<Arc<dyn TerminologyProvider>>,
+    validation_provider: Option<Arc<dyn ValidationProvider>>,
+    server_provider: Option<Arc<dyn ServerProvider>>,
+    trace_provider: Option<SharedTraceProvider>,
+    resolution_cache: Arc<LockFreeHashMap<String, Arc<serde_json::Value>>>,
+    type_info_cache: Arc<LockFreeHashMap<String, Arc<TypeInfo>>>,
+    server_registry: Arc<LockFreeHashMap<String, Arc<dyn ServerProvider>>>,
+    base_env_variables: Arc<LockFreeHashMap<String, FhirPathValue>>,
+}
+
 /// Simple evaluation context for FHIRPath
 /// Uses parent chain for variable scoping
 pub struct EvaluationContext {
     /// Input collection being evaluated
     input_collection: Collection,
-    /// Model provider for type information
-    model_provider: Arc<dyn ModelProvider + Send + Sync>,
-    /// Optional terminology provider
-    terminology_provider: Option<Arc<dyn TerminologyProvider>>,
-    /// Optional validation provider
-    validation_provider: Option<Arc<dyn ValidationProvider>>,
-    /// Optional server provider for %server operations
-    server_provider: Option<Arc<dyn ServerProvider>>,
-    /// Optional trace provider
-    trace_provider: Option<SharedTraceProvider>,
+    /// Shared state (providers, caches) — single Arc clone on context clone
+    shared: Arc<SharedContextState>,
     /// Variables defined in current scope (includes system variables like $this, $index, $total)
     /// Using lock-free HashMap for high-performance variable access
     variables: Arc<LockFreeHashMap<String, FhirPathValue>>,
@@ -34,56 +82,46 @@ pub struct EvaluationContext {
     /// Variables are resolved by checking current scope, then walking parent chain
     /// Using Arc instead of Box to avoid deep cloning of parent chain
     parent_context: Option<Arc<EvaluationContext>>,
-    /// Shared cache for resolved references to avoid repeated cloning and scanning
-    resolution_cache: std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>>,
-    /// Shared cache for TypeInfo to avoid repeated model provider calls
-    /// Key: type name (e.g., "Patient", "HumanName"), Value: TypeInfo
-    type_info_cache: std::sync::Arc<LockFreeHashMap<String, TypeInfo>>,
     /// Shared root resource value for $this, %resource, %context aliases
     /// Stored as Arc to avoid cloning the same value 5 times during context creation
     root_resource: Option<Arc<FhirPathValue>>,
-    /// Registry of server providers keyed by base URL
-    /// Allows %server.at(url) to switch between different server endpoints
-    server_registry: Arc<LockFreeHashMap<String, Arc<dyn ServerProvider>>>,
 }
 
-/// Helper to create well-known environment variables following FHIR specification
-/// Setup standard environment variables
-fn create_environment_variables() -> HashMap<String, FhirPathValue> {
-    let mut env = HashMap::new();
+/// Helper to create dynamic-only variables (terminologies, factory, server).
+/// Base environment variables are cached in BASE_ENV_VARIABLES via LazyLock.
+fn create_dynamic_variables(
+    terminology_provider: &Option<Arc<dyn TerminologyProvider>>,
+    server_provider: &Option<Arc<dyn ServerProvider>>,
+) -> LockFreeHashMap<String, FhirPathValue> {
+    let map = LockFreeHashMap::new();
 
-    // Use the EnvironmentVariables struct to get all standard variables
-    let env_vars = crate::evaluator::environment_variables::EnvironmentVariables::new();
+    {
+        let guard = map.pin();
 
-    // Add standard environment variables from FHIR specification
-    if let Some(sct_url) = env_vars.sct_url {
-        env.insert("sct".to_string(), FhirPathValue::string(sct_url));
-    }
-    if let Some(loinc_url) = env_vars.loinc_url {
-        env.insert("loinc".to_string(), FhirPathValue::string(loinc_url));
-    }
+        // Add %terminologies variable if terminology provider is available
+        if let Some(tp) = terminology_provider {
+            let terminologies_var =
+                crate::evaluator::terminologies_variable::TerminologiesVariable::new(tp.clone());
+            guard.insert(
+                "terminologies".to_string(),
+                terminologies_var.to_fhir_path_value(),
+            );
+        }
 
-    // Add value set variables (%vs-*)
-    for (name, url) in env_vars.value_sets {
-        env.insert(format!("vs-{name}"), FhirPathValue::string(url));
-    }
+        // Add %factory variable (always available)
+        guard.insert(
+            "factory".to_string(),
+            crate::evaluator::factory_variable::FactoryVariable::to_fhir_path_value(),
+        );
 
-    // Add extension variables (%ext-*)
-    for (name, url) in env_vars.extensions {
-        env.insert(format!("ext-{name}"), FhirPathValue::string(url));
-    }
-
-    // Add custom variables (strip % prefix if present since that's just FHIRPath syntax)
-    for (key, value) in env_vars.custom_variables {
-        let var_name = if let Some(stripped) = key.strip_prefix('%') {
-            stripped.to_string()
-        } else {
-            key
-        };
-        env.insert(var_name, value);
+        // Add %server variable if server provider is available
+        if let Some(sp) = server_provider {
+            let server_var = crate::evaluator::server_variable::ServerVariable::new(sp.clone());
+            guard.insert("server".to_string(), server_var.to_fhir_path_value());
+        }
     }
 
-    env
+    map
 }
 
 impl EvaluationContext {
@@ -114,35 +152,9 @@ impl EvaluationContext {
         trace_provider: Option<SharedTraceProvider>,
         server_provider: Option<Arc<dyn ServerProvider>>,
     ) -> Self {
-        let mut variables = create_environment_variables();
-
-        // Add %terminologies variable if terminology provider is available
-        if let Some(ref terminology_provider) = terminology_provider {
-            let terminologies_var =
-                crate::evaluator::terminologies_variable::TerminologiesVariable::new(
-                    terminology_provider.clone(),
-                );
-            variables.insert(
-                "terminologies".to_string(),
-                terminologies_var.to_fhir_path_value(),
-            );
-        }
-
-        // Add %factory variable (always available)
-        variables.insert(
-            "factory".to_string(),
-            crate::evaluator::factory_variable::FactoryVariable::to_fhir_path_value(),
-        );
-
-        // Add %server variable if server provider is available
-        if let Some(ref server_provider) = server_provider {
-            let server_var =
-                crate::evaluator::server_variable::ServerVariable::new(server_provider.clone());
-            variables.insert("server".to_string(), server_var.to_fhir_path_value());
-        }
-
-        // Add %vs-[name] and %ext-[name] support
-        // These will be dynamically resolved when accessed
+        // Only create dynamic variables (terminologies, factory, server).
+        // Base env vars (sct, loinc, ucum, vs-*, ext-*) are in BASE_ENV_VARIABLES.
+        let variables = create_dynamic_variables(&terminology_provider, &server_provider);
 
         // Wrap root value in Arc once to avoid 5x cloning for aliases
         // (this, %resource, resource, %context, context all point to same value)
@@ -157,25 +169,24 @@ impl EvaluationContext {
             }
         }
 
-        Self {
-            input_collection: input_collection.clone(),
+        let shared = Arc::new(SharedContextState {
             model_provider,
             terminology_provider,
             validation_provider,
             server_provider,
             trace_provider,
-            variables: {
-                let lock_free_map = LockFreeHashMap::new();
-                for (key, value) in variables {
-                    lock_free_map.pin().insert(key, value);
-                }
-                Arc::new(lock_free_map)
-            },
-            parent_context: None,
-            resolution_cache: std::sync::Arc::new(LockFreeHashMap::new()),
-            type_info_cache: std::sync::Arc::new(LockFreeHashMap::new()),
-            root_resource,
+            resolution_cache: Arc::new(LockFreeHashMap::new()),
+            type_info_cache: Arc::new(LockFreeHashMap::new()),
             server_registry,
+            base_env_variables: BASE_ENV_VARIABLES.clone(),
+        });
+
+        Self {
+            input_collection: input_collection.clone(),
+            shared,
+            variables: Arc::new(variables),
+            parent_context: None,
+            root_resource,
         }
     }
 
@@ -208,6 +219,11 @@ impl EvaluationContext {
             return Some(value.clone());
         }
 
+        // Check cached base environment variables (sct, loinc, ucum, vs-*, ext-*)
+        if let Some(value) = self.shared.base_env_variables.pin().get(name) {
+            return Some(value.clone());
+        }
+
         // Walk parent chain to resolve variable
         if let Some(parent) = &self.parent_context {
             return parent.get_variable(name);
@@ -224,51 +240,18 @@ impl EvaluationContext {
 
     /// Create independent context for union operations (isolates user-defined variables)
     pub fn create_independent_context(&self) -> Self {
+        // Only dynamic variables; base env vars are in shared.base_env_variables
+        let variables = create_dynamic_variables(
+            &self.shared.terminology_provider,
+            &self.shared.server_provider,
+        );
+
         Self {
             input_collection: self.input_collection.clone(),
-            model_provider: self.model_provider.clone(),
-            terminology_provider: self.terminology_provider.clone(),
-            validation_provider: self.validation_provider.clone(),
-            server_provider: self.server_provider.clone(),
-            trace_provider: self.trace_provider.clone(),
-            variables: {
-                // Only include system environment variables, not user-defined ones
-                let system_vars = create_environment_variables();
-                // Add %terminologies variable if terminology provider is available
-                let mut vars = system_vars;
-                if let Some(ref terminology_provider) = self.terminology_provider {
-                    let terminologies_var =
-                        crate::evaluator::terminologies_variable::TerminologiesVariable::new(
-                            terminology_provider.clone(),
-                        );
-                    vars.insert(
-                        "terminologies".to_string(),
-                        terminologies_var.to_fhir_path_value(),
-                    );
-                }
-                // Add %factory variable (always available)
-                vars.insert(
-                    "factory".to_string(),
-                    crate::evaluator::factory_variable::FactoryVariable::to_fhir_path_value(),
-                );
-                // Add %server variable if server provider is available
-                if let Some(ref server_provider) = self.server_provider {
-                    let server_var = crate::evaluator::server_variable::ServerVariable::new(
-                        server_provider.clone(),
-                    );
-                    vars.insert("server".to_string(), server_var.to_fhir_path_value());
-                }
-                let lock_free_map = LockFreeHashMap::new();
-                for (key, value) in vars {
-                    lock_free_map.pin().insert(key, value);
-                }
-                Arc::new(lock_free_map)
-            },
+            shared: self.shared.clone(),
+            variables: Arc::new(variables),
             parent_context: None, // Independent context has no parent
-            resolution_cache: self.resolution_cache.clone(),
-            type_info_cache: self.type_info_cache.clone(),
             root_resource: self.root_resource.clone(), // Share Arc reference
-            server_registry: self.server_registry.clone(),
         }
     }
 
@@ -277,17 +260,10 @@ impl EvaluationContext {
     pub fn nest(&self) -> Self {
         Self {
             input_collection: self.input_collection.clone(),
-            model_provider: self.model_provider.clone(),
-            terminology_provider: self.terminology_provider.clone(),
-            validation_provider: self.validation_provider.clone(),
-            server_provider: self.server_provider.clone(),
-            trace_provider: self.trace_provider.clone(),
+            shared: self.shared.clone(),
             variables: Arc::new(LockFreeHashMap::new()), // Empty variables in nested scope
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
-            resolution_cache: self.resolution_cache.clone(),
-            type_info_cache: self.type_info_cache.clone(),
-            root_resource: self.root_resource.clone(), // Share Arc reference
-            server_registry: self.server_registry.clone(),
+            root_resource: self.root_resource.clone(),   // Share Arc reference
         }
     }
 
@@ -296,17 +272,10 @@ impl EvaluationContext {
     pub fn create_child_context(&self, new_input: Collection) -> Self {
         Self {
             input_collection: new_input,
-            model_provider: self.model_provider.clone(),
-            terminology_provider: self.terminology_provider.clone(),
-            validation_provider: self.validation_provider.clone(),
-            server_provider: self.server_provider.clone(),
-            trace_provider: self.trace_provider.clone(),
+            shared: self.shared.clone(),
             variables: Arc::new(LockFreeHashMap::new()), // Empty variables for child context
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
-            resolution_cache: self.resolution_cache.clone(),
-            type_info_cache: self.type_info_cache.clone(),
-            root_resource: self.root_resource.clone(), // Share Arc reference
-            server_registry: self.server_registry.clone(),
+            root_resource: self.root_resource.clone(),   // Share Arc reference
         }
     }
 
@@ -344,22 +313,22 @@ impl EvaluationContext {
 
     /// Get model provider
     pub fn model_provider(&self) -> &Arc<dyn ModelProvider + Send + Sync> {
-        &self.model_provider
+        &self.shared.model_provider
     }
 
     /// Get terminology provider
     pub fn terminology_provider(&self) -> Option<&Arc<dyn TerminologyProvider>> {
-        self.terminology_provider.as_ref()
+        self.shared.terminology_provider.as_ref()
     }
 
     /// Get validation provider
     pub fn validation_provider(&self) -> Option<&Arc<dyn ValidationProvider>> {
-        self.validation_provider.as_ref()
+        self.shared.validation_provider.as_ref()
     }
 
     /// Get server provider
     pub fn server_provider(&self) -> Option<&Arc<dyn ServerProvider>> {
-        self.server_provider.as_ref()
+        self.shared.server_provider.as_ref()
     }
 
     /// Get or create a server provider for a given URL from the registry.
@@ -367,13 +336,14 @@ impl EvaluationContext {
     /// Otherwise, asks the default provider to create a new instance via `with_base_url`.
     pub fn get_or_register_server(&self, url: &str) -> Option<Arc<dyn ServerProvider>> {
         // Check registry first
-        if let Some(provider) = self.server_registry.pin().get(url) {
+        if let Some(provider) = self.shared.server_registry.pin().get(url) {
             return Some(provider.clone());
         }
         // Ask default provider to create instance for this URL
-        let default = self.server_provider.as_ref()?;
+        let default = self.shared.server_provider.as_ref()?;
         let new_provider = default.with_base_url(url)?;
-        self.server_registry
+        self.shared
+            .server_registry
             .pin()
             .insert(url.to_string(), new_provider.clone());
         Some(new_provider)
@@ -382,71 +352,64 @@ impl EvaluationContext {
     /// Register a server provider for a given URL.
     /// Allows external code to pre-register custom providers (e.g., internal FHIR storage).
     pub fn register_server(&self, url: String, provider: Arc<dyn ServerProvider>) {
-        self.server_registry.pin().insert(url, provider);
+        self.shared.server_registry.pin().insert(url, provider);
     }
 
     /// Get the shared server registry
     pub fn server_registry(&self) -> &Arc<LockFreeHashMap<String, Arc<dyn ServerProvider>>> {
-        &self.server_registry
+        &self.shared.server_registry
     }
 
     /// Get trace provider
     pub fn trace_provider(&self) -> Option<&SharedTraceProvider> {
-        self.trace_provider.as_ref()
+        self.shared.trace_provider.as_ref()
     }
 
     /// Get the shared resolution cache used by resolve() and other reference operations
-    pub fn resolution_cache(
-        &self,
-    ) -> &std::sync::Arc<LockFreeHashMap<String, std::sync::Arc<serde_json::Value>>> {
-        &self.resolution_cache
+    pub fn resolution_cache(&self) -> &Arc<LockFreeHashMap<String, Arc<serde_json::Value>>> {
+        &self.shared.resolution_cache
     }
 
     /// Get or fetch TypeInfo from cache, falling back to model provider on cache miss
     /// This reduces redundant model provider calls for the same type
-    pub async fn get_or_fetch_type_info(&self, type_name: &str) -> Option<TypeInfo> {
+    pub async fn get_or_fetch_type_info(&self, type_name: &str) -> Option<Arc<TypeInfo>> {
         // Check cache first
-        if let Some(cached) = self.type_info_cache.pin().get(type_name) {
+        if let Some(cached) = self.shared.type_info_cache.pin().get(type_name) {
             return Some(cached.clone());
         }
 
         // Cache miss - fetch from model provider
-        match self.model_provider.get_type(type_name).await {
+        match self.shared.model_provider.get_type(type_name).await {
             Ok(Some(type_info)) => {
-                // Insert into cache for future use
-                self.type_info_cache
+                let arc_type_info = Arc::new(type_info);
+                self.shared
+                    .type_info_cache
                     .pin()
-                    .insert(type_name.to_string(), type_info.clone());
-                Some(type_info)
+                    .insert(type_name.to_string(), arc_type_info.clone());
+                Some(arc_type_info)
             }
             _ => None,
         }
     }
 
     /// Get the shared TypeInfo cache
-    pub fn type_info_cache(&self) -> &std::sync::Arc<LockFreeHashMap<String, TypeInfo>> {
-        &self.type_info_cache
+    pub fn type_info_cache(&self) -> &Arc<LockFreeHashMap<String, Arc<TypeInfo>>> {
+        &self.shared.type_info_cache
     }
 }
 
 /// Clone implementation for EvaluationContext
 /// Note: shared fields use Arc, so cloning increments reference counts
-/// instead of creating deep copies
+/// instead of creating deep copies. With SharedContextState, clone is
+/// only 5 Arc increments instead of 12.
 impl Clone for EvaluationContext {
     fn clone(&self) -> Self {
         Self {
             input_collection: self.input_collection.clone(),
-            model_provider: self.model_provider.clone(),
-            terminology_provider: self.terminology_provider.clone(),
-            validation_provider: self.validation_provider.clone(),
-            server_provider: self.server_provider.clone(),
-            trace_provider: self.trace_provider.clone(),
+            shared: self.shared.clone(),
             variables: self.variables.clone(),
             parent_context: self.parent_context.clone(),
-            resolution_cache: self.resolution_cache.clone(),
-            type_info_cache: self.type_info_cache.clone(),
-            root_resource: self.root_resource.clone(), // Arc clone is cheap
-            server_registry: self.server_registry.clone(),
+            root_resource: self.root_resource.clone(),
         }
     }
 }

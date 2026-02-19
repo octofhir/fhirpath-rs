@@ -228,7 +228,7 @@ impl AsFunctionEvaluator {
 impl LazyFunctionEvaluator for AsFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
+        input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
         _evaluator: AsyncNodeEvaluator<'_>,

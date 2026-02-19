@@ -1,6 +1,6 @@
 //! Last function implementation
 
-use crate::core::{FhirPathValue, Result};
+use crate::core::{Collection, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -42,8 +42,8 @@ impl LastFunctionEvaluator {
 impl PureFunctionEvaluator for LastFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         let result = if input.is_empty() {
             Vec::new()

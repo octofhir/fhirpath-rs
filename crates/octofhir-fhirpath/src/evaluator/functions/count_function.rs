@@ -1,6 +1,6 @@
 //! Count function implementation
 
-use crate::core::{FhirPathValue, Result};
+use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -42,8 +42,8 @@ impl CountFunctionEvaluator {
 impl PureFunctionEvaluator for CountFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         let count = input.len() as i64;
 

@@ -63,8 +63,8 @@ impl MinFunctionEvaluator {
 impl PureFunctionEvaluator for MinFunctionEvaluator {
     async fn evaluate(
         &self,
-        input: Vec<FhirPathValue>,
-        _args: Vec<Vec<FhirPathValue>>,
+        input: Collection,
+        _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
         // Empty collection returns empty
         if input.is_empty() {
@@ -142,7 +142,7 @@ mod tests {
             FhirPathValue::integer(1),
             FhirPathValue::integer(5),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(1)));
     }
@@ -157,7 +157,7 @@ mod tests {
             FhirPathValue::integer(0),
             FhirPathValue::integer(5),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(-5)));
     }
@@ -172,7 +172,7 @@ mod tests {
             FhirPathValue::decimal(dec!(1.2)),
             FhirPathValue::decimal(dec!(4.7)),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -189,7 +189,7 @@ mod tests {
             FhirPathValue::decimal(dec!(-1.5)),
             FhirPathValue::decimal(dec!(-2.5)),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(
             result.value.first(),
@@ -207,7 +207,7 @@ mod tests {
             FhirPathValue::string("banana"),
             FhirPathValue::string("cherry"),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::string("apple")));
     }
@@ -218,7 +218,7 @@ mod tests {
 
         // {}.min() = {}
         let input = vec![];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -228,7 +228,7 @@ mod tests {
 
         // {42}.min() = 42
         let input = vec![FhirPathValue::integer(42)];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(42)));
     }
@@ -243,7 +243,7 @@ mod tests {
             FhirPathValue::Empty,
             FhirPathValue::integer(3),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first(), Some(&FhirPathValue::integer(1)));
     }
@@ -254,7 +254,7 @@ mod tests {
 
         // {1, 'string'}.min() = {} (type mismatch)
         let input = vec![FhirPathValue::integer(1), FhirPathValue::string("string")];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert!(result.value.is_empty());
     }
 
@@ -283,7 +283,7 @@ mod tests {
                 Some("http://unitsofmeasure.org".to_string()),
             ),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
 
         if let Some(FhirPathValue::Quantity { value, unit, .. }) = result.value.first() {
@@ -310,7 +310,7 @@ mod tests {
                 NaiveDate::from_ymd_opt(2024, 12, 31).unwrap(),
             )),
         ];
-        let result = evaluator.evaluate(input, vec![]).await.unwrap();
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
         assert_eq!(result.value.len(), 1);
 
         if let Some(FhirPathValue::Date(date, _, _)) = result.value.first() {
