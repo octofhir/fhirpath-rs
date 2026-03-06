@@ -1,3 +1,12 @@
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.43...v0.5.0) (2026-03-06)
+
+
+### Features
+
+* lsp improvements ([cc46369](https://github.com/octofhir/fhirpath-rs/commit/cc46369bed815ddcadac9828ce271736b9759120))
+
+
+
 ## [0.4.43](https://github.com/octofhir/fhirpath-rs/compare/v0.4.42...v0.4.43) (2026-02-19)
 
 
