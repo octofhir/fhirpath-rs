@@ -575,8 +575,7 @@ impl TuiApp {
                     &expression,
                     octofhir_fhirpath::parser::ParsingMode::Analysis,
                 );
-                if _parse_result.success && _parse_result.ast.is_some() {
-                    let ast = _parse_result.ast.unwrap();
+                if let Some(ast) = _parse_result.ast.filter(|_| _parse_result.success) {
                     self.engine.evaluate_ast(&ast, &eval_context).await
                 } else {
                     Err(octofhir_fhirpath::core::FhirPathError::parse_error(
@@ -609,8 +608,7 @@ impl TuiApp {
                     &expression,
                     octofhir_fhirpath::parser::ParsingMode::Analysis,
                 );
-                if _parse_result.success && _parse_result.ast.is_some() {
-                    let ast = _parse_result.ast.unwrap();
+                if let Some(ast) = _parse_result.ast.filter(|_| _parse_result.success) {
                     self.engine.evaluate_ast(&ast, &eval_context).await
                 } else {
                     Err(octofhir_fhirpath::core::FhirPathError::parse_error(

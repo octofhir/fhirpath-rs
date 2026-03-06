@@ -9,7 +9,15 @@ use chumsky::prelude::*;
 use rust_decimal::Decimal;
 
 use crate::ast::{ExpressionNode, IdentifierNode, LiteralNode, LiteralValue, VariableNode};
+use crate::core::SourceLocation;
 use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+
+/// Convert a chumsky `SimpleSpan` to a `SourceLocation`.
+/// Line/column are set to 0 since computing them requires the full source text;
+/// `offset` and `length` are the byte range — sufficient for semantic tokens and diagnostics.
+fn span_to_loc(span: SimpleSpan) -> SourceLocation {
+    SourceLocation::new(0, 0, span.start, span.end - span.start)
+}
 
 /// Parser for string literals with single quotes (supports multi-line and escapes)
 pub fn string_literal_parser_single<'a>()
@@ -52,10 +60,10 @@ pub fn string_literal_parser_single<'a>()
                 .collect::<String>(),
         )
         .then_ignore(just('\''))
-        .map(|s: String| {
+        .map_with(|s: String, extra| {
             ExpressionNode::Literal(LiteralNode {
                 value: LiteralValue::String(s),
-                location: None,
+                location: Some(span_to_loc(extra.span())),
             })
         })
 }
@@ -97,10 +105,10 @@ pub fn string_literal_parser_double<'a>()
                 .collect::<String>(),
         )
         .then_ignore(just('"'))
-        .map(|s: String| {
+        .map_with(|s: String, extra| {
             ExpressionNode::Literal(LiteralNode {
                 value: LiteralValue::String(s),
-                location: None,
+                location: Some(span_to_loc(extra.span())),
             })
         })
 }
@@ -197,20 +205,19 @@ pub fn number_parser<'a>()
                 )))
                 .or_not(),
         )
-        .map(
-            |((number_str, is_long), unit): ((String, Option<char>), Option<String>)| {
+        .map_with(
+            |((number_str, is_long), unit): ((String, Option<char>), Option<String>), extra| {
+                let loc = Some(span_to_loc(extra.span()));
                 // Handle Long literal (with 'L' suffix)
                 if is_long.is_some() {
-                    // Long literals cannot have units - if unit is present, ignore it
-                    // (or we could error, but for now we just ignore)
                     return match number_str.parse::<i64>() {
                         Ok(num) => ExpressionNode::Literal(LiteralNode {
                             value: LiteralValue::Long(num),
-                            location: None,
+                            location: loc,
                         }),
                         Err(_) => ExpressionNode::Literal(LiteralNode {
                             value: LiteralValue::String(format!("{number_str}L")),
-                            location: None,
+                            location: loc,
                         }),
                     };
                 }
@@ -219,37 +226,34 @@ pub fn number_parser<'a>()
                 match number_str.parse::<Decimal>() {
                     Ok(decimal) => {
                         if let Some(unit_str) = unit {
-                            // Create Quantity literal
                             ExpressionNode::Literal(LiteralNode {
                                 value: LiteralValue::Quantity {
                                     value: decimal,
                                     unit: Some(unit_str),
                                 },
-                                location: None,
+                                location: loc,
                             })
                         } else if number_str.contains('.') {
-                            // Plain decimal
                             ExpressionNode::Literal(LiteralNode {
                                 value: LiteralValue::Decimal(decimal),
-                                location: None,
+                                location: loc,
                             })
                         } else {
-                            // Try as integer first for whole numbers
                             match number_str.parse::<i64>() {
                                 Ok(num) => ExpressionNode::Literal(LiteralNode {
                                     value: LiteralValue::Integer(num),
-                                    location: None,
+                                    location: loc,
                                 }),
                                 Err(_) => ExpressionNode::Literal(LiteralNode {
                                     value: LiteralValue::Decimal(decimal),
-                                    location: None,
+                                    location: loc,
                                 }),
                             }
                         }
                     }
                     Err(_) => ExpressionNode::Literal(LiteralNode {
                         value: LiteralValue::String(number_str),
-                        location: None,
+                        location: loc,
                     }),
                 }
             },
@@ -260,26 +264,38 @@ pub fn number_parser<'a>()
 pub fn boolean_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     choice((
-        just("true").to(ExpressionNode::Literal(LiteralNode {
-            value: LiteralValue::Boolean(true),
-            location: None,
-        })),
-        just("false").to(ExpressionNode::Literal(LiteralNode {
-            value: LiteralValue::Boolean(false),
-            location: None,
-        })),
+        just("true").map_with(|_, extra| {
+            ExpressionNode::Literal(LiteralNode {
+                value: LiteralValue::Boolean(true),
+                location: Some(span_to_loc(extra.span())),
+            })
+        }),
+        just("false").map_with(|_, extra| {
+            ExpressionNode::Literal(LiteralNode {
+                value: LiteralValue::Boolean(false),
+                location: Some(span_to_loc(extra.span())),
+            })
+        }),
     ))
 }
 
 /// Parser for DateTime literals (@2021-01-01, @T15:30:00, @2021-01-01T15:30:00Z, @2015-02-04T14:34:28.123)
 pub fn datetime_literal_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
-    just('@').ignore_then(choice((
-        // Time only: @T15:30:00
-        time_only_parser(),
-        // Unified date/datetime parser (also handles date-only)
-        datetime_date_or_full_parser(),
-    )))
+    just('@')
+        .ignore_then(choice((
+            // Time only: @T15:30:00
+            time_only_parser(),
+            // Unified date/datetime parser (also handles date-only)
+            datetime_date_or_full_parser(),
+        )))
+        .map_with(|mut node, extra| {
+            // Attach the span of the entire @... literal (including the '@' prefix)
+            if let ExpressionNode::Literal(lit) = &mut node {
+                lit.location = Some(span_to_loc(extra.span()));
+            }
+            node
+        })
 }
 
 /// Parse date format string (YYYY-MM-DD, YYYY-MM, or YYYY)
@@ -683,10 +699,10 @@ pub fn backtick_identifier_parser<'a>()
                 .collect::<String>(),
         )
         .then_ignore(just('`'))
-        .map(|name: String| {
+        .map_with(|name: String, extra| {
             ExpressionNode::Identifier(IdentifierNode {
                 name,
-                location: None,
+                location: Some(span_to_loc(extra.span())),
             })
         })
 }
@@ -696,10 +712,10 @@ pub fn identifier_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     choice((
         backtick_identifier_parser(),
-        text::ident().map(|name: &str| {
+        text::ident().map_with(|name: &str, extra| {
             ExpressionNode::Identifier(IdentifierNode {
                 name: name.to_string(),
-                location: None,
+                location: Some(span_to_loc(extra.span())),
             })
         }),
     ))
@@ -710,12 +726,14 @@ pub fn variable_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     choice((
         // Standard $variable syntax
-        just('$').ignore_then(text::ident()).map(|name: &str| {
-            ExpressionNode::Variable(VariableNode {
-                name: name.to_string(),
-                location: None,
-            })
-        }),
+        just('$')
+            .ignore_then(text::ident())
+            .map_with(|name: &str, extra| {
+                ExpressionNode::Variable(VariableNode {
+                    name: name.to_string(),
+                    location: Some(span_to_loc(extra.span())),
+                })
+            }),
         // FHIRPath %variable syntax (context variables)
         just('%')
             .ignore_then(choice((
@@ -731,10 +749,10 @@ pub fn variable_parser<'a>()
                 // Standard identifier variable names
                 text::ident().map(|s: &str| s.to_string()),
             )))
-            .map(|name: String| {
+            .map_with(|name: String, extra| {
                 ExpressionNode::Variable(VariableNode {
                     name,
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
     ))

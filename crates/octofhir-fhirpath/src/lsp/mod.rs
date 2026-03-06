@@ -2,7 +2,11 @@
 //!
 //! This module provides LSP capabilities for FHIRPath including:
 //! - Autocompletion for properties, functions, keywords, and constants
-//! - Diagnostics with error recovery
+//! - Diagnostics with error recovery and static analysis
+//! - Hover information for properties, functions, and keywords
+//! - Signature help for function parameters
+//! - Semantic tokens for syntax highlighting
+//! - Code actions (quick fixes) for diagnostics
 //! - Optional context API for enhanced features (ViewDefinition, SQL on FHIR)
 //!
 //! # Usage Modes
@@ -18,19 +22,32 @@
 //! - Resource type from forEach expression
 //! - External constants for completion
 
+mod code_actions;
 mod completion;
 mod diagnostics;
 mod document;
+mod document_symbols;
+mod goto_definition;
 mod handlers;
+mod hover;
+mod semantic_tokens;
 mod server;
+mod signature_help;
 
+pub use code_actions::CodeActionProvider;
 pub use completion::{CompletionContext, CompletionKind, CompletionProvider};
 pub use diagnostics::DiagnosticProvider;
 pub use document::{DocumentManager, DocumentState};
+pub use document_symbols::DocumentSymbolProvider;
+pub use goto_definition::GotoDefinitionProvider;
 pub use handlers::LspHandlers;
+pub use hover::HoverProvider;
+pub use semantic_tokens::{SemanticTokensProvider, build_legend};
 pub use server::{
-    ClearContext, FhirPathLspServer, ServerConfig, SetContext, Transport, run_stdio, run_websocket,
+    ClearContext, FhirPathLspServer, ServerConfig, SetContext, Transport, process_lsp_message,
+    run_stdio, run_websocket,
 };
+pub use signature_help::SignatureHelpProvider;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

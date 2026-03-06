@@ -20,6 +20,11 @@ use crate::ast::{
 use crate::core::SourceLocation;
 use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
 
+/// Convert a chumsky `SimpleSpan` to a `SourceLocation`.
+fn span_to_loc(span: SimpleSpan) -> SourceLocation {
+    SourceLocation::new(0, 0, span.start, span.end - span.start)
+}
+
 /// Analysis parser result with comprehensive error information
 #[derive(Debug, Clone)]
 pub struct AnalysisResult {
@@ -45,22 +50,30 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             choice((
                 boolean_parser(),
                 // Case insensitive variants for better error recovery
-                text::keyword("TRUE").to(ExpressionNode::Literal(LiteralNode {
-                    value: LiteralValue::Boolean(true),
-                    location: None,
-                })),
-                text::keyword("FALSE").to(ExpressionNode::Literal(LiteralNode {
-                    value: LiteralValue::Boolean(false),
-                    location: None,
-                })),
-                text::keyword("True").to(ExpressionNode::Literal(LiteralNode {
-                    value: LiteralValue::Boolean(true),
-                    location: None,
-                })),
-                text::keyword("False").to(ExpressionNode::Literal(LiteralNode {
-                    value: LiteralValue::Boolean(false),
-                    location: None,
-                })),
+                text::keyword("TRUE").map_with(|_, extra| {
+                    ExpressionNode::Literal(LiteralNode {
+                        value: LiteralValue::Boolean(true),
+                        location: Some(span_to_loc(extra.span())),
+                    })
+                }),
+                text::keyword("FALSE").map_with(|_, extra| {
+                    ExpressionNode::Literal(LiteralNode {
+                        value: LiteralValue::Boolean(false),
+                        location: Some(span_to_loc(extra.span())),
+                    })
+                }),
+                text::keyword("True").map_with(|_, extra| {
+                    ExpressionNode::Literal(LiteralNode {
+                        value: LiteralValue::Boolean(true),
+                        location: Some(span_to_loc(extra.span())),
+                    })
+                }),
+                text::keyword("False").map_with(|_, extra| {
+                    ExpressionNode::Literal(LiteralNode {
+                        value: LiteralValue::Boolean(false),
+                        location: Some(span_to_loc(extra.span())),
+                    })
+                }),
             )),
             // Variable references using shared combinator
             variable_parser(),
@@ -73,13 +86,13 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                         .delimited_by(just('(').padded(), just(')').padded())
                         .or_not(),
                 )
-                .map(|(identifier, args)| {
+                .map_with(|(identifier, args), extra| {
                     if let ExpressionNode::Identifier(id_node) = identifier {
                         if let Some(arguments) = args {
                             ExpressionNode::FunctionCall(FunctionCallNode {
                                 name: id_node.name,
                                 arguments,
-                                location: None,
+                                location: Some(span_to_loc(extra.span())),
                             })
                         } else {
                             ExpressionNode::Identifier(id_node)
@@ -97,10 +110,10 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                 .separated_by(just(',').padded())
                 .collect::<Vec<_>>()
                 .delimited_by(just('{').padded(), just('}').padded())
-                .map(|elements| {
+                .map_with(|elements, extra| {
                     ExpressionNode::Collection(CollectionNode {
                         elements,
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 }),
         ));
@@ -111,12 +124,12 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             infix(
                 right(0),
                 text::keyword("implies").padded(),
-                |left, _, right, _| {
+                |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::Implies,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -124,12 +137,12 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             infix(
                 left(1),
                 text::keyword("or").padded(),
-                |left, _, right, _| {
+                |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::Or,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -137,12 +150,12 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             infix(
                 left(2),
                 text::keyword("xor").padded(),
-                |left, _, right, _| {
+                |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::Xor,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -150,12 +163,12 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             infix(
                 left(3),
                 text::keyword("and").padded(),
-                |left, _, right, _| {
+                |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::And,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -163,24 +176,24 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             infix(
                 left(5),
                 text::keyword("in").padded(),
-                |left, _, right, _| {
+                |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::In,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
             infix(
                 left(5),
                 text::keyword("contains").padded(),
-                |left, _, right, _| {
+                |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::Contains,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -197,7 +210,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     just("≠"), // Unicode not equal
                 ))
                 .padded(),
-                |left, op: &str, right, _| {
+                |left, op: &str, right, extra| {
                     let operator = match op {
                         "!~" => BinaryOperator::NotEquivalent,
                         "~" => BinaryOperator::Equivalent,
@@ -209,7 +222,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                         left: Box::new(left),
                         operator,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -225,7 +238,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     just("≥"), // Unicode greater than or equal
                 ))
                 .padded(),
-                |left, op: &str, right, _| {
+                |left, op: &str, right, extra| {
                     let operator = match op {
                         "<=" | "≤" => BinaryOperator::LessThanOrEqual,
                         ">=" | "≥" => BinaryOperator::GreaterThanOrEqual,
@@ -237,7 +250,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                         left: Box::new(left),
                         operator,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -245,20 +258,21 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             infix(
                 left(7),
                 choice((text::keyword("is"), text::keyword("as"))).padded(),
-                |left, op: &str, right, _| {
+                |left, op: &str, right, extra| {
+                    let loc = Some(span_to_loc(extra.span()));
                     if op == "is" {
                         if let ExpressionNode::Identifier(IdentifierNode { name, .. }) = right {
                             ExpressionNode::TypeCheck(TypeCheckNode {
                                 expression: Box::new(left),
                                 target_type: name,
-                                location: None,
+                                location: loc,
                             })
                         } else {
                             ExpressionNode::BinaryOperation(BinaryOperationNode {
                                 left: Box::new(left),
                                 operator: BinaryOperator::Is,
                                 right: Box::new(right),
-                                location: None,
+                                location: loc,
                             })
                         }
                     } else {
@@ -267,32 +281,32 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                             ExpressionNode::TypeCast(TypeCastNode {
                                 expression: Box::new(left),
                                 target_type: name,
-                                location: None,
+                                location: loc,
                             })
                         } else {
                             ExpressionNode::BinaryOperation(BinaryOperationNode {
                                 left: Box::new(left),
                                 operator: BinaryOperator::Add, // fallback
                                 right: Box::new(right),
-                                location: None,
+                                location: loc,
                             })
                         }
                     }
                 },
             ),
             // Union - precedence 8
-            infix(left(8), just("|").padded(), |left, _, right, _| {
+            infix(left(8), just("|").padded(), |left, _, right, extra| {
                 ExpressionNode::Union(UnionNode {
                     left: Box::new(left),
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
             // Additive - precedence 9
             infix(
                 left(9),
                 choice((just("+"), just("-"), just("&"))).padded(),
-                |left, op: &str, right, _| {
+                |left, op: &str, right, extra| {
                     let operator = match op {
                         "+" => BinaryOperator::Add,
                         "-" => BinaryOperator::Subtract,
@@ -303,7 +317,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                         left: Box::new(left),
                         operator,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -318,7 +332,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     just("%"),
                 ))
                 .padded(),
-                |left, op: &str, right, _| {
+                |left, op: &str, right, extra| {
                     let operator = match op {
                         "*" => BinaryOperator::Multiply,
                         "/" => BinaryOperator::Divide,
@@ -330,7 +344,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                         left: Box::new(left),
                         operator,
                         right: Box::new(right),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -345,17 +359,17 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     just("!"),
                 ))
                 .padded(),
-                |op: &str, operand, _| {
+                |op: &str, operand, extra| {
                     match op {
                         "-" => ExpressionNode::UnaryOperation(UnaryOperationNode {
                             operator: UnaryOperator::Negate,
                             operand: Box::new(operand),
-                            location: None,
+                            location: Some(span_to_loc(extra.span())),
                         }),
                         "not" | "NOT" | "!" => ExpressionNode::UnaryOperation(UnaryOperationNode {
                             operator: UnaryOperator::Not,
                             operand: Box::new(operand),
-                            location: None,
+                            location: Some(span_to_loc(extra.span())),
                         }),
                         "+" => operand, // Unary plus is identity
                         _ => operand,   // fallback
@@ -367,11 +381,11 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                 12,
                 expr.clone()
                     .delimited_by(just('[').padded(), just(']').padded()),
-                |expr, index, _| {
+                |expr, index, extra| {
                     ExpressionNode::IndexAccess(IndexAccessNode {
                         object: Box::new(expr),
                         index: Box::new(index),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -385,7 +399,8 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                         .delimited_by(just('(').padded(), just(')').padded())
                         .or_not(),
                 ),
-                |expr, (identifier, args): (ExpressionNode, Option<Vec<ExpressionNode>>), _| {
+                |expr, (identifier, args): (ExpressionNode, Option<Vec<ExpressionNode>>), extra| {
+                    let loc = Some(span_to_loc(extra.span()));
                     let name = if let ExpressionNode::Identifier(id) = identifier {
                         id.name
                     } else {
@@ -397,14 +412,14 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                             object: Box::new(expr),
                             method: name.to_string(),
                             arguments,
-                            location: None,
+                            location: loc,
                         })
                     } else {
                         // Property access
                         ExpressionNode::PropertyAccess(PropertyAccessNode {
                             object: Box::new(expr),
                             property: name.to_string(),
-                            location: None,
+                            location: loc,
                         })
                     }
                 },

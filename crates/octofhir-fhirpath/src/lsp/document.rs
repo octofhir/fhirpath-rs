@@ -1,5 +1,6 @@
 //! Document state management for the LSP server
 
+use crate::diagnostics::AriadneDiagnostic;
 use lsp_types::Url;
 use std::collections::HashMap;
 
@@ -14,6 +15,9 @@ pub struct DocumentState {
 
     /// Document URI
     pub uri: Url,
+
+    /// Last computed diagnostics (for code actions)
+    pub last_diagnostics: Vec<AriadneDiagnostic>,
 }
 
 impl DocumentState {
@@ -23,6 +27,7 @@ impl DocumentState {
             content,
             version,
             uri,
+            last_diagnostics: Vec::new(),
         }
     }
 
@@ -30,6 +35,7 @@ impl DocumentState {
     pub fn update(&mut self, content: String, version: i32) {
         self.content = content;
         self.version = version;
+        self.last_diagnostics.clear();
     }
 }
 
@@ -66,6 +72,11 @@ impl DocumentManager {
     /// Get a document by URI
     pub fn get(&self, uri: &Url) -> Option<&DocumentState> {
         self.documents.get(uri)
+    }
+
+    /// Get a mutable document by URI
+    pub fn get_mut(&mut self, uri: &Url) -> Option<&mut DocumentState> {
+        self.documents.get_mut(uri)
     }
 
     /// Get all open documents

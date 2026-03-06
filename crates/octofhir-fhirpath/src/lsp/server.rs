@@ -15,10 +15,15 @@ use lsp_types::notification::{
     DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Initialized, Notification,
     PublishDiagnostics,
 };
-use lsp_types::request::{Completion, Initialize, Shutdown};
+use lsp_types::request::{
+    CodeActionRequest, Completion, DocumentSymbolRequest, GotoDefinition, HoverRequest, Initialize,
+    SemanticTokensFullRequest, SemanticTokensRangeRequest, Shutdown, SignatureHelpRequest,
+};
 use lsp_types::{
-    CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, InitializeParams, PublishDiagnosticsParams,
+    CodeActionParams, CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DocumentSymbolParams, GotoDefinitionParams, HoverParams,
+    InitializeParams, PublishDiagnosticsParams, SemanticTokensParams, SemanticTokensRangeParams,
+    SignatureHelpParams,
 };
 use std::ops::ControlFlow;
 use std::sync::Arc;
@@ -80,8 +85,9 @@ impl FhirPathLspServer {
     /// Create a new LSP server
     pub fn new(model_provider: Arc<dyn ModelProvider + Send + Sync>, client: ClientSocket) -> Self {
         let function_registry = Arc::new(create_function_registry());
-        let completion_provider = CompletionProvider::new(model_provider, function_registry);
-        let handlers = LspHandlers::new(completion_provider);
+        let completion_provider =
+            CompletionProvider::new(model_provider.clone(), function_registry.clone());
+        let handlers = LspHandlers::new(completion_provider, model_provider, function_registry);
 
         Self {
             handlers: Arc::new(Mutex::new(handlers)),
@@ -110,8 +116,12 @@ pub async fn run_stdio(
     let (mainloop, _) = async_lsp::MainLoop::new_server(|client| {
         let function_registry = Arc::new(create_function_registry());
         let completion_provider =
-            CompletionProvider::new(model_provider.clone(), function_registry);
-        let handlers = LspHandlers::new(completion_provider);
+            CompletionProvider::new(model_provider.clone(), function_registry.clone());
+        let handlers = LspHandlers::new(
+            completion_provider,
+            model_provider.clone(),
+            function_registry,
+        );
 
         let server = FhirPathLspServer {
             handlers: Arc::new(Mutex::new(handlers)),
@@ -141,6 +151,71 @@ pub async fn run_stdio(
             }
         });
 
+        // Hover request
+        router.request::<HoverRequest, _>(|server, params: HoverParams| {
+            let handlers = server.handlers.clone();
+            async move {
+                let handlers = handlers.lock().await;
+                Ok(handlers.hover(params).await)
+            }
+        });
+
+        // Signature help request
+        router.request::<SignatureHelpRequest, _>(|server, params: SignatureHelpParams| {
+            let handlers = server.handlers.clone();
+            async move {
+                let handlers = handlers.lock().await;
+                Ok(handlers.signature_help(params))
+            }
+        });
+
+        // Semantic tokens full request
+        router.request::<SemanticTokensFullRequest, _>(|server, params: SemanticTokensParams| {
+            let handlers = server.handlers.clone();
+            async move {
+                let handlers = handlers.lock().await;
+                Ok(handlers.semantic_tokens_full(params))
+            }
+        });
+
+        // Code action request
+        router.request::<CodeActionRequest, _>(|server, params: CodeActionParams| {
+            let handlers = server.handlers.clone();
+            async move {
+                let handlers = handlers.lock().await;
+                Ok(handlers.code_action(params))
+            }
+        });
+
+        // Semantic tokens range request
+        router.request::<SemanticTokensRangeRequest, _>(
+            |server, params: SemanticTokensRangeParams| {
+                let handlers = server.handlers.clone();
+                async move {
+                    let handlers = handlers.lock().await;
+                    Ok(handlers.semantic_tokens_range(params))
+                }
+            },
+        );
+
+        // Go to definition request
+        router.request::<GotoDefinition, _>(|server, params: GotoDefinitionParams| {
+            let handlers = server.handlers.clone();
+            async move {
+                let handlers = handlers.lock().await;
+                Ok(handlers.goto_definition(params).await)
+            }
+        });
+
+        // Document symbol request
+        router.request::<DocumentSymbolRequest, _>(|server, params: DocumentSymbolParams| {
+            let handlers = server.handlers.clone();
+            async move {
+                let handlers = handlers.lock().await;
+                Ok(handlers.document_symbol(params))
+            }
+        });
+
         // Initialized notification
         router.notification::<Initialized>(|_server, _params| {
             tracing::info!("FHIRPath LSP server initialized");
@@ -156,7 +231,7 @@ pub async fn run_stdio(
                 let rt = tokio::runtime::Handle::current();
                 rt.block_on(async {
                     let mut handlers = handlers.lock().await;
-                    handlers.did_open(params)
+                    handlers.did_open(params).await
                 })
             };
 
@@ -174,7 +249,7 @@ pub async fn run_stdio(
                     let rt = tokio::runtime::Handle::current();
                     rt.block_on(async {
                         let mut handlers = handlers.lock().await;
-                        handlers.did_change(params)
+                        handlers.did_change(params).await
                     })
                 };
 
@@ -270,8 +345,12 @@ pub async fn run_websocket(
         // Create LSP handlers
         let function_registry = Arc::new(create_function_registry());
         let completion_provider =
-            CompletionProvider::new(state.model_provider.clone(), function_registry);
-        let handlers = Arc::new(Mutex::new(LspHandlers::new(completion_provider)));
+            CompletionProvider::new(state.model_provider.clone(), function_registry.clone());
+        let handlers = Arc::new(Mutex::new(LspHandlers::new(
+            completion_provider,
+            state.model_provider.clone(),
+            function_registry,
+        )));
 
         // Spawn task to forward responses to WebSocket
         let send_task = tokio::spawn(async move {
@@ -322,136 +401,6 @@ pub async fn run_websocket(
         let _ = send_task.await;
     }
 
-    /// Process a single LSP message and return response if any
-    async fn process_lsp_message(
-        message: &str,
-        handlers: &Arc<Mutex<LspHandlers>>,
-        response_tx: &mpsc::UnboundedSender<String>,
-    ) -> Option<String> {
-        // Parse the LSP message (JSON-RPC)
-        let json: serde_json::Value = match serde_json::from_str(message) {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::error!("Failed to parse LSP message: {}", e);
-                return None;
-            }
-        };
-
-        let method = json.get("method")?.as_str()?;
-        let id = json.get("id");
-        let params = json.get("params");
-
-        match method {
-            "initialize" => {
-                let params: InitializeParams = serde_json::from_value(params?.clone()).ok()?;
-                let handlers = handlers.lock().await;
-                let result = handlers.initialize(params);
-                let response = serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": id?,
-                    "result": result
-                });
-                Some(serde_json::to_string(&response).ok()?)
-            }
-            "shutdown" => {
-                let response = serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": id?,
-                    "result": null
-                });
-                Some(serde_json::to_string(&response).ok()?)
-            }
-            "textDocument/completion" => {
-                let params: CompletionParams = serde_json::from_value(params?.clone()).ok()?;
-                let handlers = handlers.lock().await;
-                let result = handlers.completion(params).await;
-                let response = serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": id?,
-                    "result": result
-                });
-                Some(serde_json::to_string(&response).ok()?)
-            }
-            "textDocument/didOpen" => {
-                let params: DidOpenTextDocumentParams =
-                    serde_json::from_value(params?.clone()).ok()?;
-                let uri = params.text_document.uri.clone();
-                let mut handlers = handlers.lock().await;
-                let diagnostics = handlers.did_open(params);
-                // Send diagnostics notification
-                let notification = serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "method": "textDocument/publishDiagnostics",
-                    "params": {
-                        "uri": uri.to_string(),
-                        "diagnostics": diagnostics
-                    }
-                });
-                let _ = response_tx.send(serde_json::to_string(&notification).ok()?);
-                None
-            }
-            "textDocument/didChange" => {
-                let params: DidChangeTextDocumentParams =
-                    serde_json::from_value(params?.clone()).ok()?;
-                let uri = params.text_document.uri.clone();
-                let mut handlers = handlers.lock().await;
-                let diagnostics = handlers.did_change(params);
-                // Send diagnostics notification
-                let notification = serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "method": "textDocument/publishDiagnostics",
-                    "params": {
-                        "uri": uri.to_string(),
-                        "diagnostics": diagnostics
-                    }
-                });
-                let _ = response_tx.send(serde_json::to_string(&notification).ok()?);
-                None
-            }
-            "textDocument/didClose" => {
-                let params: DidCloseTextDocumentParams =
-                    serde_json::from_value(params?.clone()).ok()?;
-                let mut handlers = handlers.lock().await;
-                handlers.did_close(params);
-                None
-            }
-            "fhirpath/setContext" => {
-                let params: SetContextParams = serde_json::from_value(params?.clone()).ok()?;
-                let mut handlers = handlers.lock().await;
-                handlers.set_context(params);
-                tracing::debug!("FHIRPath context updated via WebSocket");
-                None
-            }
-            "fhirpath/clearContext" => {
-                let mut handlers = handlers.lock().await;
-                handlers.clear_context();
-                tracing::debug!("FHIRPath context cleared via WebSocket");
-                None
-            }
-            "initialized" => {
-                tracing::info!("FHIRPath LSP server initialized via WebSocket");
-                None
-            }
-            _ => {
-                tracing::warn!("Unknown LSP method: {}", method);
-                if id.is_some() {
-                    // Send error response for unknown requests
-                    let response = serde_json::json!({
-                        "jsonrpc": "2.0",
-                        "id": id?,
-                        "error": {
-                            "code": -32601,
-                            "message": format!("Method not found: {}", method)
-                        }
-                    });
-                    Some(serde_json::to_string(&response).ok()?)
-                } else {
-                    None
-                }
-            }
-        }
-    }
-
     // Set up CORS for browser access
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -472,4 +421,221 @@ pub async fn run_websocket(
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// Process a single LSP JSON-RPC message and return response if any.
+///
+/// This is the shared message router for both WebSocket and embedded usage.
+/// External consumers (e.g., server-rs) can import this function to handle
+/// FHIRPath LSP messages without duplicating the routing logic.
+pub async fn process_lsp_message(
+    message: &str,
+    handlers: &Arc<Mutex<LspHandlers>>,
+    response_tx: &tokio::sync::mpsc::UnboundedSender<String>,
+) -> Option<String> {
+    use lsp_types::{
+        CodeActionParams, CompletionParams, DidChangeTextDocumentParams,
+        DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentSymbolParams,
+        GotoDefinitionParams, HoverParams, InitializeParams, SemanticTokensParams,
+        SemanticTokensRangeParams, SignatureHelpParams,
+    };
+
+    // Parse the LSP message (JSON-RPC)
+    let json: serde_json::Value = match serde_json::from_str(message) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("Failed to parse LSP message: {}", e);
+            return None;
+        }
+    };
+
+    let method = json.get("method")?.as_str()?;
+    let id = json.get("id");
+    let params = json.get("params");
+
+    match method {
+        "initialize" => {
+            let params: InitializeParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.initialize(params);
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "shutdown" => {
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": null
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/completion" => {
+            let params: CompletionParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.completion(params).await;
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/hover" => {
+            let params: HoverParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.hover(params).await;
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/signatureHelp" => {
+            let params: SignatureHelpParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.signature_help(params);
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/semanticTokens/full" => {
+            let params: SemanticTokensParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.semantic_tokens_full(params);
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/codeAction" => {
+            let params: CodeActionParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.code_action(params);
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/semanticTokens/range" => {
+            let params: SemanticTokensRangeParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.semantic_tokens_range(params);
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/definition" => {
+            let params: GotoDefinitionParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.goto_definition(params).await;
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/documentSymbol" => {
+            let params: DocumentSymbolParams = serde_json::from_value(params?.clone()).ok()?;
+            let handlers = handlers.lock().await;
+            let result = handlers.document_symbol(params);
+            let response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id?,
+                "result": result
+            });
+            Some(serde_json::to_string(&response).ok()?)
+        }
+        "textDocument/didOpen" => {
+            let params: DidOpenTextDocumentParams = serde_json::from_value(params?.clone()).ok()?;
+            let uri = params.text_document.uri.clone();
+            let mut handlers = handlers.lock().await;
+            let diagnostics = handlers.did_open(params).await;
+            // Send diagnostics notification
+            let notification = serde_json::json!({
+                "jsonrpc": "2.0",
+                "method": "textDocument/publishDiagnostics",
+                "params": {
+                    "uri": uri.to_string(),
+                    "diagnostics": diagnostics
+                }
+            });
+            let _ = response_tx.send(serde_json::to_string(&notification).ok()?);
+            None
+        }
+        "textDocument/didChange" => {
+            let params: DidChangeTextDocumentParams =
+                serde_json::from_value(params?.clone()).ok()?;
+            let uri = params.text_document.uri.clone();
+            let mut handlers = handlers.lock().await;
+            let diagnostics = handlers.did_change(params).await;
+            // Send diagnostics notification
+            let notification = serde_json::json!({
+                "jsonrpc": "2.0",
+                "method": "textDocument/publishDiagnostics",
+                "params": {
+                    "uri": uri.to_string(),
+                    "diagnostics": diagnostics
+                }
+            });
+            let _ = response_tx.send(serde_json::to_string(&notification).ok()?);
+            None
+        }
+        "textDocument/didClose" => {
+            let params: DidCloseTextDocumentParams =
+                serde_json::from_value(params?.clone()).ok()?;
+            let mut handlers = handlers.lock().await;
+            handlers.did_close(params);
+            None
+        }
+        "fhirpath/setContext" => {
+            let params: SetContextParams = serde_json::from_value(params?.clone()).ok()?;
+            let mut handlers = handlers.lock().await;
+            handlers.set_context(params);
+            tracing::debug!("FHIRPath context updated via WebSocket");
+            None
+        }
+        "fhirpath/clearContext" => {
+            let mut handlers = handlers.lock().await;
+            handlers.clear_context();
+            tracing::debug!("FHIRPath context cleared via WebSocket");
+            None
+        }
+        "initialized" => {
+            tracing::info!("FHIRPath LSP server initialized via WebSocket");
+            None
+        }
+        _ => {
+            tracing::warn!("Unknown LSP method: {}", method);
+            if id.is_some() {
+                // Send error response for unknown requests
+                let response = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": id?,
+                    "error": {
+                        "code": -32601,
+                        "message": format!("Method not found: {}", method)
+                    }
+                });
+                Some(serde_json::to_string(&response).ok()?)
+            } else {
+                None
+            }
+        }
+    }
 }

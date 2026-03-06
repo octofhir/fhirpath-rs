@@ -119,7 +119,7 @@ impl CompletionContext {
     }
 
     /// Infer resource type from expression prefix
-    fn infer_resource_type(expression: &str) -> Option<String> {
+    pub fn infer_resource_type(expression: &str) -> Option<String> {
         // Simple heuristic: first identifier that starts with uppercase
         let trimmed = expression.trim_start();
         let first_part: String = trimmed
@@ -499,10 +499,24 @@ impl CompletionProvider {
         ]
     }
 
-    /// Generate resource type completions
+    /// Generate resource type completions from ModelProvider (with hardcoded fallback)
     async fn resource_type_completions(&self) -> Vec<CompletionItem> {
-        // Common FHIR resource types
-        // In a full implementation, this would query the ModelProvider
+        // Try to get resource types from ModelProvider
+        if let Ok(resource_types) = self.model_provider.get_resource_types().await
+            && !resource_types.is_empty()
+        {
+            return resource_types
+                .into_iter()
+                .map(|name| CompletionItem {
+                    label: name,
+                    kind: Some(CompletionItemKind::CLASS),
+                    detail: Some("FHIR Resource Type".to_string()),
+                    ..Default::default()
+                })
+                .collect();
+        }
+
+        // Fallback to common types when ModelProvider doesn't have resource types
         let common_types = [
             "Patient",
             "Observation",

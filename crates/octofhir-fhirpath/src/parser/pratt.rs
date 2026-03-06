@@ -31,7 +31,12 @@ use crate::ast::{
     IndexAccessNode, MethodCallNode, PropertyAccessNode, TypeCastNode, TypeCheckNode,
     UnaryOperationNode, UnaryOperator, UnionNode,
 };
-use crate::core::{FP0001, FhirPathError};
+use crate::core::{FP0001, FhirPathError, SourceLocation};
+
+/// Convert a chumsky `SimpleSpan` to a `SourceLocation`.
+fn span_to_loc(span: SimpleSpan) -> SourceLocation {
+    SourceLocation::new(0, 0, span.start, span.end - span.start)
+}
 
 /// Strip comments, decode HTML entities, and normalize whitespace from input
 fn preprocess_input(input: &str) -> Result<String, FhirPathError> {
@@ -204,13 +209,13 @@ fn fhirpath_parser<'a>()
                         .delimited_by(just('(').padded(), just(')').padded())
                         .or_not(),
                 )
-                .map(|(identifier, args)| {
+                .map_with(|(identifier, args), extra| {
                     if let ExpressionNode::Identifier(id_node) = identifier {
                         if let Some(arguments) = args {
                             ExpressionNode::FunctionCall(FunctionCallNode {
                                 name: id_node.name,
                                 arguments,
-                                location: None,
+                                location: Some(span_to_loc(extra.span())),
                             })
                         } else {
                             ExpressionNode::Identifier(id_node)
@@ -228,10 +233,10 @@ fn fhirpath_parser<'a>()
                 .separated_by(just(',').padded())
                 .collect::<Vec<_>>()
                 .delimited_by(just('{').padded(), just('}').padded())
-                .map(|elements| {
+                .map_with(|elements, extra| {
                     ExpressionNode::Collection(CollectionNode {
                         elements,
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 }),
         ));
@@ -242,18 +247,18 @@ fn fhirpath_parser<'a>()
         // Layer 1: Postfix and prefix operators (highest precedence)
         let with_postfix = atom.pratt((
             // Unary operators - precedence 11
-            prefix(11, just('-').padded(), |_, operand, _| {
+            prefix(11, just('-').padded(), |_, operand, extra| {
                 ExpressionNode::UnaryOperation(UnaryOperationNode {
                     operator: UnaryOperator::Negate,
                     operand: Box::new(operand),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            prefix(11, just("not").padded(), |_, operand, _| {
+            prefix(11, just("not").padded(), |_, operand, extra| {
                 ExpressionNode::UnaryOperation(UnaryOperationNode {
                     operator: UnaryOperator::Not,
                     operand: Box::new(operand),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
             // Postfix operators - highest precedence (12)
@@ -261,11 +266,11 @@ fn fhirpath_parser<'a>()
                 12,
                 expr.clone()
                     .delimited_by(just('[').padded(), just(']').padded()),
-                |expr, index, _| {
+                |expr, index, extra| {
                     ExpressionNode::IndexAccess(IndexAccessNode {
                         object: Box::new(expr),
                         index: Box::new(index),
-                        location: None,
+                        location: Some(span_to_loc(extra.span())),
                     })
                 },
             ),
@@ -278,7 +283,8 @@ fn fhirpath_parser<'a>()
                         .delimited_by(just('(').padded(), just(')').padded())
                         .or_not(),
                 ),
-                |expr, (identifier, args): (ExpressionNode, Option<Vec<ExpressionNode>>), _| {
+                |expr, (identifier, args): (ExpressionNode, Option<Vec<ExpressionNode>>), extra| {
+                    let loc = Some(span_to_loc(extra.span()));
                     let name = if let ExpressionNode::Identifier(id) = identifier {
                         id.name
                     } else {
@@ -290,14 +296,14 @@ fn fhirpath_parser<'a>()
                             object: Box::new(expr),
                             method: name.to_string(),
                             arguments,
-                            location: None,
+                            location: loc,
                         })
                     } else {
                         // Property access
                         ExpressionNode::PropertyAccess(PropertyAccessNode {
                             object: Box::new(expr),
                             property: name.to_string(),
-                            location: None,
+                            location: loc,
                         })
                     }
                 },
@@ -307,62 +313,62 @@ fn fhirpath_parser<'a>()
         // Layer 2: High precedence operators (type, multiplicative, additive, union)
         let with_high_precedence = with_postfix.pratt((
             // Multiplicative operators - precedence 11
-            infix(left(11), just('*').padded(), |left, _, right, _| {
+            infix(left(11), just('*').padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Multiply,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(11), just('/').padded(), |left, _, right, _| {
+            infix(left(11), just('/').padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Divide,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(11), just("div").padded(), |left, _, right, _| {
+            infix(left(11), just("div").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::IntegerDivide,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(11), just("mod").padded(), |left, _, right, _| {
+            infix(left(11), just("mod").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Modulo,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
             // Additive operators - precedence 10
-            infix(left(10), just('+').padded(), |left, _, right, _| {
+            infix(left(10), just('+').padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Add,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(10), just('-').padded(), |left, _, right, _| {
+            infix(left(10), just('-').padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Subtract,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
             // String concatenation - precedence 10 (same as additive, per FHIRPath spec level 5)
-            infix(left(10), just('&').padded(), |left, _, right, _| {
+            infix(left(10), just('&').padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Concatenate,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
         ));
@@ -370,103 +376,107 @@ fn fhirpath_parser<'a>()
         // Layer 3: Medium precedence operators (union, relational, equality, membership)
         let with_medium_precedence = with_high_precedence.pratt((
             // Union operator - precedence 8 (per FHIRPath spec level 7, binds looser than &)
-            infix(left(8), just('|').padded(), |left, _, right, _| {
+            infix(left(8), just('|').padded(), |left, _, right, extra| {
                 ExpressionNode::Union(UnionNode {
                     left: Box::new(left),
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
             // Relational operators - precedence 7
-            infix(left(7), just("<=").padded(), |left, _, right, _| {
+            infix(left(7), just("<=").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::LessThanOrEqual,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(7), just(">=").padded(), |left, _, right, _| {
+            infix(left(7), just(">=").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::GreaterThanOrEqual,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(7), just("<").padded(), |left, _, right, _| {
+            infix(left(7), just("<").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::LessThan,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(7), just(">").padded(), |left, _, right, _| {
+            infix(left(7), just(">").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::GreaterThan,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
             // Equality operators - precedence 6
-            infix(left(6), just("=").padded(), |left, _, right, _| {
+            infix(left(6), just("=").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Equal,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(6), just("!=").padded(), |left, _, right, _| {
+            infix(left(6), just("!=").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::NotEqual,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(6), just("~").padded(), |left, _, right, _| {
+            infix(left(6), just("~").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Equivalent,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(6), just("!~").padded(), |left, _, right, _| {
+            infix(left(6), just("!~").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::NotEquivalent,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
             // Membership operators - precedence 5
-            infix(left(5), just("in").padded(), |left, _, right, _| {
+            infix(left(5), just("in").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::In,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            infix(left(5), just("contains").padded(), |left, _, right, _| {
-                ExpressionNode::BinaryOperation(BinaryOperationNode {
-                    left: Box::new(left),
-                    operator: BinaryOperator::Contains,
-                    right: Box::new(right),
-                    location: None,
-                })
-            }),
+            infix(
+                left(5),
+                just("contains").padded(),
+                |left, _, right, extra| {
+                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::Contains,
+                        right: Box::new(right),
+                        location: Some(span_to_loc(extra.span())),
+                    })
+                },
+            ),
             // String concatenation - precedence 8 (higher than equality)
-            infix(left(8), just('&').padded(), |left, _, right, _| {
+            infix(left(8), just('&').padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Concatenate,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
         ));
@@ -474,14 +484,13 @@ fn fhirpath_parser<'a>()
         // Layer 4: Low precedence logical operators (and, xor, or, implies)
         with_medium_precedence.pratt((
             // Type operators - precedence 3.5 (lower than membership, same as XOR but evaluated first)
-            infix(
-                left(3),
-                just("is").padded(),
-                |left, _, right, _| match right {
+            infix(left(3), just("is").padded(), |left, _, right, extra| {
+                let loc = Some(span_to_loc(extra.span()));
+                match right {
                     ExpressionNode::Identifier(ident) => ExpressionNode::TypeCheck(TypeCheckNode {
                         expression: Box::new(left),
                         target_type: ident.name,
-                        location: None,
+                        location: loc,
                     }),
                     ExpressionNode::PropertyAccess(prop) => {
                         if let ExpressionNode::Identifier(base) = *prop.object {
@@ -489,14 +498,14 @@ fn fhirpath_parser<'a>()
                             ExpressionNode::TypeCheck(TypeCheckNode {
                                 expression: Box::new(left),
                                 target_type,
-                                location: None,
+                                location: loc,
                             })
                         } else {
                             ExpressionNode::BinaryOperation(BinaryOperationNode {
                                 left: Box::new(left),
                                 operator: BinaryOperator::Is,
                                 right: Box::new(ExpressionNode::PropertyAccess(prop)),
-                                location: None,
+                                location: loc,
                             })
                         }
                     }
@@ -504,18 +513,17 @@ fn fhirpath_parser<'a>()
                         left: Box::new(left),
                         operator: BinaryOperator::Is,
                         right: Box::new(other),
-                        location: None,
+                        location: loc,
                     }),
-                },
-            ),
-            infix(
-                left(3),
-                just("as").padded(),
-                |left, _, right, _| match right {
+                }
+            }),
+            infix(left(3), just("as").padded(), |left, _, right, extra| {
+                let loc = Some(span_to_loc(extra.span()));
+                match right {
                     ExpressionNode::Identifier(ident) => ExpressionNode::TypeCast(TypeCastNode {
                         expression: Box::new(left),
                         target_type: ident.name,
-                        location: None,
+                        location: loc,
                     }),
                     ExpressionNode::PropertyAccess(prop) => {
                         if let ExpressionNode::Identifier(base) = *prop.object {
@@ -523,14 +531,14 @@ fn fhirpath_parser<'a>()
                             ExpressionNode::TypeCast(TypeCastNode {
                                 expression: Box::new(left),
                                 target_type,
-                                location: None,
+                                location: loc,
                             })
                         } else {
                             ExpressionNode::BinaryOperation(BinaryOperationNode {
                                 left: Box::new(left),
                                 operator: BinaryOperator::As,
                                 right: Box::new(ExpressionNode::PropertyAccess(prop)),
-                                location: None,
+                                location: loc,
                             })
                         }
                     }
@@ -538,46 +546,50 @@ fn fhirpath_parser<'a>()
                         left: Box::new(left),
                         operator: BinaryOperator::As,
                         right: Box::new(other),
-                        location: None,
+                        location: loc,
                     }),
-                },
-            ),
+                }
+            }),
             // Logical AND - precedence 4
-            infix(left(4), just("and").padded(), |left, _, right, _| {
+            infix(left(4), just("and").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::And,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            // Logical XOR - precedence 3 (NOW SUPPORTED!)
-            infix(left(3), just("xor").padded(), |left, _, right, _| {
+            // Logical XOR - precedence 3
+            infix(left(3), just("xor").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Xor,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
             // Logical OR - precedence 2
-            infix(left(2), just("or").padded(), |left, _, right, _| {
+            infix(left(2), just("or").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Or,
                     right: Box::new(right),
-                    location: None,
+                    location: Some(span_to_loc(extra.span())),
                 })
             }),
-            // Logical implies - precedence 1 (NOW SUPPORTED! Right-associative)
-            infix(right(1), just("implies").padded(), |left, _, right, _| {
-                ExpressionNode::BinaryOperation(BinaryOperationNode {
-                    left: Box::new(left),
-                    operator: BinaryOperator::Implies,
-                    right: Box::new(right),
-                    location: None,
-                })
-            }),
+            // Logical implies - precedence 1 (right-associative)
+            infix(
+                right(1),
+                just("implies").padded(),
+                |left, _, right, extra| {
+                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::Implies,
+                        right: Box::new(right),
+                        location: Some(span_to_loc(extra.span())),
+                    })
+                },
+            ),
         ))
     })
     .padded() // Use padded to handle trailing whitespace
