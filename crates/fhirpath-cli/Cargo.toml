@@ -51,7 +51,7 @@ base64 = { version = "0.22", optional = true }
 
 # CLI dependencies
 clap = { workspace = true }
-clap_complete = "4.5"    # Shell completion generation
+clap_complete = "4.6"    # Shell completion generation
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
