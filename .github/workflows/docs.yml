@@ -41,7 +41,7 @@ jobs:
           cargo run --package fhirpath-dev-tools --bin generate-docs -- --out docs/src/content/docs
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: 9
 
