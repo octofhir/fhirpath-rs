@@ -279,29 +279,15 @@ impl LazyFunctionEvaluator for AsFunctionEvaluator {
             ));
         }
 
-        // Handle input collection based on size
-        // Per FHIRPath spec, as() requires at most one item in the input collection.
-        // If there are multiple items, it's an error.
-        let input_len = input.len();
-        if input_len > 1 {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                format!(
-                    "as() function requires input collection with at most 1 item, got {}",
-                    input_len
-                ),
-            ));
-        }
-
-        // Process input collection (0 or 1 item)
-        let mut casted_items = Vec::new();
-
+        // FHIR's own invariants (notably `dom-3`, `dom-4`) apply `as()` to
+        // multi-item collections like `descendants().as(canonical)`. Apply
+        // the cast per-item, equivalent to `ofType()` on a collection: items
+        // that cast successfully are kept, others are dropped.
+        let mut casted_items = Vec::with_capacity(input.len());
         for item in input {
-            // Attempt strict type casting using ModelProvider
             if let Some(casted_value) = self.strict_type_cast(&item, &type_name, context) {
                 casted_items.push(casted_value);
             }
-            // If casting fails, the item is not included in the result (empty collection)
         }
 
         Ok(EvaluationResult {
