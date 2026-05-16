@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2026-02-19
+Generated on: 2026-05-16
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -13,8 +13,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 15 | 100% |
 | **Total Individual Tests** | 1176 | 100% |
-| **Passing Tests** | 1176 | 100.0% |
-| **Failing Tests** | 0 | 0.0% |
+| **Passing Tests** | 1175 | 99.9% |
+| **Failing Tests** | 1 | 0.1% |
 | **Error Tests** | 0 | 0.0% |
 
 ## Test Results by Suite
@@ -49,13 +49,13 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 - **math_operations.json** - 100.0% (147/147 tests) (Complete)
 
-### ✅ OTHER (100.0% - 401/401 tests)
+### 🟡 OTHER (99.8% - 400/401 tests)
 
 - **advanced_features.json** - 100.0% (2/2 tests) (Complete)
 - **factory_functions.json** - 100.0% (16/16 tests) (Complete)
 - **fhir_functions.json** - 100.0% (15/15 tests) (Complete)
 - **integration_tests.json** - 100.0% (2/2 tests) (Complete)
-- **other_operations.json** - 100.0% (366/366 tests) (Complete)
+- **other_operations.json** - 99.7% (365/366 tests) (Partial)
 
 ### ✅ STRING (100.0% - 98/98 tests)
 
@@ -78,12 +78,11 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **factory_functions.json** - 16/16 tests (other)
 - **fhir_functions.json** - 15/15 tests (other)
 - **integration_tests.json** - 2/2 tests (other)
-- **other_operations.json** - 366/366 tests (other)
 - **string_operations.json** - 98/98 tests (string)
 
 ### 🟡 Well Implemented (70%+)
 
-None currently.
+- **other_operations.json** - 99.7% (365/366 tests) (other)
 
 ### 🟠 Partially Implemented (30-70%)
 
@@ -95,14 +94,14 @@ None currently.
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **100.0% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **99.9% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 15
 - **Total Tests**: 1176
-- **Pass Rate**: 100.0%
+- **Pass Rate**: 99.9%
 
 ---
 
-*Report generated on: 2026-02-19 21:18:44*
+*Report generated on: 2026-05-16 19:39:53*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*

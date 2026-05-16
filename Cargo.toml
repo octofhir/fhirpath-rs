@@ -17,16 +17,16 @@ homepage = "https://github.com/octofhir/fhirpath-rs"
 
 [workspace.dependencies]
 # Core dependencies
-anyhow = "1"
+anyhow = "1.0.102"
 base64 = "0.22.1"
-chrono = { version = "0.4.43", features = ["serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 glob = "0.3"
 hex = "0.4"
 indexmap = "2.14.0"
 log = "0.4"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
 octofhir-fhir-model = { version="0.1.11", features = ["serde", "http-client"] }
-octofhir-canonical-manager = { version = "0.1.26" }
+octofhir-canonical-manager = { version = "0.2.1" }
 papaya = "0.2"
 url = "2.5"
 percent-encoding = "2.3"
@@ -43,11 +43,11 @@ pprof = { version = "0.15.0", features = ["flamegraph"] }
 
 rayon = "1"
 tracing = "0.1"
-uuid = { version = "1.23", features = ["v4", "serde"] }
+uuid = { version = "1.23.1", features = ["v4", "serde"] }
 
 async-trait = "0.1"
 futures = "0.3"
-tokio = { version = "1.52.1", features = ["full"] }
+tokio = { version = "1.52.3", features = ["full"] }
 
 reqwest = { version = "0.13", features = [
     "json",
