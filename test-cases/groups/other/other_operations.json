@@ -4847,14 +4847,21 @@
       "expression": "Patient.name.as(HumanName).use",
       "input": null,
       "inputfile": "patient-example.json",
-      "expected": [],
+      "expected": [
+        "official",
+        "usual",
+        "maiden"
+      ],
       "tags": [
         "r5-xml",
         "testInheritance",
         "other_operations"
       ],
-      "expectError": true,
-      "invalidKind": "execution",
+      "outputTypes": [
+        "code",
+        "code",
+        "code"
+      ],
       "subcategory": "type_checking"
     },
     {
