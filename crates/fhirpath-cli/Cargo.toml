@@ -60,7 +60,7 @@ anyhow = { workspace = true }
 colored = { workspace = true }
 reedline = { version = "0.44", optional = true }
 fuzzy-matcher = { version = "0.3", optional = true }
-tabled = "0.20"
+tabled = "0.21"
 human-panic = "2.0"
 
 # Modern CLI enhancement libraries

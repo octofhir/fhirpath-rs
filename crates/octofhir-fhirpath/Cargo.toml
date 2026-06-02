@@ -47,7 +47,7 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 chumsky = { version = "0.13", features = ["pratt"] }
 ariadne = "0.6"
-tabled = "0.20"
+tabled = "0.21"
 
 url = { workspace = true }
 parking_lot = { workspace = true }
