@@ -62,7 +62,7 @@ impl EquivalentOperatorEvaluator {
     /// Compare a FHIR Resource (quantity) with a FHIRPath quantity
     fn compare_fhir_quantity_with_fhirpath_quantity(
         &self,
-        fhir_json: &serde_json::Value,
+        fhir_json: &crate::core::node::FhirNode,
         type_info: &TypeInfo,
         fhirpath_value: Decimal,
         fhirpath_unit: &Option<String>,

@@ -65,7 +65,7 @@ impl ProviderPureFunctionEvaluator for ServerPatchFunctionEvaluator {
         }
 
         let parameters = match args.first().and_then(|a| a.first()) {
-            Some(FhirPathValue::Resource(json, _, _)) => json.as_ref().clone(),
+            Some(FhirPathValue::Resource(json, _, _)) => json.to_json(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0056,

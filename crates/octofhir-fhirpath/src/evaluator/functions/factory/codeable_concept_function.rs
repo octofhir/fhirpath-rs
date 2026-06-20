@@ -83,7 +83,7 @@ impl PureFunctionEvaluator for FactoryCodeableConceptFunctionEvaluator {
         for coding_value in codings_arg {
             match coding_value {
                 FhirPathValue::Resource(json, _, _) => {
-                    coding_array.push(json.as_ref().clone());
+                    coding_array.push(json.to_json());
                 }
                 _ => {
                     // Skip non-resource values

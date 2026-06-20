@@ -107,7 +107,7 @@ impl ProviderPureFunctionEvaluator for ElementDefinitionFunctionEvaluator {
 
             return Ok(EvaluationResult {
                 value: Collection::single(FhirPathValue::Resource(
-                    Arc::new(serde_json::Value::Object(result_obj)),
+                    crate::core::node::FhirNode::from_json(&serde_json::Value::Object(result_obj)),
                     type_info,
                     None,
                 )),

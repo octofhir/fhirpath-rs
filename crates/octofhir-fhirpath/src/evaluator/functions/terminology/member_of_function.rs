@@ -84,14 +84,14 @@ impl MemberOfFunctionEvaluator {
                     // Check if it's a CodeableConcept resource
                     else if let Some(coding_array) = resource.get("coding") {
                         if let Some(coding_list) = coding_array.as_array() {
-                            for coding_value in coding_list {
-                                if let Some(coding_obj) = coding_value.as_object() {
-                                    let system = coding_obj
+                            for coding_value in coding_list.iter() {
+                                if coding_value.is_object() {
+                                    let system = coding_value
                                         .get("system")
                                         .and_then(|s| s.as_str())
                                         .map(|s| s.to_string());
 
-                                    let code = coding_obj
+                                    let code = coding_value
                                         .get("code")
                                         .and_then(|c| c.as_str())
                                         .ok_or_else(|| {

@@ -123,7 +123,7 @@ impl PureFunctionEvaluator for FactoryIdentifierFunctionEvaluator {
         if let Some(type_value) = args.get(3).and_then(|a| a.first())
             && let FhirPathValue::Resource(json, _, _) = type_value
         {
-            identifier.insert("type".to_string(), json.as_ref().clone());
+            identifier.insert("type".to_string(), json.to_json());
         }
 
         let type_info = Arc::new(TypeInfo::new_complex("Identifier"));

@@ -143,7 +143,7 @@ impl PureFunctionEvaluator for TypeFunctionEvaluator {
             });
 
             results.push(FhirPathValue::Resource(
-                Arc::new(type_info),
+                crate::core::node::FhirNode::from_json(&type_info),
                 default_type_info,
                 None, // No primitive element
             ));

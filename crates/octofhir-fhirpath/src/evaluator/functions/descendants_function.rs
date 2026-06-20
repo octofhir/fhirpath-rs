@@ -84,13 +84,14 @@ impl DescendantsFunctionEvaluator {
 
     /// Estimate the number of descendants for capacity pre-allocation.
     /// This is a heuristic based on typical FHIR resource structure.
-    fn estimate_descendant_count(json: &serde_json::Value) -> usize {
+    fn estimate_descendant_count(json: &crate::core::node::FhirNode) -> usize {
+        use crate::core::node::FhirNode;
         match json {
-            serde_json::Value::Object(map) => {
+            FhirNode::Object(map) => {
                 // Estimate ~3 descendants per top-level field on average
                 map.len() * 3
             }
-            serde_json::Value::Array(arr) => arr.len() * 2,
+            FhirNode::Array(arr) => arr.len() * 2,
             _ => 0,
         }
     }
@@ -98,21 +99,22 @@ impl DescendantsFunctionEvaluator {
     /// Iterative implementation using explicit stack to avoid recursion overhead.
     fn collect_json_descendants_iterative(
         &self,
-        root: &serde_json::Value,
+        root: &crate::core::node::FhirNode,
         descendants: &mut Vec<FhirPathValue>,
     ) {
+        use crate::core::node::FhirNode;
         // Use a stack of references to avoid cloning during traversal
-        let mut stack: Vec<&serde_json::Value> = vec![root];
+        let mut stack: Vec<&FhirNode> = vec![root];
 
         while let Some(json) = stack.pop() {
             match json {
-                serde_json::Value::Object(map) => {
-                    for (_, value) in map {
+                FhirNode::Object(_) => {
+                    for (_, value) in json.entries() {
                         match value {
-                            serde_json::Value::Array(_) => {
+                            FhirNode::Array(_) => {
                                 stack.push(value);
                             }
-                            serde_json::Value::Object(_) => {
+                            FhirNode::Object(_) => {
                                 if let Ok(fhir_value) = self.json_to_fhirpath_value(value) {
                                     descendants.push(fhir_value);
                                 }
@@ -126,13 +128,13 @@ impl DescendantsFunctionEvaluator {
                         }
                     }
                 }
-                serde_json::Value::Array(arr) => {
-                    for item in arr {
+                FhirNode::Array(arr) => {
+                    for item in arr.iter() {
                         match item {
-                            serde_json::Value::Array(_) => {
+                            FhirNode::Array(_) => {
                                 stack.push(item);
                             }
-                            serde_json::Value::Object(_) => {
+                            FhirNode::Object(_) => {
                                 if let Ok(fhir_value) = self.json_to_fhirpath_value(item) {
                                     descendants.push(fhir_value);
                                 }
@@ -153,10 +155,11 @@ impl DescendantsFunctionEvaluator {
         }
     }
 
-    fn json_to_fhirpath_value(&self, json: &serde_json::Value) -> Result<FhirPathValue> {
+    fn json_to_fhirpath_value(&self, json: &crate::core::node::FhirNode) -> Result<FhirPathValue> {
+        use crate::core::node::FhirNode;
         match json {
-            serde_json::Value::String(s) => Ok(FhirPathValue::string(s.clone())),
-            serde_json::Value::Number(n) => {
+            FhirNode::Str(s) => Ok(FhirPathValue::string(s.to_string())),
+            FhirNode::Number(n) => {
                 if let Some(i) = n.as_i64() {
                     Ok(FhirPathValue::integer(i))
                 } else if let Some(f) = n.as_f64() {
@@ -167,10 +170,10 @@ impl DescendantsFunctionEvaluator {
                     Ok(FhirPathValue::string(n.to_string()))
                 }
             }
-            serde_json::Value::Bool(b) => Ok(FhirPathValue::boolean(*b)),
-            serde_json::Value::Object(map) => {
+            FhirNode::Bool(b) => Ok(FhirPathValue::boolean(*b)),
+            FhirNode::Object(_) => {
                 let type_info = if let Some(resource_type) =
-                    map.get("resourceType").and_then(|value| value.as_str())
+                    json.get("resourceType").and_then(|value| value.as_str())
                 {
                     Arc::new(TypeInfo {
                         type_name: resource_type.to_string(),
@@ -179,23 +182,19 @@ impl DescendantsFunctionEvaluator {
                         name: Some(resource_type.to_string()),
                         is_empty: Some(false),
                     })
-                } else if map.get("reference").is_some() {
+                } else if json.get("reference").is_some() {
                     REFERENCE_TYPE_INFO.clone()
                 } else {
                     ELEMENT_TYPE_INFO.clone()
                 };
 
-                Ok(FhirPathValue::Resource(
-                    Arc::new(json.clone()),
-                    type_info,
-                    None,
-                ))
+                Ok(FhirPathValue::Resource(json.clone(), type_info, None))
             }
-            serde_json::Value::Array(_) => {
+            FhirNode::Array(_) => {
                 // Arrays are handled recursively
                 Ok(FhirPathValue::string(json.to_string()))
             }
-            serde_json::Value::Null => Ok(FhirPathValue::string("".to_string())),
+            FhirNode::Null => Ok(FhirPathValue::string("".to_string())),
         }
     }
 }

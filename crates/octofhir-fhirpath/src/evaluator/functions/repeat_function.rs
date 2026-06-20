@@ -304,7 +304,7 @@ impl RepeatFunctionEvaluator {
                     format!("resource:{rt}:{id}")
                 } else {
                     // Not a top-level resource or missing identifiers — derive a stable key from content
-                    match serde_json::to_string(json.as_ref()) {
+                    match serde_json::to_string(json) {
                         Ok(s) => format!("json:{s}"),
                         Err(_) => format!("json:{:?}", json),
                     }

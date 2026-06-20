@@ -75,7 +75,7 @@ impl ProviderPureFunctionEvaluator for ServerTransformFunctionEvaluator {
         }
 
         let source = match args.first().and_then(|a| a.first()) {
-            Some(FhirPathValue::Resource(json, _, _)) => json.as_ref().clone(),
+            Some(FhirPathValue::Resource(json, _, _)) => json.to_json(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0056,
@@ -85,7 +85,7 @@ impl ProviderPureFunctionEvaluator for ServerTransformFunctionEvaluator {
         };
 
         let content = match args.get(1).and_then(|a| a.first()) {
-            Some(FhirPathValue::Resource(json, _, _)) => json.as_ref().clone(),
+            Some(FhirPathValue::Resource(json, _, _)) => json.to_json(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0056,

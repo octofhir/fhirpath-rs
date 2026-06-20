@@ -46,13 +46,14 @@ impl ChildrenFunctionEvaluator {
     }
 
     /// Extract direct children from a JSON value
-    fn extract_children(&self, json: &serde_json::Value) -> Vec<FhirPathValue> {
+    fn extract_children(&self, json: &crate::core::node::FhirNode) -> Vec<FhirPathValue> {
+        use crate::core::node::FhirNode;
         let mut children = Vec::new();
 
         match json {
-            serde_json::Value::Object(map) => {
+            FhirNode::Object(_) => {
                 // For objects, add all property values as children
-                for (key, value) in map {
+                for (key, value) in json.entries() {
                     // Skip meta fields that aren't typically considered children in FHIRPath
                     if key.starts_with('_') || key == "resourceType" {
                         continue;
@@ -61,9 +62,9 @@ impl ChildrenFunctionEvaluator {
                     children.extend(self.convert_json_to_fhir_path_values(value));
                 }
             }
-            serde_json::Value::Array(arr) => {
+            FhirNode::Array(arr) => {
                 // For arrays, add all elements as children
-                for value in arr {
+                for value in arr.iter() {
                     children.extend(self.convert_json_to_fhir_path_values(value));
                 }
             }
@@ -77,10 +78,14 @@ impl ChildrenFunctionEvaluator {
 
     /// Convert JSON value to FhirPathValue(s)
     #[allow(clippy::only_used_in_recursion)]
-    fn convert_json_to_fhir_path_values(&self, json: &serde_json::Value) -> Vec<FhirPathValue> {
+    fn convert_json_to_fhir_path_values(
+        &self,
+        json: &crate::core::node::FhirNode,
+    ) -> Vec<FhirPathValue> {
+        use crate::core::node::FhirNode;
         match json {
-            serde_json::Value::String(s) => vec![FhirPathValue::string(s.clone())],
-            serde_json::Value::Number(n) => {
+            FhirNode::Str(s) => vec![FhirPathValue::string(s.to_string())],
+            FhirNode::Number(n) => {
                 if let Some(i) = n.as_i64() {
                     vec![FhirPathValue::integer(i)]
                 } else if let Some(f) = n.as_f64() {
@@ -93,19 +98,18 @@ impl ChildrenFunctionEvaluator {
                     vec![]
                 }
             }
-            serde_json::Value::Bool(b) => vec![FhirPathValue::boolean(*b)],
-            serde_json::Value::Array(arr) => {
+            FhirNode::Bool(b) => vec![FhirPathValue::boolean(*b)],
+            FhirNode::Array(arr) => {
                 let mut result = Vec::new();
-                for item in arr {
+                for item in arr.iter() {
                     result.extend(self.convert_json_to_fhir_path_values(item));
                 }
                 result
             }
-            serde_json::Value::Object(_) => {
-                // Objects become Resource FhirPathValues
-                vec![FhirPathValue::resource(json.clone())]
+            FhirNode::Object(_) => {
+                vec![FhirPathValue::resource_from_node(json.clone())]
             }
-            serde_json::Value::Null => vec![],
+            FhirNode::Null => vec![],
         }
     }
 }

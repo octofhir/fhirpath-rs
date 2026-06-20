@@ -182,7 +182,8 @@ fn convert_fhirpath_value_to_eval_result(value: &FhirPathValue) -> ModelEvalResu
         }
         FhirPathValue::Resource(json, type_info, _) => {
             // Convert JSON object to HashMap<String, EvaluationResult>
-            let map = if let Some(obj) = json.as_object() {
+            let json_value = json.to_json();
+            let map = if let Some(obj) = json_value.as_object() {
                 obj.iter()
                     .map(|(k, v)| {
                         let eval_result = json_value_to_eval_result(v);
@@ -350,7 +351,11 @@ pub fn eval_result_to_fhirpath_value(
                 .map(|(k, v)| (k.clone(), eval_result_to_json_value(v)))
                 .collect();
             let json_value = serde_json::Value::Object(json_map);
-            FhirPathValue::Resource(std::sync::Arc::new(json_value), ti, None)
+            FhirPathValue::Resource(
+                crate::core::node::FhirNode::from_json(&json_value),
+                ti,
+                None,
+            )
         }
     }
 }

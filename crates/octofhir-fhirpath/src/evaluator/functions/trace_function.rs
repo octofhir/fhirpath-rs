@@ -7,6 +7,7 @@ use crate::evaluator::function_registry::{
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+#[cfg(test)]
 use serde_json::Value as JsonValue;
 use stacker::maybe_grow;
 use std::sync::Arc;
@@ -163,19 +164,19 @@ fn truncate_to_length(mut input: String, limit: usize) -> String {
     input
 }
 
-fn format_trace_resource(json: &JsonValue, depth: usize) -> String {
+fn format_trace_resource(json: &crate::core::node::FhirNode, depth: usize) -> String {
     if depth >= TRACE_MAX_DEPTH {
         return "Resource[...]".to_string();
     }
 
-    if let Some(obj) = json.as_object() {
-        let mut descriptor = obj
+    if json.is_object() {
+        let mut descriptor = json
             .get("resourceType")
             .and_then(|v| v.as_str())
             .unwrap_or("Resource")
             .to_string();
 
-        if let Some(id) = obj.get("id").and_then(|v| v.as_str()) {
+        if let Some(id) = json.get("id").and_then(|v| v.as_str()) {
             descriptor.push('#');
             let truncated_id = truncate_literal_str(id);
             descriptor.push_str(&truncated_id);
@@ -183,7 +184,7 @@ fn format_trace_resource(json: &JsonValue, depth: usize) -> String {
 
         let mut field_names: Vec<String> = Vec::new();
         let mut total_fields = 0usize;
-        for key in obj.keys() {
+        for (key, _) in json.entries() {
             if key == "resourceType" || key == "id" {
                 continue;
             }
@@ -356,8 +357,9 @@ mod tests {
             JsonValue::String("1970-01-01".to_string()),
         );
         let json = JsonValue::Object(obj);
+        let node = crate::core::node::FhirNode::from_json(&json);
 
-        let formatted = format_trace_resource(&json, 0);
+        let formatted = format_trace_resource(&node, 0);
         assert!(formatted.contains("Patient#example"));
     }
 }

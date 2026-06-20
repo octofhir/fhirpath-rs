@@ -41,12 +41,18 @@ impl EqualsOperatorEvaluator {
     }
 
     /// Extract quantity information from a FHIR Quantity resource
-    fn extract_quantity_from_resource(&self, json: &serde_json::Value) -> Option<FhirPathValue> {
+    fn extract_quantity_from_resource(
+        &self,
+        json: &crate::core::node::FhirNode,
+    ) -> Option<FhirPathValue> {
         // Handle both numeric and string values in FHIR JSON
-        let value = match json.get("value")? {
-            serde_json::Value::Number(n) => n.as_f64()?,
-            serde_json::Value::String(s) => s.parse::<f64>().ok()?,
-            _ => return None,
+        let value_node = json.get("value")?;
+        let value = if let Some(n) = value_node.as_f64() {
+            n
+        } else if let Some(s) = value_node.as_str() {
+            s.parse::<f64>().ok()?
+        } else {
+            return None;
         };
         let unit_display = json
             .get("unit")
@@ -273,15 +279,7 @@ impl EqualsOperatorEvaluator {
             (
                 FhirPathValue::Resource(json1, type1, _),
                 FhirPathValue::Resource(json2, type2, _),
-            ) => {
-                // Fast path: if Arc pointers are the same, objects are identical
-                if std::sync::Arc::ptr_eq(json1, json2) {
-                    return Some(true);
-                }
-                // Resources are equal if they have the same type and JSON content
-                // JsonValue already implements proper equality for nested structures
-                Some(type1 == type2 && **json1 == **json2)
-            }
+            ) => Some(type1 == type2 && json1 == json2),
 
             // Different types are not equal
             _ => Some(false),

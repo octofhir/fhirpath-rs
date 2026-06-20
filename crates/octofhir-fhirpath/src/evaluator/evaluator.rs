@@ -138,27 +138,16 @@ impl Evaluator {
 
     fn collect_reference_descendants(
         &self,
-        root: &serde_json::Value,
+        root: &crate::core::node::FhirNode,
         results: &mut Vec<FhirPathValue>,
     ) {
-        let mut stack = vec![root];
+        use crate::core::node::FhirNode;
+        let mut stack: Vec<&FhirNode> = vec![root];
         while let Some(value) = stack.pop() {
             match value {
-                serde_json::Value::Object(map) => {
-                    if map
-                        .get("resourceType")
-                        .and_then(|value| value.as_str())
-                        .is_some()
-                    {
-                        for child in map.values() {
-                            if matches!(
-                                child,
-                                serde_json::Value::Object(_) | serde_json::Value::Array(_)
-                            ) {
-                                stack.push(child);
-                            }
-                        }
-                    } else if map.get("reference").is_some() {
+                FhirNode::Object(_) => {
+                    let is_resource = value.get("resourceType").and_then(|v| v.as_str()).is_some();
+                    if !is_resource && value.get("reference").is_some() {
                         let type_info = Arc::new(crate::core::model_provider::TypeInfo {
                             type_name: "Reference".to_string(),
                             singleton: Some(true),
@@ -166,36 +155,17 @@ impl Evaluator {
                             name: Some("Reference".to_string()),
                             is_empty: Some(false),
                         });
-                        results.push(FhirPathValue::Resource(
-                            Arc::new(value.clone()),
-                            type_info,
-                            None,
-                        ));
-                        for child in map.values() {
-                            if matches!(
-                                child,
-                                serde_json::Value::Object(_) | serde_json::Value::Array(_)
-                            ) {
-                                stack.push(child);
-                            }
-                        }
-                    } else {
-                        for child in map.values() {
-                            if matches!(
-                                child,
-                                serde_json::Value::Object(_) | serde_json::Value::Array(_)
-                            ) {
-                                stack.push(child);
-                            }
+                        results.push(FhirPathValue::Resource(value.clone(), type_info, None));
+                    }
+                    for (_k, child) in value.entries() {
+                        if child.is_object() || child.is_array() {
+                            stack.push(child);
                         }
                     }
                 }
-                serde_json::Value::Array(arr) => {
-                    for item in arr {
-                        if matches!(
-                            item,
-                            serde_json::Value::Object(_) | serde_json::Value::Array(_)
-                        ) {
+                FhirNode::Array(arr) => {
+                    for item in arr.iter() {
+                        if item.is_object() || item.is_array() {
                             stack.push(item);
                         }
                     }
@@ -227,7 +197,7 @@ impl Evaluator {
         let mut results = Vec::new();
         for item in receiver_result.value.iter() {
             if let FhirPathValue::Resource(json, _, _) = item {
-                self.collect_reference_descendants(json.as_ref(), &mut results);
+                self.collect_reference_descendants(json, &mut results);
             }
         }
 
@@ -899,8 +869,8 @@ impl Evaluator {
                                     is_empty: Some(false),
                                 });
 
-                            let resource_value = FhirPathValue::wrap_value(
-                                crate::core::value::utils::json_to_fhirpath_value((**json).clone()),
+                            let resource_value = FhirPathValue::Resource(
+                                json.clone(),
                                 std::sync::Arc::new(resource_type_info),
                                 None,
                             );
@@ -942,7 +912,7 @@ impl Evaluator {
                         if !property_value.is_array() && !property_value.is_object() {
                             let wrapped = self
                                 .wrap_json_with_type(
-                                    property_value.clone(),
+                                    property_value,
                                     &property_type_info,
                                     identifier,
                                     json,
@@ -1035,7 +1005,7 @@ impl Evaluator {
                                 if !property_value.is_array() && !property_value.is_object() {
                                     let wrapped = self
                                         .wrap_json_with_type(
-                                            property_value.clone(),
+                                            property_value,
                                             &property_type_info,
                                             identifier,
                                             json,
@@ -1169,7 +1139,7 @@ impl Evaluator {
                                     // Build complete JSON for extension including value and nested extensions
                                     let json = ext.to_json();
                                     let ext_value = FhirPathValue::Resource(
-                                        std::sync::Arc::new(json),
+                                        crate::core::node::FhirNode::from_json(&json),
                                         ext_type_info.clone(),
                                         None,
                                     );
@@ -1190,10 +1160,11 @@ impl Evaluator {
     /// Navigate choice type properties (valueX patterns) with enhanced ModelProvider integration
     async fn navigate_choice_property(
         &self,
-        json: &serde_json::Value,
+        json: &crate::core::node::FhirNode,
         base_property: &str,
         parent_type: &str,
     ) -> Result<Vec<FhirPathValue>> {
+        use crate::core::node::FhirNode;
         let mut results = Vec::new();
 
         // Use ModelProvider to get choice type metadata
@@ -1236,11 +1207,11 @@ impl Evaluator {
 
                     // Handle array vs single values
                     match property_value {
-                        serde_json::Value::Array(array) => {
-                            for item in array {
+                        FhirNode::Array(array) => {
+                            for item in array.iter() {
                                 let wrapped_value = self
                                     .wrap_json_with_type(
-                                        item.clone(),
+                                        item,
                                         &choice_type_info,
                                         &property_name,
                                         json,
@@ -1252,7 +1223,7 @@ impl Evaluator {
                         _ => {
                             let wrapped_value = self
                                 .wrap_json_with_type(
-                                    property_value.clone(),
+                                    property_value,
                                     &choice_type_info,
                                     &property_name,
                                     json,
@@ -1293,12 +1264,7 @@ impl Evaluator {
                         };
 
                         let wrapped_value = self
-                            .wrap_json_with_type(
-                                property_value.clone(),
-                                &type_info,
-                                &property_name,
-                                json,
-                            )
+                            .wrap_json_with_type(property_value, &type_info, &property_name, json)
                             .await?;
                         results.push(wrapped_value);
                     }
@@ -1312,7 +1278,7 @@ impl Evaluator {
     /// Enhanced extension handling with proper URL filtering and nested support
     async fn navigate_extension_property(
         &self,
-        json: &serde_json::Value,
+        json: &crate::core::node::FhirNode,
         property_name: &str,
     ) -> Result<Vec<FhirPathValue>> {
         let mut results = Vec::new();
@@ -1338,14 +1304,14 @@ impl Evaluator {
     /// Get all extensions from a property
     async fn get_extensions(
         &self,
-        json: &serde_json::Value,
+        json: &crate::core::node::FhirNode,
         extension_property: &str,
     ) -> Result<Vec<FhirPathValue>> {
         let mut results = Vec::new();
 
         if let Some(extensions) = json.get(extension_property).and_then(|e| e.as_array()) {
-            for ext in extensions {
-                let extension_value = self.wrap_extension(ext.clone()).await?;
+            for ext in extensions.iter() {
+                let extension_value = self.wrap_extension(ext.to_json()).await?;
                 results.push(extension_value);
             }
         }
@@ -1356,35 +1322,34 @@ impl Evaluator {
     /// Filter extensions by URL with support for nested extensions
     async fn filter_extensions_by_url(
         &self,
-        json: &serde_json::Value,
+        json: &crate::core::node::FhirNode,
         target_url: &str,
     ) -> Result<Vec<FhirPathValue>> {
         let mut results = Vec::new();
 
         // Check main extensions
         if let Some(extensions) = json.get("extension").and_then(|e| e.as_array()) {
-            results.extend(self.find_extensions_by_url(extensions, target_url).await?);
+            let exts: Vec<serde_json::Value> = extensions.iter().map(|e| e.to_json()).collect();
+            results.extend(self.find_extensions_by_url(&exts, target_url).await?);
         }
 
         // Check modifier extensions
         if let Some(modifier_extensions) = json.get("modifierExtension").and_then(|e| e.as_array())
         {
-            results.extend(
-                self.find_extensions_by_url(modifier_extensions, target_url)
-                    .await?,
-            );
+            let exts: Vec<serde_json::Value> =
+                modifier_extensions.iter().map(|e| e.to_json()).collect();
+            results.extend(self.find_extensions_by_url(&exts, target_url).await?);
         }
 
         // Check primitive element extensions (e.g., _value.extension)
-        for (key, value) in json.as_object().unwrap_or(&serde_json::Map::new()) {
+        for (key, value) in json.entries() {
             if key.starts_with('_')
                 && let Some(primitive_extensions) =
                     value.get("extension").and_then(|e| e.as_array())
             {
-                results.extend(
-                    self.find_extensions_by_url(primitive_extensions, target_url)
-                        .await?,
-                );
+                let exts: Vec<serde_json::Value> =
+                    primitive_extensions.iter().map(|e| e.to_json()).collect();
+                results.extend(self.find_extensions_by_url(&exts, target_url).await?);
             }
         }
 
@@ -1441,7 +1406,7 @@ impl Evaluator {
     /// This scans the JSON for properties starting with base name and validates them
     async fn detect_choice_values(
         &self,
-        json: &serde_json::Value,
+        json: &crate::core::node::FhirNode,
         base_property: &str,
     ) -> Result<Vec<FhirPathValue>> {
         let mut results = Vec::new();
@@ -1455,17 +1420,17 @@ impl Evaluator {
         // Find all properties that start with base_property and are longer than base_property
         // AND the suffix starts with uppercase letter (valid FHIR choice type pattern)
         let possible_choices: Vec<String> = json_obj
-            .keys()
+            .iter()
+            .map(|(k, _)| k.as_ref().to_string())
             .filter(|key| {
                 key.starts_with(base_property)
-                    && key != &base_property
+                    && key.as_str() != base_property
                     && key.len() > base_property.len()
                     && key
                         .chars()
                         .nth(base_property.len())
                         .is_some_and(|c| c.is_uppercase())
             })
-            .cloned()
             .collect();
 
         if possible_choices.is_empty() {
@@ -1474,7 +1439,7 @@ impl Evaluator {
 
         // Process each potential choice property
         for choice_property in possible_choices {
-            if let Some(property_value) = json_obj.get(&choice_property) {
+            if let Some(property_value) = json.get(&choice_property) {
                 // Skip null or undefined values
                 if property_value.is_null() {
                     continue;
@@ -1568,7 +1533,7 @@ impl Evaluator {
     #[allow(dead_code)]
     async fn find_choice_type_value(
         &self,
-        json: &serde_json::Value,
+        json: &crate::core::node::FhirNode,
         base_property: &str,
         _choices: &[crate::core::model_provider::ChoiceTypeInfo],
     ) -> Result<Vec<FhirPathValue>> {
@@ -1704,13 +1669,14 @@ impl Evaluator {
     /// Navigate property with array flattening (following FHIRPath semantics)
     async fn navigate_property_with_flattening(
         &self,
-        property_value: &serde_json::Value,
+        property_value: &crate::core::node::FhirNode,
         type_info: &crate::core::model_provider::TypeInfo,
     ) -> Result<Vec<FhirPathValue>> {
+        use crate::core::node::FhirNode;
         let mut results = Vec::new();
 
         match property_value {
-            serde_json::Value::Array(arr) => {
+            FhirNode::Array(arr) => {
                 let element_type_info =
                     std::sync::Arc::new(crate::core::model_provider::TypeInfo {
                         type_name: type_info
@@ -1724,9 +1690,9 @@ impl Evaluator {
                         is_empty: Some(false),
                     });
 
-                for element in arr {
+                for element in arr.iter() {
                     let fhir_value = match element {
-                        serde_json::Value::Object(_) => {
+                        FhirNode::Object(_) => {
                             // Check if this is a Quantity type that should be converted to FhirPathValue::Quantity
                             if element_type_info.type_name == "Quantity"
                                 || element_type_info.name.as_deref() == Some("Quantity")
@@ -1739,14 +1705,14 @@ impl Evaluator {
                                 } else {
                                     // If quantity extraction fails, fall back to Resource
                                     FhirPathValue::Resource(
-                                        std::sync::Arc::new(element.clone()),
+                                        element.clone(),
                                         element_type_info.clone(),
                                         None,
                                     )
                                 }
                             } else {
                                 FhirPathValue::Resource(
-                                    std::sync::Arc::new(element.clone()),
+                                    element.clone(),
                                     element_type_info.clone(),
                                     None,
                                 )
@@ -1759,7 +1725,7 @@ impl Evaluator {
                             } else {
                                 FhirPathValue::wrap_value(
                                     crate::core::value::utils::json_to_fhirpath_value(
-                                        element.clone(),
+                                        element.to_json(),
                                     ),
                                     element_type_info.clone(),
                                     None,
@@ -1785,11 +1751,8 @@ impl Evaluator {
                     });
 
                 if property_value.is_object() && property_value.get("resourceType").is_some() {
-                    // This is a true FHIR resource
-                    let base_value =
-                        crate::core::value::utils::json_to_fhirpath_value(property_value.clone());
-                    results.push(FhirPathValue::wrap_value(
-                        base_value,
+                    results.push(FhirPathValue::Resource(
+                        property_value.clone(),
                         element_type_info.clone(),
                         None,
                     ));
@@ -1806,7 +1769,7 @@ impl Evaluator {
                         } else {
                             // If quantity extraction fails, fall back to Resource
                             let fhir_value = FhirPathValue::Resource(
-                                std::sync::Arc::new(property_value.clone()),
+                                property_value.clone(),
                                 element_type_info.clone(),
                                 None,
                             );
@@ -1815,7 +1778,7 @@ impl Evaluator {
                     } else {
                         // This is a complex FHIR type - create Resource with correct type info from model provider
                         let fhir_value = FhirPathValue::Resource(
-                            std::sync::Arc::new(property_value.clone()),
+                            property_value.clone(),
                             element_type_info.clone(),
                             None,
                         );
@@ -1831,7 +1794,7 @@ impl Evaluator {
                     } else {
                         // Use json conversion but wrap with correct type info
                         let base_value = crate::core::value::utils::json_to_fhirpath_value(
-                            property_value.clone(),
+                            property_value.to_json(),
                         );
                         results.push(FhirPathValue::wrap_value(
                             base_value,
@@ -1901,12 +1864,18 @@ impl Evaluator {
     }
 
     /// Extract quantity value from FHIR Quantity JSON with UCUM unit parsing support
-    async fn extract_quantity_from_json(&self, json: &serde_json::Value) -> Option<FhirPathValue> {
+    async fn extract_quantity_from_json(
+        &self,
+        json: &crate::core::node::FhirNode,
+    ) -> Option<FhirPathValue> {
         // Handle both numeric and string values in FHIR JSON
-        let value = match json.get("value")? {
-            serde_json::Value::Number(n) => n.as_f64()?,
-            serde_json::Value::String(s) => s.parse::<f64>().ok()?,
-            _ => return None,
+        let value_node = json.get("value")?;
+        let value = if let Some(n) = value_node.as_f64() {
+            n
+        } else if let Some(s) = value_node.as_str() {
+            s.parse::<f64>().ok()?
+        } else {
+            return None;
         };
 
         // Get unit information with UCUM support
@@ -1996,10 +1965,10 @@ impl Evaluator {
     /// Wrap JSON with type info for choice types, handling primitive elements
     async fn wrap_json_with_type(
         &self,
-        value: serde_json::Value,
+        value: &crate::core::node::FhirNode,
         type_info: &crate::core::model_provider::TypeInfo,
         property_name: &str,
-        parent_object: &serde_json::Value,
+        parent_object: &crate::core::node::FhirNode,
     ) -> Result<FhirPathValue> {
         // Get primitive element for extensions if it exists
         let primitive_element = self.get_primitive_element(parent_object, property_name);
@@ -2007,9 +1976,9 @@ impl Evaluator {
         // Handle temporal parsing for date/datetime/time types
         // Convert directly to appropriate FhirPathValue type instead of going through json_to_fhirpath_value
         let base_value = if self.is_temporal_type(&type_info.type_name) {
-            self.convert_temporal_value(&value, type_info)?
+            self.convert_temporal_value(value, type_info)?
         } else {
-            crate::core::value::utils::json_to_fhirpath_value(value)
+            crate::core::value::utils::json_to_fhirpath_value(value.to_json())
         };
 
         // Build wrapped primitive element with extensions if present
@@ -2100,21 +2069,21 @@ impl Evaluator {
     /// Convert a JSON value to the appropriate FhirPathValue for temporal types
     fn convert_temporal_value(
         &self,
-        value: &serde_json::Value,
+        value: &crate::core::node::FhirNode,
         type_info: &crate::core::model_provider::TypeInfo,
     ) -> Result<FhirPathValue> {
         let type_name_lower = type_info.type_name.to_lowercase();
 
         let arc_type_info = std::sync::Arc::new(type_info.clone());
-        match value {
-            serde_json::Value::String(s) => match type_name_lower.as_str() {
+        match value.as_str() {
+            Some(s) => match type_name_lower.as_str() {
                 "datetime" | "instant" => {
                     // Parse as DateTime
                     if let Some(parsed) = crate::core::temporal::PrecisionDateTime::parse(s) {
                         Ok(FhirPathValue::DateTime(parsed, arc_type_info, None))
                     } else {
                         // Fallback to string if parsing fails
-                        Ok(FhirPathValue::String(s.clone(), arc_type_info, None))
+                        Ok(FhirPathValue::String(s.to_string(), arc_type_info, None))
                     }
                 }
                 "date" => {
@@ -2123,7 +2092,7 @@ impl Evaluator {
                         Ok(FhirPathValue::Date(parsed, arc_type_info, None))
                     } else {
                         // Fallback to string if parsing fails
-                        Ok(FhirPathValue::String(s.clone(), arc_type_info, None))
+                        Ok(FhirPathValue::String(s.to_string(), arc_type_info, None))
                     }
                 }
                 "time" => {
@@ -2132,18 +2101,18 @@ impl Evaluator {
                         Ok(FhirPathValue::Time(parsed, arc_type_info, None))
                     } else {
                         // Fallback to string if parsing fails
-                        Ok(FhirPathValue::String(s.clone(), arc_type_info, None))
+                        Ok(FhirPathValue::String(s.to_string(), arc_type_info, None))
                     }
                 }
                 _ => {
                     // Unknown temporal type, return as string
-                    Ok(FhirPathValue::String(s.clone(), arc_type_info, None))
+                    Ok(FhirPathValue::String(s.to_string(), arc_type_info, None))
                 }
             },
-            _ => {
+            None => {
                 // Non-string value, use default conversion
                 Ok(crate::core::value::utils::json_to_fhirpath_value(
-                    value.clone(),
+                    value.to_json(),
                 ))
             }
         }
@@ -2152,28 +2121,29 @@ impl Evaluator {
     /// Get primitive element for a property (for extension support)
     fn get_primitive_element(
         &self,
-        parent_object: &serde_json::Value,
+        parent_object: &crate::core::node::FhirNode,
         property_name: &str,
     ) -> Option<std::sync::Arc<serde_json::Value>> {
         // Check for _propertyName pattern for primitive extensions
         let primitive_element_name = format!("_{property_name}");
         parent_object
             .get(&primitive_element_name)
-            .map(|pe| std::sync::Arc::new(pe.clone()))
+            .map(|pe| std::sync::Arc::new(pe.to_json()))
     }
 
     /// Navigate contained resources with proper type information
     async fn navigate_contained_resources(
         &self,
-        json: &serde_json::Value,
+        json: &crate::core::node::FhirNode,
     ) -> Result<Vec<FhirPathValue>> {
         let mut results = Vec::new();
 
         if let Some(contained) = json.get("contained").and_then(|c| c.as_array()) {
-            for contained_resource in contained {
-                if let Some(resource_obj) = contained_resource.as_object()
-                    && let Some(resource_type) =
-                        resource_obj.get("resourceType").and_then(|rt| rt.as_str())
+            for contained_resource in contained.iter() {
+                if contained_resource.is_object()
+                    && let Some(resource_type) = contained_resource
+                        .get("resourceType")
+                        .and_then(|rt| rt.as_str())
                 {
                     // Get precise type information from ModelProvider
                     let resource_type_info = self
@@ -2198,7 +2168,7 @@ impl Evaluator {
                         });
 
                     let resource_value = FhirPathValue::Resource(
-                        std::sync::Arc::new(contained_resource.clone()),
+                        contained_resource.clone(),
                         resource_type_info,
                         None,
                     );
@@ -2213,16 +2183,16 @@ impl Evaluator {
     /// Navigate Bundle entry resources with proper type information
     async fn navigate_bundle_resources(
         &self,
-        json: &serde_json::Value,
+        json: &crate::core::node::FhirNode,
     ) -> Result<Vec<FhirPathValue>> {
         let mut results = Vec::new();
 
         if let Some(entry) = json.get("entry").and_then(|e| e.as_array()) {
-            for entry_item in entry {
+            for entry_item in entry.iter() {
                 if let Some(resource) = entry_item.get("resource")
-                    && let Some(resource_obj) = resource.as_object()
+                    && resource.is_object()
                     && let Some(resource_type) =
-                        resource_obj.get("resourceType").and_then(|rt| rt.as_str())
+                        resource.get("resourceType").and_then(|rt| rt.as_str())
                 {
                     // Get precise type information from ModelProvider
                     let resource_type_info = self
@@ -2246,11 +2216,8 @@ impl Evaluator {
                             })
                         });
 
-                    let resource_value = FhirPathValue::Resource(
-                        std::sync::Arc::new(resource.clone()),
-                        resource_type_info,
-                        None,
-                    );
+                    let resource_value =
+                        FhirPathValue::Resource(resource.clone(), resource_type_info, None);
                     results.push(resource_value);
                 }
             }
@@ -2330,7 +2297,7 @@ impl Evaluator {
                         && let Some(contained) =
                             root_json.get("contained").and_then(|c| c.as_array())
                     {
-                        for contained_resource in contained {
+                        for contained_resource in contained.iter() {
                             if let Some(resource_id) =
                                 contained_resource.get("id").and_then(|id| id.as_str())
                                 && resource_id == local_id
@@ -2359,7 +2326,7 @@ impl Evaluator {
                                         });
 
                                     let resolved_resource = FhirPathValue::Resource(
-                                        std::sync::Arc::new(contained_resource.clone()),
+                                        contained_resource.clone(),
                                         resource_type_info,
                                         None,
                                     );

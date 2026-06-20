@@ -80,7 +80,7 @@ impl ProviderPureFunctionEvaluator for ServerSearchFunctionEvaluator {
         };
 
         let parameters = match args.get(1).and_then(|a| a.first()) {
-            Some(FhirPathValue::Resource(json, _, _)) => json.as_ref().clone(),
+            Some(FhirPathValue::Resource(json, _, _)) => json.to_json(),
             Some(FhirPathValue::String(s, _, _)) => serde_json::Value::String(s.clone()),
             _ => {
                 return Err(FhirPathError::evaluation_error(

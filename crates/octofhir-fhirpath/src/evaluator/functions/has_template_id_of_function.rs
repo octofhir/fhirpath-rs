@@ -113,7 +113,11 @@ impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
 }
 
 /// Check if a CDA element has the specified template ID
-fn has_template_id(json: &serde_json::Value, resource_type: &str, template_id: &str) -> bool {
+fn has_template_id(
+    json: &crate::core::node::FhirNode,
+    resource_type: &str,
+    template_id: &str,
+) -> bool {
     // For CDA documents, check for explicit templateId elements first
     if let Some(template_ids) = json.get("templateId")
         && check_template_id_value(template_ids, template_id)
@@ -158,16 +162,19 @@ fn has_template_id(json: &serde_json::Value, resource_type: &str, template_id: &
 }
 
 /// Check if a templateId value (single or array) contains the target template ID
-fn check_template_id_value(template_ids: &serde_json::Value, target_template_id: &str) -> bool {
-    match template_ids {
-        serde_json::Value::Array(arr) => {
-            for template_id in arr {
+fn check_template_id_value(
+    template_ids: &crate::core::node::FhirNode,
+    target_template_id: &str,
+) -> bool {
+    match template_ids.as_array() {
+        Some(arr) => {
+            for template_id in arr.iter() {
                 if check_single_template_id(template_id, target_template_id) {
                     return true;
                 }
             }
         }
-        _ => {
+        None => {
             return check_single_template_id(template_ids, target_template_id);
         }
     }
@@ -175,7 +182,10 @@ fn check_template_id_value(template_ids: &serde_json::Value, target_template_id:
 }
 
 /// Check if a single templateId object matches the target template ID
-fn check_single_template_id(template_id: &serde_json::Value, target_template_id: &str) -> bool {
+fn check_single_template_id(
+    template_id: &crate::core::node::FhirNode,
+    target_template_id: &str,
+) -> bool {
     // Check for @root attribute (common in CDA)
     if let Some(root) = template_id.get("@root")
         && let Some(root_str) = root.as_str()

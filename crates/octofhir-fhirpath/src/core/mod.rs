@@ -4,6 +4,7 @@ pub mod error;
 pub mod error_code;
 pub mod fhirpath_types;
 pub mod model_provider;
+pub mod node;
 pub mod temporal;
 pub mod trace;
 pub mod types;

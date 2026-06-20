@@ -30,7 +30,6 @@ use super::display::DisplayFormatter;
 use super::help::HelpSystem;
 use super::{ReplCommand, ReplConfig};
 use octofhir_fhirpath::analyzer::{AnalysisContext, StaticAnalyzer};
-use octofhir_fhirpath::core::JsonValueExt;
 use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
 use octofhir_fhirpath::parser::parse_with_analysis;
 use octofhir_fhirpath::{EvaluationContext, FhirPathEngine, FhirPathValue};
@@ -343,7 +342,7 @@ impl ReplSession {
 
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
-                FhirPathValue::Resource(res, _, _) => res.clone(),
+                FhirPathValue::Resource(res, _, _) => std::sync::Arc::new(res.to_json()),
                 _ => std::sync::Arc::new(serde_json::json!({})),
             }
         } else if needs_resource {
@@ -518,7 +517,7 @@ impl ReplSession {
     async fn try_evaluate_as_expression(&mut self, expression: &str) -> Result<FhirPathValue> {
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
-                FhirPathValue::Resource(res, _, _) => res.clone(),
+                FhirPathValue::Resource(res, _, _) => std::sync::Arc::new(res.to_json()),
                 _ => std::sync::Arc::new(serde_json::json!({})),
             }
         } else {
@@ -575,7 +574,10 @@ impl ReplSession {
             // Show context resource
             if let Some(resource) = &self.current_resource {
                 let resource_type = match resource {
-                    FhirPathValue::Resource(res, _, _) => res.resource_type().unwrap_or("Unknown"),
+                    FhirPathValue::Resource(res, _, _) => res
+                        .get("resourceType")
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("Unknown"),
                     _ => "Unknown",
                 };
                 output.push(format!("%context = {resource_type} resource"));
@@ -595,7 +597,10 @@ impl ReplSession {
     fn show_current_resource(&self) -> String {
         if let Some(resource) = &self.current_resource {
             let resource_type = match resource {
-                FhirPathValue::Resource(res, _, _) => res.resource_type().unwrap_or("Unknown"),
+                FhirPathValue::Resource(res, _, _) => res
+                    .get("resourceType")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("Unknown"),
                 _ => "Unknown",
             };
             format!("Current resource: {resource_type}")
@@ -713,7 +718,10 @@ impl ReplSession {
             let root_type = if let Some(resource) = &self.current_resource {
                 match resource {
                     FhirPathValue::Resource(res, _, _) => {
-                        let resource_type = res.resource_type().unwrap_or("Resource");
+                        let resource_type = res
+                            .get("resourceType")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("Resource");
                         octofhir_fhir_model::TypeInfo {
                             type_name: resource_type.to_string(),
                             singleton: Some(true),

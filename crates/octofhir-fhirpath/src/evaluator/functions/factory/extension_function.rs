@@ -152,7 +152,7 @@ pub(crate) fn add_extension_value(
             // Determine the value[x] key from the type info
             let type_name = ti.name.as_deref().unwrap_or(&ti.type_name);
             let key = format!("value{type_name}");
-            ext.insert(key, json.as_ref().clone());
+            ext.insert(key, json.to_json());
         }
         FhirPathValue::Quantity {
             value: v,

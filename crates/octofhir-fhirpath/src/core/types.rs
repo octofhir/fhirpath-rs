@@ -402,9 +402,11 @@ pub enum FhirPathValue {
         primitive_element: Option<WrappedPrimitiveElement>,
     },
 
-    /// Resource/complex type with TypeInfo for FHIR schema validation
+    /// Resource/complex type with TypeInfo for FHIR schema validation.
+    /// Payload is a structurally-shared [`FhirNode`] so navigation/descendants
+    /// clone an Arc pointer instead of deep-copying the JSON subtree.
     Resource(
-        Arc<JsonValue>,
+        crate::core::node::FhirNode,
         Arc<TypeInfo>,
         Option<WrappedPrimitiveElement>,
     ),
@@ -978,13 +980,41 @@ impl FhirPathValue {
     /// Create a resource value from JSON with default TypeInfo
     pub fn resource(json: JsonValue) -> Self {
         let type_info = Self::infer_resource_type_info(&json);
-        Self::Resource(Arc::new(json), type_info, None)
+        Self::Resource(
+            crate::core::node::FhirNode::from_json(&json),
+            type_info,
+            None,
+        )
     }
 
     /// Create a resource value from an already Arc-wrapped JSON (avoids clone)
     pub fn resource_from_arc(json: Arc<JsonValue>) -> Self {
         let type_info = Self::infer_resource_type_info(&json);
-        Self::Resource(json, type_info, None)
+        Self::Resource(
+            crate::core::node::FhirNode::from_json(&json),
+            type_info,
+            None,
+        )
+    }
+
+    /// Create a resource value from an existing [`FhirNode`] (O(1) clone of the
+    /// shared node; no deep copy). Infers `TypeInfo` from the node's
+    /// `resourceType` field, falling back to a generic complex `Resource` type.
+    pub fn resource_from_node(node: crate::core::node::FhirNode) -> Self {
+        let type_info = node
+            .get("resourceType")
+            .and_then(|rt| rt.as_str())
+            .map(|resource_type| {
+                Arc::new(TypeInfo {
+                    type_name: resource_type.to_string(),
+                    singleton: Some(true),
+                    namespace: Some("FHIR".to_string()),
+                    name: Some(resource_type.to_string()),
+                    is_empty: Some(false),
+                })
+            })
+            .unwrap_or_else(|| Arc::new(TypeInfo::new_complex("Resource")));
+        Self::Resource(node, type_info, None)
     }
 
     /// Infer Arc<TypeInfo> from a JSON resource's resourceType field
@@ -1017,7 +1047,11 @@ impl FhirPathValue {
         {
             match provider.get_type(&resource_type).await {
                 Ok(Some(type_info)) => {
-                    return Ok(Self::Resource(Arc::new(json), Arc::new(type_info), None));
+                    return Ok(Self::Resource(
+                        crate::core::node::FhirNode::from_json(&json),
+                        Arc::new(type_info),
+                        None,
+                    ));
                 }
                 Ok(None) => {}
                 Err(_) => {}
@@ -1036,7 +1070,11 @@ impl FhirPathValue {
         {
             match provider.get_type(&resource_type).await {
                 Ok(Some(type_info)) => {
-                    return Ok(Self::Resource(json, Arc::new(type_info), None));
+                    return Ok(Self::Resource(
+                        crate::core::node::FhirNode::from_json(&json),
+                        Arc::new(type_info),
+                        None,
+                    ));
                 }
                 Ok(None) => {}
                 Err(_) => {}
@@ -1047,12 +1085,20 @@ impl FhirPathValue {
 
     /// Create a resource value with TypeInfo
     pub fn resource_wrapped(json: JsonValue, type_info: Arc<TypeInfo>) -> Self {
-        Self::Resource(Arc::new(json), type_info, None)
+        Self::Resource(
+            crate::core::node::FhirNode::from_json(&json),
+            type_info,
+            None,
+        )
     }
 
     /// Create a wrapped value with type information
     pub fn wrapped_with_type_info(data: JsonValue, type_info: Arc<TypeInfo>) -> Self {
-        Self::Resource(Arc::new(data), type_info, None)
+        Self::Resource(
+            crate::core::node::FhirNode::from_json(&data),
+            type_info,
+            None,
+        )
     }
 
     /// Create a quantity value with full component control
@@ -1153,7 +1199,11 @@ impl FhirPathValue {
     pub fn json_value(json: JsonValue) -> Self {
         static JSON_TYPE: LazyLock<Arc<TypeInfo>> =
             LazyLock::new(|| Arc::new(TypeInfo::system_type("Json".to_string(), true)));
-        Self::Resource(Arc::new(json), JSON_TYPE.clone(), None)
+        Self::Resource(
+            crate::core::node::FhirNode::from_json(&json),
+            JSON_TYPE.clone(),
+            None,
+        )
     }
 
     /// Create a collection value
@@ -1186,7 +1236,7 @@ impl FhirPathValue {
     }
 
     /// Get the wrapped JSON value if this is a resource value
-    pub fn unwrap_json(&self) -> Option<&JsonValue> {
+    pub fn unwrap_json(&self) -> Option<&crate::core::node::FhirNode> {
         match self {
             Self::Resource(json, _, _) => Some(json),
             _ => None,
@@ -1339,7 +1389,7 @@ impl FhirPathValue {
                 }
                 JsonValue::Object(map)
             }
-            Self::Resource(json, _, _) => (**json).clone(),
+            Self::Resource(json, _, _) => json.to_json(),
             Self::Collection(collection) => collection.to_json_value(),
             Self::Empty => JsonValue::Null,
         }
@@ -1472,9 +1522,9 @@ impl FhirPathValue {
             Self::Resource(json, type_info, _) => {
                 // Convert to object representation
                 let mut map = std::collections::HashMap::new();
-                if let JsonValue::Object(obj) = json.as_ref() {
+                if let JsonValue::Object(obj) = json.to_json() {
                     for (key, value) in obj {
-                        map.insert(key.clone(), self.json_to_evaluation_result(value));
+                        map.insert(key.clone(), self.json_to_evaluation_result(&value));
                     }
                 }
                 let type_info_result = type_info

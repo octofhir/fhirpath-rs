@@ -88,11 +88,8 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
                                 namespace: Some("FHIR".to_string()),
                                 singleton: Some(true),
                             });
-                            let extension_value = FhirPathValue::Resource(
-                                Arc::new(extension.clone()),
-                                type_info,
-                                None,
-                            );
+                            let extension_value =
+                                FhirPathValue::Resource(extension.clone(), type_info, None);
                             matching_extensions.push(extension_value);
                         }
                     }
@@ -111,8 +108,11 @@ impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
                                 namespace: Some("FHIR".to_string()),
                                 singleton: Some(true),
                             });
-                            let extension_value =
-                                FhirPathValue::Resource(Arc::new(json), type_info, None);
+                            let extension_value = FhirPathValue::Resource(
+                                crate::core::node::FhirNode::from_json(&json),
+                                type_info,
+                                None,
+                            );
                             matching_extensions.push(extension_value);
                         }
                     }

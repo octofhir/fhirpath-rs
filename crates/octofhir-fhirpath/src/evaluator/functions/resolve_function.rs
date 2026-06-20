@@ -151,9 +151,13 @@ impl ResolveFunctionEvaluator {
             }
         }
 
-        let result = if let Some(FhirPathValue::Resource(resource_json, _type_info, _primitive)) =
+        let result = if let Some(FhirPathValue::Resource(resource_node, _type_info, _primitive)) =
             root_resource_opt.as_ref()
         {
+            // Materialize the root resource once for interop with the serde-based
+            // resolution helpers and the owned-Arc resolution cache.
+            let resource_json: std::sync::Arc<serde_json::Value> =
+                std::sync::Arc::new(resource_node.to_json());
             if reference.contains('/') {
                 if let Some(rt) = resource_json.get("resourceType")
                     && let Some(rt_str) = rt.as_str()
@@ -300,7 +304,7 @@ impl ProviderPureFunctionEvaluator for ResolveFunctionEvaluator {
 
                     // Wrap the resolved JSON as a Resource with correct type info
                     resolved_resources.push(FhirPathValue::Resource(
-                        resolved_json,
+                        crate::core::node::FhirNode::from_json(&resolved_json),
                         type_info,
                         None,
                     ));

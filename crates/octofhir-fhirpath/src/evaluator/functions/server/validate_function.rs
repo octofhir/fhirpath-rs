@@ -83,7 +83,7 @@ impl ProviderPureFunctionEvaluator for ServerValidateFunctionEvaluator {
         }
 
         let resource_json = match args.first().and_then(|a| a.first()) {
-            Some(FhirPathValue::Resource(json, _, _)) => json.as_ref().clone(),
+            Some(FhirPathValue::Resource(json, _, _)) => json.to_json(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0056,
@@ -103,7 +103,7 @@ impl ProviderPureFunctionEvaluator for ServerValidateFunctionEvaluator {
         };
 
         let parameters = match args.get(2).and_then(|a| a.first()) {
-            Some(FhirPathValue::Resource(json, _, _)) => json.as_ref().clone(),
+            Some(FhirPathValue::Resource(json, _, _)) => json.to_json(),
             Some(FhirPathValue::String(s, _, _)) => serde_json::Value::String(s.clone()),
             _ => {
                 return Err(FhirPathError::evaluation_error(

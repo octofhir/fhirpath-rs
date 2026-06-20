@@ -85,7 +85,7 @@ fn to_json_value(value: &FhirPathValue) -> serde_json::Value {
         FhirPathValue::Date(d, _, _) => serde_json::Value::String(d.to_string()),
         FhirPathValue::DateTime(dt, _, _) => serde_json::Value::String(dt.to_string()),
         FhirPathValue::Time(t, _, _) => serde_json::Value::String(t.to_string()),
-        FhirPathValue::Resource(json, _, _) => json.as_ref().clone(),
+        FhirPathValue::Resource(json, _, _) => json.to_json(),
         FhirPathValue::Quantity {
             value: v,
             unit,
@@ -153,7 +153,7 @@ impl PureFunctionEvaluator for FactoryWithPropertyFunctionEvaluator {
 
         match instance {
             FhirPathValue::Resource(json, type_info, _) => {
-                let mut new_json = json.as_ref().clone();
+                let mut new_json = json.to_json();
 
                 if let Some(obj) = new_json.as_object_mut() {
                     // If collection has multiple values, store as array

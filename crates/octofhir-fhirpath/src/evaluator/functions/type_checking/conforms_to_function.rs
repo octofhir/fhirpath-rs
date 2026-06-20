@@ -153,7 +153,7 @@ impl ConformsToFunctionEvaluator {
 
         // Convert FhirPathValue to JSON for validation
         let json_value = match value {
-            FhirPathValue::Resource(json, _, _) => (**json).clone(),
+            FhirPathValue::Resource(json, _, _) => json.to_json(),
             _ => {
                 // Non-resource values cannot conform to profiles - return None (empty)
                 return Ok(None);

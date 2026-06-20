@@ -103,7 +103,7 @@ impl PureFunctionEvaluator for FactoryWithExtensionFunctionEvaluator {
         // Clone the instance and add the extension
         match instance {
             FhirPathValue::Resource(json, type_info, _) => {
-                let mut new_json = json.as_ref().clone();
+                let mut new_json = json.to_json();
 
                 // Build the extension object
                 let mut ext = serde_json::Map::new();

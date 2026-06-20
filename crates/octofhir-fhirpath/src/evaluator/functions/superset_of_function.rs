@@ -108,13 +108,7 @@ fn values_equal(a: &FhirPathValue, b: &FhirPathValue) -> bool {
 
         // FHIR Resources - leverage Arc<JsonValue> for efficient nested object comparison
         (FhirPathValue::Resource(json1, type1, _), FhirPathValue::Resource(json2, type2, _)) => {
-            // Fast path: if Arc pointers are the same, objects are identical
-            if std::sync::Arc::ptr_eq(json1, json2) {
-                return true;
-            }
-            // Resources are equal if they have the same type and JSON content
-            // JsonValue already implements proper equality for nested structures
-            type1 == type2 && **json1 == **json2
+            type1 == type2 && json1 == json2
         }
 
         // Cross-type numeric comparisons

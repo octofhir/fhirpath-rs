@@ -151,6 +151,26 @@ pub mod utils {
         }
     }
 
+    /// Like [`json_to_fhirpath_value`] but reuses an existing `Arc<JsonValue>`
+    /// for the object case instead of deep-cloning the JSON out of the Arc and
+    /// re-wrapping it. Use this whenever the caller already holds the value
+    /// behind an `Arc` — it turns a full subtree deep-clone into a cheap Arc
+    /// bump. Primitive/array inputs (rare on this path) fall back to the owned
+    /// converter.
+    pub fn json_to_fhirpath_value_arc(json: Arc<JsonValue>) -> FhirPathValue {
+        match &*json {
+            JsonValue::Object(obj) => {
+                if let Some(fhir_type) = infer_fhir_type_from_json(obj) {
+                    if fhir_type == "Quantity" {
+                        return convert_json_to_quantity(obj);
+                    }
+                }
+                FhirPathValue::resource_from_arc(json)
+            }
+            _ => json_to_fhirpath_value((*json).clone()),
+        }
+    }
+
     /// Convert a JsonValue to a FhirPathValue with proper FHIR resource typing using ModelProvider
     #[async_recursion]
     pub async fn json_to_fhirpath_value_with_model_provider(
@@ -208,7 +228,7 @@ pub mod utils {
 
                     // Create properly typed resource
                     Ok(FhirPathValue::Resource(
-                        Arc::new(json),
+                        crate::core::node::FhirNode::from_json(&json),
                         Arc::new(type_info),
                         None,
                     ))
