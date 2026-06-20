@@ -362,8 +362,7 @@ impl OutputPanel {
                 .map(|u| format!("{} {}", value, u))
                 .unwrap_or_else(|| value.to_string()),
             FhirPathValue::Resource(json, type_info, _) => json
-                .as_object()
-                .and_then(|obj| obj.get("id"))
+                .get("id")
                 .and_then(|id| id.as_str())
                 .map(|id| format!("{}#{}", type_info.type_name, id))
                 .unwrap_or_else(|| type_info.type_name.clone()),
@@ -381,8 +380,7 @@ impl OutputPanel {
             FhirPathValue::String(s, _, _) => Some(format!("len {}", s.chars().count())),
             FhirPathValue::Collection(collection) => Some(format!("items {}", collection.len())),
             FhirPathValue::Resource(json, _, _) => json
-                .as_object()
-                .and_then(|obj| obj.get("resourceType"))
+                .get("resourceType")
                 .and_then(|t| t.as_str())
                 .map(|t| format!("resourceType {}", t)),
             _ => None,

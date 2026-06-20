@@ -354,7 +354,7 @@ fn parameter_from_value(datatype: &str, value: &FhirPathValue) -> Parameter {
                 .as_deref()
                 .unwrap_or(&type_info.type_name)
                 .to_string();
-            complex_parameter_for_type(datatype, &type_name, json.as_ref().clone())
+            complex_parameter_for_type(datatype, &type_name, json.to_json())
         }
         FhirPathValue::Collection(_) | FhirPathValue::Empty => Parameter {
             name: datatype.to_string(),

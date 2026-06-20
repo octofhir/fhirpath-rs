@@ -6,7 +6,7 @@ use std::sync::Arc;
 use octofhir_fhirpath::FhirPathValue;
 use octofhir_fhirpath::FunctionRegistry;
 use octofhir_fhirpath::core::ModelProvider;
-use serde_json::Value as JsonValue;
+use octofhir_fhirpath::core::node::FhirNode;
 
 use crate::tui::app::{AppState, CompletionItem, CompletionKind};
 
@@ -346,13 +346,13 @@ impl CompletionEngine {
     ) {
         match value {
             FhirPathValue::Resource(json, type_info, _) => {
-                if let JsonValue::Object(map) = json.as_ref() {
-                    for (key, child) in map.iter() {
+                if let Some(entries) = json.as_object() {
+                    for (key, child) in entries.iter() {
                         let key_lower = key.to_lowercase();
                         if !partial.is_empty() && !key_lower.starts_with(partial) {
                             continue;
                         }
-                        if !seen.insert(key.clone()) {
+                        if !seen.insert(key.to_string()) {
                             continue;
                         }
 
@@ -364,7 +364,7 @@ impl CompletionEngine {
                         );
 
                         completions.push(CompletionItem {
-                            text: key.clone(),
+                            text: key.to_string(),
                             display: format!("{} · {}", key, type_info.type_name),
                             kind: CompletionKind::Property,
                             documentation: Some(documentation),
@@ -382,15 +382,15 @@ impl CompletionEngine {
         }
     }
 
-    fn describe_json_value(value: &JsonValue) -> &'static str {
+    fn describe_json_value(value: &FhirNode) -> &'static str {
         match value {
-            JsonValue::Null => "null",
-            JsonValue::Bool(_) => "boolean",
-            JsonValue::Number(_) => "number",
-            JsonValue::String(_) => "string",
-            JsonValue::Array(_) => "array",
-            JsonValue::Object(obj) => {
-                if obj.contains_key("resourceType") {
+            FhirNode::Null => "null",
+            FhirNode::Bool(_) => "boolean",
+            FhirNode::Number(_) => "number",
+            FhirNode::Str(_) => "string",
+            FhirNode::Array(_) => "array",
+            FhirNode::Object(_) => {
+                if value.get("resourceType").is_some() {
                     "resource"
                 } else {
                     "object"

@@ -1262,7 +1262,7 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
             }
             JsonValue::Object(map)
         }
-        FhirPathValue::Resource(json, _, _) => (*json).clone(),
+        FhirPathValue::Resource(json, _, _) => json.to_json(),
         FhirPathValue::Collection(collection) => {
             JsonValue::Array(collection.iter().cloned().map(fhir_value_to_json).collect())
         }
