@@ -1,4 +1,21 @@
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.43...v0.5.0) (2026-03-06)
+## [0.4.47](https://github.com/octofhir/fhirpath-rs/compare/v0.4.46...v0.4.47) (2026-06-20)
+
+
+### Bug Fixes
+
+* clippy issues ([fb948e6](https://github.com/octofhir/fhirpath-rs/commit/fb948e6483c7557a1c4d70de8a69e3f45b2bfe01))
+
+
+
+## [0.4.46](https://github.com/octofhir/fhirpath-rs/compare/v0.4.45...v0.4.46) (2026-05-16)
+
+
+
+## [0.4.45](https://github.com/octofhir/fhirpath-rs/compare/v0.4.44...v0.4.45) (2026-04-27)
+
+
+
+## [0.4.44](https://github.com/octofhir/fhirpath-rs/compare/v0.4.43...v0.4.44) (2026-03-06)
 
 
 ### Features
