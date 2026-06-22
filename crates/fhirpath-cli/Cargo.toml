@@ -40,7 +40,7 @@ octofhir-fhir-model = { workspace = true }
 # Server dependencies (optional)
 axum = { version = "0.8", features = ["multipart", "macros"], optional = true }
 axum-macros = { version = "0.5", optional = true }
-tower-http = { version = "0.6", features = ["cors", "catch-panic", "trace"], optional = true }
+tower-http = { version = "0.7", features = ["cors", "catch-panic", "trace"], optional = true }
 papaya = { workspace = true, optional = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
