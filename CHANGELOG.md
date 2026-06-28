@@ -1,3 +1,12 @@
+## [0.4.48](https://github.com/octofhir/fhirpath-rs/compare/v0.4.47...v0.4.48) (2026-06-28)
+
+
+### Bug Fixes
+
+* **eval,lsp:** ofType/is/as on polymorphic resources + correct diagnostics ([1353860](https://github.com/octofhir/fhirpath-rs/commit/13538602dd9118394bdf827d7f378f3fef458157))
+
+
+
 ## [0.4.47](https://github.com/octofhir/fhirpath-rs/compare/v0.4.46...v0.4.47) (2026-06-20)
 
 
