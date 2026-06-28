@@ -12,6 +12,33 @@ use crate::evaluator::operator_registry::{
 };
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
+/// Returns true when `value` is a FHIR resource whose JSON `resourceType` matches
+/// (or is derived from) `target_type`. Polymorphic elements (e.g.
+/// `Bundle.entry.resource`) give resources a generic static TypeInfo of
+/// "Resource", so the concrete type must be read from the JSON itself.
+fn resource_type_matches(
+    value: &FhirPathValue,
+    target_type: &str,
+    context: &EvaluationContext,
+) -> bool {
+    let FhirPathValue::Resource(node, _, _) = value else {
+        return false;
+    };
+    let Some(resource_type) = node
+        .get("resourceType")
+        .and_then(crate::core::node::FhirNode::as_str)
+    else {
+        return false;
+    };
+    // Strip any namespace from the target (e.g. FHIR.Patient -> Patient).
+    let base_target = target_type.rsplit('.').next().unwrap_or(target_type);
+    resource_type == target_type
+        || resource_type == base_target
+        || context
+            .model_provider()
+            .is_type_derived_from(resource_type, base_target)
+}
+
 /// "is" operator evaluator for type checking
 pub struct IsOperatorEvaluator {
     metadata: OperatorMetadata,
@@ -139,13 +166,19 @@ impl OperationEvaluator for IsOperatorEvaluator {
             ));
         };
 
-        // Get type info for the value
-        let value_type_info = value.type_info();
+        // FHIR resources reached via a polymorphic element (e.g.
+        // `Bundle.entry.resource`) have a generic static TypeInfo ("Resource");
+        // their concrete type is in the JSON `resourceType`. Honour it first.
+        let is_of_type = if resource_type_matches(value, type_name, context) {
+            true
+        } else {
+            // Get type info for the value
+            let value_type_info = value.type_info();
 
-        // Enhanced type checking with namespace support and hierarchy
-        let is_of_type = self
-            .check_type_compatibility(value_type_info, type_name, context)
-            .await?;
+            // Enhanced type checking with namespace support and hierarchy
+            self.check_type_compatibility(value_type_info, type_name, context)
+                .await?
+        };
 
         Ok(EvaluationResult {
             value: Collection::single(FhirPathValue::boolean(is_of_type)),
@@ -284,10 +317,13 @@ impl OperationEvaluator for AsOperatorEvaluator {
         // Get type info for the value
         let value_type_info = value.type_info();
 
-        // Enhanced type casting with proper type conversion
-        if self
-            .check_type_compatibility(value_type_info, type_name, context)
-            .await?
+        // Enhanced type casting with proper type conversion. Resources reached via
+        // a polymorphic element carry a generic static TypeInfo, so also accept a
+        // match on the JSON `resourceType` (see `is` operator above).
+        if resource_type_matches(value, type_name, context)
+            || self
+                .check_type_compatibility(value_type_info, type_name, context)
+                .await?
         {
             // Get target type info from ModelProvider
             let target_type_info = context

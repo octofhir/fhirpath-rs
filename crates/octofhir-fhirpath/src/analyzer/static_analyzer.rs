@@ -454,12 +454,19 @@ impl StaticAnalyzer {
                 ExpressionNode::PropertyAccess(property_access) => {
                     let property_name = &property_access.property;
 
+                    // Resolve the type of the object this property is accessed on, so a
+                    // property is checked against its real parent type (e.g. `given`
+                    // against HumanName in `Patient.name.given`) rather than the root.
+                    let object_type = self
+                        .resolve_expression_type(&property_access.object, current_type)
+                        .await;
+
                     // Skip the root resource type (e.g., don't validate "Patient" in "Patient.name")
                     if !self.is_likely_resource_type(property_name) {
-                        // Validate this property exists on current type
-                        if !self.property_exists_on_type(current_type, property_name) {
+                        // Validate this property exists on the resolved object type
+                        if !self.property_exists_on_type(&object_type, property_name) {
                             let suggestions =
-                                self.suggest_property_names(current_type, property_name);
+                                self.suggest_property_names(&object_type, property_name);
                             let message = if !suggestions.is_empty() {
                                 format!(
                                     "Unknown property '{}', did you mean '{}'?",
@@ -923,37 +930,26 @@ impl StaticAnalyzer {
                 }
                 ExpressionNode::PropertyAccess(property_node) => {
                     match property_node.object.as_ref() {
-                        ExpressionNode::Identifier(obj_identifier) => {
-                            if current_type.type_name == "Resource"
-                                || current_type.type_name == "Any"
-                            {
-                                self.validate_resource_type_literal(
-                                    &obj_identifier.name,
-                                    diagnostics,
-                                )
+                        ExpressionNode::Identifier(obj_identifier)
+                            if (current_type.type_name == "Resource"
+                                || current_type.type_name == "Any") =>
+                        {
+                            self.validate_resource_type_literal(&obj_identifier.name, diagnostics)
                                 .await;
 
-                                let patient_type = TypeInfo {
-                                    type_name: obj_identifier.name.clone(),
-                                    singleton: Some(true),
-                                    is_empty: Some(false),
-                                    namespace: Some("FHIR".to_string()),
-                                    name: Some(obj_identifier.name.clone()),
-                                };
-                                self.validate_property_name(
-                                    &patient_type,
-                                    &property_node.property,
-                                    diagnostics,
-                                )
-                                .await;
-                            } else {
-                                self.validate_node_properties(
-                                    &property_node.object,
-                                    current_type,
-                                    diagnostics,
-                                )
-                                .await;
-                            }
+                            let patient_type = TypeInfo {
+                                type_name: obj_identifier.name.clone(),
+                                singleton: Some(true),
+                                is_empty: Some(false),
+                                namespace: Some("FHIR".to_string()),
+                                name: Some(obj_identifier.name.clone()),
+                            };
+                            self.validate_property_name(
+                                &patient_type,
+                                &property_node.property,
+                                diagnostics,
+                            )
+                            .await;
                         }
                         _ => {
                             self.validate_node_properties(

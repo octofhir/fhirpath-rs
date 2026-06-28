@@ -399,12 +399,16 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                         .delimited_by(just('(').padded(), just(')').padded())
                         .or_not(),
                 ),
-                |expr, (identifier, args): (ExpressionNode, Option<Vec<ExpressionNode>>), extra| {
-                    let loc = Some(span_to_loc(extra.span()));
-                    let name = if let ExpressionNode::Identifier(id) = identifier {
-                        id.name
+                |expr,
+                 (identifier, args): (ExpressionNode, Option<Vec<ExpressionNode>>),
+                 _extra| {
+                    // Use the identifier's own span (the member-name token) as the node
+                    // location so diagnostics highlight the property/method itself rather
+                    // than the whole `a.b.c.member(...)` chain.
+                    let (name, member_loc) = if let ExpressionNode::Identifier(id) = identifier {
+                        (id.name, id.location)
                     } else {
-                        "unknown".to_string() // This should not happen
+                        ("unknown".to_string(), None) // This should not happen
                     };
                     if let Some(arguments) = args {
                         // Method call
@@ -412,14 +416,14 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                             object: Box::new(expr),
                             method: name.to_string(),
                             arguments,
-                            location: loc,
+                            location: member_loc,
                         })
                     } else {
                         // Property access
                         ExpressionNode::PropertyAccess(PropertyAccessNode {
                             object: Box::new(expr),
                             property: name.to_string(),
-                            location: loc,
+                            location: member_loc,
                         })
                     }
                 },

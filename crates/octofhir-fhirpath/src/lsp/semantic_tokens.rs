@@ -129,12 +129,12 @@ impl SemanticTokensProvider {
             ExpressionNode::MethodCall(method) => {
                 Self::collect_tokens(&method.object, source, tokens);
                 if let Some(ref loc) = method.location {
-                    // Find the '.' and emit operator token
-                    if let Some(dot_offset) = Self::find_char_in_range(source, loc.offset, '.') {
+                    // `location` points at the method-name token. The '.' is the last
+                    // dot before it.
+                    if let Some(dot_offset) = source[..loc.offset].rfind('.') {
                         tokens.push((dot_offset, 1, TT_OPERATOR));
-                        // Method name right after the dot
-                        tokens.push((dot_offset + 1, method.method.len(), TT_FUNCTION));
                     }
+                    tokens.push((loc.offset, method.method.len(), TT_FUNCTION));
                 }
                 for arg in &method.arguments {
                     Self::collect_tokens(arg, source, tokens);
@@ -143,16 +143,17 @@ impl SemanticTokensProvider {
             ExpressionNode::PropertyAccess(prop) => {
                 Self::collect_tokens(&prop.object, source, tokens);
                 if let Some(ref loc) = prop.location {
-                    // Find the '.' and emit operator token
-                    if let Some(dot_offset) = Self::find_char_in_range(source, loc.offset, '.') {
+                    // `location` points at the property-name token. The '.' is the
+                    // last dot before it.
+                    if let Some(dot_offset) = source[..loc.offset].rfind('.') {
                         tokens.push((dot_offset, 1, TT_OPERATOR));
-                        let token_type = if prop.property.starts_with(|c: char| c.is_uppercase()) {
-                            TT_TYPE
-                        } else {
-                            TT_PROPERTY
-                        };
-                        tokens.push((dot_offset + 1, prop.property.len(), token_type));
                     }
+                    let token_type = if prop.property.starts_with(|c: char| c.is_uppercase()) {
+                        TT_TYPE
+                    } else {
+                        TT_PROPERTY
+                    };
+                    tokens.push((loc.offset, prop.property.len(), token_type));
                 }
             }
             ExpressionNode::BinaryOperation(binop) => {
@@ -260,12 +261,6 @@ impl SemanticTokensProvider {
                 }
             }
         }
-    }
-
-    /// Find a character in source starting from `start`
-    fn find_char_in_range(source: &str, start: usize, ch: char) -> Option<usize> {
-        let region = source.get(start..)?;
-        region.find(ch).map(|i| start + i)
     }
 
     /// Find the operator symbol in source between the left and right child nodes.

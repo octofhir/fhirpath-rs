@@ -4,10 +4,12 @@
 //! type factory operations in FHIRPath specification.
 //!
 //! Usage examples:
-//! - %factory.Extension('http://example.org/ext', 'value')
-//! - %factory.Coding('http://loinc.org', '29463-7', 'Body Weight')
-//! - %factory.create('Patient')
-//! - %factory.withProperty(instance, 'name', value)
+//! ```text
+//! %factory.Extension('http://example.org/ext', 'value')
+//! %factory.Coding('http://loinc.org', '29463-7', 'Body Weight')
+//! %factory.create('Patient')
+//! %factory.withProperty(instance, 'name', value)
+//! ```
 
 use crate::core::FhirPathValue;
 

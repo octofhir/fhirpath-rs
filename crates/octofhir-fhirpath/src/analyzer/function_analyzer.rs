@@ -106,6 +106,8 @@ impl FunctionAnalyzer {
         let signature = match self.get_function_signature(function_name) {
             Some(sig) => sig,
             None => {
+                // get_function_signature already falls back to the runtime registry,
+                // so reaching here means the function is genuinely unknown.
                 // Unknown function - provide suggestions
                 let suggestions = self.suggest_function_names(function_name);
                 let message = if !suggestions.is_empty() {
@@ -340,6 +342,10 @@ impl FunctionAnalyzer {
         let signature = match self.get_function_signature(function_name) {
             Some(sig) => sig,
             None => {
+                // Known to the runtime registry → valid, just no curated signature.
+                if self.function_registry.has_function(function_name) {
+                    return Ok(metadata);
+                }
                 // Unknown function - provide suggestions
                 let suggestions = self.suggest_function_names(function_name);
                 let mut message = format!("Unknown function '{function_name}'");
@@ -813,8 +819,41 @@ impl FunctionAnalyzer {
         }
     }
 
-    /// Get function signature by name
+    /// Resolve a function's signature.
+    ///
+    /// The runtime function registry is the source of truth for **existence and
+    /// arity**. The curated table below only supplies the richer input/argument/
+    /// return-type hints that the registry's string metadata can't express as the
+    /// analyzer's enums, plus a handful of server operations that aren't in the
+    /// core evaluator registry. So:
+    ///   - registry knows it  → use registry arity, overlay curated type hints if any
+    ///   - only curated knows it (server ops) → use curated
+    ///   - neither            → genuinely unknown
     pub fn get_function_signature(&self, function_name: &str) -> Option<FunctionSignature> {
+        match (
+            self.registry_signature(function_name),
+            self.curated_signature(function_name),
+        ) {
+            (Some(registry), Some(curated)) => Some(FunctionSignature {
+                name: curated.name,
+                // Arity from the registry — the source of truth.
+                required_args: registry.required_args,
+                optional_args: registry.optional_args,
+                // Richer type hints from the curated table.
+                input_requirements: curated.input_requirements,
+                input_type: curated.input_type,
+                argument_types: curated.argument_types,
+                return_type: curated.return_type,
+            }),
+            (Some(registry), None) => Some(registry),
+            (None, Some(curated)) => Some(curated),
+            (None, None) => None,
+        }
+    }
+
+    /// Curated, hand-written type hints for selected functions (and server ops not
+    /// present in the runtime registry). NOT the source of truth for existence/arity.
+    fn curated_signature(&self, function_name: &str) -> Option<FunctionSignature> {
         // Define signatures for common FHIRPath functions
         match function_name {
             // Aggregate functions
@@ -1262,6 +1301,30 @@ impl FunctionAnalyzer {
 
             _ => None,
         }
+    }
+
+    /// Build an analyzer `FunctionSignature` from the runtime registry's metadata
+    /// (the source of truth for existence and arity). `None` only when the registry
+    /// genuinely does not know the function.
+    fn registry_signature(&self, function_name: &str) -> Option<FunctionSignature> {
+        let meta = self.function_registry.get_metadata(function_name)?;
+        let required_args = meta.signature.min_params;
+        // None = variadic/unbounded → don't cap the optional count.
+        let optional_args = match meta.signature.max_params {
+            Some(max) => max.saturating_sub(required_args),
+            None => usize::MAX - required_args,
+        };
+        Some(FunctionSignature {
+            name: function_name.to_string(),
+            required_args,
+            optional_args,
+            // Permissive defaults: registry metadata doesn't carry the analyzer's
+            // input/return-type enums, so don't over-constrain (avoids false positives).
+            input_requirements: InputRequirement::Any,
+            input_type: None,
+            argument_types: Vec::new(),
+            return_type: ReturnType::SameAsInput,
+        })
     }
 }
 

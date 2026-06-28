@@ -224,6 +224,26 @@ impl OfTypeFunctionEvaluator {
             return true;
         }
 
+        // FHIR resources reached through a polymorphic element (e.g.
+        // `Bundle.entry.resource`) carry a static TypeInfo of "Resource"/
+        // "DomainResource"; their concrete type lives in the JSON `resourceType`
+        // field. Match against that (plus inheritance) so `ofType(Patient)` works.
+        if let FhirPathValue::Resource(node, _, _) = item
+            && let Some(resource_type) = node
+                .get("resourceType")
+                .and_then(crate::core::node::FhirNode::as_str)
+        {
+            if resource_type == target_type || resource_type == base_target {
+                return true;
+            }
+            if context
+                .model_provider()
+                .is_type_derived_from(resource_type, base_target)
+            {
+                return true;
+            }
+        }
+
         // Check for specific type matches with strict namespace handling
         match target_type {
             // FHIR string types

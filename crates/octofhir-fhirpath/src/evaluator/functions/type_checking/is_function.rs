@@ -294,12 +294,21 @@ impl IsFunctionEvaluator {
                 }
             }
             FhirPathValue::Quantity { .. } => ("System".to_string(), "Quantity".to_string()),
-            FhirPathValue::Resource(_, type_info, _) => {
-                let name = type_info
-                    .name
-                    .as_deref()
-                    .unwrap_or(&type_info.type_name)
-                    .to_string();
+            FhirPathValue::Resource(node, type_info, _) => {
+                // Polymorphic elements (e.g. Bundle.entry.resource) give resources a
+                // generic static TypeInfo ("Resource"); the concrete type lives in the
+                // JSON `resourceType` field, so prefer that.
+                let name = node
+                    .get("resourceType")
+                    .and_then(crate::core::node::FhirNode::as_str)
+                    .map(str::to_string)
+                    .unwrap_or_else(|| {
+                        type_info
+                            .name
+                            .as_deref()
+                            .unwrap_or(&type_info.type_name)
+                            .to_string()
+                    });
                 ("FHIR".to_string(), name)
             }
             FhirPathValue::Collection(_) => ("System".to_string(), "Collection".to_string()),

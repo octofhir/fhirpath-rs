@@ -403,7 +403,7 @@ pub enum FhirPathValue {
     },
 
     /// Resource/complex type with TypeInfo for FHIR schema validation.
-    /// Payload is a structurally-shared [`FhirNode`] so navigation/descendants
+    /// Payload is a structurally-shared [`crate::core::node::FhirNode`] so navigation/descendants
     /// clone an Arc pointer instead of deep-copying the JSON subtree.
     Resource(
         crate::core::node::FhirNode,
@@ -997,7 +997,7 @@ impl FhirPathValue {
         )
     }
 
-    /// Create a resource value from an existing [`FhirNode`] (O(1) clone of the
+    /// Create a resource value from an existing [`crate::core::node::FhirNode`] (O(1) clone of the
     /// shared node; no deep copy). Infers `TypeInfo` from the node's
     /// `resourceType` field, falling back to a generic complex `Resource` type.
     pub fn resource_from_node(node: crate::core::node::FhirNode) -> Self {

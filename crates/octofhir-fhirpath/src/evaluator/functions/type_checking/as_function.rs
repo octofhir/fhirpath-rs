@@ -206,6 +206,22 @@ impl AsFunctionEvaluator {
                     target_type
                 };
 
+                // Polymorphic elements (e.g. Bundle.entry.resource) give resources a
+                // generic static TypeInfo ("Resource"); the concrete type lives in the
+                // JSON `resourceType` field, so check that too.
+                if let FhirPathValue::Resource(node, _, _) = value
+                    && let Some(resource_type) = node
+                        .get("resourceType")
+                        .and_then(crate::core::node::FhirNode::as_str)
+                    && (resource_type == target_type
+                        || resource_type == base_target
+                        || _context
+                            .model_provider()
+                            .is_type_derived_from(resource_type, base_target))
+                {
+                    return Some(value.clone());
+                }
+
                 if actual_type == target_type || actual_type == base_target {
                     Some(value.clone())
                 } else {

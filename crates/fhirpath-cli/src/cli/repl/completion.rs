@@ -97,7 +97,7 @@ impl FhirPathCompleter {
         }
 
         // Sort by fuzzy match score (higher is better)
-        scored_matches.sort_by(|a, b| b.0.cmp(&a.0));
+        scored_matches.sort_by_key(|m| std::cmp::Reverse(m.0));
 
         // Create enhanced completions with descriptions
         for (_, name) in scored_matches.into_iter().take(10) {
@@ -553,7 +553,7 @@ impl FhirPathCompleter {
         }
 
         // Sort by fuzzy match score (higher is better)
-        scored_matches.sort_by(|a, b| b.0.cmp(&a.0));
+        scored_matches.sort_by_key(|m| std::cmp::Reverse(m.0));
 
         // Create completion candidates
         for (_, property, description) in scored_matches.into_iter().take(8) {

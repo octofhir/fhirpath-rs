@@ -160,10 +160,10 @@ pub mod utils {
     pub fn json_to_fhirpath_value_arc(json: Arc<JsonValue>) -> FhirPathValue {
         match &*json {
             JsonValue::Object(obj) => {
-                if let Some(fhir_type) = infer_fhir_type_from_json(obj) {
-                    if fhir_type == "Quantity" {
-                        return convert_json_to_quantity(obj);
-                    }
+                if let Some(fhir_type) = infer_fhir_type_from_json(obj)
+                    && fhir_type == "Quantity"
+                {
+                    return convert_json_to_quantity(obj);
                 }
                 FhirPathValue::resource_from_arc(json)
             }

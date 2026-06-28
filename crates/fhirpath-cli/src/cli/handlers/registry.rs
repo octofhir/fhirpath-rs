@@ -111,7 +111,7 @@ pub async fn handle_registry_list_functions(
     }
 
     // Sort by name
-    functions.sort_by(|(a, _), (b, _)| a.cmp(b));
+    functions.sort_by_key(|(a, _)| *a);
 
     if functions.is_empty() {
         if !context.quiet {
@@ -177,7 +177,7 @@ pub async fn handle_registry_list_operators(
     }
 
     // Sort by name
-    operators.sort_by(|(a, _), (b, _)| a.cmp(b));
+    operators.sort_by_key(|(a, _)| *a);
 
     if operators.is_empty() {
         if !context.quiet {

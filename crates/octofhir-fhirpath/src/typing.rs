@@ -154,19 +154,16 @@ impl TypeResolver {
         // Start with root type
         let root_segment = &segments[0];
         let mut current_type = match root_segment {
-            crate::path::PathSegment::Root(resource_type) => {
+            crate::path::PathSegment::Root(resource_type)
                 // Validate that this is a known resource type
                 if self
                     .model_provider
                     .resource_type_exists(resource_type)
                     .await
                     .unwrap_or(false)
-                {
+                => {
                     resource_type.clone()
-                } else {
-                    return Ok("unknown".to_string());
                 }
-            }
             _ => return Ok("unknown".to_string()),
         };
 
