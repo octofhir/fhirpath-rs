@@ -595,48 +595,7 @@ impl StaticAnalyzer {
 
     /// Calculate Levenshtein distance (reuse from function analyzer)
     fn levenshtein_distance(&self, a: &str, b: &str) -> usize {
-        let a_chars: Vec<char> = a.chars().collect();
-        let b_chars: Vec<char> = b.chars().collect();
-        let a_len = a_chars.len();
-        let b_len = b_chars.len();
-
-        if a_len == 0 {
-            return b_len;
-        }
-        if b_len == 0 {
-            return a_len;
-        }
-
-        let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
-
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..=a_len {
-            matrix[i][0] = i;
-        }
-        #[allow(clippy::needless_range_loop)]
-        for j in 0..=b_len {
-            matrix[0][j] = j;
-        }
-
-        #[allow(clippy::needless_range_loop)]
-        for i in 1..=a_len {
-            for j in 1..=b_len {
-                let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                    0
-                } else {
-                    1
-                };
-                matrix[i][j] = std::cmp::min(
-                    std::cmp::min(
-                        matrix[i - 1][j] + 1, // deletion
-                        matrix[i][j - 1] + 1, // insertion
-                    ),
-                    matrix[i - 1][j - 1] + cost, // substitution
-                );
-            }
-        }
-
-        matrix[a_len][b_len]
+        crate::analyzer::edit_distance::levenshtein_distance(a, b)
     }
 
     /// Analyze function call patterns

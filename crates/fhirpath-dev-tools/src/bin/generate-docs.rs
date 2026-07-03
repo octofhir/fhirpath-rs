@@ -1,6 +1,3 @@
-#![allow(clippy::uninlined_format_args)]
-#![allow(clippy::single_char_add_str)]
-
 use std::fs;
 use std::path::PathBuf;
 
@@ -38,119 +35,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/*
-fn generate_functions_docs(dir: &Path) -> Result<()> {
-    let registry = FunctionRegistry::default();
-    let mut items = registry.list_functions();
-    // Sort by name
-    items.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-
-    // Group by category for index later (use HashMap to avoid Ord bound)
-    let mut grouped: HashMap<String, Vec<String>> = HashMap::new();
-
-    for meta in items {
-        let file_name = format!("{}.mdx", meta.name);
-        let path = dir.join(&file_name);
-        let category = format_function_category(&meta.category);
-
-        let mut mdx = String::new();
-        mdx.push_str(&format!(
-            "---\ntitle: {}\nsidebar:\n  label: {}\n---\n\n",
-            meta.name, meta.name
-        ));
-        mdx.push_str(&format!("# {}()\n\n", meta.name));
-        mdx.push_str(&format!("**Category**: {}\n\n", category));
-        if !meta.description.is_empty() {
-            mdx.push_str(&format!("{}\n\n", meta.description));
-        }
-
-        // Signature
-        mdx.push_str("## Signature\n\n");
-        let return_type_name = meta.signature.returns.display_name();
-        if !return_type_name.is_empty() {
-            mdx.push_str(&format!("- Return type: `{}`\n", return_type_name));
-        }
-        if !meta.signature.parameters.is_empty() {
-            mdx.push_str("- Parameters:\n");
-            for p in &meta.signature.parameters {
-                let t = format!(" `{:?}`", p.ty);
-                let opt = if p.variadic { " (variadic)" } else { "" };
-                mdx.push_str(&format!("  - `{}`{}{}\n", p.name, t, opt));
-            }
-        }
-        mdx.push_str("\n");
-
-        // Examples
-        if !meta.examples.is_empty() {
-            mdx.push_str("## Examples\n\n");
-            for ex in &meta.examples {
-                mdx.push_str("```fhirpath\n");
-                mdx.push_str(ex);
-                mdx.push_str("\n```\n\n");
-            }
-        }
-
-        fs::write(&path, mdx).with_context(|| format!("write {}", path.display()))?;
-
-        grouped
-            .entry(category.to_string())
-            .or_default()
-            .push(file_name);
-    }
-
-    // Build a simple index with links
-    let mut index = String::new();
-    index.push_str("---\ntitle: Function Library\n---\n\n");
-    index.push_str("# Function Library\n\n");
-    let desired_order = [
-        "Collection",
-        "String",
-        "Math",
-        "Type",
-        "Conversion",
-        "Date & Time",
-        "FHIR",
-        "Terminology",
-        "Logic",
-        "Utility",
-    ];
-    let mut printed: BTreeSet<String> = BTreeSet::new();
-    for cat in desired_order {
-        if let Some(files) = grouped.get(cat) {
-            index.push_str(&format!("## {}\n\n", cat));
-            let mut files = files.clone();
-            files.sort();
-            for f in files {
-                let name = f.trim_end_matches(".mdx");
-                index.push_str(&format!("- [{}](/functions/{})\n", name, name));
-            }
-            index.push_str("\n");
-            printed.insert(cat.to_string());
-        }
-    }
-    // Print any remaining categories alphabetically
-    let mut remaining: Vec<_> = grouped
-        .iter()
-        .filter(|(k, _)| !printed.contains(*k))
-        .collect();
-    remaining.sort_by(|a, b| a.0.cmp(b.0));
-    for (cat, files) in remaining {
-        index.push_str(&format!("## {}\n\n", cat));
-        let mut files = files.clone();
-        files.sort();
-        for f in files {
-            let name = f.trim_end_matches(".mdx");
-            index.push_str(&format!("- [{}](/functions/{})\n", name, name));
-        }
-        index.push_str("\n");
-    }
-    fs::write(dir.join("index.mdx"), index).context("write functions index")?;
-
-    Ok(())
-}
-
-*/
-
 fn generate_errors_docs(dir: &Path) -> Result<()> {
     // Iterate a reasonable range and filter defined codes
     let mut grouped: HashMap<String, Vec<String>> = HashMap::new();
@@ -184,7 +68,7 @@ fn generate_errors_docs(dir: &Path) -> Result<()> {
         if !info.help.is_empty() {
             mdx.push_str("## Help\n\n");
             mdx.push_str(info.help);
-            mdx.push_str("\n");
+            mdx.push('\n');
         }
 
         fs::write(&path, mdx).with_context(|| format!("write {}", path.display()))?;
@@ -208,7 +92,7 @@ fn generate_errors_docs(dir: &Path) -> Result<()> {
                 let name = f.trim_end_matches(".mdx");
                 index.push_str(&format!("- [{}](/errors/{})\n", name, name));
             }
-            index.push_str("\n");
+            index.push('\n');
             printed.insert(cat.to_string());
         }
     }
@@ -226,7 +110,7 @@ fn generate_errors_docs(dir: &Path) -> Result<()> {
             let name = f.trim_end_matches(".mdx");
             index.push_str(&format!("- [{}](/errors/{})\n", name, name));
         }
-        index.push_str("\n");
+        index.push('\n');
     }
     fs::write(dir.join("index.mdx"), index).context("write errors index")?;
 

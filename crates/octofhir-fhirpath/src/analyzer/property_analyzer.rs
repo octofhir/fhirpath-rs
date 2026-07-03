@@ -585,43 +585,7 @@ impl PropertyAnalyzer {
 
     /// Calculate Levenshtein distance between two strings
     pub fn levenshtein_distance(&self, a: &str, b: &str) -> usize {
-        let a_chars: Vec<char> = a.chars().collect();
-        let b_chars: Vec<char> = b.chars().collect();
-
-        if a_chars.is_empty() {
-            return b_chars.len();
-        }
-        if b_chars.is_empty() {
-            return a_chars.len();
-        }
-
-        let mut matrix = vec![vec![0; b_chars.len() + 1]; a_chars.len() + 1];
-
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..=a_chars.len() {
-            matrix[i][0] = i;
-        }
-        #[allow(clippy::needless_range_loop)]
-        for j in 0..=b_chars.len() {
-            matrix[0][j] = j;
-        }
-
-        #[allow(clippy::needless_range_loop)]
-        for i in 1..=a_chars.len() {
-            for j in 1..=b_chars.len() {
-                let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                    0
-                } else {
-                    1
-                };
-                matrix[i][j] = std::cmp::min(
-                    std::cmp::min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1),
-                    matrix[i - 1][j - 1] + cost,
-                );
-            }
-        }
-
-        matrix[a_chars.len()][b_chars.len()]
+        crate::analyzer::edit_distance::levenshtein_distance(a, b)
     }
 }
 

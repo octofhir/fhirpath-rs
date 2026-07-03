@@ -16,6 +16,7 @@ pub mod choice_type_analyzer;
 pub mod diagnostic_builder;
 pub mod diagnostic_template_registry;
 
+pub(crate) mod edit_distance;
 pub mod expression_context;
 pub mod function_analyzer;
 pub mod hierarchy_analyzer;
