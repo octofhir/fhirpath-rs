@@ -1,3 +1,12 @@
+## [0.4.49](https://github.com/octofhir/fhirpath-rs/compare/v0.4.48...v0.4.49) (2026-07-03)
+
+
+### Bug Fixes
+
+* restore analyzer choice diagnostics ([2762489](https://github.com/octofhir/fhirpath-rs/commit/2762489f33cc643ddb0cc17e8b20a0c519820a93))
+
+
+
 ## [0.4.48](https://github.com/octofhir/fhirpath-rs/compare/v0.4.47...v0.4.48) (2026-06-28)
 
 
