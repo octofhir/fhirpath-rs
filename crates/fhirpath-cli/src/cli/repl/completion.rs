@@ -17,6 +17,7 @@
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use reedline::{Completer, Span, Suggestion};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use octofhir_fhirpath::FunctionRegistry;
@@ -29,12 +30,18 @@ pub struct Pair {
     pub replacement: String,
 }
 
+#[derive(Debug, Clone)]
+struct PropertyCompletion {
+    name: String,
+    detail: String,
+}
+
 /// FHIRPath completer for reedline
 pub struct FhirPathCompleter {
     commands: Vec<String>,
     cached_functions: std::sync::RwLock<Option<Vec<String>>>,
     cached_resource_types: std::sync::RwLock<Option<Vec<String>>>,
-    #[allow(dead_code)]
+    cached_properties: std::sync::RwLock<HashMap<String, Vec<PropertyCompletion>>>,
     model_provider: Arc<dyn ModelProvider + Send + Sync>,
     registry: std::sync::RwLock<Option<Arc<FunctionRegistry>>>,
     fuzzy_matcher: SkimMatcherV2,
@@ -71,6 +78,7 @@ impl FhirPathCompleter {
             commands,
             cached_functions: std::sync::RwLock::new(None),
             cached_resource_types: std::sync::RwLock::new(None),
+            cached_properties: std::sync::RwLock::new(HashMap::new()),
             model_provider,
             registry: std::sync::RwLock::new(registry),
             fuzzy_matcher: SkimMatcherV2::default(),
@@ -178,194 +186,47 @@ impl FhirPathCompleter {
     /// Pre-fetch resource types from model provider asynchronously
     /// This should be called during REPL initialization to populate the cache
     pub async fn prefetch_resource_types(&self) {
-        // Try to get resource types from model provider
-        if let Ok(resource_types) = self.model_provider.get_resource_types().await
-            && !resource_types.is_empty()
-        {
-            // Cache the results from model provider
-            if let Ok(mut cache_guard) = self.cached_resource_types.write() {
-                *cache_guard = Some(resource_types);
-            }
-            return;
-        }
+        let resource_types = self
+            .model_provider
+            .get_resource_types()
+            .await
+            .unwrap_or_default();
 
-        // Fallback to comprehensive hardcoded list if model provider fails
-        let resource_types = Self::get_fallback_resource_types();
         if let Ok(mut cache_guard) = self.cached_resource_types.write() {
-            *cache_guard = Some(resource_types);
+            *cache_guard = Some(resource_types.clone());
         }
-    }
 
-    /// Get fallback resource types when model provider is unavailable
-    /// Returns a comprehensive list of FHIR resource types
-    fn get_fallback_resource_types() -> Vec<String> {
-        vec![
-            // Clinical - General
-            "AllergyIntolerance".to_string(),
-            "AdverseEvent".to_string(),
-            "Condition".to_string(),
-            "Procedure".to_string(),
-            "FamilyMemberHistory".to_string(),
-            "ClinicalImpression".to_string(),
-            "DetectedIssue".to_string(),
-            // Clinical - Diagnostics
-            "Observation".to_string(),
-            "DiagnosticReport".to_string(),
-            "ImagingStudy".to_string(),
-            "QuestionnaireResponse".to_string(),
-            "MolecularSequence".to_string(),
-            "Specimen".to_string(),
-            // Clinical - Medications
-            "MedicationRequest".to_string(),
-            "MedicationDispense".to_string(),
-            "MedicationAdministration".to_string(),
-            "MedicationStatement".to_string(),
-            "Medication".to_string(),
-            "MedicationKnowledge".to_string(),
-            "Immunization".to_string(),
-            "ImmunizationEvaluation".to_string(),
-            "ImmunizationRecommendation".to_string(),
-            // Clinical - Care Provision
-            "CarePlan".to_string(),
-            "CareTeam".to_string(),
-            "Goal".to_string(),
-            "ServiceRequest".to_string(),
-            "NutritionOrder".to_string(),
-            "VisionPrescription".to_string(),
-            "RiskAssessment".to_string(),
-            "RequestGroup".to_string(),
-            // Clinical - Request & Response
-            "Communication".to_string(),
-            "CommunicationRequest".to_string(),
-            "DeviceRequest".to_string(),
-            "DeviceUseStatement".to_string(),
-            "GuidanceResponse".to_string(),
-            "SupplyRequest".to_string(),
-            "SupplyDelivery".to_string(),
-            // Financial
-            "Coverage".to_string(),
-            "CoverageEligibilityRequest".to_string(),
-            "CoverageEligibilityResponse".to_string(),
-            "EnrollmentRequest".to_string(),
-            "EnrollmentResponse".to_string(),
-            "Claim".to_string(),
-            "ClaimResponse".to_string(),
-            "Invoice".to_string(),
-            "PaymentNotice".to_string(),
-            "PaymentReconciliation".to_string(),
-            "Account".to_string(),
-            "ChargeItem".to_string(),
-            "ChargeItemDefinition".to_string(),
-            "Contract".to_string(),
-            "ExplanationOfBenefit".to_string(),
-            "InsurancePlan".to_string(),
-            // Foundation - Individuals
-            "Patient".to_string(),
-            "Practitioner".to_string(),
-            "PractitionerRole".to_string(),
-            "RelatedPerson".to_string(),
-            "Person".to_string(),
-            "Group".to_string(),
-            // Foundation - Entities
-            "Organization".to_string(),
-            "OrganizationAffiliation".to_string(),
-            "HealthcareService".to_string(),
-            "Endpoint".to_string(),
-            "Location".to_string(),
-            "Substance".to_string(),
-            "BiologicallyDerivedProduct".to_string(),
-            "Device".to_string(),
-            "DeviceMetric".to_string(),
-            "DeviceDefinition".to_string(),
-            // Foundation - Workflow
-            "Task".to_string(),
-            "Appointment".to_string(),
-            "AppointmentResponse".to_string(),
-            "Schedule".to_string(),
-            "Slot".to_string(),
-            "VerificationResult".to_string(),
-            // Foundation - Management
-            "Encounter".to_string(),
-            "EpisodeOfCare".to_string(),
-            "Flag".to_string(),
-            "List".to_string(),
-            "Library".to_string(),
-            // Documents & Messages
-            "Composition".to_string(),
-            "DocumentManifest".to_string(),
-            "DocumentReference".to_string(),
-            "CatalogEntry".to_string(),
-            // Infrastructure
-            "Basic".to_string(),
-            "Binary".to_string(),
-            "Bundle".to_string(),
-            "Linkage".to_string(),
-            "MessageHeader".to_string(),
-            "OperationOutcome".to_string(),
-            "Parameters".to_string(),
-            "Subscription".to_string(),
-            // Conformance
-            "CapabilityStatement".to_string(),
-            "StructureDefinition".to_string(),
-            "ImplementationGuide".to_string(),
-            "SearchParameter".to_string(),
-            "MessageDefinition".to_string(),
-            "OperationDefinition".to_string(),
-            "CompartmentDefinition".to_string(),
-            "StructureMap".to_string(),
-            "GraphDefinition".to_string(),
-            "ExampleScenario".to_string(),
-            // Terminology
-            "CodeSystem".to_string(),
-            "ValueSet".to_string(),
-            "ConceptMap".to_string(),
-            "NamingSystem".to_string(),
-            "TerminologyCapabilities".to_string(),
-            // Quality & Reporting
-            "Measure".to_string(),
-            "MeasureReport".to_string(),
-            "ResearchStudy".to_string(),
-            "ResearchSubject".to_string(),
-            "ResearchDefinition".to_string(),
-            "ResearchElementDefinition".to_string(),
-            "Evidence".to_string(),
-            "EvidenceVariable".to_string(),
-            "EffectEvidenceSynthesis".to_string(),
-            "RiskEvidenceSynthesis".to_string(),
-            // Medication Definition
-            "MedicinalProduct".to_string(),
-            "MedicinalProductAuthorization".to_string(),
-            "MedicinalProductContraindication".to_string(),
-            "MedicinalProductIndication".to_string(),
-            "MedicinalProductIngredient".to_string(),
-            "MedicinalProductInteraction".to_string(),
-            "MedicinalProductManufactured".to_string(),
-            "MedicinalProductPackaged".to_string(),
-            "MedicinalProductPharmaceutical".to_string(),
-            "MedicinalProductUndesirableEffect".to_string(),
-            "SubstanceSpecification".to_string(),
-            "SubstancePolymer".to_string(),
-            "SubstanceReferenceInformation".to_string(),
-            "SubstanceSourceMaterial".to_string(),
-            "SubstanceProtein".to_string(),
-            "SubstanceNucleicAcid".to_string(),
-            // Other
-            "AuditEvent".to_string(),
-            "Consent".to_string(),
-            "Provenance".to_string(),
-            "Questionnaire".to_string(),
-            "ActivityDefinition".to_string(),
-            "PlanDefinition".to_string(),
-            "EventDefinition".to_string(),
-            "ObservationDefinition".to_string(),
-            "SpecimenDefinition".to_string(),
-            "Citation".to_string(),
-            "DataRequirement".to_string(),
-        ]
+        let mut type_names = resource_types;
+        if let Ok(complex_types) = self.model_provider.get_complex_types().await {
+            type_names.extend(complex_types);
+        }
+
+        type_names.sort();
+        type_names.dedup();
+
+        let mut properties_by_type = HashMap::new();
+        for type_name in type_names {
+            if let Ok(elements) = self.model_provider.get_elements(&type_name).await
+                && !elements.is_empty()
+            {
+                let completions = elements
+                    .into_iter()
+                    .map(|element| PropertyCompletion {
+                        name: element.name,
+                        detail: element.documentation.unwrap_or(element.element_type),
+                    })
+                    .collect();
+                properties_by_type.insert(type_name, completions);
+            }
+        }
+
+        if let Ok(mut cache_guard) = self.cached_properties.write() {
+            *cache_guard = properties_by_type;
+        }
     }
 
     /// Get cached resource types (synchronous)
-    /// Returns cached resource types or fallback list if cache is empty
+    /// Returns cached resource types.
     fn get_cached_resource_types(&self) -> Vec<String> {
         if let Ok(guard) = self.cached_resource_types.read()
             && let Some(ref cached) = *guard
@@ -373,9 +234,7 @@ impl FhirPathCompleter {
             return cached.clone();
         }
 
-        // If cache is empty, return fallback list
-        // This shouldn't happen if prefetch_resource_types() was called during initialization
-        Self::get_fallback_resource_types()
+        Vec::new()
     }
 
     /// Extract the most likely resource type from a FHIRPath context
@@ -410,17 +269,17 @@ impl FhirPathCompleter {
             return "Resource".to_string(); // Generic fallback
         }
 
-        // Case 3: Complex expression - try to infer from known patterns
+        // Case 3: Complex expression - infer from resource type mentions available in cache.
         if context.contains("Bundle.entry.resource") {
             "Resource".to_string() // Generic resource in Bundle
         } else if context.contains("Bundle") {
             "Bundle".to_string()
-        } else if context.contains("Patient") {
-            "Patient".to_string()
-        } else if context.contains("Observation") {
-            "Observation".to_string()
-        } else if context.contains("Condition") {
-            "Condition".to_string()
+        } else if let Some(resource_type) = self
+            .get_cached_resource_types()
+            .into_iter()
+            .find(|resource_type| context.contains(resource_type))
+        {
+            resource_type
         } else {
             "Resource".to_string() // Generic fallback
         }
@@ -438,117 +297,24 @@ impl FhirPathCompleter {
         // Extract resource type from context - handle complex expressions
         let resource_type = self.extract_resource_type_from_context(context);
 
-        // Provide common FHIR properties based on resource type
-        // Resource types are fetched from model provider during initialization
-        let common_properties = match resource_type.as_str() {
-            "Patient" => vec![
-                ("id", "resource identifier"),
-                ("meta", "metadata"),
-                ("identifier", "business identifiers"),
-                ("active", "active status"),
-                ("name", "patient names"),
-                ("telecom", "contact details"),
-                ("gender", "gender"),
-                ("birthDate", "birth date"),
-                ("address", "addresses"),
-                ("contact", "emergency contacts"),
-                ("communication", "languages"),
-                ("generalPractitioner", "care providers"),
-                ("managingOrganization", "managing organization"),
-            ],
-            "Bundle" => vec![
-                ("id", "resource identifier"),
-                ("meta", "metadata"),
-                ("identifier", "business identifier"),
-                ("type", "bundle type"),
-                ("timestamp", "assembly time"),
-                ("total", "total entries"),
-                ("link", "related links"),
-                ("entry", "bundle entries"),
-                ("signature", "digital signature"),
-            ],
-            "Observation" => vec![
-                ("id", "resource identifier"),
-                ("meta", "metadata"),
-                ("identifier", "business identifiers"),
-                ("status", "observation status"),
-                ("category", "classification"),
-                ("code", "what was observed"),
-                ("subject", "who/what observed"),
-                ("encounter", "healthcare encounter"),
-                ("effectiveDateTime", "when observed"),
-                ("value", "observation value"),
-                ("interpretation", "high/low/normal"),
-                ("note", "comments"),
-                ("method", "how observed"),
-                ("specimen", "specimen used"),
-                ("device", "device used"),
-                ("referenceRange", "reference ranges"),
-                ("component", "component observations"),
-            ],
-            "Condition" => vec![
-                ("id", "resource identifier"),
-                ("meta", "metadata"),
-                ("identifier", "business identifiers"),
-                ("clinicalStatus", "active/inactive"),
-                ("verificationStatus", "confirmed/suspected"),
-                ("category", "problem type"),
-                ("severity", "severity"),
-                ("code", "condition code"),
-                ("subject", "who has condition"),
-                ("encounter", "encounter when recorded"),
-                ("onsetDateTime", "when started"),
-                ("abatementDateTime", "when resolved"),
-                ("recordedDate", "when recorded"),
-                ("recorder", "who recorded"),
-                ("asserter", "who asserted"),
-                ("stage", "stage/grade"),
-                ("evidence", "supporting evidence"),
-                ("note", "additional notes"),
-            ],
-            "Resource" => vec![
-                ("id", "resource identifier"),
-                ("meta", "metadata"),
-                ("resourceType", "resource type"),
-                ("extension", "extensions"),
-                ("modifierExtension", "modifier extensions"),
-                ("text", "narrative text"),
-                ("contained", "contained resources"),
-                ("language", "language"),
-                ("implicitRules", "implicit rules"),
-            ],
-            "BundleEntry" => vec![
-                ("id", "entry identifier"),
-                ("extension", "extensions"),
-                ("modifierExtension", "modifier extensions"),
-                ("link", "entry links"),
-                ("fullUrl", "full URL"),
-                ("resource", "contained resource"),
-                ("search", "search metadata"),
-                ("request", "request metadata"),
-                ("response", "response metadata"),
-            ],
-            _ => vec![
-                ("id", "resource identifier"),
-                ("meta", "metadata"),
-                ("resourceType", "resource type"),
-                ("extension", "extensions"),
-                ("modifierExtension", "modifier extensions"),
-            ],
+        let properties = if let Ok(guard) = self.cached_properties.read() {
+            guard.get(&resource_type).cloned().unwrap_or_default()
+        } else {
+            Vec::new()
         };
 
         // Use fuzzy matching for property completion, but show all if word is empty
-        let mut scored_matches: Vec<(i64, &str, &str)> = Vec::new();
+        let mut scored_matches: Vec<(i64, PropertyCompletion)> = Vec::new();
 
-        for (property, description) in common_properties {
+        for property in properties {
             if word.is_empty() {
                 // Show all properties when word is empty (user just typed a dot)
-                scored_matches.push((1000, property, description));
-            } else if let Some(score) = self.fuzzy_matcher.fuzzy_match(property, word) {
-                scored_matches.push((score, property, description));
-            } else if property.starts_with(word) {
+                scored_matches.push((1000, property));
+            } else if let Some(score) = self.fuzzy_matcher.fuzzy_match(&property.name, word) {
+                scored_matches.push((score, property));
+            } else if property.name.starts_with(word) {
                 // Fallback to prefix matching with high score
-                scored_matches.push((1000, property, description));
+                scored_matches.push((1000, property));
             }
         }
 
@@ -556,11 +322,11 @@ impl FhirPathCompleter {
         scored_matches.sort_by_key(|m| std::cmp::Reverse(m.0));
 
         // Create completion candidates
-        for (_, property, description) in scored_matches.into_iter().take(8) {
+        for (_, property) in scored_matches.into_iter().take(8) {
             // Limit to top 8 properties
             candidates.push(Pair {
-                display: format!("{} - {}", property, description),
-                replacement: property.to_string(),
+                display: format!("{} - {}", property.name, property.detail),
+                replacement: property.name,
             });
         }
 
@@ -723,5 +489,26 @@ impl Completer for FhirPathCompleter {
         suggestions.truncate(15);
 
         suggestions
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use octofhir_fhir_model::EmptyModelProvider;
+
+    #[tokio::test]
+    async fn property_completion_uses_model_provider_metadata() {
+        let completer = FhirPathCompleter::new(Arc::new(EmptyModelProvider));
+        completer.prefetch_resource_types().await;
+
+        let completions = completer.complete_properties("", "Patient.");
+        let names: Vec<_> = completions
+            .iter()
+            .map(|completion| completion.replacement.as_str())
+            .collect();
+
+        assert!(names.contains(&"id"));
+        assert!(names.contains(&"name"));
     }
 }

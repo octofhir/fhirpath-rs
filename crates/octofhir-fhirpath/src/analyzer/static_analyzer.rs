@@ -13,6 +13,7 @@ use crate::analyzer::{
 };
 use crate::ast::ExpressionNode;
 use crate::core::error_code::ErrorCode;
+use crate::core::model_provider::utils::{property_exists, property_suggestions, type_exists};
 use crate::core::{FhirPathError, SourceLocation};
 use crate::diagnostics::{AriadneDiagnostic, DiagnosticSeverity};
 use crate::parser::SemanticAnalyzer;
@@ -165,15 +166,9 @@ impl StaticAnalyzer {
         Box::pin(async move {
             match expr {
                 ExpressionNode::Identifier(id) => {
-                    // Check if it's a resource type name
-                    if self.is_resource_type(&id.name) {
-                        TypeInfo {
-                            type_name: id.name.clone(),
-                            singleton: Some(true),
-                            is_empty: Some(false),
-                            namespace: Some("FHIR".to_string()),
-                            name: Some(id.name.clone()),
-                        }
+                    // Check if it's a model type name.
+                    if let Ok(Some(type_info)) = self.model_provider.get_type(&id.name).await {
+                        type_info
                     } else {
                         // It's a property access on context
                         if let Ok(Some(element_type)) = self
@@ -211,37 +206,6 @@ impl StaticAnalyzer {
                 _ => context_type.clone(),
             }
         })
-    }
-
-    /// Check if a name is a valid FHIR resource type
-    fn is_resource_type(&self, name: &str) -> bool {
-        // Common FHIR resource types
-        matches!(
-            name,
-            "Patient"
-                | "Observation"
-                | "Encounter"
-                | "Practitioner"
-                | "Organization"
-                | "Medication"
-                | "MedicationRequest"
-                | "Bundle"
-                | "Condition"
-                | "Procedure"
-                | "DiagnosticReport"
-                | "Immunization"
-                | "AllergyIntolerance"
-                | "CarePlan"
-                | "Appointment"
-                | "Claim"
-                | "Coverage"
-                | "Device"
-                | "DocumentReference"
-                | "Goal"
-                | "Location"
-                | "ServiceRequest"
-                | "Specimen"
-        )
     }
 
     /// Perform comprehensive static analysis on a single expression
@@ -464,9 +428,13 @@ impl StaticAnalyzer {
                     // Skip the root resource type (e.g., don't validate "Patient" in "Patient.name")
                     if !self.is_likely_resource_type(property_name) {
                         // Validate this property exists on the resolved object type
-                        if !self.property_exists_on_type(&object_type, property_name) {
-                            let suggestions =
-                                self.suggest_property_names(&object_type, property_name);
+                        if !self
+                            .property_exists_on_type(&object_type, property_name)
+                            .await
+                        {
+                            let suggestions = self
+                                .suggest_property_names(&object_type, property_name)
+                                .await;
                             let message = if !suggestions.is_empty() {
                                 format!(
                                     "Unknown property '{}', did you mean '{}'?",
@@ -551,9 +519,9 @@ impl StaticAnalyzer {
                 (&*comparison.left, &*comparison.right)
             && left.name == "resourceType"
             && let crate::ast::LiteralValue::String(resource_type) = &literal.value
-            && !self.is_valid_resource_type(resource_type)
+            && !self.is_valid_resource_type(resource_type).await
         {
-            let valid_types = self.get_valid_resource_types();
+            let valid_types = self.get_valid_resource_types().await;
             let message = format!(
                 "Invalid resourceType '{}', valid types: {}",
                 resource_type,
@@ -579,118 +547,50 @@ impl StaticAnalyzer {
     }
 
     /// Check if property exists on given type
-    fn property_exists_on_type(&self, type_info: &TypeInfo, property_name: &str) -> bool {
-        // Basic implementation - in real case would check model provider
-        match type_info.type_name.as_str() {
-            "Patient" => {
-                let patient_properties = [
-                    "id",
-                    "meta",
-                    "implicitRules",
-                    "language",
-                    "text",
-                    "contained",
-                    "extension",
-                    "modifierExtension",
-                    "identifier",
-                    "active",
-                    "name",
-                    "telecom",
-                    "gender",
-                    "birthDate",
-                    "deceased",
-                    "address",
-                    "maritalStatus",
-                    "multipleBirth",
-                    "photo",
-                    "contact",
-                    "communication",
-                    "generalPractitioner",
-                    "managingOrganization",
-                    "link",
-                ];
-                patient_properties.contains(&property_name)
-            }
-            _ => true, // For other types, assume valid for now
-        }
+    async fn property_exists_on_type(&self, type_info: &TypeInfo, property_name: &str) -> bool {
+        property_exists(self.model_provider.as_ref(), type_info, property_name).await
     }
 
     /// Suggest property names using Levenshtein distance
-    fn suggest_property_names(&self, type_info: &TypeInfo, attempted_name: &str) -> Vec<String> {
-        match type_info.type_name.as_str() {
-            "Patient" => {
-                let patient_properties = [
-                    "id",
-                    "meta",
-                    "implicitRules",
-                    "language",
-                    "text",
-                    "contained",
-                    "extension",
-                    "modifierExtension",
-                    "identifier",
-                    "active",
-                    "name",
-                    "telecom",
-                    "gender",
-                    "birthDate",
-                    "deceased",
-                    "address",
-                    "maritalStatus",
-                    "multipleBirth",
-                    "photo",
-                    "contact",
-                    "communication",
-                    "generalPractitioner",
-                    "managingOrganization",
-                    "link",
-                ];
-
-                let mut suggestions = Vec::new();
-                for property in &patient_properties {
-                    let distance = self.levenshtein_distance(attempted_name, property);
-                    let max_distance = std::cmp::max(2, attempted_name.len() / 2);
-                    if distance <= max_distance && distance > 0 {
-                        suggestions.push((property.to_string(), distance));
-                    }
-                }
-                suggestions.sort_by_key(|&(_, distance)| distance);
-                suggestions
-                    .into_iter()
-                    .map(|(name, _)| name)
-                    .take(3)
-                    .collect()
+    async fn suggest_property_names(
+        &self,
+        type_info: &TypeInfo,
+        attempted_name: &str,
+    ) -> Vec<String> {
+        let mut suggestions = Vec::new();
+        for property in property_suggestions(self.model_provider.as_ref(), type_info).await {
+            let distance = self.levenshtein_distance(attempted_name, &property);
+            let max_distance = std::cmp::max(2, attempted_name.len() / 2);
+            if distance <= max_distance && distance > 0 {
+                suggestions.push((property, distance));
             }
-            _ => Vec::new(),
         }
+        suggestions.sort_by_key(|&(_, distance)| distance);
+        suggestions
+            .into_iter()
+            .map(|(name, _)| name)
+            .take(3)
+            .collect()
     }
 
     /// Check if resource type is valid
-    fn is_valid_resource_type(&self, resource_type: &str) -> bool {
-        let valid_types = [
-            "Patient",
-            "Observation",
-            "Condition",
-            "Procedure",
-            "MedicationRequest",
-            "DiagnosticReport",
-            "Encounter",
-            "Practitioner",
-            "Organization",
-            "Location",
-        ];
-        valid_types.contains(&resource_type)
+    async fn is_valid_resource_type(&self, resource_type: &str) -> bool {
+        if let Ok(exists) = self
+            .model_provider
+            .resource_type_exists(resource_type)
+            .await
+        {
+            return exists;
+        }
+        type_exists(self.model_provider.as_ref(), resource_type).await
     }
 
     /// Get list of valid resource types
-    fn get_valid_resource_types(&self) -> Vec<String> {
-        vec![
-            "Patient".to_string(),
-            "Observation".to_string(),
-            "Condition".to_string(),
-            "Procedure".to_string(),
-            "MedicationRequest".to_string(),
-        ]
+    async fn get_valid_resource_types(&self) -> Vec<String> {
+        self.model_provider
+            .get_resource_types()
+            .await
+            .unwrap_or_default()
     }
 
     /// Calculate Levenshtein distance (reuse from function analyzer)

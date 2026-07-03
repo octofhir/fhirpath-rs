@@ -498,17 +498,7 @@ impl SemanticAnalyzer {
         {
             !choice_types.is_empty()
         } else {
-            // Fallback: assume common choice properties on known types
-            matches!(
-                (type_name, property),
-                ("Observation", "value")
-                    | ("Observation", "effective")
-                    | ("Condition", "onset")
-                    | ("Condition", "abatement")
-                    | ("MedicationRequest", "medication")
-                    | ("Patient", "deceased")
-                    | ("Patient", "multipleBirth")
-            )
+            false
         }
     }
 

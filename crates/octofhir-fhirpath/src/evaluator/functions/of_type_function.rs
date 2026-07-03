@@ -41,84 +41,11 @@ impl OfTypeFunctionEvaluator {
 
     /// Check if a type name is valid using ModelProvider
     async fn is_valid_type_name(&self, type_name: &str, context: &EvaluationContext) -> bool {
-        let model_provider = context.model_provider();
-
-        // Strip namespace prefixes for validation (FHIR.Patient -> Patient, System.String -> String)
-        let base_type_name = if let Some(dot_pos) = type_name.rfind('.') {
-            &type_name[dot_pos + 1..]
-        } else {
-            type_name
-        };
-
-        // Check if it's a primitive type
-        if let Ok(primitive_types) = model_provider.get_primitive_types().await
-            && (primitive_types.contains(&base_type_name.to_string())
-                || primitive_types.contains(&type_name.to_string()))
-        {
-            return true;
-        }
-
-        // Check if it's a complex type
-        if let Ok(complex_types) = model_provider.get_complex_types().await
-            && (complex_types.contains(&base_type_name.to_string())
-                || complex_types.contains(&type_name.to_string()))
-        {
-            return true;
-        }
-
-        // Check if it's a FHIR resource type - try to get resource types from model provider
-        if let Ok(resource_types) = model_provider.get_resource_types().await
-            && (resource_types.contains(&base_type_name.to_string())
-                || resource_types.contains(&type_name.to_string()))
-        {
-            return true;
-        }
-
-        // Allow common FHIR resource types even if not in model provider
-        let common_fhir_resources = [
-            "Patient",
-            "Observation",
-            "Encounter",
-            "Practitioner",
-            "Organization",
-            "Medication",
-            "MedicationRequest",
-            "Bundle",
-            "Parameters",
-            "ValueSet",
-            "ConceptMap",
-            "StructureDefinition",
-            "CodeSystem",
-            "OperationOutcome",
-        ];
-
-        if common_fhir_resources.contains(&base_type_name) {
-            return true;
-        }
-
-        // Allow System and FHIR namespace types for common primitives
-        matches!(
+        crate::core::model_provider::utils::type_exists(
+            context.model_provider().as_ref(),
             type_name,
-            "System.String"
-                | "System.Integer"
-                | "System.Decimal"
-                | "System.Boolean"
-                | "System.DateTime"
-                | "System.Date"
-                | "System.Time"
-                | "FHIR.string"
-                | "FHIR.integer"
-                | "FHIR.decimal"
-                | "FHIR.boolean"
-                | "FHIR.dateTime"
-                | "FHIR.date"
-                | "FHIR.time"
-                | "FHIR.uri"
-                | "FHIR.url"
-                | "FHIR.canonical"
-                | "FHIR.code"
-                | "FHIR.id"
         )
+        .await
     }
 }
 

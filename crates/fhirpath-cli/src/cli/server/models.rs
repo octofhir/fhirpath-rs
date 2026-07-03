@@ -375,7 +375,7 @@ impl ParametersResource {
                     }
                 },
                 "variables" => {
-                    variables.extend(param.part.into_iter());
+                    variables.extend(param.part);
                 }
                 _ => {}
             }

@@ -1235,40 +1235,39 @@ impl Evaluator {
                 }
             }
         } else {
-            // Fallback: look for common valueX patterns if ModelProvider doesn't have info
-            if base_property == "value" {
-                let common_types = vec![
-                    "String",
-                    "Integer",
-                    "Decimal",
-                    "Boolean",
-                    "Date",
-                    "DateTime",
-                    "Time",
-                    "Code",
-                    "CodeableConcept",
-                    "Coding",
-                    "Quantity",
-                    "Reference",
-                ];
-
-                for type_name in common_types {
-                    let property_name = format!("value{type_name}");
-                    if let Some(property_value) = json.get(&property_name) {
-                        let type_info = crate::core::model_provider::TypeInfo {
-                            type_name: type_name.to_string(),
-                            singleton: Some(true),
-                            namespace: Some("System".to_string()),
-                            name: Some(type_name.to_string()),
-                            is_empty: Some(false),
-                        };
-
-                        let wrapped_value = self
-                            .wrap_json_with_type(property_value, &type_info, &property_name, json)
-                            .await?;
-                        results.push(wrapped_value);
-                    }
+            for (property_name, property_value) in json.entries() {
+                let Some(type_suffix) = property_name.strip_prefix(base_property) else {
+                    continue;
+                };
+                if type_suffix.is_empty()
+                    || !type_suffix
+                        .chars()
+                        .next()
+                        .is_some_and(|first| first.is_uppercase())
+                {
+                    continue;
                 }
+                if !crate::core::model_provider::utils::type_exists(
+                    self.model_provider.as_ref(),
+                    type_suffix,
+                )
+                .await
+                {
+                    continue;
+                }
+
+                let type_info = crate::core::model_provider::TypeInfo {
+                    type_name: type_suffix.to_string(),
+                    singleton: Some(true),
+                    namespace: Some("FHIR".to_string()),
+                    name: Some(type_suffix.to_string()),
+                    is_empty: Some(false),
+                };
+
+                let wrapped_value = self
+                    .wrap_json_with_type(property_value, &type_info, property_name, json)
+                    .await?;
+                results.push(wrapped_value);
             }
         }
 
