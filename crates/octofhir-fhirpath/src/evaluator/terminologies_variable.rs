@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_terminologies_variable_creation() {
-        let provider = Arc::new(NoOpTerminologyProvider::default());
+        let provider = Arc::new(NoOpTerminologyProvider);
         let terminologies_var = TerminologiesVariable::new(provider);
         let fhir_path_value = terminologies_var.to_fhir_path_value();
 
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_terminologies_variable_detection() {
-        let provider = Arc::new(NoOpTerminologyProvider::default());
+        let provider = Arc::new(NoOpTerminologyProvider);
         let terminologies_var = TerminologiesVariable::new(provider);
         let fhir_path_value = terminologies_var.to_fhir_path_value();
 

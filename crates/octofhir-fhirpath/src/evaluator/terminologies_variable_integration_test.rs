@@ -15,7 +15,7 @@ mod tests {
     #[tokio::test]
     async fn test_terminologies_variable_availability() {
         // Create a terminology provider
-        let terminology_provider = Arc::new(NoOpTerminologyProvider::default());
+        let terminology_provider = Arc::new(NoOpTerminologyProvider);
 
         // Create an engine with terminology provider
         let engine = create_engine_with_mock_provider().await.unwrap();
@@ -72,7 +72,7 @@ mod tests {
     #[tokio::test]
     async fn test_terminologies_variable_structure() {
         // Create a terminology provider
-        let terminology_provider = Arc::new(NoOpTerminologyProvider::default());
+        let terminology_provider = Arc::new(NoOpTerminologyProvider);
         let terminologies_var = TerminologiesVariable::new(terminology_provider);
         let fhir_path_value = terminologies_var.to_fhir_path_value();
 
@@ -108,7 +108,7 @@ mod tests {
     #[tokio::test]
     async fn test_system_variables_all_work() {
         // Create a terminology provider
-        let terminology_provider = Arc::new(NoOpTerminologyProvider::default());
+        let terminology_provider = Arc::new(NoOpTerminologyProvider);
 
         // Create an engine with terminology provider
         let engine = create_engine_with_mock_provider().await.unwrap();
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn test_terminologies_variable_detection() {
         // Test positive case
-        let terminology_provider = Arc::new(NoOpTerminologyProvider::default());
+        let terminology_provider = Arc::new(NoOpTerminologyProvider);
         let terminologies_var = TerminologiesVariable::new(terminology_provider);
         let terminologies_value = terminologies_var.to_fhir_path_value();
 

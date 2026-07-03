@@ -397,8 +397,7 @@ impl Completer for FhirPathCompleter {
         let mut suggestions = Vec::new();
 
         // Complete commands (starting with :)
-        if word.starts_with(':') {
-            let command_word = &word[1..]; // Remove the ':'
+        if let Some(command_word) = word.strip_prefix(':') {
             for cmd in &self.commands {
                 if cmd.starts_with(word)
                     || self.fuzzy_matcher.fuzzy_match(cmd, command_word).is_some()

@@ -1221,7 +1221,7 @@ mod tests {
             // resource_context inference depends on the diagnostic span position;
             // with span tracking, the span may cover the full expression including "Patient",
             // so the before-span text may be empty. Just verify the diagnostic exists.
-            assert!(error_diag.diagnostic.message.len() > 0);
+            assert!(!error_diag.diagnostic.message.is_empty());
         }
     }
 

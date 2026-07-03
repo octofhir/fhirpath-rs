@@ -220,7 +220,7 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string().as_deref(),
+            result.value.first().unwrap().as_string(),
             Some("Hello World")
         );
     }
@@ -245,10 +245,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(
-            result.value.first().unwrap().as_string().as_deref(),
-            Some("Count: 42")
-        );
+        assert_eq!(result.value.first().unwrap().as_string(), Some("Count: 42"));
     }
 
     #[tokio::test]
@@ -271,10 +268,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(
-            result.value.first().unwrap().as_string().as_deref(),
-            Some("42 items")
-        );
+        assert_eq!(result.value.first().unwrap().as_string(), Some("42 items"));
     }
 
     #[tokio::test]
@@ -298,7 +292,7 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string().as_deref(),
+            result.value.first().unwrap().as_string(),
             Some("Active: true")
         );
     }
@@ -324,10 +318,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(
-            result.value.first().unwrap().as_string().as_deref(),
-            Some("Hello")
-        );
+        assert_eq!(result.value.first().unwrap().as_string(), Some("Hello"));
 
         // Test empty collection with string
         let left = vec![]; // Empty collection
@@ -339,9 +330,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(
-            result.value.first().unwrap().as_string().as_deref(),
-            Some("World")
-        );
+        assert_eq!(result.value.first().unwrap().as_string(), Some("World"));
     }
 }

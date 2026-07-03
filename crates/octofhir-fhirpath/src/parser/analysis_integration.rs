@@ -319,7 +319,7 @@ mod tests {
 
         let partial = analyzer.attempt_partial_parse(expression);
         // Should be able to parse at least "Patient.name"
-        assert!(partial.is_some() || analyzer.collector.diagnostics().len() > 0);
+        assert!(partial.is_some() || !analyzer.collector.diagnostics().is_empty());
     }
 
     #[test]

@@ -733,7 +733,7 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(
-            result.value.first().unwrap().as_string().as_deref(),
+            result.value.first().unwrap().as_string(),
             Some("Hello World")
         );
     }

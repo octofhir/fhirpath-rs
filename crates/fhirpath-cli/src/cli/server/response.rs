@@ -238,20 +238,11 @@ fn trace_part_to_parameter(index: usize, part: &TracePart) -> Parameter {
 }
 
 fn build_timing_part(timing: &crate::cli::server::models::EvaluationTiming) -> Parameter {
-    let mut parts = Vec::new();
-
-    parts.push(make_decimal_part(
-        "parseTime",
-        timing.parse.as_secs_f64() * 1000.0,
-    ));
-    parts.push(make_decimal_part(
-        "evaluationTime",
-        timing.evaluation.as_secs_f64() * 1000.0,
-    ));
-    parts.push(make_decimal_part(
-        "totalTime",
-        timing.total.as_secs_f64() * 1000.0,
-    ));
+    let parts = vec![
+        make_decimal_part("parseTime", timing.parse.as_secs_f64() * 1000.0),
+        make_decimal_part("evaluationTime", timing.evaluation.as_secs_f64() * 1000.0),
+        make_decimal_part("totalTime", timing.total.as_secs_f64() * 1000.0),
+    ];
 
     Parameter {
         name: "timing".to_string(),

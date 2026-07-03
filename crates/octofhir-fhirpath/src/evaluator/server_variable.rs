@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_server_variable_creation() {
-        let provider = Arc::new(NoOpServerProvider::default());
+        let provider = Arc::new(NoOpServerProvider);
         let server_var = ServerVariable::new(provider);
         let fhir_path_value = server_var.to_fhir_path_value();
         assert!(is_server_variable(&fhir_path_value));
@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_server_variable_detection() {
-        let provider = Arc::new(NoOpServerProvider::default());
+        let provider = Arc::new(NoOpServerProvider);
         let server_var = ServerVariable::new(provider);
         let fhir_path_value = server_var.to_fhir_path_value();
         assert!(is_server_variable(&fhir_path_value));
