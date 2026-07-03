@@ -28,6 +28,7 @@ full = ["all"]
 [[bin]]
 name = "octofhir-fhirpath"
 path = "src/main.rs"
+doc = false
 
 [lints]
 workspace = true

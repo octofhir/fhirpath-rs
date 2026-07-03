@@ -149,12 +149,12 @@ bench-full: bench bench-report
 doc:
     @echo "📚 Generating API Documentation"
     @echo "==============================="
-    cargo doc --workspace --no-deps --open
+    cargo doc --workspace --no-deps
 
 doc-all:
     @echo "📚 Generating Complete Documentation"
     @echo "===================================="
-    cargo doc --workspace --open
+    cargo doc --workspace
 
 # Generate all documentation (API + benchmarks)
 docs: doc 

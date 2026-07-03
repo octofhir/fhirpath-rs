@@ -404,7 +404,10 @@ impl SemanticAnalyzer {
             && let Some(base_property) = Self::get_choice_type_base(&prop.property)
         {
             // Check if this is actually a choice property on this type
-            if self.is_choice_property(input_type, &base_property).await {
+            if self
+                .is_direct_choice_type_access(input_type, &base_property, &prop.property)
+                .await
+            {
                 analysis.success = false;
                 analysis.add_diagnostic(Diagnostic {
                     severity: DiagnosticSeverity::Error,
@@ -485,21 +488,39 @@ impl SemanticAnalyzer {
         Self::get_choice_type_base(property).map(|base| property[base.len()..].to_string())
     }
 
-    /// Check if a property is a choice property on a given type
-    async fn is_choice_property(&self, type_info: &TypeInfo, property: &str) -> bool {
+    /// Check if a typed choice property is being accessed directly.
+    async fn is_direct_choice_type_access(
+        &self,
+        type_info: &TypeInfo,
+        base_property: &str,
+        typed_property: &str,
+    ) -> bool {
         // Extract type name from TypeInfo
         let type_name = type_info.name.as_deref().unwrap_or(&type_info.type_name);
 
         // Check with model provider
-        if let Ok(Some(choice_types)) = self
+        match self
             .model_provider
-            .get_choice_types(type_name, property)
+            .get_choice_types(type_name, base_property)
             .await
         {
-            !choice_types.is_empty()
-        } else {
-            false
+            Ok(Some(choice_types)) if !choice_types.is_empty() => {
+                return true;
+            }
+            Ok(_) => {}
+            Err(_) => return false,
         }
+
+        // Some providers expose concrete choice elements (e.g. valueQuantity) as
+        // navigable properties but do not currently return metadata for the base
+        // choice element (value[x]). The analyzer still treats direct typed access
+        // as a semantic error; use value.ofType(Quantity) instead.
+        self.model_provider
+            .get_element_type(type_info, typed_property)
+            .await
+            .ok()
+            .flatten()
+            .is_some()
     }
 
     /// Analyze literal node (always valid)
