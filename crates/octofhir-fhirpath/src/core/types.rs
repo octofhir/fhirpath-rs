@@ -1524,7 +1524,7 @@ impl FhirPathValue {
                 let mut map = std::collections::HashMap::new();
                 if let JsonValue::Object(obj) = json.to_json() {
                     for (key, value) in obj {
-                        map.insert(key.clone(), self.json_to_evaluation_result(&value));
+                        map.insert(key.clone(), json_to_evaluation_result(&value));
                     }
                 }
                 let type_info_result = type_info
@@ -1548,43 +1548,6 @@ impl FhirPathValue {
                 }
             }
             Self::Empty => EvaluationResult::Empty,
-        }
-    }
-
-    /// Helper method to convert JSON values to EvaluationResult
-    #[allow(clippy::only_used_in_recursion)]
-    fn json_to_evaluation_result(&self, value: &JsonValue) -> EvaluationResult {
-        match value {
-            JsonValue::Null => EvaluationResult::Empty,
-            JsonValue::Bool(b) => EvaluationResult::boolean(*b),
-            JsonValue::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    EvaluationResult::integer(i)
-                } else if let Some(f) = n.as_f64() {
-                    if let Ok(d) = f.to_string().parse::<Decimal>() {
-                        EvaluationResult::decimal(d)
-                    } else {
-                        EvaluationResult::Empty
-                    }
-                } else {
-                    EvaluationResult::Empty
-                }
-            }
-            JsonValue::String(s) => EvaluationResult::string(s.clone()),
-            JsonValue::Array(arr) => {
-                let items = arr
-                    .iter()
-                    .map(|v| self.json_to_evaluation_result(v))
-                    .collect();
-                EvaluationResult::collection(items)
-            }
-            JsonValue::Object(obj) => {
-                let mut map = std::collections::HashMap::new();
-                for (key, val) in obj {
-                    map.insert(key.clone(), self.json_to_evaluation_result(val));
-                }
-                EvaluationResult::object(map)
-            }
         }
     }
 
@@ -1657,6 +1620,37 @@ impl FhirPathValue {
                 Self::Collection(Collection::from_values(values))
             }
             _ => Self::Empty,
+        }
+    }
+}
+
+fn json_to_evaluation_result(value: &JsonValue) -> EvaluationResult {
+    match value {
+        JsonValue::Null => EvaluationResult::Empty,
+        JsonValue::Bool(b) => EvaluationResult::boolean(*b),
+        JsonValue::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                EvaluationResult::integer(i)
+            } else if let Some(f) = n.as_f64() {
+                f.to_string()
+                    .parse::<Decimal>()
+                    .map(EvaluationResult::decimal)
+                    .unwrap_or(EvaluationResult::Empty)
+            } else {
+                EvaluationResult::Empty
+            }
+        }
+        JsonValue::String(s) => EvaluationResult::string(s.clone()),
+        JsonValue::Array(arr) => {
+            let items = arr.iter().map(json_to_evaluation_result).collect();
+            EvaluationResult::collection(items)
+        }
+        JsonValue::Object(obj) => {
+            let map = obj
+                .iter()
+                .map(|(key, val)| (key.clone(), json_to_evaluation_result(val)))
+                .collect();
+            EvaluationResult::object(map)
         }
     }
 }

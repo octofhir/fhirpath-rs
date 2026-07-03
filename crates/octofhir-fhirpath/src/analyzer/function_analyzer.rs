@@ -719,51 +719,8 @@ impl FunctionAnalyzer {
     }
 
     /// Resolve return type based on function signature and input type
-    #[allow(clippy::only_used_in_recursion)]
     fn resolve_return_type(&self, return_type: &ReturnType, input_type: &TypeInfo) -> TypeInfo {
-        match return_type {
-            ReturnType::SameAsInput => input_type.clone(),
-            ReturnType::Type(type_name) => TypeInfo {
-                type_name: type_name.clone(),
-                singleton: Some(true),
-                is_empty: Some(false),
-                namespace: Some("FHIR".to_string()),
-                name: Some(type_name.clone()),
-            },
-            ReturnType::Boolean => TypeInfo {
-                type_name: "Boolean".to_string(),
-                singleton: Some(true),
-                is_empty: Some(false),
-                namespace: Some("System".to_string()),
-                name: Some("Boolean".to_string()),
-            },
-            ReturnType::Numeric => TypeInfo {
-                type_name: "Number".to_string(),
-                singleton: Some(true),
-                is_empty: Some(false),
-                namespace: Some("System".to_string()),
-                name: Some("Number".to_string()),
-            },
-            ReturnType::String => TypeInfo {
-                type_name: "String".to_string(),
-                singleton: Some(true),
-                is_empty: Some(false),
-                namespace: Some("System".to_string()),
-                name: Some("String".to_string()),
-            },
-            ReturnType::CollectionOf(inner_type) => {
-                let mut result = self.resolve_return_type(inner_type, input_type);
-                result.singleton = Some(false);
-                result
-            }
-            ReturnType::Empty => TypeInfo {
-                type_name: "Empty".to_string(),
-                singleton: Some(false),
-                is_empty: Some(true),
-                namespace: Some("System".to_string()),
-                name: Some("Empty".to_string()),
-            },
-        }
+        resolve_return_type(return_type, input_type)
     }
 
     /// Format argument type for error messages
@@ -1284,6 +1241,52 @@ impl FunctionAnalyzer {
             argument_types: Vec::new(),
             return_type: ReturnType::SameAsInput,
         })
+    }
+}
+
+fn resolve_return_type(return_type: &ReturnType, input_type: &TypeInfo) -> TypeInfo {
+    match return_type {
+        ReturnType::SameAsInput => input_type.clone(),
+        ReturnType::Type(type_name) => TypeInfo {
+            type_name: type_name.clone(),
+            singleton: Some(true),
+            is_empty: Some(false),
+            namespace: Some("FHIR".to_string()),
+            name: Some(type_name.clone()),
+        },
+        ReturnType::Boolean => TypeInfo {
+            type_name: "Boolean".to_string(),
+            singleton: Some(true),
+            is_empty: Some(false),
+            namespace: Some("System".to_string()),
+            name: Some("Boolean".to_string()),
+        },
+        ReturnType::Numeric => TypeInfo {
+            type_name: "Number".to_string(),
+            singleton: Some(true),
+            is_empty: Some(false),
+            namespace: Some("System".to_string()),
+            name: Some("Number".to_string()),
+        },
+        ReturnType::String => TypeInfo {
+            type_name: "String".to_string(),
+            singleton: Some(true),
+            is_empty: Some(false),
+            namespace: Some("System".to_string()),
+            name: Some("String".to_string()),
+        },
+        ReturnType::CollectionOf(inner_type) => {
+            let mut result = resolve_return_type(inner_type, input_type);
+            result.singleton = Some(false);
+            result
+        }
+        ReturnType::Empty => TypeInfo {
+            type_name: "Empty".to_string(),
+            singleton: Some(false),
+            is_empty: Some(true),
+            namespace: Some("System".to_string()),
+            name: Some("Empty".to_string()),
+        },
     }
 }
 

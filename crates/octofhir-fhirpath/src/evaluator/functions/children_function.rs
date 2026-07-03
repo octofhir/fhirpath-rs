@@ -59,13 +59,13 @@ impl ChildrenFunctionEvaluator {
                         continue;
                     }
 
-                    children.extend(self.convert_json_to_fhir_path_values(value));
+                    children.extend(convert_json_to_fhir_path_values(value));
                 }
             }
             FhirNode::Array(arr) => {
                 // For arrays, add all elements as children
                 for value in arr.iter() {
-                    children.extend(self.convert_json_to_fhir_path_values(value));
+                    children.extend(convert_json_to_fhir_path_values(value));
                 }
             }
             _ => {
@@ -75,42 +75,32 @@ impl ChildrenFunctionEvaluator {
 
         children
     }
+}
 
-    /// Convert JSON value to FhirPathValue(s)
-    #[allow(clippy::only_used_in_recursion)]
-    fn convert_json_to_fhir_path_values(
-        &self,
-        json: &crate::core::node::FhirNode,
-    ) -> Vec<FhirPathValue> {
-        use crate::core::node::FhirNode;
-        match json {
-            FhirNode::Str(s) => vec![FhirPathValue::string(s.to_string())],
-            FhirNode::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    vec![FhirPathValue::integer(i)]
-                } else if let Some(f) = n.as_f64() {
-                    if let Ok(decimal) = rust_decimal::Decimal::try_from(f) {
-                        vec![FhirPathValue::decimal(decimal)]
-                    } else {
-                        vec![]
-                    }
-                } else {
-                    vec![]
-                }
+fn convert_json_to_fhir_path_values(json: &crate::core::node::FhirNode) -> Vec<FhirPathValue> {
+    use crate::core::node::FhirNode;
+
+    match json {
+        FhirNode::Str(s) => vec![FhirPathValue::string(s.to_string())],
+        FhirNode::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                vec![FhirPathValue::integer(i)]
+            } else if let Some(f) = n.as_f64() {
+                rust_decimal::Decimal::try_from(f)
+                    .map(FhirPathValue::decimal)
+                    .into_iter()
+                    .collect()
+            } else {
+                vec![]
             }
-            FhirNode::Bool(b) => vec![FhirPathValue::boolean(*b)],
-            FhirNode::Array(arr) => {
-                let mut result = Vec::new();
-                for item in arr.iter() {
-                    result.extend(self.convert_json_to_fhir_path_values(item));
-                }
-                result
-            }
-            FhirNode::Object(_) => {
-                vec![FhirPathValue::resource_from_node(json.clone())]
-            }
-            FhirNode::Null => vec![],
         }
+        FhirNode::Bool(b) => vec![FhirPathValue::boolean(*b)],
+        FhirNode::Array(arr) => arr
+            .iter()
+            .flat_map(convert_json_to_fhir_path_values)
+            .collect(),
+        FhirNode::Object(_) => vec![FhirPathValue::resource_from_node(json.clone())],
+        FhirNode::Null => vec![],
     }
 }
 

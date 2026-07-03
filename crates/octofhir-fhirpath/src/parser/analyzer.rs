@@ -1073,42 +1073,29 @@ impl SemanticAnalyzer {
     }
 
     /// Check if an expression contains union operations (creates collections)
-    #[allow(clippy::only_used_in_recursion)]
     fn contains_union_operation(&self, expr: &ExpressionNode) -> bool {
-        match expr {
-            ExpressionNode::Union(_) => {
-                // This is a union operation - direct detection
-                true
-            }
-            ExpressionNode::BinaryOperation(binary_op) => {
-                // Recursively check both operands
-                self.contains_union_operation(&binary_op.left)
-                    || self.contains_union_operation(&binary_op.right)
-            }
-            ExpressionNode::FunctionCall(func_call) => {
-                // Check function arguments
-                func_call
-                    .arguments
-                    .iter()
-                    .any(|arg| self.contains_union_operation(arg))
-            }
-            ExpressionNode::MethodCall(method_call) => {
-                // Check object and method arguments
-                self.contains_union_operation(&method_call.object)
-                    || method_call
-                        .arguments
-                        .iter()
-                        .any(|arg| self.contains_union_operation(arg))
-            }
-            ExpressionNode::PropertyAccess(prop_access) => {
-                // Check the object being accessed
-                self.contains_union_operation(&prop_access.object)
-            }
-            // Literals and identifiers don't contain unions
-            ExpressionNode::Literal(_) | ExpressionNode::Identifier(_) => false,
-            // For other node types, assume no union for now
-            _ => false,
+        contains_union_operation(expr)
+    }
+}
+
+fn contains_union_operation(expr: &ExpressionNode) -> bool {
+    match expr {
+        ExpressionNode::Union(_) => true,
+        ExpressionNode::BinaryOperation(binary_op) => {
+            contains_union_operation(&binary_op.left) || contains_union_operation(&binary_op.right)
         }
+        ExpressionNode::FunctionCall(func_call) => {
+            func_call.arguments.iter().any(contains_union_operation)
+        }
+        ExpressionNode::MethodCall(method_call) => {
+            contains_union_operation(&method_call.object)
+                || method_call.arguments.iter().any(contains_union_operation)
+        }
+        ExpressionNode::PropertyAccess(prop_access) => {
+            contains_union_operation(&prop_access.object)
+        }
+        ExpressionNode::Literal(_) | ExpressionNode::Identifier(_) => false,
+        _ => false,
     }
 }
 
