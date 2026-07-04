@@ -891,9 +891,9 @@ impl FunctionRegistryBuilder {
     pub fn with_tree_navigation_functions(mut self) -> Self {
         // Register tree navigation functions
         self.registry
-            .register_pure_function(ChildrenFunctionEvaluator::create());
+            .register_lazy_function(ChildrenFunctionEvaluator::create());
         self.registry
-            .register_pure_function(DescendantsFunctionEvaluator::create());
+            .register_lazy_function(DescendantsFunctionEvaluator::create());
         self.registry
             .register_lazy_function(RepeatAllFunctionEvaluator::create());
 

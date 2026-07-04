@@ -157,15 +157,11 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
 
             // Apply the repeat expression to each current item
             for item in &current_items {
-                // Create a proper context with this item as the input
-                let single_item_collection = vec![item.clone()];
-                let item_context = EvaluationContext::new(
-                    crate::core::Collection::from(single_item_collection),
-                    context.model_provider().clone(),
-                    context.terminology_provider().cloned(),
-                    context.validation_provider().cloned(),
-                    context.trace_provider().cloned(),
-                );
+                // Create a child context with this item as the input so the
+                // repeat expression can resolve `%resource` and other
+                // environment/user variables (preserved by create_child_context).
+                let item_context =
+                    context.create_child_context(crate::core::Collection::single(item.clone()));
 
                 let item_result = evaluator.evaluate(repeat_expr, &item_context).await?;
                 for new_item in item_result.value.into_iter() {

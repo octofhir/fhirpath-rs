@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2026-07-03
+Generated on: 2026-07-04
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -13,8 +13,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 15 | 100% |
 | **Total Individual Tests** | 1176 | 100% |
-| **Passing Tests** | 1176 | 100.0% |
-| **Failing Tests** | 0 | 0.0% |
+| **Passing Tests** | 1174 | 99.8% |
+| **Failing Tests** | 2 | 0.2% |
 | **Error Tests** | 0 | 0.0% |
 
 ## Test Results by Suite
@@ -28,9 +28,9 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **boolean_logic.json** - 100.0% (3/3 tests) (Complete)
 - **boolean_operations.json** - 100.0% (44/44 tests) (Complete)
 
-### ✅ COLLECTION (100.0% - 122/122 tests)
+### 🟡 COLLECTION (98.4% - 120/122 tests)
 
-- **collection_operations.json** - 100.0% (122/122 tests) (Complete)
+- **collection_operations.json** - 98.4% (120/122 tests) (Partial)
 
 ### ✅ COMPARISON (100.0% - 218/218 tests)
 
@@ -68,7 +68,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **analyzer.json** - 28/28 tests (analyzer)
 - **boolean_logic.json** - 3/3 tests (boolean)
 - **boolean_operations.json** - 44/44 tests (boolean)
-- **collection_operations.json** - 122/122 tests (collection)
 - **comparison_operations.json** - 218/218 tests (comparison)
 - **conversion_operations.json** - 27/27 tests (conversion)
 - **type_operations.json** - 3/3 tests (conversion)
@@ -83,7 +82,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ### 🟡 Well Implemented (70%+)
 
-None currently.
+- **collection_operations.json** - 98.4% (120/122 tests) (collection)
 
 ### 🟠 Partially Implemented (30-70%)
 
@@ -95,14 +94,14 @@ None currently.
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **100.0% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **99.8% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 15
 - **Total Tests**: 1176
-- **Pass Rate**: 100.0%
+- **Pass Rate**: 99.8%
 
 ---
 
-*Report generated on: 2026-07-03 21:12:33*
+*Report generated on: 2026-07-04 18:33:58*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*

@@ -286,15 +286,11 @@ impl RepeatAllFunctionEvaluator {
             }
             seen_values.insert(item_key);
 
-            // Create evaluation context for this item
-            let single_item_collection = vec![current_item.clone()];
-            let iteration_context = EvaluationContext::new(
-                crate::core::Collection::from(single_item_collection),
-                context.model_provider().clone(),
-                context.terminology_provider().cloned(),
-                context.validation_provider().cloned(),
-                context.trace_provider().cloned(),
-            );
+            // Create child context for this item so the projection can resolve
+            // `%resource` and other environment/user variables (preserved by
+            // create_child_context).
+            let iteration_context =
+                context.create_child_context(crate::core::Collection::single(current_item.clone()));
 
             // Evaluate projection expression to get children
             let projection_result = evaluator

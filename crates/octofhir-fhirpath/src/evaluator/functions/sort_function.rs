@@ -146,17 +146,11 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
         let mut items_with_keys = Vec::new();
 
         for (index, item) in input.iter().enumerate() {
-            // Create single-element collection for this item (focus)
-            let single_item_collection = vec![item.clone()];
-
-            // Create nested context for this iteration
-            let iteration_context = EvaluationContext::new(
-                crate::core::Collection::from(single_item_collection.clone()),
-                context.model_provider().clone(),
-                context.terminology_provider().cloned(),
-                context.validation_provider().cloned(),
-                context.trace_provider().cloned(),
-            );
+            // Create child context for this iteration so sort key expressions
+            // can resolve `%resource` and other environment/user variables
+            // (preserved by create_child_context).
+            let iteration_context =
+                context.create_child_context(crate::core::Collection::single(item.clone()));
 
             iteration_context.set_variable("$this".to_string(), item.clone());
             iteration_context

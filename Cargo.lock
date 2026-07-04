@@ -1373,7 +1373,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-cli"
-version = "0.4.48"
+version = "0.4.49"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -1421,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-dev-tools"
-version = "0.4.48"
+version = "0.4.49"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1432,7 +1432,7 @@ dependencies = [
  "octofhir-fhirpath",
  "octofhir-fhirschema",
  "pprof",
- "quick-xml 0.39.4",
+ "quick-xml 0.41.0",
  "roxmltree",
  "serde",
  "serde_json",
@@ -2887,9 +2887,9 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhir-model"
-version = "0.1.13"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae09dfaeff9cc74cf3e1830866e4c181a831eb4eeafbd3040547ab0a4f83163e"
+checksum = "82084883ead14804c6199e8ab94249ba01175b603c4e0b5f53ae4c7360147139"
 dependencies = [
  "async-trait",
  "indexmap",
@@ -2906,7 +2906,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath"
-version = "0.4.48"
+version = "0.4.49"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -3422,9 +3422,9 @@ dependencies = [
 
 [[package]]
 name = "quick-xml"
-version = "0.39.4"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdcc8dd4e2f670d309a5f0e83fe36dfdc05af317008fea29144da1a2ac858e5e"
+checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
 dependencies = [
  "memchr",
 ]

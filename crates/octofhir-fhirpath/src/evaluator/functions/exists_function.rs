@@ -74,17 +74,12 @@ impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
         let criteria_expr = &args[0];
 
         for (index, item) in input.iter().enumerate() {
-            // Create single-element collection for this item (focus)
-            let single_item_collection = vec![item.clone()];
-
-            // Create nested context for this iteration
-            let iteration_context = EvaluationContext::new(
-                crate::core::Collection::from(single_item_collection.clone()),
-                context.model_provider().clone(),
-                context.terminology_provider().cloned(),
-                context.validation_provider().cloned(),
-                context.trace_provider().cloned(),
-            );
+            // Create child context for this iteration. `create_child_context`
+            // preserves the environment (shared root resource and parent
+            // variable scope) so `%resource`, `%rootResource`, `%context` and
+            // user-defined variables stay resolvable inside the criteria.
+            let iteration_context =
+                context.create_child_context(crate::core::Collection::single(item.clone()));
 
             // Set lambda variables: $this = single item, $index = current index
             iteration_context.set_variable("$this".to_string(), item.clone());

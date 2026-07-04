@@ -414,6 +414,33 @@ impl FhirPathEvaluator for FhirPathEngine {
         Ok(result.is_constraint_satisfied())
     }
 
+    /// Build the FHIRPath data model + evaluation context for `context` and
+    /// `variables` once, then evaluate every expression against that shared
+    /// context. Result semantics match `evaluate_constraint_with_variables`
+    /// (empty / non-boolean / `Boolean(true)` => satisfied), so this only
+    /// removes the per-constraint context rebuild — it does not change outcomes.
+    async fn evaluate_constraints_shared_context(
+        &self,
+        context: Arc<JsonValue>,
+        variables: &JsonVariables,
+        expressions: &[&str],
+    ) -> octofhir_fhir_model::Result<Vec<octofhir_fhir_model::Result<bool>>> {
+        let eval_context = self
+            .build_context_with_json_variables(context, variables)
+            .await?;
+
+        let mut out = Vec::with_capacity(expressions.len());
+        for expression in expressions {
+            let result = self
+                .evaluate(expression, &eval_context)
+                .await
+                .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))
+                .map(|res| res.is_constraint_satisfied());
+            out.push(result);
+        }
+        Ok(out)
+    }
+
     /// Compile an expression for reuse
     async fn compile(&self, expression: &str) -> octofhir_fhir_model::Result<CompiledExpression> {
         // Check cache first, or parse and cache the AST

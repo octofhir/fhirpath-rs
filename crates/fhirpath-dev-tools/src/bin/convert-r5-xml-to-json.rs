@@ -147,7 +147,10 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         _current_group_desc = None;
                         for a in e.attributes().flatten() {
                             if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
-                                let v = a.unescape_value().unwrap_or_default().to_string();
+                                let v = a
+                                    .normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                                    .unwrap_or_default()
+                                    .to_string();
                                 match k {
                                     "name" => current_group_name = v,
                                     "description" => _current_group_desc = Some(v),
@@ -179,7 +182,10 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         current_expr_mode = None;
                         for a in e.attributes().flatten() {
                             if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
-                                let v = a.unescape_value().unwrap_or_default().to_string();
+                                let v = a
+                                    .normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                                    .unwrap_or_default()
+                                    .to_string();
                                 match k {
                                     "name" => current_test_name = v,
                                     "description" => current_test_desc = Some(v),
@@ -199,21 +205,30 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                                 && k == "invalid"
                             {
                                 current_expect_error = true;
-                                current_invalid_kind =
-                                    Some(a.unescape_value().unwrap_or_default().to_string());
+                                current_invalid_kind = Some(
+                                    a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                                        .unwrap_or_default()
+                                        .to_string(),
+                                );
                             } else if let Ok(k) = std::str::from_utf8(a.key.as_ref())
                                 && k == "mode"
                             {
-                                current_expr_mode =
-                                    Some(a.unescape_value().unwrap_or_default().to_string());
+                                current_expr_mode = Some(
+                                    a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                                        .unwrap_or_default()
+                                        .to_string(),
+                                );
                             }
                         }
 
-                        // Read expression text content (unescaped and trimmed)
+                        // Read expression text content (unescaped and trimmed).
+                        // quick-xml >= 0.41 returns `BytesText`, so unescape it
+                        // into an owned string.
                         let expr_text = reader
                             .read_text(QName(b"expression"))
-                            .unwrap_or_default()
-                            .into_owned();
+                            .ok()
+                            .map(|t| t.decode().unwrap_or_default().into_owned())
+                            .unwrap_or_default();
                         current_expression = unescape_html_entities(expr_text.trim());
                     }
                     "output" => {
@@ -223,16 +238,20 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                             if let Ok(k) = std::str::from_utf8(a.key.as_ref())
                                 && k == "type"
                             {
-                                _current_output_type =
-                                    Some(a.unescape_value().unwrap_or_default().to_string());
+                                _current_output_type = Some(
+                                    a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                                        .unwrap_or_default()
+                                        .to_string(),
+                                );
                             }
                         }
 
-                        // Read output text in one shot and convert
+                        // Read output text in one shot and convert.
                         let out_text = reader
                             .read_text(QName(b"output"))
-                            .unwrap_or_default()
-                            .into_owned();
+                            .ok()
+                            .map(|t| t.decode().unwrap_or_default().into_owned())
+                            .unwrap_or_default();
                         let ty = _current_output_type.as_deref().unwrap_or("string");
                         current_expected.push(xml_text_to_value(ty, &out_text));
                         current_output_types.push(ty.to_string());
