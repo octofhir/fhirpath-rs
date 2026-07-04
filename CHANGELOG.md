@@ -1,3 +1,12 @@
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.49...v0.5.0) (2026-07-04)
+
+
+### Features
+
+* shared-context constraints, lambda env-var scoping, typed tree nav ([aad274c](https://github.com/octofhir/fhirpath-rs/commit/aad274c8140acdc3c61487be7ac2c625ad007653))
+
+
+
 ## [0.4.49](https://github.com/octofhir/fhirpath-rs/compare/v0.4.48...v0.4.49) (2026-07-03)
 
 
