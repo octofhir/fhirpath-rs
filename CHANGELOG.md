@@ -1,4 +1,13 @@
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.49...v0.5.0) (2026-07-04)
+## [0.4.51](https://github.com/octofhir/fhirpath-rs/compare/v0.4.50...v0.4.51) (2026-07-14)
+
+
+### Bug Fixes
+
+* short-circuit logical operators, model typed constraint contexts ([7bf061e](https://github.com/octofhir/fhirpath-rs/commit/7bf061ee441c2148b773a903c31492d0a8372703))
+
+
+
+## [0.4.50](https://github.com/octofhir/fhirpath-rs/compare/v0.4.49...v0.4.50) (2026-07-04)
 
 
 ### Features
