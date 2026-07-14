@@ -1,0 +1,6 @@
+# pnpm 11 requires build scripts to be allowed explicitly. Both of these are
+# part of Astro's own toolchain: esbuild links its platform binary and sharp
+# builds the native image pipeline that `astro build` uses.
+allowBuilds:
+  esbuild: true
+  sharp: true
