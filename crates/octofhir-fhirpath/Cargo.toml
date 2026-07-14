@@ -77,6 +77,8 @@ colored = { workspace = true }
 
 # Optional LSP dependencies
 async-lsp = { version = "0.2", features = ["tokio", "tracing"], optional = true }
+# Pinned to 0.95 to match the lsp-types version re-exported by async-lsp 0.2;
+# bumping it puts two incompatible lsp_types copies in the graph.
 lsp-types = { version = "0.95", optional = true }
 tower = { version = "0.5", optional = true }
 tokio-util = { version = "0.7", features = ["compat"], optional = true }

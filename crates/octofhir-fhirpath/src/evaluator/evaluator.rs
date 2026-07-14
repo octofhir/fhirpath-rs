@@ -226,8 +226,17 @@ impl Evaluator {
                 self.evaluate_path(&identifier_node.name, context).await
             }
             ExpressionNode::BinaryOperation(binary_op) => {
-                // Evaluate both operands first
+                // Evaluate the left operand first: for the logical operators it
+                // can already decide the result, in which case the right operand
+                // must not be evaluated at all (see `short_circuit`).
                 let left_result = self.evaluate_node_inner(&binary_op.left, context).await?;
+
+                if let Some(value) = Self::short_circuit(&binary_op.operator, &left_result.value) {
+                    return Ok(EvaluationResult {
+                        value: Collection::single(value),
+                    });
+                }
+
                 let right_result = self.evaluate_node_inner(&binary_op.right, context).await?;
 
                 // Dispatch to operator registry
@@ -481,6 +490,15 @@ impl Evaluator {
                 let left_result = self
                     .evaluate_node_with_collector(&binary_op.left, context, collector, depth + 1)
                     .await?;
+
+                // The left operand can already decide a logical operator; the
+                // right operand must not be evaluated in that case.
+                if let Some(value) = Self::short_circuit(&binary_op.operator, &left_result.value) {
+                    return Ok(EvaluationResult {
+                        value: Collection::single(value),
+                    });
+                }
+
                 let right_result = self
                     .evaluate_node_with_collector(&binary_op.right, context, collector, depth + 1)
                     .await?;
@@ -2348,6 +2366,36 @@ impl Evaluator {
     }
 
     /// Evaluate a binary operation using the operator registry
+    /// Result of a logical operator that is already decided by its left operand.
+    ///
+    /// The FHIRPath truth tables make `false and X`, `true or X` and
+    /// `false implies X` independent of `X`, so the right operand is not
+    /// evaluated. This is what lets an invariant such as
+    /// `$this is DateTime implies $this.toString().length() >= 10` hold for a
+    /// non-DateTime focus: the right side never runs, so it cannot raise.
+    ///
+    /// Every other case (including an empty left operand, which stays
+    /// three-valued) returns `None` and is dispatched to the operator registry
+    /// with both operands evaluated.
+    fn short_circuit(
+        operator: &crate::ast::BinaryOperator,
+        left: &Collection,
+    ) -> Option<FhirPathValue> {
+        use crate::ast::BinaryOperator;
+
+        // Booleans are singletons in FHIRPath; anything else is not decisive.
+        if left.len() != 1 {
+            return None;
+        }
+
+        match (operator, left.first()?.as_boolean()?) {
+            (BinaryOperator::And, false) => Some(FhirPathValue::boolean(false)),
+            (BinaryOperator::Or, true) => Some(FhirPathValue::boolean(true)),
+            (BinaryOperator::Implies, false) => Some(FhirPathValue::boolean(true)),
+            _ => None,
+        }
+    }
+
     async fn evaluate_binary_operation(
         &self,
         operator: &crate::ast::BinaryOperator,

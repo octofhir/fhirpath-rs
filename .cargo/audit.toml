@@ -1,0 +1,28 @@
+# cargo-audit configuration
+#
+# Ignored advisories must be re-evaluated whenever the dependency tree changes.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2026-0194 — quick-xml: quadratic run time on duplicate attribute names
+    # RUSTSEC-2026-0195 — quick-xml: unbounded namespace-declaration allocation
+    #
+    # Both affect quick-xml 0.26, which enters the tree only through
+    # pprof -> inferno 0.11 (flamegraph rendering) in fhirpath-dev-tools.
+    #
+    # Not fixable today: pprof 0.15 (latest) requires inferno ^0.11, and
+    # inferno 0.11.21 (last of that line) pins quick-xml ^0.26. The fix landed
+    # in inferno 0.12 / quick-xml 0.41, which no pprof release depends on yet.
+    #
+    # Not exploitable here: fhirpath-dev-tools is publish = false and is a
+    # local benchmarking tool. The only XML inferno handles is the SVG
+    # flamegraph that pprof itself generates from in-process profiling data —
+    # both advisories are denial-of-service via attacker-supplied XML, which
+    # this path never parses.
+    #
+    # Workspace code uses quick-xml 0.41 directly and is unaffected.
+    #
+    # Remove once pprof depends on inferno >= 0.12.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]

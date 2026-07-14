@@ -105,6 +105,82 @@ impl Collection {
         Ok(Self::from_values(vec![resource_value]))
     }
 
+    /// Create a collection from Arc-wrapped JSON whose FHIR type is already known.
+    ///
+    /// `from_json_resource_arc` infers everything from the JSON shape, which is
+    /// enough for a resource but not for a node that is only a fragment of one:
+    /// the primitive `"2017-03-15T20:23:41+00:00"` carries no hint that it is a
+    /// FHIR `dateTime`, and would be modelled as an opaque resource. Callers
+    /// that know the declared type (element-level invariants, for instance) pass
+    /// it here so the node is modelled as that type — a temporal primitive is
+    /// parsed into the matching `Date`/`DateTime`/`Time` value, other primitives
+    /// and complex types are tagged with FHIR-namespaced type info.
+    ///
+    /// `type_name` of `None`, or a type that does not describe the JSON at hand,
+    /// falls back to `from_json_resource_arc`.
+    pub async fn from_json_typed_arc(
+        json: Arc<JsonValue>,
+        type_name: Option<&str>,
+        model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
+    ) -> crate::core::Result<Self> {
+        let Some(type_name) = type_name else {
+            return Self::from_json_resource_arc(json, model_provider).await;
+        };
+
+        // A resource models itself: `resourceType` is more specific than any
+        // type the caller can name here.
+        if json.get("resourceType").is_some() {
+            return Self::from_json_resource_arc(json, model_provider).await;
+        }
+
+        let type_info = Arc::new(TypeInfo {
+            type_name: type_name.to_string(),
+            singleton: Some(true),
+            namespace: Some("FHIR".to_string()),
+            name: Some(type_name.to_string()),
+            is_empty: Some(false),
+        });
+
+        let value = match json.as_str() {
+            // Temporal primitives must be parsed, not just tagged: `is dateTime`
+            // and the date/time operators match on the value, not on type info.
+            Some(s) => match type_name.to_ascii_lowercase().as_str() {
+                "datetime" | "instant" => crate::core::temporal::PrecisionDateTime::parse(s)
+                    .map(|parsed| FhirPathValue::DateTime(parsed, type_info.clone(), None)),
+                "date" => crate::core::temporal::PrecisionDate::parse(s)
+                    .map(|parsed| FhirPathValue::Date(parsed, type_info.clone(), None)),
+                "time" => crate::core::temporal::PrecisionTime::parse(s)
+                    .map(|parsed| FhirPathValue::Time(parsed, type_info.clone(), None)),
+                _ => None,
+            },
+            None => None,
+        };
+
+        // Anything else keeps the JSON-shaped value and only gains type info:
+        // a complex type (`Period`, `CodeableConcept`, ...) becomes a node
+        // tagged with it, and an unparsable temporal is left as the string it
+        // is, so the invariant that checks its format still sees it.
+        let value = match value {
+            Some(value) => value,
+            // An array is a collection, not a node; it has no single type to tag.
+            None if json.is_array() => {
+                return Self::from_json_resource_arc(json, model_provider).await;
+            }
+            None if json.is_object() => FhirPathValue::Resource(
+                crate::core::node::FhirNode::from_json(&json),
+                type_info,
+                None,
+            ),
+            None => FhirPathValue::wrap_value(
+                crate::core::value::utils::json_to_fhirpath_value_arc(json),
+                type_info,
+                None,
+            ),
+        };
+
+        Ok(Self::from_values(vec![value]))
+    }
+
     /// Create a collection from a vector with explicit ordering
     pub fn from_values_with_ordering(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
         Self {

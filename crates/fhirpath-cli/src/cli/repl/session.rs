@@ -185,6 +185,10 @@ impl ReplSession {
                     println!("exit");
                     break;
                 }
+                // `Signal` is #[non_exhaustive]. The REPL emits no
+                // ExecuteHostCommand and installs no external interrupt, so the
+                // remaining variants cannot occur here.
+                Ok(_) => continue,
                 Err(e) => {
                     println!("Error: {e}");
                     break;

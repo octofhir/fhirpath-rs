@@ -171,13 +171,19 @@ impl FhirPathEngine {
     }
 
     /// Build evaluation context with JSON variables directly (no EvaluationResult round-trip).
+    ///
+    /// `context_type` is the declared FHIR type of the context node, when the
+    /// caller knows it; see [`Collection::from_json_typed_arc`] for why it
+    /// matters for nodes that are not whole resources.
     async fn build_context_with_json_variables(
         &self,
         context: Arc<JsonValue>,
+        context_type: Option<&str>,
         variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<EvaluationContext> {
-        let collection = crate::core::Collection::from_json_resource_arc(
+        let collection = crate::core::Collection::from_json_typed_arc(
             context,
+            context_type,
             Some(self.model_provider.clone()),
         )
         .await
@@ -382,7 +388,7 @@ impl FhirPathEvaluator for FhirPathEngine {
         variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<ModelEvaluationResult> {
         let eval_context = self
-            .build_context_with_json_variables(context, variables)
+            .build_context_with_json_variables(context, None, variables)
             .await?;
 
         // Evaluate using our internal engine
@@ -403,7 +409,7 @@ impl FhirPathEvaluator for FhirPathEngine {
         variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<bool> {
         let eval_context = self
-            .build_context_with_json_variables(context, variables)
+            .build_context_with_json_variables(context, None, variables)
             .await?;
 
         let result = self
@@ -419,14 +425,29 @@ impl FhirPathEvaluator for FhirPathEngine {
     /// context. Result semantics match `evaluate_constraint_with_variables`
     /// (empty / non-boolean / `Boolean(true)` => satisfied), so this only
     /// removes the per-constraint context rebuild — it does not change outcomes.
+    ///
     async fn evaluate_constraints_shared_context(
         &self,
         context: Arc<JsonValue>,
         variables: &JsonVariables,
         expressions: &[&str],
     ) -> octofhir_fhir_model::Result<Vec<octofhir_fhir_model::Result<bool>>> {
+        self.evaluate_constraints_shared_context_typed(context, None, variables, expressions)
+            .await
+    }
+
+    /// `context_type` models the context node as the FHIR type the caller
+    /// declares it to be, which is what invariants on primitive elements
+    /// (`$this is dateTime implies ...`) need to see.
+    async fn evaluate_constraints_shared_context_typed(
+        &self,
+        context: Arc<JsonValue>,
+        context_type: Option<&str>,
+        variables: &JsonVariables,
+        expressions: &[&str],
+    ) -> octofhir_fhir_model::Result<Vec<octofhir_fhir_model::Result<bool>>> {
         let eval_context = self
-            .build_context_with_json_variables(context, variables)
+            .build_context_with_json_variables(context, context_type, variables)
             .await?;
 
         let mut out = Vec::with_capacity(expressions.len());

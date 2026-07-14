@@ -35,7 +35,7 @@ workspace = true
 
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath", features = ["lsp"] }
-octofhir-fhirschema = { version = "0.3.22" }
+octofhir-fhirschema = { version = "0.3.24" }
 octofhir-fhir-model = { workspace = true }
 
 # Server dependencies (optional)
@@ -59,7 +59,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 colored = { workspace = true }
-reedline = { version = "0.44", optional = true }
+reedline = { version = "0.49", optional = true }
 fuzzy-matcher = { version = "0.3", optional = true }
 tabled = "0.21"
 human-panic = "2.0"

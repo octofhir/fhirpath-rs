@@ -35,7 +35,7 @@ workspace = true
 
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-octofhir-fhirschema = { version = "0.3.22" }
+octofhir-fhirschema = { version = "0.3.24" }
 octofhir-fhir-model = { workspace = true }
 
 # Dev tools dependencies
@@ -49,5 +49,5 @@ clap = { workspace = true }
 chrono = { workspace = true }
 quick-xml = { workspace = true }
 roxmltree = "0.21"
-sysinfo = "0.38"
+sysinfo = "0.39"
 pprof = { version = "0.15", features = ["flamegraph"] }
