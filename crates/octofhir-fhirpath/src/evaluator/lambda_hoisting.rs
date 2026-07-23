@@ -166,8 +166,7 @@ fn depends_on_focus(node: &ExpressionNode, focus_bound: bool) -> bool {
         ExpressionNode::TypeCheck(check) => depends_on_focus(&check.expression, focus_bound),
 
         ExpressionNode::Filter(filter) => {
-            depends_on_focus(&filter.base, focus_bound)
-                || depends_on_focus(&filter.condition, true)
+            depends_on_focus(&filter.base, focus_bound) || depends_on_focus(&filter.condition, true)
         }
 
         // A bare call applies to the current focus.

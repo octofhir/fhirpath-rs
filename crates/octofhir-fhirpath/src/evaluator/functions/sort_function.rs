@@ -142,13 +142,9 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
             });
         }
 
-        let context = crate::evaluator::lambda_hoisting::hoist_into(
-            context,
-            &args,
-            input.len(),
-            &evaluator,
-        )
-        .await?;
+        let context =
+            crate::evaluator::lambda_hoisting::hoist_into(context, &args, input.len(), &evaluator)
+                .await?;
         let context = &context;
 
         // Create sort keys for each input item

@@ -27,7 +27,10 @@ async fn main() -> anyhow::Result<()> {
         );
     };
     let runs: usize = args.next().and_then(|s| s.parse().ok()).unwrap_or(3);
-    let limit: usize = args.next().and_then(|s| s.parse().ok()).unwrap_or(usize::MAX);
+    let limit: usize = args
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(usize::MAX);
     let skip_bundle = std::env::var("SKIP_BUNDLE").is_ok();
 
     let t0 = Instant::now();
@@ -56,8 +59,7 @@ async fn main() -> anyhow::Result<()> {
                 .collect()
         })
         .unwrap_or_default();
-    let resources: Vec<serde_json::Value> =
-        all_resources.iter().take(limit).cloned().collect();
+    let resources: Vec<serde_json::Value> = all_resources.iter().take(limit).cloned().collect();
     let contained_total: usize = resources
         .iter()
         .map(|r| {
@@ -137,7 +139,9 @@ async fn main() -> anyhow::Result<()> {
             let ms = t.elapsed().as_secs_f64() * 1000.0;
             println!(
                 "  [{i}] {} bytes={} contained={} -> {:.1} ms",
-                res.get("resourceType").and_then(|v| v.as_str()).unwrap_or("?"),
+                res.get("resourceType")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?"),
                 size,
                 ncontained,
                 ms
@@ -171,7 +175,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // ---- whole-bundle evaluation (%resource = Bundle) ----
-    
+
     for run in 1..=runs {
         if skip_bundle {
             break;
