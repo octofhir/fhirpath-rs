@@ -74,6 +74,15 @@ impl LazyFunctionEvaluator for SelectFunctionEvaluator {
         let projection_expr = &args[0];
         let mut results = Vec::new();
 
+        let context = crate::evaluator::lambda_hoisting::hoist_into(
+            context,
+            std::slice::from_ref(projection_expr),
+            input.len(),
+            &evaluator,
+        )
+        .await?;
+        let context = &context;
+
         // Process each item in the input collection
         for (index, item) in input.iter().enumerate() {
             let child_context = context.create_child_context(Collection::single(item.clone()));

@@ -114,6 +114,15 @@ impl LazyFunctionEvaluator for AggregateFunctionEvaluator {
             start_index = 1;
         }
 
+        let context = crate::evaluator::lambda_hoisting::hoist_into(
+            context,
+            std::slice::from_ref(aggregator_expr),
+            input.len(),
+            &evaluator,
+        )
+        .await?;
+        let context = &context;
+
         // For each item in the input collection (starting from appropriate index)
         for (index, item) in input.iter().enumerate().skip(start_index) {
             // Prepare total value for this iteration

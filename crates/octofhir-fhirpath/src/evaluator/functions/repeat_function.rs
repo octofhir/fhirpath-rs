@@ -71,6 +71,16 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
         }
 
         let repeat_expr = &args[0];
+
+        let context = crate::evaluator::lambda_hoisting::hoist_into(
+            context,
+            std::slice::from_ref(repeat_expr),
+            usize::MAX,
+            &evaluator,
+        )
+        .await?;
+        let context = &context;
+
         let mut result_values = Vec::new();
         let mut result_keys: HashSet<String> = HashSet::new();
         let mut seen = HashSet::new();

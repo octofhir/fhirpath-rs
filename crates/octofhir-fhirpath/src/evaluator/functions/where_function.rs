@@ -71,9 +71,13 @@ impl LazyFunctionEvaluator for WhereFunctionEvaluator {
         let criteria_expr = &args[0];
         let mut filtered = Vec::new();
 
-        let context =
-            crate::evaluator::lambda_hoisting::hoist_into(context, criteria_expr, input.len(), &evaluator)
-                .await?;
+        let context = crate::evaluator::lambda_hoisting::hoist_into(
+            context,
+            std::slice::from_ref(criteria_expr),
+            input.len(),
+            &evaluator,
+        )
+        .await?;
         let context = &context;
 
         for (index, item) in input.iter().enumerate() {

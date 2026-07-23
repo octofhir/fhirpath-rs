@@ -73,6 +73,15 @@ impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
         // Evaluate criteria for each element and return true if any match
         let criteria_expr = &args[0];
 
+        let context = crate::evaluator::lambda_hoisting::hoist_into(
+            context,
+            std::slice::from_ref(criteria_expr),
+            input.len(),
+            &evaluator,
+        )
+        .await?;
+        let context = &context;
+
         for (index, item) in input.iter().enumerate() {
             // Create child context for this iteration. `create_child_context`
             // preserves the environment (shared root resource and parent

@@ -23,12 +23,16 @@ use crate::ast::ExpressionNode;
 use crate::core::Result;
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext};
 
-/// Below this many iterations the saved work cannot outweigh the analysis and the
+/// Below this many evaluations the saved work cannot outweigh the analysis and the
 /// extra context clone.
-const MIN_ITEMS_TO_HOIST: usize = 2;
+const MIN_EVALUATIONS_TO_HOIST: usize = 2;
 
-/// Pre-evaluate the loop-invariant parts of `lambda_arg` and return a context that
+/// Pre-evaluate the loop-invariant parts of `lambda_args` and return a context that
 /// publishes the results to the iteration that follows.
+///
+/// `expected_evaluations` is how many times the caller expects to evaluate the
+/// arguments — normally the input length. Callers whose iteration count is not
+/// bounded by the input (`repeat()`) pass [`usize::MAX`].
 ///
 /// Returns a plain clone of `context` when there is nothing worth hoisting.
 ///
@@ -37,15 +41,18 @@ const MIN_ITEMS_TO_HOIST: usize = 2;
 /// and if it does, evaluating it in place reports the error at its proper time.
 pub async fn hoist_into(
     context: &EvaluationContext,
-    lambda_arg: &ExpressionNode,
-    item_count: usize,
+    lambda_args: &[ExpressionNode],
+    expected_evaluations: usize,
     evaluator: &AsyncNodeEvaluator<'_>,
 ) -> Result<EvaluationContext> {
-    if item_count < MIN_ITEMS_TO_HOIST {
+    if expected_evaluations < MIN_EVALUATIONS_TO_HOIST {
         return Ok(context.clone());
     }
 
-    let candidates = invariant_subexpressions(lambda_arg);
+    let candidates: Vec<&ExpressionNode> = lambda_args
+        .iter()
+        .flat_map(invariant_subexpressions)
+        .collect();
     if candidates.is_empty() {
         return Ok(context.clone());
     }
@@ -62,15 +69,11 @@ pub async fn hoist_into(
 
 /// Variables whose value is fixed for an entire evaluation.
 ///
-/// `%resource`/`%context` are set once when the root context is built and shared
-/// unchanged by every child context. Every other variable is excluded: lambda
-/// bindings change per item, and user variables can be rebound by `defineVariable`
-/// in a nested scope.
+/// These resolve straight from the root value the context was built with, ahead of
+/// any variable scope. Every other variable is excluded: lambda bindings change per
+/// item, and user variables can be rebound by `defineVariable` in a nested scope.
 fn is_invariant_variable(name: &str) -> bool {
-    matches!(
-        name,
-        "resource" | "%resource" | "context" | "%context" | "rootResource" | "%rootResource"
-    )
+    matches!(name, "resource" | "%resource" | "context" | "%context")
 }
 
 /// Functions that must always run in place: their result depends on wall-clock

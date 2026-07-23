@@ -80,6 +80,15 @@ impl LazyFunctionEvaluator for AllFunctionEvaluator {
 
         let criteria_expr = &args[0];
 
+        let context = crate::evaluator::lambda_hoisting::hoist_into(
+            context,
+            std::slice::from_ref(criteria_expr),
+            input.len(),
+            &evaluator,
+        )
+        .await?;
+        let context = &context;
+
         // Evaluate the criteria for each element in the input collection
         for (index, item) in input.iter().enumerate() {
             // Create child context for this iteration. `create_child_context`
