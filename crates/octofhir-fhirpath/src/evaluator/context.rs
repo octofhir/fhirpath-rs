@@ -64,8 +64,57 @@ struct SharedContextState {
     trace_provider: Option<SharedTraceProvider>,
     resolution_cache: Arc<LockFreeHashMap<String, Arc<serde_json::Value>>>,
     type_info_cache: Arc<LockFreeHashMap<String, Arc<TypeInfo>>>,
+    descendants_cache: Arc<LockFreeHashMap<DescendantsKey, DescendantsEntry>>,
+    element_type_cache: Arc<LockFreeHashMap<String, Option<Arc<TypeInfo>>>>,
     server_registry: Arc<LockFreeHashMap<String, Arc<dyn ServerProvider>>>,
     base_env_variables: Arc<LockFreeHashMap<String, FhirPathValue>>,
+}
+
+/// Key for [`SharedContextState::descendants_cache`]: node allocation address plus
+/// the type it was navigated as. The type is part of the key because the same JSON
+/// subtree yields differently-typed children depending on the element it came from.
+type DescendantsKey = (usize, Arc<str>);
+
+/// Memoized `descendants()` output.
+///
+/// `_root` is the node the traversal started from, kept alive purely so its
+/// allocation address stays reserved — see [`crate::core::node::FhirNode::identity`].
+#[derive(Clone)]
+struct DescendantsEntry {
+    _root: FhirPathValue,
+    values: Arc<Vec<FhirPathValue>>,
+}
+
+/// Pre-evaluated results for loop-invariant subexpressions of a lambda argument.
+///
+/// Produced by [`crate::evaluator::lambda_hoisting`] when a lambda function is about
+/// to iterate, and inherited by every child context created during that iteration.
+///
+/// Entries are keyed by the *address* of the AST node. That is sound only because
+/// the scope is owned by the lambda call frame: the argument AST it points into
+/// outlives the scope, so no address it holds can be recycled while lookups can
+/// still reach it. Nested lambdas push a new scope whose `parent` keeps the outer
+/// one reachable.
+pub struct HoistScope {
+    entries: std::collections::HashMap<usize, Collection>,
+    parent: Option<Arc<HoistScope>>,
+}
+
+impl HoistScope {
+    /// Build a scope from `(node address, value)` pairs, nested inside `parent`.
+    pub fn new(
+        entries: std::collections::HashMap<usize, Collection>,
+        parent: Option<Arc<HoistScope>>,
+    ) -> Self {
+        Self { entries, parent }
+    }
+
+    fn lookup(&self, key: usize) -> Option<&Collection> {
+        match self.entries.get(&key) {
+            Some(value) => Some(value),
+            None => self.parent.as_ref().and_then(|parent| parent.lookup(key)),
+        }
+    }
 }
 
 /// Simple evaluation context for FHIRPath
@@ -85,6 +134,10 @@ pub struct EvaluationContext {
     /// Shared root resource value for $this, %resource, %context aliases
     /// Stored as Arc to avoid cloning the same value 5 times during context creation
     root_resource: Option<Arc<FhirPathValue>>,
+    /// Loop-invariant subexpressions already evaluated by an enclosing lambda.
+    /// `None` on the common path, which keeps the lookup in the node evaluator
+    /// down to a null check.
+    hoist_scope: Option<Arc<HoistScope>>,
 }
 
 /// Helper to create dynamic-only variables (terminologies, factory, server).
@@ -177,6 +230,8 @@ impl EvaluationContext {
             trace_provider,
             resolution_cache: Arc::new(LockFreeHashMap::new()),
             type_info_cache: Arc::new(LockFreeHashMap::new()),
+            descendants_cache: Arc::new(LockFreeHashMap::new()),
+            element_type_cache: Arc::new(LockFreeHashMap::new()),
             server_registry,
             base_env_variables: BASE_ENV_VARIABLES.clone(),
         });
@@ -187,6 +242,7 @@ impl EvaluationContext {
             variables: Arc::new(variables),
             parent_context: None,
             root_resource,
+            hoist_scope: None,
         }
     }
 
@@ -252,6 +308,7 @@ impl EvaluationContext {
             variables: Arc::new(variables),
             parent_context: None, // Independent context has no parent
             root_resource: self.root_resource.clone(), // Share Arc reference
+            hoist_scope: self.hoist_scope.clone(),
         }
     }
 
@@ -264,6 +321,7 @@ impl EvaluationContext {
             variables: Arc::new(LockFreeHashMap::new()), // Empty variables in nested scope
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
             root_resource: self.root_resource.clone(),   // Share Arc reference
+            hoist_scope: self.hoist_scope.clone(),
         }
     }
 
@@ -276,6 +334,7 @@ impl EvaluationContext {
             variables: Arc::new(LockFreeHashMap::new()), // Empty variables for child context
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
             root_resource: self.root_resource.clone(),   // Share Arc reference
+            hoist_scope: self.hoist_scope.clone(),
         }
     }
 
@@ -396,6 +455,110 @@ impl EvaluationContext {
     pub fn type_info_cache(&self) -> &Arc<LockFreeHashMap<String, Arc<TypeInfo>>> {
         &self.shared.type_info_cache
     }
+
+    /// Return this context with `scope` pushed on top of any inherited scope.
+    pub fn with_hoist_scope(
+        mut self,
+        entries: std::collections::HashMap<usize, Collection>,
+    ) -> Self {
+        if entries.is_empty() {
+            return self;
+        }
+        self.hoist_scope = Some(Arc::new(HoistScope::new(entries, self.hoist_scope.take())));
+        self
+    }
+
+    /// The hoist scope in effect, if a lambda established one.
+    pub fn hoist_scope(&self) -> Option<&Arc<HoistScope>> {
+        self.hoist_scope.as_ref()
+    }
+
+    /// Look up the pre-evaluated value of the AST node at address `key`.
+    ///
+    /// Returns `None` immediately when no enclosing lambda hoisted anything, which
+    /// is the case for almost every node evaluated.
+    pub fn hoisted_value(&self, key: usize) -> Option<Collection> {
+        self.hoist_scope.as_ref()?.lookup(key).cloned()
+    }
+
+    /// Resolve the type of the `property` element of `parent_type`, memoized.
+    ///
+    /// Tree walks resolve the same handful of (type, property) pairs thousands of
+    /// times. Caching skips the schema lookup, and — because the result is handed
+    /// out as a shared `Arc` — also the per-node `TypeInfo` clone that tagging a
+    /// child value would otherwise cost.
+    pub async fn cached_element_type(
+        &self,
+        parent_type: &TypeInfo,
+        property: &str,
+    ) -> Option<Arc<TypeInfo>> {
+        let key = match &parent_type.name {
+            Some(name) => format!("{name}.{property}"),
+            None => format!("{}.{property}", parent_type.type_name),
+        };
+
+        if let Some(cached) = self.shared.element_type_cache.pin().get(&key) {
+            return cached.clone();
+        }
+
+        let resolved = self
+            .shared
+            .model_provider
+            .get_element_type(parent_type, property)
+            .await
+            .ok()
+            .flatten()
+            .map(Arc::new);
+
+        self.shared
+            .element_type_cache
+            .pin()
+            .insert(key, resolved.clone());
+        resolved
+    }
+
+    /// Look up a memoized `descendants()` result for `value`.
+    ///
+    /// Returns `None` for scalars (no stable identity) and on a miss.
+    pub fn cached_descendants(&self, value: &FhirPathValue) -> Option<Arc<Vec<FhirPathValue>>> {
+        let key = descendants_key(value)?;
+        self.shared
+            .descendants_cache
+            .pin()
+            .get(&key)
+            .map(|entry| entry.values.clone())
+    }
+
+    /// Memoize `descendants` as the full descendant list of `value`.
+    ///
+    /// No-op for values without a stable identity. The cache lives for the
+    /// lifetime of the shared context state, so it is bounded by the resources
+    /// actually navigated during one evaluation.
+    pub fn cache_descendants(&self, value: &FhirPathValue, descendants: Arc<Vec<FhirPathValue>>) {
+        let Some(key) = descendants_key(value) else {
+            return;
+        };
+        self.shared.descendants_cache.pin().insert(
+            key,
+            DescendantsEntry {
+                _root: value.clone(),
+                values: descendants,
+            },
+        );
+    }
+}
+
+/// Build the memoization key for `value`, or `None` if it has no stable identity.
+fn descendants_key(value: &FhirPathValue) -> Option<DescendantsKey> {
+    let FhirPathValue::Resource(node, type_info, _) = value else {
+        return None;
+    };
+    let identity = node.identity()?;
+    let type_name: Arc<str> = match &type_info.name {
+        Some(name) => Arc::from(name.as_str()),
+        None => Arc::from(""),
+    };
+    Some((identity, type_name))
 }
 
 /// Clone implementation for EvaluationContext
@@ -410,6 +573,7 @@ impl Clone for EvaluationContext {
             variables: self.variables.clone(),
             parent_context: self.parent_context.clone(),
             root_resource: self.root_resource.clone(),
+            hoist_scope: self.hoist_scope.clone(),
         }
     }
 }

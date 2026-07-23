@@ -47,6 +47,17 @@ impl InOperatorEvaluator {
         context: &EvaluationContext,
     ) -> Result<bool> {
         for item in haystack {
+            // Membership over a large haystack is the hot path for invariants like
+            // dom-3, where every candidate is compared against several hundred
+            // references. Settle the primitive cases directly; the general operator
+            // below allocates two collections per comparison.
+            if let Some(equal) = fast_equals(needle, item) {
+                if equal {
+                    return Ok(true);
+                }
+                continue;
+            }
+
             // Use the equals operator to compare values
             let needle_col = Collection::single(needle.clone());
             let item_col = Collection::single(item.clone());
@@ -64,6 +75,31 @@ impl InOperatorEvaluator {
             }
         }
         Ok(false)
+    }
+}
+
+/// Compare two values when FHIRPath equality reduces to comparing payloads,
+/// returning `None` when it does not.
+///
+/// Deliberately narrow: only same-kind primitives whose equality ignores type
+/// annotations. Everything else — quantities (unit conversion), dates and times
+/// (precision-aware, can be empty rather than false), decimals against integers,
+/// resources and nested collections (structural) — defers to the equals operator.
+fn fast_equals(left: &FhirPathValue, right: &FhirPathValue) -> Option<bool> {
+    match (left, right) {
+        (FhirPathValue::String(a, _, _), FhirPathValue::String(b, _, _)) => Some(a == b),
+        (FhirPathValue::Integer(a, _, _), FhirPathValue::Integer(b, _, _)) => Some(a == b),
+        (FhirPathValue::Boolean(a, _, _), FhirPathValue::Boolean(b, _, _)) => Some(a == b),
+        (FhirPathValue::Decimal(a, _, _), FhirPathValue::Decimal(b, _, _)) => Some(a == b),
+        // Distinct primitive kinds are never equal, but only decide that for kinds
+        // with no cross-type equality rules of their own.
+        (FhirPathValue::String(_, _, _), FhirPathValue::Boolean(_, _, _))
+        | (FhirPathValue::Boolean(_, _, _), FhirPathValue::String(_, _, _))
+        | (FhirPathValue::String(_, _, _), FhirPathValue::Integer(_, _, _))
+        | (FhirPathValue::Integer(_, _, _), FhirPathValue::String(_, _, _))
+        | (FhirPathValue::String(_, _, _), FhirPathValue::Decimal(_, _, _))
+        | (FhirPathValue::Decimal(_, _, _), FhirPathValue::String(_, _, _)) => Some(false),
+        _ => None,
     }
 }
 

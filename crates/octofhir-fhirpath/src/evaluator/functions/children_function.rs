@@ -12,7 +12,7 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::model_provider::{ModelProvider, TypeInfo};
+use crate::core::model_provider::TypeInfo;
 use crate::core::node::FhirNode;
 use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
@@ -60,7 +60,7 @@ impl ChildrenFunctionEvaluator {
 /// never worse than an untyped traversal.
 pub(crate) async fn typed_children(
     item: &FhirPathValue,
-    model_provider: &Arc<dyn ModelProvider + Send + Sync>,
+    context: &EvaluationContext,
 ) -> Vec<FhirPathValue> {
     let mut out = Vec::new();
     let FhirPathValue::Resource(node, parent_type, _) = item else {
@@ -72,17 +72,13 @@ pub(crate) async fn typed_children(
                 if key.starts_with('_') || key == "resourceType" {
                     continue;
                 }
-                let child_type = model_provider
-                    .get_element_type(parent_type, key)
-                    .await
-                    .ok()
-                    .flatten();
+                let child_type = context.cached_element_type(parent_type, key).await;
                 push_typed(value, child_type.as_ref(), &mut out);
             }
         }
         FhirNode::Array(arr) => {
             for value in arr.iter() {
-                push_typed(value, Some(parent_type.as_ref()), &mut out);
+                push_typed(value, Some(parent_type), &mut out);
             }
         }
         _ => {}
@@ -92,7 +88,7 @@ pub(crate) async fn typed_children(
 
 /// Convert a JSON node into typed FhirPathValue(s), tagging each with
 /// `child_type` when available. Arrays flatten to one value per element.
-fn push_typed(node: &FhirNode, child_type: Option<&TypeInfo>, out: &mut Vec<FhirPathValue>) {
+fn push_typed(node: &FhirNode, child_type: Option<&Arc<TypeInfo>>, out: &mut Vec<FhirPathValue>) {
     match node {
         FhirNode::Array(arr) => {
             for e in arr.iter() {
@@ -120,7 +116,7 @@ fn push_typed(node: &FhirNode, child_type: Option<&TypeInfo>, out: &mut Vec<Fhir
                 FhirNode::Array(_) | FhirNode::Null => return,
             };
             let value = match child_type {
-                Some(t) => base.with_type_info(Arc::new(t.clone())),
+                Some(t) => base.with_type_info(t.clone()),
                 None => base,
             };
             out.push(value);
@@ -144,15 +140,14 @@ impl LazyFunctionEvaluator for ChildrenFunctionEvaluator {
             ));
         }
 
-        let model_provider = context.model_provider();
         let mut all_children = Vec::new();
         for item in input.iter() {
             if let FhirPathValue::Collection(inner) = item {
                 for it in inner.iter() {
-                    all_children.extend(typed_children(it, model_provider).await);
+                    all_children.extend(typed_children(it, context).await);
                 }
             } else {
-                all_children.extend(typed_children(item, model_provider).await);
+                all_children.extend(typed_children(item, context).await);
             }
         }
 

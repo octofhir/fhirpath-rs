@@ -12,6 +12,7 @@ pub mod evaluator;
 pub mod factory_variable;
 pub mod function_registry;
 pub mod functions;
+pub mod lambda_hoisting;
 pub mod metadata_collector;
 pub mod operations;
 pub mod operator_registry;

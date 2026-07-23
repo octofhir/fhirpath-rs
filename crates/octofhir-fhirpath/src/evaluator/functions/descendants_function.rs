@@ -11,7 +11,6 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::model_provider::ModelProvider;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -54,15 +53,40 @@ impl DescendantsFunctionEvaluator {
 /// resources are trees, so this terminates without cycle tracking.
 fn collect_descendants<'a>(
     item: &'a FhirPathValue,
-    model_provider: &'a Arc<dyn ModelProvider + Send + Sync>,
+    context: &'a EvaluationContext,
     out: &'a mut Vec<FhirPathValue>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
     Box::pin(async move {
-        for child in typed_children(item, model_provider).await {
+        for child in typed_children(item, context).await {
             out.push(child.clone());
-            collect_descendants(&child, model_provider, out).await;
+            collect_descendants(&child, context, out).await;
         }
     })
+}
+
+/// Append every descendant of `item` to `out`, going through the context's
+/// memoization cache.
+///
+/// Expressions that walk the same subtree repeatedly — notably the `dom-3`
+/// invariant, which evaluates `%resource.descendants()` four times per contained
+/// resource — would otherwise re-traverse (and re-resolve the type of) every node
+/// on each pass, making the cost quadratic in resource size.
+async fn extend_with_descendants(
+    item: &FhirPathValue,
+    context: &EvaluationContext,
+    out: &mut Vec<FhirPathValue>,
+) {
+    if let Some(cached) = context.cached_descendants(item) {
+        out.extend(cached.iter().cloned());
+        return;
+    }
+
+    let mut collected = Vec::new();
+    collect_descendants(item, context, &mut collected).await;
+
+    let collected = Arc::new(collected);
+    context.cache_descendants(item, collected.clone());
+    out.extend(collected.iter().cloned());
 }
 
 #[async_trait::async_trait]
@@ -81,15 +105,14 @@ impl LazyFunctionEvaluator for DescendantsFunctionEvaluator {
             ));
         }
 
-        let model_provider = context.model_provider();
         let mut all_descendants = Vec::new();
         for item in input.iter() {
             if let FhirPathValue::Collection(inner) = item {
                 for it in inner.iter() {
-                    collect_descendants(it, model_provider, &mut all_descendants).await;
+                    extend_with_descendants(it, context, &mut all_descendants).await;
                 }
             } else {
-                collect_descendants(item, model_provider, &mut all_descendants).await;
+                extend_with_descendants(item, context, &mut all_descendants).await;
             }
         }
 

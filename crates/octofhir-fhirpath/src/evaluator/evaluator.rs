@@ -213,6 +213,14 @@ impl Evaluator {
         node: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
+        // An enclosing lambda may have already evaluated this exact subexpression
+        // because it does not depend on the item being iterated.
+        if context.hoist_scope().is_some()
+            && let Some(value) = context.hoisted_value(node as *const ExpressionNode as usize)
+        {
+            return Ok(EvaluationResult { value });
+        }
+
         match node {
             ExpressionNode::Literal(literal_node) => {
                 // Convert literal to FhirPathValue

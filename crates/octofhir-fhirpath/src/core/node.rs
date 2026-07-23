@@ -73,6 +73,23 @@ impl FhirNode {
         }
     }
 
+    /// Address of the shared allocation backing this node, for use as a
+    /// memoization key on subtree traversals.
+    ///
+    /// Only container nodes have one — scalars are inline and indistinguishable
+    /// by address. Two nodes with the same identity are the same subtree, *provided
+    /// the allocation is still alive*, so any cache keyed on this MUST also keep a
+    /// clone of the node alive: a dropped `Arc` can have its address reused by a
+    /// later allocation, which would otherwise alias two unrelated subtrees.
+    #[inline]
+    pub fn identity(&self) -> Option<usize> {
+        match self {
+            FhirNode::Object(entries) => Some(Arc::as_ptr(entries) as *const u8 as usize),
+            FhirNode::Array(items) => Some(Arc::as_ptr(items) as *const u8 as usize),
+            _ => None,
+        }
+    }
+
     // --- serde_json::Value-compatible accessors ---
 
     /// Object field lookup by key (linear over ordered entries). O(1) on the

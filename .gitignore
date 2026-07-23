@@ -6,3 +6,6 @@ node_modules
 .clj-kondo
 storage
 dist
+
+# Local benchmark fixtures (private data — never commit)
+local-*.json
