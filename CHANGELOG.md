@@ -1,3 +1,13 @@
+## [0.4.52](https://github.com/octofhir/fhirpath-rs/compare/v0.4.51...v0.4.52) (2026-07-23)
+
+
+### Performance Improvements
+
+* hoist loop invariants in the remaining lambda functions ([48df8b8](https://github.com/octofhir/fhirpath-rs/commit/48df8b8fcd47a2c0b0a7df1c370849814feb3129))
+* make dom-3 linear via lambda hoisting and traversal caches ([e903a24](https://github.com/octofhir/fhirpath-rs/commit/e903a2423402bc7efdfa275dd5412e2981a498b1))
+
+
+
 ## [0.4.51](https://github.com/octofhir/fhirpath-rs/compare/v0.4.50...v0.4.51) (2026-07-14)
 
 
