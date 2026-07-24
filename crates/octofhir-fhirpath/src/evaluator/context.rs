@@ -205,6 +205,39 @@ impl EvaluationContext {
         trace_provider: Option<SharedTraceProvider>,
         server_provider: Option<Arc<dyn ServerProvider>>,
     ) -> Self {
+        // Fresh, context-local element-type cache: each root context gets its own.
+        Self::new_with_server_and_element_type_cache(
+            input_collection,
+            model_provider,
+            terminology_provider,
+            validation_provider,
+            trace_provider,
+            server_provider,
+            Arc::new(LockFreeHashMap::new()),
+        )
+    }
+
+    /// Like [`new_with_server`](Self::new_with_server), but reuses a caller-owned
+    /// `element_type_cache`.
+    ///
+    /// Element-type resolution (`get_element_type(parentType, property)`) is a
+    /// pure function of the loaded schema set, so its results are safe to share
+    /// across every context an engine builds. The FHIRPath validator resolves the
+    /// same `(type, property)` pairs on every element of every resource (`ele-1`'s
+    /// `children()`, `dom-3`'s `descendants()`), so a fresh per-context cache
+    /// re-walks the schema from cold each time. Threading one cache through lets
+    /// those lookups plateau. The key space is bounded by the schema set, so this
+    /// does not grow unboundedly; the engine clears it when schemas change.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_server_and_element_type_cache(
+        input_collection: Collection,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
+        terminology_provider: Option<Arc<dyn TerminologyProvider>>,
+        validation_provider: Option<Arc<dyn ValidationProvider>>,
+        trace_provider: Option<SharedTraceProvider>,
+        server_provider: Option<Arc<dyn ServerProvider>>,
+        element_type_cache: Arc<LockFreeHashMap<String, Option<Arc<TypeInfo>>>>,
+    ) -> Self {
         // Only create dynamic variables (terminologies, factory, server).
         // Base env vars (sct, loinc, ucum, vs-*, ext-*) are in BASE_ENV_VARIABLES.
         let variables = create_dynamic_variables(&terminology_provider, &server_provider);
@@ -231,7 +264,7 @@ impl EvaluationContext {
             resolution_cache: Arc::new(LockFreeHashMap::new()),
             type_info_cache: Arc::new(LockFreeHashMap::new()),
             descendants_cache: Arc::new(LockFreeHashMap::new()),
-            element_type_cache: Arc::new(LockFreeHashMap::new()),
+            element_type_cache,
             server_registry,
             base_env_variables: BASE_ENV_VARIABLES.clone(),
         });

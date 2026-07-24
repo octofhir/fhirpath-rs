@@ -6,9 +6,12 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
+use crate::core::model_provider::TypeInfo;
 use crate::core::trace::SharedTraceProvider;
 use crate::core::{FhirPathValue, ModelProvider, Result};
 use crate::parser;
+
+use papaya::HashMap as LockFreeHashMap;
 
 use async_trait::async_trait;
 use octofhir_fhir_model::{
@@ -48,6 +51,14 @@ pub struct FhirPathEngine {
     /// AST compilation cache to avoid reparsing hot expressions
     /// Uses LRU eviction when cache is full
     ast_cache: moka::sync::Cache<String, Arc<ExpressionNode>>,
+    /// Element-type resolution cache shared across every context this engine
+    /// builds. Element types are a pure function of the loaded schema set, so
+    /// caching `(parentType, property) -> TypeInfo` across evaluations turns the
+    /// per-element `children()`/`descendants()` type lookups (which dominate FHIR
+    /// constraint validation) from repeated schema walks into hash hits. Key
+    /// space is bounded by the schema set; [`Self::clear_element_type_cache`]
+    /// drops it when schemas change.
+    element_type_cache: Arc<LockFreeHashMap<String, Option<Arc<TypeInfo>>>>,
 }
 
 impl FhirPathEngine {
@@ -81,6 +92,7 @@ impl FhirPathEngine {
             validation_provider: None,
             server_provider: None,
             ast_cache,
+            element_type_cache: Arc::new(LockFreeHashMap::new()),
         })
     }
 
@@ -111,7 +123,17 @@ impl FhirPathEngine {
             validation_provider: None,
             server_provider: None,
             ast_cache,
+            element_type_cache: Arc::new(LockFreeHashMap::new()),
         })
+    }
+
+    /// Clear the shared element-type resolution cache.
+    ///
+    /// Call this whenever the model provider's schema set changes (e.g. a FHIR
+    /// package is (re)installed), since cached `(type, property) -> TypeInfo`
+    /// entries would otherwise be stale.
+    pub fn clear_element_type_cache(&self) {
+        self.element_type_cache.pin().clear();
     }
 
     /// Add terminology provider to engine
@@ -189,13 +211,14 @@ impl FhirPathEngine {
         .await
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
-        let eval_context = EvaluationContext::new_with_server(
+        let eval_context = EvaluationContext::new_with_server_and_element_type_cache(
             collection,
             self.model_provider.clone(),
             self.terminology_provider.clone(),
             self.validation_provider.clone(),
             self.trace_provider.clone(),
             self.server_provider.clone(),
+            self.element_type_cache.clone(),
         );
 
         // Convert Arc<JsonValue> variables directly to FhirPathValue::Resource (no deep clone)
@@ -361,13 +384,14 @@ impl FhirPathEvaluator for FhirPathEngine {
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
         // Create evaluation context
-        let eval_context = EvaluationContext::new_with_server(
+        let eval_context = EvaluationContext::new_with_server_and_element_type_cache(
             collection,
             self.model_provider.clone(),
             self.terminology_provider.clone(),
             self.validation_provider.clone(),
             self.trace_provider.clone(),
             self.server_provider.clone(),
+            self.element_type_cache.clone(),
         );
 
         // Evaluate using our internal engine
@@ -537,13 +561,14 @@ impl FhirPathEvaluator for FhirPathEngine {
         .await
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
-        let eval_context = EvaluationContext::new_with_server(
+        let eval_context = EvaluationContext::new_with_server_and_element_type_cache(
             collection.clone(),
             self.model_provider.clone(),
             self.terminology_provider.clone(),
             self.validation_provider.clone(),
             self.trace_provider.clone(),
             self.server_provider.clone(),
+            self.element_type_cache.clone(),
         );
 
         if let Some(first_value) = collection.first() {
