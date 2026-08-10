@@ -68,7 +68,7 @@ human-panic = "2.0"
 indicatif = "0.18.3"     # Progress bars and spinners
 console = "0.16"         # Terminal utilities and styling
 dialoguer = "0.12"       # Interactive prompts
-comfy-table = "7.2"      # Beautiful tables
+comfy-table = "8.0"      # Beautiful tables
 nu-ansi-term = "0.50"    # Advanced ANSI colors
 notify = { version = "8", optional = true }           # File system watcher for watch mode
 notify-debouncer-full = { version = "0.7", optional = true }  # Debounced file watching
