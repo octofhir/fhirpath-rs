@@ -25,4 +25,18 @@ ignore = [
     # Remove once pprof depends on inferno >= 0.12.
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
+
+    # RUSTSEC-2026-0235 — rkyv 0.7: out-of-bounds reads validating archives with Rc/Arc
+    #
+    # rkyv is a lockfile-only entry. It reaches Cargo.lock through rust_decimal's
+    # optional "rkyv" feature, which nothing in this workspace enables:
+    # `cargo tree -i rkyv --workspace --all-features` prints nothing, and the
+    # resolved rust_decimal node pulls only arrayvec, num-traits and serde.
+    # No rkyv code is compiled or linked, so no archive is ever validated.
+    #
+    # Not fixable by upgrading: the fix is rkyv >= 0.8.17, and rust_decimal 1.42
+    # still requires rkyv ^0.7 for that feature.
+    #
+    # Remove once rust_decimal moves its rkyv feature to 0.8.
+    "RUSTSEC-2026-0235",
 ]

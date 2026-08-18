@@ -175,7 +175,7 @@ fn handle_list_favorites() -> anyhow::Result<()> {
     println!("⭐ Favorite Expressions:\n");
 
     let mut table = Table::new();
-    table.load_preset(UTF8_FULL);
+    table.load_style(UTF8_FULL);
     table.set_header(vec!["Alias", "Expression", "Description"]);
 
     for fav in &config.favorites {

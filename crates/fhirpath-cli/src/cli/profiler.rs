@@ -112,7 +112,7 @@ impl PerformanceReport {
     /// Format the report as a table
     pub fn format_table(&self) -> String {
         let mut table = Table::new();
-        table.load_preset(UTF8_FULL);
+        table.load_style(UTF8_FULL);
         table.set_header(vec!["Phase", "Duration", "Percentage"]);
 
         for phase in &self.phases {
