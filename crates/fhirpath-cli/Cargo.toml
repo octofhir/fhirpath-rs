@@ -35,7 +35,7 @@ workspace = true
 
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath", features = ["lsp"] }
-octofhir-fhirschema = { version = "0.3.24" }
+octofhir-fhirschema = { version = "0.3.28" }
 octofhir-fhir-model = { workspace = true }
 
 # Server dependencies (optional)
@@ -59,28 +59,28 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 colored = { workspace = true }
-reedline = { version = "0.49", optional = true }
+reedline = { version = "0.50", optional = true }
 fuzzy-matcher = { version = "0.3", optional = true }
 tabled = "0.21"
 human-panic = "2.0"
 
 # Modern CLI enhancement libraries
-indicatif = "0.18.3"     # Progress bars and spinners
+indicatif = "0.18.6"     # Progress bars and spinners
 console = "0.16"         # Terminal utilities and styling
 dialoguer = "0.12"       # Interactive prompts
-comfy-table = "7.2"      # Beautiful tables
+comfy-table = "8.0"      # Beautiful tables
 nu-ansi-term = "0.50"    # Advanced ANSI colors
 notify = { version = "8", optional = true }           # File system watcher for watch mode
 notify-debouncer-full = { version = "0.7", optional = true }  # Debounced file watching
 glob = "0.3"             # File pattern matching for batch processing
 
 # TUI dependencies (optional)
-ratatui = { version = "0.30.0", optional = true }
+ratatui = { version = "0.30.2", optional = true }
 crossterm = { version = "0.29.0", optional = true }
 # Using git branch with ratatui 0.30.0 support until merged (PR #119)
 tui-textarea = { git = "https://github.com/0xferrous/tui-textarea.git", branch = "update-ratatui", optional = true }
 dirs = "6"  # Required for config file management
-toml = "1.0"
+toml = "1.1"
 ariadne = "0.6"
 tempfile = "3"
 

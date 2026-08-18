@@ -16,7 +16,7 @@
 
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
-use reedline::{Completer, Span, Suggestion};
+use reedline::{Completer, CompletionResult, Span, Suggestion};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -384,7 +384,7 @@ impl FhirPathCompleter {
 
 // Reedline completer implementation
 impl Completer for FhirPathCompleter {
-    fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
+    fn complete(&mut self, line: &str, pos: usize) -> CompletionResult {
         let line = &line[..pos];
 
         // Find the word being completed
@@ -492,7 +492,7 @@ impl Completer for FhirPathCompleter {
         // Limit total suggestions for better UX
         suggestions.truncate(15);
 
-        suggestions
+        CompletionResult::fresh(suggestions)
     }
 }
 
