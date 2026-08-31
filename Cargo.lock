@@ -1416,7 +1416,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-cli"
-version = "0.4.53"
+version = "0.4.54"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -1464,7 +1464,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-dev-tools"
-version = "0.4.53"
+version = "0.4.54"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3009,7 +3009,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath"
-version = "0.4.53"
+version = "0.4.54"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -3886,9 +3886,9 @@ dependencies = [
 
 [[package]]
 name = "reedline"
-version = "0.50.0"
+version = "0.51.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "753088c970c4e63f91114d0dbef96c84fbaf3fde8943877f4254d33e97ce2193"
+checksum = "d010acf9ed312cbc737e5f9064c375a7093975b0c25568337f0c24148f46540d"
 dependencies = [
  "chrono",
  "crossterm 0.29.0",
