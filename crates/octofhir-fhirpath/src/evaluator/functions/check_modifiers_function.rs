@@ -56,6 +56,14 @@ impl CheckModifiersFunctionEvaluator {
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for CheckModifiersFunctionEvaluator {
     async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         // Collect allowed modifier extension URLs from all arguments
         let mut allowed_urls: Vec<String> = Vec::new();
         for arg_values in &args {

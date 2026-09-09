@@ -97,6 +97,8 @@ pub use crate::evaluator::{
     EvaluationContext, EvaluationResult, EvaluationResultWithMetadata, FhirPathEngine,
 };
 // Parser API exports - New unified API with clean naming
+pub use crate::evaluator::plan::CompiledPlan;
+pub use crate::evaluator::prepared::ValidationSession;
 pub use crate::parser::{
     ParseResult,
     ParserConfig,

@@ -109,6 +109,25 @@ pub enum Associativity {
 /// ```
 #[async_trait]
 pub trait OperationEvaluator: Send + Sync {
+    /// Whether this operator can execute without allocating a future.
+    fn supports_sync(&self) -> bool {
+        false
+    }
+
+    /// CPU-only execution path. Async custom operators need not implement it.
+    fn evaluate_sync(
+        &self,
+        _input: Collection,
+        _context: &EvaluationContext,
+        _left: Collection,
+        _right: Collection,
+    ) -> Result<EvaluationResult> {
+        Err(crate::core::FhirPathError::evaluation_error(
+            crate::core::error_code::FP0054,
+            "Synchronous evaluation is not supported",
+        ))
+    }
+
     /// Evaluates the operation with the given operands.
     ///
     /// # Arguments

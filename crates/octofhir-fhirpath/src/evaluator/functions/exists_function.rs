@@ -55,6 +55,17 @@ impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         // If no criteria provided, just check if input is not empty
         if args.is_empty() {
             let result = !input.is_empty();
@@ -91,9 +102,8 @@ impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
                 context.create_child_context(crate::core::Collection::single(item.clone()));
 
             // Set lambda variables: $this = single item, $index = current index
-            iteration_context.set_variable("$this".to_string(), item.clone());
-            iteration_context
-                .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            iteration_context.set_this(item.clone());
+            iteration_context.set_index(index);
 
             // Evaluate criteria expression in the iteration context
             let result = evaluator

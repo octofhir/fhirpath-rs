@@ -317,6 +317,19 @@ pub enum FunctionCategory {
 /// Trait for evaluating functions
 #[async_trait]
 pub trait FunctionEvaluator: Send + Sync {
+    /// Borrow AST arguments on the hot path. The default preserves compatibility
+    /// with custom evaluators that implement the original owned-argument API.
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
+        self.evaluate(input, context, args.to_vec(), evaluator)
+            .await
+    }
+
     /// Evaluate the function
     /// - input: The input collection that the function operates on
     /// - context: Evaluation context with variables and providers
@@ -393,6 +406,30 @@ pub trait FunctionEvaluator: Send + Sync {
 /// and only implement business logic without context management
 #[async_trait]
 pub trait PureFunctionEvaluator: Send + Sync {
+    /// Optionally bind constant arguments at plan compilation. The returned
+    /// evaluator must preserve this function's runtime validation and results.
+    fn prepare(&self, _args: &[Collection]) -> Option<Arc<dyn PureFunctionEvaluator>> {
+        None
+    }
+
+    /// Whether the implementation provides a non-suspending evaluation path.
+    fn supports_sync(&self) -> bool {
+        false
+    }
+
+    /// Non-suspending evaluation for CPU-only built-ins. Custom implementations
+    /// retain the async path unless they explicitly opt in.
+    fn evaluate_sync(
+        &self,
+        _input: Collection,
+        _args: Vec<Collection>,
+    ) -> Result<super::EvaluationResult> {
+        Err(crate::core::FhirPathError::evaluation_error(
+            crate::core::error_code::FP0054,
+            "Synchronous evaluation is not supported",
+        ))
+    }
+
     /// Evaluate the function with pre-evaluated arguments
     /// - input: The input collection that the function operates on
     /// - args: Pre-evaluated function arguments (each Collection is one argument)
@@ -427,6 +464,18 @@ pub trait ProviderPureFunctionEvaluator: Send + Sync {
 /// (like where, select, aggregate, etc.)
 #[async_trait]
 pub trait LazyFunctionEvaluator: Send + Sync {
+    /// Borrow expressions without cloning their AST on every lambda call.
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
+        self.evaluate(input, context, args.to_vec(), evaluator)
+            .await
+    }
+
     /// Evaluate the function with control over argument evaluation
     /// - input: The input collection that the function operates on
     /// - context: Evaluation context with variables and providers

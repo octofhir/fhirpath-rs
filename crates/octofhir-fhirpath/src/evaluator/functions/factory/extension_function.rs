@@ -64,6 +64,14 @@ impl FactoryExtensionFunctionEvaluator {
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for FactoryExtensionFunctionEvaluator {
     async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if input.len() != 1 || !is_factory_variable(&input[0]) {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0058,

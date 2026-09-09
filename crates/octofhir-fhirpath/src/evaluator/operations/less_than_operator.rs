@@ -288,6 +288,20 @@ impl OperationEvaluator for LessThanOperatorEvaluator {
         left: Collection,
         right: Collection,
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(__input, _context, left, right)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(
+        &self,
+        __input: Collection,
+        _context: &EvaluationContext,
+        left: Collection,
+        right: Collection,
+    ) -> Result<EvaluationResult> {
         // Empty propagation: if either operand is empty, result is empty
         if left.is_empty() || right.is_empty() {
             return Ok(EvaluationResult {

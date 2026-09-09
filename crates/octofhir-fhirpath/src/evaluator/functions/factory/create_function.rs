@@ -199,6 +199,14 @@ fn is_resource_type(type_name: &str) -> bool {
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for FactoryCreateFunctionEvaluator {
     async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         // Check if called on %factory variable OR as a standalone factory function
         let is_factory = input.len() == 1 && is_factory_variable(&input[0]);
         if !is_factory {

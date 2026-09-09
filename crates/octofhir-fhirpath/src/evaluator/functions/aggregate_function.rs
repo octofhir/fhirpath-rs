@@ -75,6 +75,17 @@ impl LazyFunctionEvaluator for AggregateFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         if args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -140,10 +151,9 @@ impl LazyFunctionEvaluator for AggregateFunctionEvaluator {
             let iteration_context =
                 context.create_child_context(crate::core::Collection::single(item.clone()));
 
-            iteration_context.set_variable("$this".to_string(), item.clone());
-            iteration_context
-                .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
-            iteration_context.set_variable("$total".to_string(), total_value);
+            iteration_context.set_this(item.clone());
+            iteration_context.set_index(index);
+            iteration_context.set_total(total_value);
 
             // Evaluate the aggregator expression in iteration context
             let result = evaluator

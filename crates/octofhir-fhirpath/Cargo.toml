@@ -13,13 +13,9 @@ keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
 categories = ["parser-implementations", "data-structures", "science"]
 include = [
     "src/**/*",
-    "../../specs/**/*",
-    "../../tests/**/*",
-    "../../benches/**/*",
+    "tests/**/*",
+    "benches/**/*",
     "Cargo.toml",
-    "../../README.md",
-    "../../LICENSE*",
-    "../../CHANGELOG.md",
 ]
 
 [lib]
@@ -47,7 +43,7 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 chumsky = { version = "0.13", features = ["pratt"] }
 ariadne = "0.6"
-tabled = "0.21"
+tabled = { version = "0.21", default-features = false, features = ["std"] }
 
 url = { workspace = true }
 parking_lot = { workspace = true }
@@ -97,3 +93,7 @@ default = []
 mock-provider = [] # Include MockModelProvider for testing and development
 analysis = []      # Include static analysis features
 lsp = ["dep:async-lsp", "dep:lsp-types", "dep:tower", "dep:tokio-util", "dep:axum", "dep:tower-http"] # Language Server Protocol support
+
+[[bench]]
+name = "evaluation_hot_paths"
+harness = false

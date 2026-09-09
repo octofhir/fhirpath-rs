@@ -93,6 +93,20 @@ impl OperationEvaluator for NegateOperatorEvaluator {
         left: Collection,
         _right: Collection, // Empty for unary operations
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(__input, _context, left, _right)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(
+        &self,
+        __input: Collection,
+        _context: &EvaluationContext,
+        left: Collection,
+        _right: Collection, // Empty for unary operations
+    ) -> Result<EvaluationResult> {
         if left.is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),

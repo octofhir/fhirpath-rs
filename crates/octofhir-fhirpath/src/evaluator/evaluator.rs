@@ -21,9 +21,9 @@ use super::operator_registry::OperatorRegistry;
 /// Main FHIRPath expression evaluator with registry-based architecture
 pub struct Evaluator {
     /// Registry for operators (=, +, -, etc.)
-    operator_registry: Arc<OperatorRegistry>,
+    pub(super) operator_registry: Arc<OperatorRegistry>,
     /// Registry for functions (count(), where(), select(), etc.)
-    function_registry: Arc<FunctionRegistry>,
+    pub(super) function_registry: Arc<FunctionRegistry>,
     /// Model provider for type information
     model_provider: Arc<dyn ModelProvider + Send + Sync>,
     /// Optional terminology provider for terminology functions
@@ -819,7 +819,10 @@ impl Evaluator {
     }
 
     /// Evaluate a literal value
-    fn evaluate_literal(&self, literal: &crate::ast::LiteralValue) -> Result<FhirPathValue> {
+    pub(super) fn evaluate_literal(
+        &self,
+        literal: &crate::ast::LiteralValue,
+    ) -> Result<FhirPathValue> {
         use crate::ast::LiteralValue;
 
         match literal {
@@ -1897,10 +1900,8 @@ impl Evaluator {
         let value_node = json.get("value")?;
         let value = if let Some(n) = value_node.as_f64() {
             n
-        } else if let Some(s) = value_node.as_str() {
-            s.parse::<f64>().ok()?
         } else {
-            return None;
+            value_node.as_str()?.parse::<f64>().ok()?
         };
 
         // Get unit information with UCUM support
@@ -2385,7 +2386,7 @@ impl Evaluator {
     /// Every other case (including an empty left operand, which stays
     /// three-valued) returns `None` and is dispatched to the operator registry
     /// with both operands evaluated.
-    fn short_circuit(
+    pub(super) fn short_circuit(
         operator: &crate::ast::BinaryOperator,
         left: &Collection,
     ) -> Option<FhirPathValue> {
@@ -2427,6 +2428,9 @@ impl Evaluator {
             _ => {
                 if let Some(evaluator) = self.operator_registry.get_binary_operator(operator) {
                     let input = Collection::empty(); // Binary operations don't use input collection
+                    if evaluator.supports_sync() {
+                        return evaluator.evaluate_sync(input, context, left, right);
+                    }
                     evaluator.evaluate(input, context, left, right).await
                 } else {
                     Err(FhirPathError::evaluation_error(
@@ -2514,7 +2518,7 @@ impl Evaluator {
                     let async_evaluator = AsyncNodeEvaluator::new(self);
 
                     lazy_evaluator
-                        .evaluate(input_values, context, arguments.to_vec(), async_evaluator)
+                        .evaluate_borrowed(input_values, context, arguments, async_evaluator)
                         .await
                 }
                 crate::evaluator::function_registry::FunctionEvaluatorWrapper::Standard(
@@ -2537,10 +2541,10 @@ impl Evaluator {
                             let async_evaluator = AsyncNodeEvaluator::new(self);
 
                             standard_evaluator
-                                .evaluate(
+                                .evaluate_borrowed(
                                     input_values,
                                     context,
-                                    arguments.to_vec(),
+                                    arguments,
                                     async_evaluator,
                                 )
                                 .await
@@ -2572,9 +2576,20 @@ impl Evaluator {
         let mut receiver_context: Option<EvaluationContext> = None;
 
         // Pre-evaluate all arguments with appropriate context selection
-        let mut evaluated_args = Vec::new();
+        let mut evaluated_args = Vec::with_capacity(arguments.len());
 
         for (i, arg) in arguments.iter().enumerate() {
+            if matches!(arg, ExpressionNode::Collection(collection) if collection.elements.is_empty())
+            {
+                evaluated_args.push(Collection::empty());
+                continue;
+            }
+            // Literals cannot read or mutate a scope. Do not build a complete
+            // receiver context (providers, caches, factory) just to read one.
+            if let ExpressionNode::Literal(literal) = arg {
+                evaluated_args.push(Collection::single(self.evaluate_literal(&literal.value)?));
+                continue;
+            }
             // Get parameter metadata to check if this should be evaluated as an expression
             let _should_evaluate_as_expression = metadata
                 .signature
@@ -2613,6 +2628,9 @@ impl Evaluator {
         }
 
         // Call the pure function with pre-evaluated arguments
+        if evaluator.supports_sync() {
+            return evaluator.evaluate_sync(input_values, evaluated_args);
+        }
         evaluator.evaluate(input_values, evaluated_args).await
     }
 
@@ -2629,9 +2647,18 @@ impl Evaluator {
         let metadata = evaluator.metadata();
 
         // Pre-evaluate all arguments based on the function's evaluation strategy and parameter metadata
-        let mut evaluated_args = Vec::new();
+        let mut evaluated_args = Vec::with_capacity(arguments.len());
 
         for (i, arg) in arguments.iter().enumerate() {
+            if matches!(arg, ExpressionNode::Collection(collection) if collection.elements.is_empty())
+            {
+                evaluated_args.push(Collection::empty());
+                continue;
+            }
+            if let ExpressionNode::Literal(literal) = arg {
+                evaluated_args.push(Collection::single(self.evaluate_literal(&literal.value)?));
+                continue;
+            }
             // Get parameter metadata to check if this should be evaluated as an expression
             let _should_evaluate_as_expression = metadata
                 .signature

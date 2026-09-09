@@ -5,8 +5,6 @@
 
 use std::sync::Arc;
 
-use regex::Regex;
-
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
@@ -15,7 +13,9 @@ use crate::evaluator::function_registry::{
 };
 
 /// replaceMatches function evaluator
+#[derive(Clone)]
 pub struct ReplaceMatchesFunctionEvaluator {
+    compiled: Option<Arc<regex::Regex>>,
     metadata: FunctionMetadata,
 }
 
@@ -23,6 +23,7 @@ impl ReplaceMatchesFunctionEvaluator {
     /// Create a new replaceMatches function evaluator
     pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
+            compiled: None,
             metadata: FunctionMetadata {
                 name: "replaceMatches".to_string(),
                 description: "Replaces all matches of a regular expression pattern in a string with the substitution".to_string(),
@@ -66,6 +67,31 @@ impl ReplaceMatchesFunctionEvaluator {
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
     async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
+    }
+
+    fn prepare(&self, args: &[Collection]) -> Option<Arc<dyn PureFunctionEvaluator>> {
+        let pattern = args.first()?.first()?.as_string()?;
+        // Keep compiled-plan retention bounded even for adversarial regexes.
+        // Oversized/expensive patterns keep the normal runtime compilation path.
+        if pattern.len() > 4096 {
+            return None;
+        }
+
+        let compiled = regex::RegexBuilder::new(pattern)
+            .size_limit(256 * 1024)
+            .build()
+            .ok()?;
+        let mut evaluator = self.clone();
+        evaluator.compiled = Some(Arc::new(compiled));
+        Some(Arc::new(evaluator))
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.len() != 2 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -139,12 +165,20 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
         let regex = if pattern.is_empty() {
             None
         } else {
-            Some(Regex::new(&pattern).map_err(|err| {
-                FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0058,
-                    format!("Invalid regular expression pattern '{pattern}': {err}"),
-                )
-            })?)
+            Some(
+                self.compiled
+                    .as_ref()
+                    .filter(|regex| regex.as_str() == pattern.as_str())
+                    .cloned()
+                    .map(Ok)
+                    .unwrap_or_else(|| super::regex_cache::compile(&pattern))
+                    .map_err(|err| {
+                        FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0058,
+                            format!("Invalid regular expression pattern '{pattern}': {err}"),
+                        )
+                    })?,
+            )
         };
 
         let mut results = Vec::with_capacity(input.len());

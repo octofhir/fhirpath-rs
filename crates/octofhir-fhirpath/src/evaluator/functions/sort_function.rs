@@ -119,6 +119,17 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         // If input is empty, return empty
         if input.is_empty() {
             return Ok(EvaluationResult {
@@ -143,7 +154,7 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
         }
 
         let context =
-            crate::evaluator::lambda_hoisting::hoist_into(context, &args, input.len(), &evaluator)
+            crate::evaluator::lambda_hoisting::hoist_into(context, args, input.len(), &evaluator)
                 .await?;
         let context = &context;
 
@@ -157,9 +168,8 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
             let iteration_context =
                 context.create_child_context(crate::core::Collection::single(item.clone()));
 
-            iteration_context.set_variable("$this".to_string(), item.clone());
-            iteration_context
-                .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            iteration_context.set_this(item.clone());
+            iteration_context.set_index(index);
             iteration_context.set_variable(
                 "$total".to_string(),
                 FhirPathValue::integer(input.len() as i64),
@@ -168,7 +178,7 @@ impl LazyFunctionEvaluator for SortFunctionEvaluator {
             let mut sort_keys = Vec::new();
 
             // Evaluate each sort criterion
-            for arg in &args {
+            for arg in args {
                 // Check if this is a unary minus expression for descending sort
                 let (expr_to_eval, descending) = match arg {
                     ExpressionNode::UnaryOperation(unary_op) => match unary_op.operator {

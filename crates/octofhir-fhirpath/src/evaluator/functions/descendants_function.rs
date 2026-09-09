@@ -2,7 +2,7 @@
 //!
 //! Retrieves all descendant elements of the current context.
 //!
-//! Descendants are produced by repeatedly taking [`typed_children`], so every
+//! Descendants are produced by repeatedly taking `typed_children`, so every
 //! node carries the FHIR element type resolved from its parent via the model
 //! provider. Type-sensitive operations on the result — `ofType(canonical)`,
 //! `as(uri)`, `is Reference` — therefore work, which invariants like `dom-3`
@@ -96,6 +96,17 @@ impl LazyFunctionEvaluator for DescendantsFunctionEvaluator {
         input: Collection,
         context: &EvaluationContext,
         args: Vec<ExpressionNode>,
+        _evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, _evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
         _evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {

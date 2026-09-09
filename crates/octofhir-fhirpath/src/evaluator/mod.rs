@@ -16,6 +16,8 @@ pub mod lambda_hoisting;
 pub mod metadata_collector;
 pub mod operations;
 pub mod operator_registry;
+pub mod plan;
+pub mod prepared;
 pub mod quantity_utils;
 pub mod result;
 pub mod server_variable;
@@ -48,3 +50,4 @@ pub use engine::{FhirPathEngine, create_engine_with_mock_provider};
 
 // Re-export result types
 pub use result::{EvaluationResult, EvaluationResultWithMetadata};
+mod value_set;

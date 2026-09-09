@@ -143,6 +143,17 @@ impl LazyFunctionEvaluator for RepeatAllFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -291,6 +302,7 @@ impl RepeatAllFunctionEvaluator {
             // create_child_context).
             let iteration_context =
                 context.create_child_context(crate::core::Collection::single(current_item.clone()));
+            iteration_context.set_this(current_item.clone());
 
             // Evaluate projection expression to get children
             let projection_result = evaluator

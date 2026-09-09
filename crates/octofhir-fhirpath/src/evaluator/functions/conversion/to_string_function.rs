@@ -48,6 +48,14 @@ impl ToStringFunctionEvaluator {
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for ToStringFunctionEvaluator {
     async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,

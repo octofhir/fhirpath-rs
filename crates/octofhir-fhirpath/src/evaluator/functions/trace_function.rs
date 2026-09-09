@@ -219,6 +219,17 @@ impl LazyFunctionEvaluator for TraceFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         if args.is_empty() {
             return Err(crate::core::FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -266,9 +277,8 @@ impl LazyFunctionEvaluator for TraceFunctionEvaluator {
             for (index, item) in input.iter().enumerate() {
                 let item_context =
                     context.create_child_context(crate::core::Collection::single(item.clone()));
-                item_context.set_variable("$this".to_string(), item.clone());
-                item_context
-                    .set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+                item_context.set_this(item.clone());
+                item_context.set_index(index);
                 item_context.set_variable(
                     "$total".to_string(),
                     FhirPathValue::integer(input.len() as i64),

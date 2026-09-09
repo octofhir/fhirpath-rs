@@ -110,6 +110,14 @@ impl PureFunctionEvaluator for DurationFunctionEvaluator {
         input: Collection,
         _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, _args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, _args: Vec<Collection>) -> Result<EvaluationResult> {
         // Empty collection or single item returns empty
         if input.len() != 2 {
             return Ok(EvaluationResult {

@@ -25,6 +25,7 @@ use super::context::EvaluationContext;
 use super::evaluator::Evaluator;
 use super::function_registry::{FunctionRegistry, create_function_registry};
 use super::operator_registry::{OperatorRegistry, create_standard_operator_registry};
+use super::plan::CompiledPlan;
 use super::result::{EvaluationResult, EvaluationResultWithMetadata};
 
 /// Maximum number of compiled expressions to cache
@@ -50,7 +51,9 @@ pub struct FhirPathEngine {
     server_provider: Option<Arc<dyn ServerProvider>>,
     /// AST compilation cache to avoid reparsing hot expressions
     /// Uses LRU eviction when cache is full
-    ast_cache: moka::sync::Cache<String, Arc<ExpressionNode>>,
+    ast_cache: moka::sync::Cache<String, Arc<CompiledPlan>>,
+    plan_owner: Arc<()>,
+    prepared_roots: super::prepared::PreparedRoots,
     /// Element-type resolution cache shared across every context this engine
     /// builds. Element types are a pure function of the loaded schema set, so
     /// caching `(parentType, property) -> TypeInfo` across evaluations turns the
@@ -92,6 +95,8 @@ impl FhirPathEngine {
             validation_provider: None,
             server_provider: None,
             ast_cache,
+            plan_owner: Arc::new(()),
+            prepared_roots: Default::default(),
             element_type_cache: Arc::new(LockFreeHashMap::new()),
         })
     }
@@ -123,6 +128,8 @@ impl FhirPathEngine {
             validation_provider: None,
             server_provider: None,
             ast_cache,
+            plan_owner: Arc::new(()),
+            prepared_roots: Default::default(),
             element_type_cache: Arc::new(LockFreeHashMap::new()),
         })
     }
@@ -203,13 +210,26 @@ impl FhirPathEngine {
         context_type: Option<&str>,
         variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<EvaluationContext> {
-        let collection = crate::core::Collection::from_json_typed_arc(
-            context,
-            context_type,
-            Some(self.model_provider.clone()),
-        )
-        .await
-        .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
+        let collection = if context.is_object()
+            && (context_type.is_none() || context.get("resourceType").is_some())
+        {
+            let mut value = self.prepared_value(context.clone());
+            if let Some(name) = context.get("resourceType").and_then(JsonValue::as_str)
+                && let Ok(Some(info)) = self.model_provider.get_type(name).await
+                && let FhirPathValue::Resource(node, _, _) = value
+            {
+                value = FhirPathValue::Resource(node, Arc::new(info), None);
+            }
+            crate::core::Collection::single(value)
+        } else {
+            crate::core::Collection::from_json_typed_arc(
+                context,
+                context_type,
+                Some(self.model_provider.clone()),
+            )
+            .await
+            .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?
+        };
 
         let eval_context = EvaluationContext::new_with_server_and_element_type_cache(
             collection,
@@ -223,7 +243,7 @@ impl FhirPathEngine {
 
         // Convert Arc<JsonValue> variables directly to FhirPathValue::Resource (no deep clone)
         for (name, json_arc) in variables.iter() {
-            let fhir_value = FhirPathValue::resource_from_arc(json_arc.clone());
+            let fhir_value = self.prepared_value(json_arc.clone());
 
             eval_context.set_variable(name.clone(), fhir_value.clone());
             if !name.starts_with('%') {
@@ -232,6 +252,31 @@ impl FhirPathEngine {
         }
 
         Ok(eval_context)
+    }
+
+    pub(super) fn prepared_value(&self, json: Arc<JsonValue>) -> FhirPathValue {
+        self.prepared_roots.value(json)
+    }
+
+    /// Prepare typed input and variables. Repeated root conversions coalesce
+    /// behind a cache with a 32 MiB estimated JSON-plus-tree budget. Cache
+    /// entries own the input Arc, preventing mutation and address reuse.
+    pub async fn prepare_context(
+        &self,
+        context: Arc<JsonValue>,
+        context_type: Option<&str>,
+        variables: &JsonVariables,
+    ) -> octofhir_fhir_model::Result<EvaluationContext> {
+        self.build_context_with_json_variables(context, context_type, variables)
+            .await
+    }
+
+    /// Prepare one immutable resource for all node-level invariant groups.
+    pub async fn validation_session(
+        &self,
+        resource: Arc<JsonValue>,
+    ) -> Result<super::prepared::ValidationSession<'_>> {
+        super::prepared::ValidationSession::new(self, resource).await
     }
 
     /// Auto-prepend resource type if expression doesn't start with capital letter
@@ -280,6 +325,42 @@ impl FhirPathEngine {
         Ok(None)
     }
 
+    /// Compile once and retain an AST handle independently of cache eviction.
+    /// Concurrent misses for the same expression share one parser invocation.
+    pub fn compile_ast(&self, expression: &str) -> Result<Arc<ExpressionNode>> {
+        self.compile_plan(expression).map(|plan| plan.ast.clone())
+    }
+
+    /// Compile to a retained executable handle. The cache coalesces concurrent
+    /// misses; retained handles remain executable after cache eviction.
+    pub fn compile_plan(&self, expression: &str) -> Result<Arc<CompiledPlan>> {
+        self.ast_cache
+            .try_get_with_by_ref(expression, || {
+                let ast = Arc::new(parser::parse_ast(expression)?);
+                Ok(Arc::new(CompiledPlan::new(
+                    ast,
+                    &self.evaluator,
+                    self.plan_owner.clone(),
+                )))
+            })
+            .map_err(|error: Arc<crate::core::FhirPathError>| (*error).clone())
+    }
+
+    /// Execute a compiled handle without any string-keyed cache lookup.
+    pub async fn evaluate_plan(
+        &self,
+        plan: &CompiledPlan,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResult> {
+        if !Arc::ptr_eq(&plan.owner, &self.plan_owner) {
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0054,
+                "Evaluation plan belongs to a different engine",
+            ));
+        }
+        plan.evaluate(&self.evaluator, context).await
+    }
+
     /// Evaluate expression
     pub async fn evaluate(
         &self,
@@ -287,19 +368,10 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         // Check cache first for compiled AST
-        let ast = if let Some(cached_ast) = self.ast_cache.get(expression) {
-            // Cache hit - use cached AST
-            cached_ast
-        } else {
-            // Cache miss - parse and cache the AST
-            let parsed_ast = Arc::new(parser::parse_ast(expression)?);
-            self.ast_cache
-                .insert(expression.to_string(), parsed_ast.clone());
-            parsed_ast
-        };
+        let plan = self.compile_plan(expression)?;
 
         // Evaluate using the cached or freshly parsed AST
-        self.evaluate_ast(&ast, context).await
+        self.evaluate_plan(&plan, context).await
     }
 
     /// Evaluate AST directly
@@ -318,16 +390,7 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> Result<EvaluationResultWithMetadata> {
         // Check cache first for compiled AST
-        let ast = if let Some(cached_ast) = self.ast_cache.get(expression) {
-            // Cache hit - use cached AST
-            cached_ast
-        } else {
-            // Cache miss - parse and cache the AST
-            let parsed_ast = Arc::new(parser::parse_ast(expression)?);
-            self.ast_cache
-                .insert(expression.to_string(), parsed_ast.clone());
-            parsed_ast
-        };
+        let ast = self.compile_ast(expression)?;
 
         // Evaluate with metadata using the cached or freshly parsed AST
         self.evaluate_ast_with_metadata(&ast, context).await
@@ -489,20 +552,7 @@ impl FhirPathEvaluator for FhirPathEngine {
     /// Compile an expression for reuse
     async fn compile(&self, expression: &str) -> octofhir_fhir_model::Result<CompiledExpression> {
         // Check cache first, or parse and cache the AST
-        let ast_result = if let Some(_cached_ast) = self.ast_cache.get(expression) {
-            // Already cached - expression is valid
-            Ok(())
-        } else {
-            // Parse and cache the AST
-            match crate::parser::parse_ast(expression) {
-                Ok(parsed_ast) => {
-                    let ast_arc = Arc::new(parsed_ast);
-                    self.ast_cache.insert(expression.to_string(), ast_arc);
-                    Ok(())
-                }
-                Err(e) => Err(e),
-            }
-        };
+        let ast_result = self.compile_plan(expression).map(|_| ());
 
         // Return compilation result
         match ast_result {

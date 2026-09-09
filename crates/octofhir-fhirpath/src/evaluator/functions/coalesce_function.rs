@@ -65,6 +65,17 @@ impl LazyFunctionEvaluator for CoalesceFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(_input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        _input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         if args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -73,7 +84,7 @@ impl LazyFunctionEvaluator for CoalesceFunctionEvaluator {
         }
 
         // Evaluate each argument in order with short-circuit evaluation
-        for arg_expr in &args {
+        for arg_expr in args {
             // Evaluate the argument expression
             let result = evaluator.evaluate(arg_expr, context).await?;
 

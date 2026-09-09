@@ -48,6 +48,7 @@ pub mod ends_with_function;
 pub mod escape_function;
 pub mod join_function;
 pub mod lower_function;
+mod regex_cache;
 pub mod replace_function;
 pub mod replace_matches_function;
 pub mod split_function;

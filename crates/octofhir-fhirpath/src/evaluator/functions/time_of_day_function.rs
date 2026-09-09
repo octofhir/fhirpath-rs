@@ -52,6 +52,18 @@ impl PureFunctionEvaluator for TimeOfDayFunctionEvaluator {
         _input: Collection,
         _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(_input, _args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(
+        &self,
+        _input: Collection,
+        _args: Vec<Collection>,
+    ) -> Result<EvaluationResult> {
         if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,

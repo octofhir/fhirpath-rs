@@ -4,6 +4,8 @@
 //! parent chain pattern for variable scoping.
 
 use papaya::HashMap as LockFreeHashMap;
+use parking_lot::RwLock;
+use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
 use crate::core::model_provider::TypeInfo;
@@ -125,8 +127,10 @@ pub struct EvaluationContext {
     /// Shared state (providers, caches) — single Arc clone on context clone
     shared: Arc<SharedContextState>,
     /// Variables defined in current scope (includes system variables like $this, $index, $total)
-    /// Using lock-free HashMap for high-performance variable access
-    variables: Arc<LockFreeHashMap<String, FhirPathValue>>,
+    /// Scopes are small and normally owned by one evaluation. A compact map
+    /// avoids concurrent-map allocation/reclamation on every lambda iteration.
+    /// The short lock keeps cloned contexts safe to share across tasks.
+    variables: Arc<RwLock<ScopeVariables>>,
     /// Parent context for variable scoping
     /// Variables are resolved by checking current scope, then walking parent chain
     /// Using Arc instead of Box to avoid deep cloning of parent chain
@@ -140,41 +144,71 @@ pub struct EvaluationContext {
     hoist_scope: Option<Arc<HoistScope>>,
 }
 
+/// Fixed slots avoid variable-name allocations and hashing inside lambdas.
+#[derive(Default)]
+struct ScopeVariables {
+    this: Option<FhirPathValue>,
+    index: Option<FhirPathValue>,
+    total: Option<FhirPathValue>,
+    named: HashMap<String, FhirPathValue>,
+}
+
+impl ScopeVariables {
+    fn get(&self, name: &str) -> Option<&FhirPathValue> {
+        match name {
+            "$this" => self.this.as_ref(),
+            "$index" => self.index.as_ref(),
+            "$total" => self.total.as_ref(),
+            _ => self.named.get(name),
+        }
+    }
+
+    fn insert(&mut self, name: String, value: FhirPathValue) {
+        match name.as_str() {
+            "$this" => self.this = Some(value),
+            "$index" => self.index = Some(value),
+            "$total" => self.total = Some(value),
+            _ => {
+                self.named.insert(name, value);
+            }
+        }
+    }
+}
+
 /// Helper to create dynamic-only variables (terminologies, factory, server).
 /// Base environment variables are cached in BASE_ENV_VARIABLES via LazyLock.
 fn create_dynamic_variables(
     terminology_provider: &Option<Arc<dyn TerminologyProvider>>,
     server_provider: &Option<Arc<dyn ServerProvider>>,
-) -> LockFreeHashMap<String, FhirPathValue> {
-    let map = LockFreeHashMap::new();
+) -> ScopeVariables {
+    let mut map = HashMap::new();
 
-    {
-        let guard = map.pin();
-
-        // Add %terminologies variable if terminology provider is available
-        if let Some(tp) = terminology_provider {
-            let terminologies_var =
-                crate::evaluator::terminologies_variable::TerminologiesVariable::new(tp.clone());
-            guard.insert(
-                "terminologies".to_string(),
-                terminologies_var.to_fhir_path_value(),
-            );
-        }
-
-        // Add %factory variable (always available)
-        guard.insert(
-            "factory".to_string(),
-            crate::evaluator::factory_variable::FactoryVariable::to_fhir_path_value(),
+    // Add %terminologies variable if terminology provider is available
+    if let Some(tp) = terminology_provider {
+        let terminologies_var =
+            crate::evaluator::terminologies_variable::TerminologiesVariable::new(tp.clone());
+        map.insert(
+            "terminologies".to_string(),
+            terminologies_var.to_fhir_path_value(),
         );
-
-        // Add %server variable if server provider is available
-        if let Some(sp) = server_provider {
-            let server_var = crate::evaluator::server_variable::ServerVariable::new(sp.clone());
-            guard.insert("server".to_string(), server_var.to_fhir_path_value());
-        }
     }
 
-    map
+    // Add %factory variable (always available)
+    map.insert(
+        "factory".to_string(),
+        crate::evaluator::factory_variable::FactoryVariable::to_fhir_path_value(),
+    );
+
+    // Add %server variable if server provider is available
+    if let Some(sp) = server_provider {
+        let server_var = crate::evaluator::server_variable::ServerVariable::new(sp.clone());
+        map.insert("server".to_string(), server_var.to_fhir_path_value());
+    }
+
+    ScopeVariables {
+        named: map,
+        ..Default::default()
+    }
 }
 
 impl EvaluationContext {
@@ -272,7 +306,7 @@ impl EvaluationContext {
         Self {
             input_collection: input_collection.clone(),
             shared,
-            variables: Arc::new(variables),
+            variables: Arc::new(RwLock::new(variables)),
             parent_context: None,
             root_resource,
             hoist_scope: None,
@@ -303,8 +337,8 @@ impl EvaluationContext {
             }
         }
 
-        // Check current scope - papaya HashMap requires pin for access
-        if let Some(value) = self.variables.as_ref().pin().get(name) {
+        // The read guard is dropped before walking the parent or awaiting I/O.
+        if let Some(value) = self.variables.read().get(name) {
             return Some(value.clone());
         }
 
@@ -323,8 +357,22 @@ impl EvaluationContext {
 
     /// Set variable in current scope
     pub fn set_variable(&self, name: String, value: FhirPathValue) {
-        // papaya HashMap provides lock-free concurrent insertion with pin
-        self.variables.as_ref().pin().insert(name, value);
+        self.variables.write().insert(name, value);
+    }
+
+    /// Bind a lambda's focus without allocating a variable name or hash table.
+    pub fn set_this(&self, value: FhirPathValue) {
+        self.variables.write().this = Some(value);
+    }
+
+    /// Bind a lambda's zero-based index without allocating a variable name.
+    pub fn set_index(&self, index: usize) {
+        self.variables.write().index = Some(FhirPathValue::integer(index as i64));
+    }
+
+    /// Bind an aggregate accumulator without allocating a variable name.
+    pub fn set_total(&self, value: FhirPathValue) {
+        self.variables.write().total = Some(value);
     }
 
     /// Create independent context for union operations (isolates user-defined variables)
@@ -338,7 +386,7 @@ impl EvaluationContext {
         Self {
             input_collection: self.input_collection.clone(),
             shared: self.shared.clone(),
-            variables: Arc::new(variables),
+            variables: Arc::new(RwLock::new(variables)),
             parent_context: None, // Independent context has no parent
             root_resource: self.root_resource.clone(), // Share Arc reference
             hoist_scope: self.hoist_scope.clone(),
@@ -351,9 +399,9 @@ impl EvaluationContext {
         Self {
             input_collection: self.input_collection.clone(),
             shared: self.shared.clone(),
-            variables: Arc::new(LockFreeHashMap::new()), // Empty variables in nested scope
+            variables: Arc::new(RwLock::new(ScopeVariables::default())),
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
-            root_resource: self.root_resource.clone(),   // Share Arc reference
+            root_resource: self.root_resource.clone(),    // Share Arc reference
             hoist_scope: self.hoist_scope.clone(),
         }
     }
@@ -364,9 +412,9 @@ impl EvaluationContext {
         Self {
             input_collection: new_input,
             shared: self.shared.clone(),
-            variables: Arc::new(LockFreeHashMap::new()), // Empty variables for child context
+            variables: Arc::new(RwLock::new(ScopeVariables::default())),
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
-            root_resource: self.root_resource.clone(),   // Share Arc reference
+            root_resource: self.root_resource.clone(),    // Share Arc reference
             hoist_scope: self.hoist_scope.clone(),
         }
     }
@@ -607,6 +655,55 @@ impl Clone for EvaluationContext {
             parent_context: self.parent_context.clone(),
             root_resource: self.root_resource.clone(),
             hoist_scope: self.hoist_scope.clone(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod scope_tests {
+    use super::*;
+
+    #[test]
+    fn child_scopes_shadow_without_mutating_parent_or_siblings() {
+        let root = crate::testing::test_context();
+        root.set_variable("answer".into(), FhirPathValue::integer(1));
+        let child = root.create_child_context(Collection::single(FhirPathValue::integer(2)));
+        let sibling = root.nest();
+        assert_eq!(
+            child.get_variable("answer"),
+            Some(FhirPathValue::integer(1))
+        );
+        child.set_variable("answer".into(), FhirPathValue::integer(2));
+        assert_eq!(root.get_variable("answer"), Some(FhirPathValue::integer(1)));
+        assert_eq!(
+            sibling.get_variable("answer"),
+            Some(FhirPathValue::integer(1))
+        );
+        assert_eq!(
+            child.get_variable("answer"),
+            Some(FhirPathValue::integer(2))
+        );
+        assert!(
+            root.create_independent_context()
+                .get_variable("answer")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn cloned_contexts_share_updates_across_threads() {
+        let root = crate::testing::test_context();
+        std::thread::scope(|scope| {
+            for i in 0..8 {
+                let clone = root.clone();
+                scope.spawn(move || clone.set_variable(format!("v{i}"), FhirPathValue::integer(i)));
+            }
+        });
+        for i in 0..8 {
+            assert_eq!(
+                root.get_variable(&format!("v{i}")),
+                Some(FhirPathValue::integer(i))
+            );
         }
     }
 }

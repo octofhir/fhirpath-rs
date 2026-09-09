@@ -72,6 +72,17 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         if args.is_empty() || args.len() > 2 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,

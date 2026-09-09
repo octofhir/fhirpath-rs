@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::core::{Collection, FhirPathType, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
@@ -45,43 +45,21 @@ impl OperationEvaluator for UnionOperatorEvaluator {
         left: Collection,
         right: Collection,
     ) -> Result<EvaluationResult> {
-        // Union combines both collections and removes duplicates
-        let mut result_values = left.into_vec();
-        result_values.extend(right);
+        self.evaluate_sync(__input, _context, left, right)
+    }
 
-        // Remove duplicates while preserving order
-        let mut unique_values = Vec::new();
-        for value in result_values {
-            let is_duplicate = unique_values.iter().any(|existing| {
-                match (existing, &value) {
-                    // Use the FhirPath equality semantics
-                    (FhirPathValue::Integer(a, _, _), FhirPathValue::Integer(b, _, _)) => a == b,
-                    (FhirPathValue::Decimal(a, _, _), FhirPathValue::Decimal(b, _, _)) => a == b,
-                    (FhirPathValue::String(a, _, _), FhirPathValue::String(b, _, _)) => a == b,
-                    (FhirPathValue::Boolean(a, _, _), FhirPathValue::Boolean(b, _, _)) => a == b,
-                    (FhirPathValue::Date(a, _, _), FhirPathValue::Date(b, _, _)) => a == b,
-                    (FhirPathValue::DateTime(a, _, _), FhirPathValue::DateTime(b, _, _)) => a == b,
-                    (FhirPathValue::Time(a, _, _), FhirPathValue::Time(b, _, _)) => a == b,
-                    (
-                        FhirPathValue::Quantity {
-                            value: v1,
-                            unit: u1,
-                            ..
-                        },
-                        FhirPathValue::Quantity {
-                            value: v2,
-                            unit: u2,
-                            ..
-                        },
-                    ) => v1 == v2 && u1 == u2,
-                    // For different types, they are not equal
-                    _ => false,
-                }
-            });
-            if !is_duplicate {
-                unique_values.push(value);
-            }
-        }
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(
+        &self,
+        __input: Collection,
+        _context: &EvaluationContext,
+        left: Collection,
+        right: Collection,
+    ) -> Result<EvaluationResult> {
+        let unique_values = crate::evaluator::value_set::distinct(left.into_iter().chain(right));
 
         Ok(EvaluationResult {
             value: Collection::from(unique_values),
@@ -118,6 +96,7 @@ fn create_union_metadata() -> OperatorMetadata {
 mod tests {
     use super::*;
     use crate::core::Collection;
+    use crate::core::FhirPathValue;
 
     #[tokio::test]
     async fn test_union_basic() {

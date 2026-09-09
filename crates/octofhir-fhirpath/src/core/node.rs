@@ -36,6 +36,34 @@ pub enum FhirNode {
 }
 
 impl FhirNode {
+    /// Navigate a JSON Pointer without materializing subtrees.
+    pub fn pointer(&self, pointer: &str) -> Option<&Self> {
+        if pointer.is_empty() {
+            return Some(self);
+        }
+        if !pointer.starts_with('/') {
+            return None;
+        }
+        let mut current = self;
+        for part in pointer[1..].split('/') {
+            let key = if part.contains('~') {
+                std::borrow::Cow::Owned(part.replace("~1", "/").replace("~0", "~"))
+            } else {
+                std::borrow::Cow::Borrowed(part)
+            };
+            current = match current {
+                Self::Array(items) => {
+                    if key.starts_with('+') || (key.len() > 1 && key.starts_with('0')) {
+                        return None;
+                    }
+                    items.get(key.parse::<usize>().ok()?)?
+                }
+                _ => current.get(&key)?,
+            };
+        }
+        Some(current)
+    }
+
     /// Convert a `serde_json::Value` into a shared node tree. This is the only
     /// deep walk; it happens once per resource at evaluation entry.
     pub fn from_json(value: &JsonValue) -> Self {

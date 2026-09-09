@@ -90,6 +90,17 @@ impl LazyFunctionEvaluator for IifFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         if args.len() < 2 || args.len() > 3 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -115,7 +126,7 @@ impl LazyFunctionEvaluator for IifFunctionEvaluator {
         let evaluation_context = {
             let child_context = context.create_child_context(input.clone());
             if input.len() == 1 {
-                child_context.set_variable("$this".to_string(), input[0].clone());
+                child_context.set_this(input[0].clone());
             }
             child_context
         };

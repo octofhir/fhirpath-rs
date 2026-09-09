@@ -250,15 +250,10 @@ pub mod utils {
 
     /// Extract a path from a JSON object (dot notation)
     pub fn extract_json_path<'a>(json: &'a JsonValue, path: &str) -> Option<&'a JsonValue> {
-        let parts: Vec<&str> = path.split('.').collect();
         let mut current = json;
 
-        for part in parts {
-            if let Some(obj) = current.as_object() {
-                current = obj.get(part)?;
-            } else {
-                return None;
-            }
+        for part in path.split('.') {
+            current = current.as_object()?.get(part)?;
         }
 
         Some(current)

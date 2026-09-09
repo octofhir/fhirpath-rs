@@ -45,6 +45,14 @@ impl PureFunctionEvaluator for EmptyFunctionEvaluator {
         input: Collection,
         _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, _args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, _args: Vec<Collection>) -> Result<EvaluationResult> {
         let is_empty = input.is_empty();
 
         Ok(EvaluationResult {

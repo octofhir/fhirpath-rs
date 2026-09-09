@@ -94,6 +94,20 @@ impl OperationEvaluator for ConcatenateOperatorEvaluator {
         left: Collection,
         right: Collection,
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(__input, _context, left, right)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(
+        &self,
+        __input: Collection,
+        _context: &EvaluationContext,
+        left: Collection,
+        right: Collection,
+    ) -> Result<EvaluationResult> {
         // Handle empty collections - treat as empty strings
         let left_str = if left.is_empty() {
             String::new()

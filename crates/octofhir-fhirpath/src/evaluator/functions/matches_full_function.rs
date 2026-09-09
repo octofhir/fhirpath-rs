@@ -4,7 +4,6 @@
 //! Unlike matches() which does partial matching, matchesFull requires the entire string to match.
 //! Syntax: string.matchesFull(pattern)
 
-use regex::Regex;
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
@@ -15,7 +14,9 @@ use crate::evaluator::function_registry::{
 };
 
 /// MatchesFull function evaluator
+#[derive(Clone)]
 pub struct MatchesFullFunctionEvaluator {
+    compiled: Option<Arc<regex::Regex>>,
     metadata: FunctionMetadata,
 }
 
@@ -23,6 +24,7 @@ impl MatchesFullFunctionEvaluator {
     /// Create a new matchesFull function evaluator
     pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
+            compiled: None,
             metadata: FunctionMetadata {
                 name: "matchesFull".to_string(),
                 description: "Tests whether a string fully matches a regular expression pattern. The entire string must match the pattern.".to_string(),
@@ -58,6 +60,37 @@ impl MatchesFullFunctionEvaluator {
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
     async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
+    }
+
+    fn prepare(&self, args: &[Collection]) -> Option<Arc<dyn PureFunctionEvaluator>> {
+        let pattern = args.first()?.first()?.as_string()?;
+        if pattern.len() > 4096 {
+            return None;
+        }
+        let pattern = if pattern.starts_with('^') && pattern.ends_with('$') {
+            pattern.to_string()
+        } else if pattern.starts_with('^') {
+            format!("{pattern}$")
+        } else if pattern.ends_with('$') {
+            format!("^{pattern}")
+        } else {
+            format!("^{pattern}$")
+        };
+        let compiled = regex::RegexBuilder::new(&pattern)
+            .size_limit(256 * 1024)
+            .build()
+            .ok()?;
+        let mut evaluator = self.clone();
+        evaluator.compiled = Some(Arc::new(compiled));
+        Some(Arc::new(evaluator))
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -119,7 +152,14 @@ impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
         };
 
         // Compile the regex pattern
-        let regex = match Regex::new(&full_pattern) {
+        let regex = match self
+            .compiled
+            .as_ref()
+            .filter(|regex| regex.as_str() == full_pattern.as_str())
+            .cloned()
+            .map(Ok)
+            .unwrap_or_else(|| super::regex_cache::compile(&full_pattern))
+        {
             Ok(r) => r,
             Err(e) => {
                 return Err(FhirPathError::evaluation_error(

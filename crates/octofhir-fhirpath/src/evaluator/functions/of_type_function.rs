@@ -58,6 +58,17 @@ impl LazyFunctionEvaluator for OfTypeFunctionEvaluator {
         args: Vec<ExpressionNode>,
         _evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, _evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        _evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         // Spec: ofType(type) filters the input collection to only items of the specified type
 
         // Check argument count

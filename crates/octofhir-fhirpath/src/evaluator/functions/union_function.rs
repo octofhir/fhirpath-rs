@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -55,6 +55,14 @@ impl UnionFunctionEvaluator {
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for UnionFunctionEvaluator {
     async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -62,45 +70,8 @@ impl PureFunctionEvaluator for UnionFunctionEvaluator {
             ));
         }
 
-        // Get the pre-evaluated argument values
-        let other_values = args[0].clone();
-
-        // Combine the input and other collections
-        let mut result_values = input.into_vec();
-        result_values.extend(other_values);
-
-        // Remove duplicates while preserving order
-        let mut unique_values = Vec::new();
-        for value in result_values {
-            if !unique_values.iter().any(|existing| {
-                match (existing, &value) {
-                    // Use the FhirPath equality semantics
-                    (FhirPathValue::Integer(a, _, _), FhirPathValue::Integer(b, _, _)) => a == b,
-                    (FhirPathValue::Decimal(a, _, _), FhirPathValue::Decimal(b, _, _)) => a == b,
-                    (FhirPathValue::String(a, _, _), FhirPathValue::String(b, _, _)) => a == b,
-                    (FhirPathValue::Boolean(a, _, _), FhirPathValue::Boolean(b, _, _)) => a == b,
-                    (FhirPathValue::Date(a, _, _), FhirPathValue::Date(b, _, _)) => a == b,
-                    (FhirPathValue::DateTime(a, _, _), FhirPathValue::DateTime(b, _, _)) => a == b,
-                    (FhirPathValue::Time(a, _, _), FhirPathValue::Time(b, _, _)) => a == b,
-                    (
-                        FhirPathValue::Quantity {
-                            value: v1,
-                            unit: u1,
-                            ..
-                        },
-                        FhirPathValue::Quantity {
-                            value: v2,
-                            unit: u2,
-                            ..
-                        },
-                    ) => v1 == v2 && u1 == u2,
-                    // For different types, they are not equal
-                    _ => false,
-                }
-            }) {
-                unique_values.push(value);
-            }
-        }
+        let other = args.into_iter().next().unwrap();
+        let unique_values = crate::evaluator::value_set::distinct(input.into_iter().chain(other));
 
         Ok(EvaluationResult {
             value: crate::core::Collection::from(unique_values),

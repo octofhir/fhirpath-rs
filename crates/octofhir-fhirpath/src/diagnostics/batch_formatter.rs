@@ -141,42 +141,30 @@ impl BatchFormatter {
     pub fn format_table_report(
         batch: &DiagnosticBatch,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        use tabled::{Table, Tabled, settings::Style};
+        use tabled::{builder::Builder, settings::Style};
 
-        #[derive(Tabled)]
-        struct DiagnosticRow {
-            #[tabled(rename = "Type")]
-            severity: String,
-            #[tabled(rename = "Code")]
-            error_code: String,
-            #[tabled(rename = "Span")]
-            span: String,
-            #[tabled(rename = "Message")]
-            message: String,
-        }
-
-        let rows: Vec<DiagnosticRow> = batch
-            .diagnostics
-            .iter()
-            .map(|d| DiagnosticRow {
-                severity: match d.severity {
+        let mut rows = Builder::with_capacity(batch.diagnostics.len() + 1, 4);
+        rows.push_record(["Type", "Code", "Span", "Message"]);
+        for d in &batch.diagnostics {
+            rows.push_record([
+                match d.severity {
                     DiagnosticSeverity::Error => "❌ ERROR".to_string(),
                     DiagnosticSeverity::Warning => "⚠️  WARN".to_string(),
                     DiagnosticSeverity::Hint => "💡 SUGGEST".to_string(),
                     DiagnosticSeverity::Info => "ℹ️  NOTE".to_string(),
                 },
-                error_code: d.error_code.code_str().to_string(),
-                span: format!("{}..{}", d.span.start, d.span.end),
-                message: d.message.clone(),
-            })
-            .collect();
+                d.error_code.code_str().to_string(),
+                format!("{}..{}", d.span.start, d.span.end),
+                d.message.clone(),
+            ]);
+        }
 
         let mut output = String::new();
         output.push_str(&Self::format_header(&batch.statistics));
         output.push('\n');
 
-        if !rows.is_empty() {
-            let table = Table::new(&rows).with(Style::modern()).to_string();
+        if !batch.diagnostics.is_empty() {
+            let table = rows.build().with(Style::modern()).to_string();
             output.push_str(&table);
             output.push('\n');
         }
@@ -299,6 +287,29 @@ mod tests {
         assert!(formatted.contains("⚠️  1 Warning"));
         assert!(formatted.contains("💡 1 Suggestion"));
         assert!(formatted.contains("octofhir.github.io"));
+    }
+
+    #[test]
+    fn table_report_preserves_headers_values_and_empty_output() {
+        let mut collector = MultiDiagnosticCollector::new();
+        collector.error(FP0001, "Test error".to_string(), 0..5);
+        let batch = collector.build_batch(0, "test.fhirpath".to_string());
+        let table = BatchFormatter::format_table_report(&batch).unwrap();
+        for text in [
+            "Type",
+            "Code",
+            "Span",
+            "Message",
+            "❌ ERROR",
+            "FP0001",
+            "0..5",
+            "Test error",
+        ] {
+            assert!(table.contains(text), "Missing table content: {text}");
+        }
+        let empty = MultiDiagnosticCollector::new().build_batch(0, "test".into());
+        let formatted = BatchFormatter::format_table_report(&empty).unwrap();
+        assert!(!formatted.contains("Message"));
     }
 
     #[test]

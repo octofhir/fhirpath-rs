@@ -45,6 +45,14 @@ impl PureFunctionEvaluator for FirstFunctionEvaluator {
         input: Collection,
         _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, _args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, _args: Vec<Collection>) -> Result<EvaluationResult> {
         let result = if input.is_empty() {
             Vec::new()
         } else {

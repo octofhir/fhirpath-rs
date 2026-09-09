@@ -66,6 +66,20 @@ impl OperationEvaluator for OrOperatorEvaluator {
         left: Collection,
         right: Collection,
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(__input, _context, left, right)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(
+        &self,
+        __input: Collection,
+        _context: &EvaluationContext,
+        left: Collection,
+        right: Collection,
+    ) -> Result<EvaluationResult> {
         // Extract boolean values from both operands
         let left_bool = self.extract_boolean(left.values());
         let right_bool = self.extract_boolean(right.values());

@@ -314,7 +314,6 @@ fn parameter_from_value(datatype: &str, value: &FhirPathValue) -> Parameter {
             unit,
             code,
             system,
-            ucum_unit: _,
             ..
         } => {
             let quantity_json_value = decimal_to_json_number(quantity_value);

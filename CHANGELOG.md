@@ -1,3 +1,31 @@
+## [Unreleased]
+
+### Performance Improvements
+
+- Reuse prepared resource trees across validation groups; add ValidationSession
+  and JSON Pointer node contexts without breaking the model evaluator interface.
+- Use allocation-free empty collections, single-allocation singleton collections,
+  and compact fixed-slot evaluation scopes.
+- Add retained compiled plans with coalesced cache misses, synchronous built-in
+  execution and borrowed AST arguments; preserve async provider/custom fallback.
+- Cache dynamic regex compilation and bind constant regexes in supported plans.
+- Replace formatted deduplication keys with stable semantic candidate sets for
+  distinct, isDistinct and union.
+
+### Bug Fixes
+
+- Bind the current $this in repeat and repeatAll; all 1176 compliance tests pass.
+- Compare decimals exactly for consistent equality and set membership.
+- Package crate-relative tests and benchmarks; keep CLI tests from saving user
+  preferences; update the yanked chacha20 lockfile entry.
+- Remove unused tabled derive macros and obsolete proc-macro-error2 dependencies;
+  preserve diagnostic table output with a regression test.
+- Keep non-object JSON contexts on the existing model conversion path and test
+  compatibility of untyped scalar/array inputs.
+
+See docs/EVALUATOR_PERFORMANCE.md for measurements, regression checks, scope
+boundaries and existing dependency-audit warnings.
+
 ## [0.4.52](https://github.com/octofhir/fhirpath-rs/compare/v0.4.51...v0.4.52) (2026-07-24)
 
 
@@ -437,6 +465,4 @@
 * support publishing all crates to cratesio ([998414b](https://github.com/octofhir/fhirpath-rs/commit/998414be7730cf17c6b3cf8dddb890e1a3fc731d))
 * support raw json input for cli ([f2401b0](https://github.com/octofhir/fhirpath-rs/commit/f2401b07f98f770cb1dfc7cc4c1e2f57a9b95116))
 * support variables in engine ([1df5f27](https://github.com/octofhir/fhirpath-rs/commit/1df5f2740528799767b6db5c1a7a4220b8bb75e4))
-
-
 

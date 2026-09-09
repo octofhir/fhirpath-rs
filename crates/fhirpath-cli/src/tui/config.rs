@@ -621,6 +621,8 @@ mod tests {
     #[test]
     fn test_feature_management() {
         let mut config = TuiConfig::default();
+        // Unit tests must not overwrite the user's persisted TUI preferences.
+        config.features.auto_save_config = false;
 
         assert!(config.get_feature("syntax_highlighting").unwrap());
         config.set_feature("syntax_highlighting", false).unwrap();
@@ -632,6 +634,8 @@ mod tests {
     #[test]
     fn test_config_builder() {
         let config = TuiConfigBuilder::new()
+            .with_feature("auto_save_config", false)
+            .unwrap()
             .with_theme_name("dark")
             .unwrap()
             .with_feature("mouse_support", false)

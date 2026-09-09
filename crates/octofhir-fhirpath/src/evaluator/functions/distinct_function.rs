@@ -3,7 +3,6 @@
 //! The distinct function returns a collection containing only unique items.
 //! Syntax: collection.distinct()
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathError, Result};
@@ -52,6 +51,14 @@ impl PureFunctionEvaluator for DistinctFunctionEvaluator {
         input: Collection,
         _args: Vec<Collection>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, _args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, _args: Vec<Collection>) -> Result<EvaluationResult> {
         if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -59,20 +66,7 @@ impl PureFunctionEvaluator for DistinctFunctionEvaluator {
             ));
         }
 
-        // Use HashSet to track unique values based on their string representation
-        let mut seen = HashSet::new();
-        let mut unique_items = Vec::new();
-
-        for item in input {
-            // Create a key for comparison - this is a simplified approach
-            // In a full implementation, we'd need proper equality comparison for FHIR values
-            let key = format!("{item:?}");
-
-            if !seen.contains(&key) {
-                seen.insert(key);
-                unique_items.push(item);
-            }
-        }
+        let unique_items = crate::evaluator::value_set::distinct(input);
 
         Ok(EvaluationResult {
             value: crate::core::Collection::from(unique_items),

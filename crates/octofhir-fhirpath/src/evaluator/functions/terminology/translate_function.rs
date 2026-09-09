@@ -163,6 +163,17 @@ impl LazyFunctionEvaluator for TranslateFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         // Check if this is called on %terminologies variable
         let is_on_terminologies = input.len() == 1
             && crate::evaluator::terminologies_variable::is_terminologies_variable(&input[0]);

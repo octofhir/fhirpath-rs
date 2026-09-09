@@ -41,34 +41,19 @@ impl IsDistinctFunctionEvaluator {
             },
         })
     }
-
-    fn values_equal(&self, a: &FhirPathValue, b: &FhirPathValue) -> bool {
-        match (a, b) {
-            (FhirPathValue::String(s1, _, _), FhirPathValue::String(s2, _, _)) => s1 == s2,
-            (FhirPathValue::Integer(i1, _, _), FhirPathValue::Integer(i2, _, _)) => i1 == i2,
-            (FhirPathValue::Decimal(d1, _, _), FhirPathValue::Decimal(d2, _, _)) => d1 == d2,
-            (FhirPathValue::Boolean(b1, _, _), FhirPathValue::Boolean(b2, _, _)) => b1 == b2,
-            (FhirPathValue::Date(d1, _, _), FhirPathValue::Date(d2, _, _)) => d1 == d2,
-            (FhirPathValue::DateTime(dt1, _, _), FhirPathValue::DateTime(dt2, _, _)) => dt1 == dt2,
-            (FhirPathValue::Time(t1, _, _), FhirPathValue::Time(t2, _, _)) => t1 == t2,
-            // Cross-type comparisons
-            (FhirPathValue::String(s, _, _), other) | (other, FhirPathValue::String(s, _, _)) => {
-                // Compare string representation
-                match other {
-                    FhirPathValue::Integer(i, _, _) => s == &i.to_string(),
-                    FhirPathValue::Decimal(d, _, _) => s == &d.to_string(),
-                    FhirPathValue::Boolean(b, _, _) => s == &b.to_string(),
-                    _ => false,
-                }
-            }
-            _ => false,
-        }
-    }
 }
 
 #[async_trait::async_trait]
 impl PureFunctionEvaluator for IsDistinctFunctionEvaluator {
     async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::FP0053,
@@ -90,15 +75,12 @@ impl PureFunctionEvaluator for IsDistinctFunctionEvaluator {
             });
         }
 
-        // Check for duplicates by comparing each item with all subsequent items
-        for i in 0..input.len() {
-            for j in (i + 1)..input.len() {
-                if self.values_equal(&input[i], &input[j]) {
-                    // Found a duplicate
-                    return Ok(EvaluationResult {
-                        value: Collection::single(FhirPathValue::boolean(false)),
-                    });
-                }
+        let mut seen = crate::evaluator::value_set::ValueSet::default();
+        for value in input {
+            if !seen.insert(value) {
+                return Ok(EvaluationResult {
+                    value: Collection::single(FhirPathValue::boolean(false)),
+                });
             }
         }
 

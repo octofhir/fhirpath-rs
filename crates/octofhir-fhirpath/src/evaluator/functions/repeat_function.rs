@@ -63,6 +63,17 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
+        self.evaluate_borrowed(input, context, &args, evaluator)
+            .await
+    }
+
+    async fn evaluate_borrowed(
+        &self,
+        input: Collection,
+        context: &EvaluationContext,
+        args: &[ExpressionNode],
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -172,6 +183,7 @@ impl LazyFunctionEvaluator for RepeatFunctionEvaluator {
                 // environment/user variables (preserved by create_child_context).
                 let item_context =
                     context.create_child_context(crate::core::Collection::single(item.clone()));
+                item_context.set_this(item.clone());
 
                 let item_result = evaluator.evaluate(repeat_expr, &item_context).await?;
                 for new_item in item_result.value.into_iter() {

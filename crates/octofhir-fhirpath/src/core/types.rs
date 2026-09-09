@@ -40,19 +40,38 @@ fn decimal_to_json_number(d: &Decimal) -> JsonValue {
 }
 
 /// A collection of FHIRPath values - the fundamental evaluation result type.
-/// Uses Arc<Vec<>> for cheap cloning when creating child evaluation contexts.
-#[derive(Debug, Clone, PartialEq)]
+/// Empty collections allocate nothing; singleton and multi-value collections
+/// share Arc-backed storage with copy-on-write mutation.
+#[derive(Clone, PartialEq)]
 pub struct Collection {
-    values: Arc<Vec<FhirPathValue>>,
+    values: CollectionStorage,
     is_ordered: bool,
     mixed: bool, // Flag indicating this collection contains mixed types
+}
+
+#[derive(Clone, PartialEq, Default)]
+enum CollectionStorage {
+    #[default]
+    Empty,
+    One(Arc<FhirPathValue>),
+    Many(Arc<Vec<FhirPathValue>>),
+}
+
+impl From<Vec<FhirPathValue>> for CollectionStorage {
+    fn from(mut values: Vec<FhirPathValue>) -> Self {
+        match values.len() {
+            0 => Self::Empty,
+            1 => Self::One(Arc::new(values.pop().unwrap())),
+            _ => Self::Many(Arc::new(values)),
+        }
+    }
 }
 
 impl Collection {
     /// Create a new empty collection (ordered by default)
     pub fn empty() -> Self {
         Self {
-            values: Arc::new(Vec::new()),
+            values: CollectionStorage::Empty,
             is_ordered: true,
             mixed: false,
         }
@@ -61,7 +80,7 @@ impl Collection {
     /// Create an empty collection with explicit ordering
     pub fn empty_with_ordering(is_ordered: bool) -> Self {
         Self {
-            values: Arc::new(Vec::new()),
+            values: CollectionStorage::Empty,
             is_ordered,
             mixed: false,
         }
@@ -70,7 +89,7 @@ impl Collection {
     /// Create a collection with a single value (ordered by default)
     pub fn single(value: FhirPathValue) -> Self {
         Self {
-            values: Arc::new(vec![value]),
+            values: CollectionStorage::One(Arc::new(value)),
             is_ordered: true,
             mixed: false,
         }
@@ -79,7 +98,7 @@ impl Collection {
     /// Create a collection from a vector of values (ordered by default)
     pub fn from_values(values: Vec<FhirPathValue>) -> Self {
         Self {
-            values: Arc::new(values),
+            values: values.into(),
             is_ordered: true,
             mixed: false,
         }
@@ -184,7 +203,7 @@ impl Collection {
     /// Create a collection from a vector with explicit ordering
     pub fn from_values_with_ordering(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
         Self {
-            values: Arc::new(values),
+            values: values.into(),
             is_ordered,
             mixed: false,
         }
@@ -193,7 +212,7 @@ impl Collection {
     /// Create a mixed collection (for collections containing different types)
     pub fn from_values_mixed(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
         Self {
-            values: Arc::new(values),
+            values: values.into(),
             is_ordered,
             mixed: true,
         }
@@ -201,12 +220,12 @@ impl Collection {
 
     /// Check if the collection is empty
     pub fn is_empty(&self) -> bool {
-        self.values.is_empty()
+        matches!(self.values, CollectionStorage::Empty)
     }
 
     /// Get the number of items in the collection
     pub fn len(&self) -> usize {
-        self.values.len()
+        self.values().len()
     }
 
     /// Check if the collection is ordered
@@ -221,45 +240,63 @@ impl Collection {
 
     /// Get the first item, if any
     pub fn first(&self) -> Option<&FhirPathValue> {
-        self.values.first()
+        self.values().first()
     }
 
     /// Get the last item, if any
     pub fn last(&self) -> Option<&FhirPathValue> {
-        self.values.last()
+        self.values().last()
     }
 
     /// Get item at index
     pub fn get(&self, index: usize) -> Option<&FhirPathValue> {
-        self.values.get(index)
+        self.values().get(index)
     }
 
     /// Get an iterator over the values in the collection
     pub fn iter(&self) -> std::slice::Iter<'_, FhirPathValue> {
-        self.values.iter()
+        self.values().iter()
     }
 
     /// Get the underlying values as a slice
     pub fn values(&self) -> &[FhirPathValue] {
-        &self.values
+        match &self.values {
+            CollectionStorage::Empty => &[],
+            CollectionStorage::One(value) => std::slice::from_ref(value),
+            CollectionStorage::Many(values) => values,
+        }
     }
 
     /// Add a value to the collection
     pub fn push(&mut self, value: FhirPathValue) {
-        Arc::make_mut(&mut self.values).push(value);
+        if let CollectionStorage::Many(values) = &mut self.values {
+            Arc::make_mut(values).push(value);
+        } else {
+            self.values = match std::mem::take(&mut self.values) {
+                CollectionStorage::Empty => CollectionStorage::One(Arc::new(value)),
+                CollectionStorage::One(first) => {
+                    CollectionStorage::Many(Arc::new(vec![Arc::unwrap_or_clone(first), value]))
+                }
+                CollectionStorage::Many(_) => unreachable!(),
+            };
+        }
     }
 
     /// Convert to vector
     pub fn into_vec(self) -> Vec<FhirPathValue> {
-        Arc::try_unwrap(self.values).unwrap_or_else(|arc| (*arc).clone())
+        match self.values {
+            CollectionStorage::Empty => Vec::new(),
+            CollectionStorage::One(value) => vec![Arc::unwrap_or_clone(value)],
+            CollectionStorage::Many(values) => Arc::unwrap_or_clone(values),
+        }
     }
 
     /// Convert to serde_json::Value
     pub fn to_json_value(&self) -> JsonValue {
-        match self.values.len() {
+        match self.len() {
             0 => JsonValue::Null,
-            1 => self.values[0].to_json_value(),
-            _ => JsonValue::Array(self.values.iter().map(|v| v.to_json_value()).collect()),
+            1 => self[0].to_json_value(),
+            _ => JsonValue::Array(self.iter().map(|v| v.to_json_value()).collect()),
         }
     }
 }
@@ -281,9 +318,7 @@ impl IntoIterator for Collection {
     type IntoIter = std::vec::IntoIter<FhirPathValue>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Arc::try_unwrap(self.values)
-            .unwrap_or_else(|arc| (*arc).clone())
-            .into_iter()
+        self.into_vec().into_iter()
     }
 }
 
@@ -298,7 +333,7 @@ impl<'a> IntoIterator for &'a Collection {
     type IntoIter = std::slice::Iter<'a, FhirPathValue>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.values.iter()
+        self.iter()
     }
 }
 
@@ -306,7 +341,7 @@ impl std::ops::Index<usize> for Collection {
     type Output = FhirPathValue;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.values[index]
+        &self.values()[index]
     }
 }
 
@@ -316,7 +351,60 @@ impl serde::Serialize for Collection {
         S: serde::Serializer,
     {
         // Serialize as a simple array of values
-        self.values.serialize(serializer)
+        self.values().serialize(serializer)
+    }
+}
+
+impl fmt::Debug for Collection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Collection")
+            .field("values", &self.values())
+            .field("is_ordered", &self.is_ordered)
+            .field("mixed", &self.mixed)
+            .finish()
+    }
+}
+
+#[cfg(test)]
+mod collection_storage_tests {
+    use super::*;
+
+    #[test]
+    fn empty_constructors_preserve_flags_and_serialization() {
+        let ordered = Collection::empty();
+        assert_eq!(ordered, Collection::from_values(Vec::new()));
+        assert_eq!(ordered, std::iter::empty::<FhirPathValue>().collect());
+        assert_eq!(ordered.to_json_value(), JsonValue::Null);
+        assert_eq!(serde_json::to_string(&ordered).unwrap(), "[]");
+        assert_eq!(ordered.iter().count(), 0);
+        assert_eq!(ordered.clone().into_iter().count(), 0);
+        assert!(ordered.first().is_none());
+        assert!(ordered.get(0).is_none());
+        let mixed = Collection::from_values_mixed(Vec::new(), false);
+        assert!(mixed.is_empty());
+        assert!(mixed.is_mixed());
+        assert!(!mixed.is_ordered());
+        assert_eq!(
+            Collection::empty_with_ordering(false),
+            Collection::from_values_with_ordering(Vec::new(), false)
+        );
+    }
+
+    #[test]
+    fn push_is_copy_on_write_for_empty_and_nonempty_collections() {
+        let mut values = Collection::empty_with_ordering(false);
+        let empty_snapshot = values.clone();
+        values.push(FhirPathValue::integer(1));
+        let one_snapshot = values.clone();
+        values.push(FhirPathValue::integer(2));
+        assert!(empty_snapshot.is_empty());
+        assert_eq!(one_snapshot.to_json_value(), serde_json::json!(1));
+        assert_eq!(values.to_json_value(), serde_json::json!([1, 2]));
+        assert!(!values.is_ordered());
+        assert_eq!(
+            values.clone().into_vec(),
+            values.into_iter().collect::<Vec<_>>()
+        );
     }
 }
 

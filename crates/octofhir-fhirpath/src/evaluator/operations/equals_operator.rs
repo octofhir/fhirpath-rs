@@ -49,10 +49,8 @@ impl EqualsOperatorEvaluator {
         let value_node = json.get("value")?;
         let value = if let Some(n) = value_node.as_f64() {
             n
-        } else if let Some(s) = value_node.as_str() {
-            s.parse::<f64>().ok()?
         } else {
-            return None;
+            value_node.as_str()?.parse::<f64>().ok()?
         };
         let unit_display = json
             .get("unit")
@@ -106,7 +104,11 @@ impl EqualsOperatorEvaluator {
     }
 
     /// Compare two FhirPathValues for equality with automatic string-to-temporal conversion
-    fn compare_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<bool> {
+    pub(crate) fn compare_values(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Option<bool> {
         // Handle string-to-temporal conversions
         match (left, right) {
             // String vs temporal types - try to parse string as temporal
@@ -142,18 +144,16 @@ impl EqualsOperatorEvaluator {
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => Some(l == r),
 
             // Decimal equality
-            (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
-                Some((l - r).abs() < Decimal::new(1, 10)) // Small epsilon for decimal comparison
-            }
+            (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => Some(l == r),
 
             // Integer vs Decimal comparison
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
                 let left_decimal = Decimal::from(*l);
-                Some((left_decimal - r).abs() < Decimal::new(1, 10))
+                Some(left_decimal == *r)
             }
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Integer(r, _, _)) => {
                 let right_decimal = Decimal::from(*r);
-                Some((l - right_decimal).abs() < Decimal::new(1, 10))
+                Some(*l == right_decimal)
             }
 
             // Date equality
@@ -290,6 +290,20 @@ impl EqualsOperatorEvaluator {
 #[async_trait]
 impl OperationEvaluator for EqualsOperatorEvaluator {
     async fn evaluate(
+        &self,
+        __input: Collection,
+        _context: &EvaluationContext,
+        left: Collection,
+        right: Collection,
+    ) -> Result<EvaluationResult> {
+        self.evaluate_sync(__input, _context, left, right)
+    }
+
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(
         &self,
         __input: Collection,
         _context: &EvaluationContext,
