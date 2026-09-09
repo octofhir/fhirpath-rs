@@ -1,47 +1,14 @@
-## [Unreleased]
+## [0.4.55](https://github.com/octofhir/fhirpath-rs/compare/v0.4.54...v0.4.55) (2026-09-09)
+
 
 ### Performance Improvements
 
-- Execute compiled expressions with explicit VM frames and wake-driven async
-  callbacks; borrow hot-path operands and prepared regex arguments.
-- Implement the published model's prepared-resource and executable-constraint
-  API for schema validation, with resource/engine ownership checks.
-- Reuse prepared resource trees across validation groups; add ValidationSession
-  and JSON Pointer node contexts without breaking the model evaluator interface.
-- Use allocation-free empty collections, single-allocation singleton collections,
-  and compact fixed-slot evaluation scopes.
-- Add retained compiled plans with coalesced cache misses, synchronous built-in
-  execution and borrowed AST arguments; preserve async provider/custom fallback.
-- Cache dynamic regex compilation and bind constant regexes in supported plans.
-- Replace formatted deduplication keys with stable semantic candidate sets for
-  distinct, isDistinct and union.
+* **evaluator:** streamline FHIRPath execution ([d82a67c](https://github.com/octofhir/fhirpath-rs/commit/d82a67c495c52793e3439896d4102fd8ce7af498))
+* finalize prepared FHIRPath execution ([0d49b19](https://github.com/octofhir/fhirpath-rs/commit/0d49b1984b9ca1151396757bdb9e3545d6fd4205))
 
-### Bug Fixes
 
-- Order schema-cache invalidation against in-flight lookup publication; discard
-  stale successes, absence and errors without locking warm cache reads.
-- Do not memoize transient provider failures or descendants with fallback typing
-  caused by those failures. Reject old engine-prepared contexts/resources after
-  schema invalidation; recreate them while retaining compiled expression handles.
-- Require published fhir-model 0.1.17, canonical-manager 0.2.3 and FHIRSchema
-  0.3.29; remove sibling path overrides from release builds.
-- Enforce the full 1176-test specification gate in local checks, CI and releases,
-  rejecting skipped, missing or failing tests instead of rounded percentages.
-- Allow the workflow's automatic version changes during publish dry-run and
-  commit the corresponding Cargo.lock update after successful publication.
-- Bind the current $this in repeat and repeatAll; all 1176 compliance tests pass.
-- Compare decimals exactly for consistent equality and set membership.
-- Package crate-relative tests and benchmarks; keep CLI tests from saving user
-  preferences; update the yanked chacha20 lockfile entry.
-- Remove unused tabled derive macros and obsolete proc-macro-error2 dependencies;
-  preserve diagnostic table output with a regression test.
-- Keep non-object JSON contexts on the existing model conversion path and test
-  compatibility of untyped scalar/array inputs.
 
-See docs/EVALUATOR_PERFORMANCE.md for measurements, regression checks, scope
-boundaries and remaining release qualification work.
-
-## [0.4.52](https://github.com/octofhir/fhirpath-rs/compare/v0.4.51...v0.4.52) (2026-07-24)
+## [0.4.53](https://github.com/octofhir/fhirpath-rs/compare/v0.4.51...v0.4.53) (2026-07-24)
 
 
 ### Performance Improvements
@@ -480,3 +447,6 @@ boundaries and remaining release qualification work.
 * support publishing all crates to cratesio ([998414b](https://github.com/octofhir/fhirpath-rs/commit/998414be7730cf17c6b3cf8dddb890e1a3fc731d))
 * support raw json input for cli ([f2401b0](https://github.com/octofhir/fhirpath-rs/commit/f2401b07f98f770cb1dfc7cc4c1e2f57a9b95116))
 * support variables in engine ([1df5f27](https://github.com/octofhir/fhirpath-rs/commit/1df5f2740528799767b6db5c1a7a4220b8bb75e4))
+
+
+
