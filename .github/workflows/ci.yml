@@ -119,6 +119,14 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: cargo test --verbose --workspace --all-features --exclude fhirpath-dev-tools
 
+      - name: Enforce FHIRPath specification compliance
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+        timeout-minutes: 15
+        run: |
+          cargo test --package fhirpath-dev-tools --bin test-coverage
+          # Same strict gate as just test-coverage; no percentage rounding.
+          cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176
+
       - name: Run tests (release mode - Windows no doctests)
         if: matrix.os == 'windows-latest'
         run: cargo test --release --verbose --workspace --exclude fhirpath-dev-tools --lib --bins
@@ -127,11 +135,10 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: cargo test --release --verbose --workspace --exclude fhirpath-dev-tools
 
-      - name: Run benchmarks (quick check)
+      - name: Run warm evaluator benchmark smoke check
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
-        run: |
-          echo "🚀 Running quick benchmark check..."
-          timeout 300 cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench list || echo "⚠️ Benchmark timed out after 5 minutes"
+        timeout-minutes: 15
+        run: cargo bench --package octofhir-fhirpath --bench evaluation_hot_paths -- warm_evaluation --sample-count 40 --sample-size 5
 
   cli-features:
     name: CLI Feature Combinations

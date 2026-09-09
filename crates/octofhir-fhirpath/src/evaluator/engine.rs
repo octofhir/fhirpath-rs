@@ -6,12 +6,9 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::model_provider::TypeInfo;
 use crate::core::trace::SharedTraceProvider;
 use crate::core::{FhirPathValue, ModelProvider, Result};
 use crate::parser;
-
-use papaya::HashMap as LockFreeHashMap;
 
 use async_trait::async_trait;
 use octofhir_fhir_model::{
@@ -22,6 +19,7 @@ use octofhir_fhir_model::{
 use serde_json::Value as JsonValue;
 
 use super::context::EvaluationContext;
+use super::element_type_cache::ElementTypeCache;
 use super::evaluator::Evaluator;
 use super::function_registry::{FunctionRegistry, create_function_registry};
 use super::operator_registry::{OperatorRegistry, create_standard_operator_registry};
@@ -52,7 +50,7 @@ pub struct FhirPathEngine {
     /// AST compilation cache to avoid reparsing hot expressions
     /// Uses LRU eviction when cache is full
     ast_cache: moka::sync::Cache<String, Arc<CompiledPlan>>,
-    plan_owner: Arc<()>,
+    pub(super) plan_owner: Arc<()>,
     prepared_roots: super::prepared::PreparedRoots,
     /// Element-type resolution cache shared across every context this engine
     /// builds. Element types are a pure function of the loaded schema set, so
@@ -61,7 +59,7 @@ pub struct FhirPathEngine {
     /// constraint validation) from repeated schema walks into hash hits. Key
     /// space is bounded by the schema set; [`Self::clear_element_type_cache`]
     /// drops it when schemas change.
-    element_type_cache: Arc<LockFreeHashMap<String, Option<Arc<TypeInfo>>>>,
+    element_type_cache: Arc<ElementTypeCache>,
 }
 
 impl FhirPathEngine {
@@ -97,7 +95,7 @@ impl FhirPathEngine {
             ast_cache,
             plan_owner: Arc::new(()),
             prepared_roots: Default::default(),
-            element_type_cache: Arc::new(LockFreeHashMap::new()),
+            element_type_cache: Arc::new(ElementTypeCache::default()),
         })
     }
 
@@ -130,7 +128,7 @@ impl FhirPathEngine {
             ast_cache,
             plan_owner: Arc::new(()),
             prepared_roots: Default::default(),
-            element_type_cache: Arc::new(LockFreeHashMap::new()),
+            element_type_cache: Arc::new(ElementTypeCache::default()),
         })
     }
 
@@ -139,8 +137,12 @@ impl FhirPathEngine {
     /// Call this whenever the model provider's schema set changes (e.g. a FHIR
     /// package is (re)installed), since cached `(type, property) -> TypeInfo`
     /// entries would otherwise be stale.
+    /// In-flight misses from the old generation are discarded. Previously prepared
+    /// contexts, validation sessions and model-trait resources must be recreated:
+    /// evaluation rejects them instead of mixing old root/descendant type data
+    /// with a new schema set. Compiled expression handles remain reusable.
     pub fn clear_element_type_cache(&self) {
-        self.element_type_cache.pin().clear();
+        self.element_type_cache.invalidate();
     }
 
     /// Add terminology provider to engine
@@ -210,6 +212,7 @@ impl FhirPathEngine {
         context_type: Option<&str>,
         variables: &JsonVariables,
     ) -> octofhir_fhir_model::Result<EvaluationContext> {
+        let schema_generation = self.element_type_cache.generation();
         let collection = if context.is_object()
             && (context_type.is_none() || context.get("resourceType").is_some())
         {
@@ -231,7 +234,7 @@ impl FhirPathEngine {
             .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?
         };
 
-        let eval_context = EvaluationContext::new_with_server_and_element_type_cache(
+        let eval_context = EvaluationContext::new_with_schema_cache(
             collection,
             self.model_provider.clone(),
             self.terminology_provider.clone(),
@@ -239,6 +242,7 @@ impl FhirPathEngine {
             self.trace_provider.clone(),
             self.server_provider.clone(),
             self.element_type_cache.clone(),
+            schema_generation,
         );
 
         // Convert Arc<JsonValue> variables directly to FhirPathValue::Resource (no deep clone)
@@ -251,6 +255,9 @@ impl FhirPathEngine {
             }
         }
 
+        eval_context.ensure_current_schema().map_err(|error| {
+            octofhir_fhir_model::ModelError::evaluation_error(error.to_string())
+        })?;
         Ok(eval_context)
     }
 
@@ -358,7 +365,10 @@ impl FhirPathEngine {
                 "Evaluation plan belongs to a different engine",
             ));
         }
-        plan.evaluate(&self.evaluator, context).await
+        context.ensure_current_schema()?;
+        let result = plan.evaluate(&self.evaluator, context).await;
+        context.ensure_current_schema()?;
+        result
     }
 
     /// Evaluate expression
@@ -380,7 +390,10 @@ impl FhirPathEngine {
         ast: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
-        self.evaluator.evaluate_node(ast, context).await
+        context.ensure_current_schema()?;
+        let result = self.evaluator.evaluate_node(ast, context).await;
+        context.ensure_current_schema()?;
+        result
     }
 
     /// Evaluate expression with metadata
@@ -402,9 +415,13 @@ impl FhirPathEngine {
         ast: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<EvaluationResultWithMetadata> {
-        self.evaluator
+        context.ensure_current_schema()?;
+        let result = self
+            .evaluator
             .evaluate_node_with_metadata(ast, context)
-            .await
+            .await;
+        context.ensure_current_schema()?;
+        result
     }
 
     /// Get AST cache statistics (for testing and monitoring)
@@ -432,12 +449,54 @@ pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
 
 #[async_trait]
 impl FhirPathEvaluator for FhirPathEngine {
+    async fn compile_handle(
+        &self,
+        expression: &str,
+    ) -> octofhir_fhir_model::Result<octofhir_fhir_model::ExecutableExpression> {
+        let plan = self
+            .compile_plan(expression)
+            .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
+        Ok(octofhir_fhir_model::ExecutableExpression::with_payload(
+            expression, plan,
+        ))
+    }
+
+    async fn prepare_resource(
+        &self,
+        resource: Arc<JsonValue>,
+        variables: &JsonVariables,
+    ) -> octofhir_fhir_model::Result<Option<octofhir_fhir_model::PreparedResource>> {
+        super::model_prepared::prepare(self, resource, variables).await
+    }
+
+    async fn evaluate_prepared_constraints(
+        &self,
+        resource: &octofhir_fhir_model::PreparedResource,
+        node: octofhir_fhir_model::NodeId,
+        context: &JsonValue,
+        context_type: Option<&str>,
+        variables: &JsonVariables,
+        expressions: &[Arc<octofhir_fhir_model::ExecutableExpression>],
+    ) -> octofhir_fhir_model::Result<Vec<octofhir_fhir_model::Result<bool>>> {
+        super::model_prepared::evaluate(
+            self,
+            resource,
+            node,
+            context,
+            context_type,
+            variables,
+            expressions,
+        )
+        .await
+    }
+
     /// Core evaluation method
     async fn evaluate(
         &self,
         expression: &str,
         context: Arc<JsonValue>,
     ) -> octofhir_fhir_model::Result<ModelEvaluationResult> {
+        let schema_generation = self.element_type_cache.generation();
         // Convert JsonValue to our Collection format (zero-copy via Arc)
         let collection = crate::core::Collection::from_json_resource_arc(
             context,
@@ -447,7 +506,7 @@ impl FhirPathEvaluator for FhirPathEngine {
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
         // Create evaluation context
-        let eval_context = EvaluationContext::new_with_server_and_element_type_cache(
+        let eval_context = EvaluationContext::new_with_schema_cache(
             collection,
             self.model_provider.clone(),
             self.terminology_provider.clone(),
@@ -455,6 +514,7 @@ impl FhirPathEvaluator for FhirPathEngine {
             self.trace_provider.clone(),
             self.server_provider.clone(),
             self.element_type_cache.clone(),
+            schema_generation,
         );
 
         // Evaluate using our internal engine
@@ -540,7 +600,7 @@ impl FhirPathEvaluator for FhirPathEngine {
         let mut out = Vec::with_capacity(expressions.len());
         for expression in expressions {
             let result = self
-                .evaluate(expression, &eval_context)
+                .evaluate(expression, &eval_context.nest())
                 .await
                 .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))
                 .map(|res| res.is_constraint_satisfied());
@@ -599,6 +659,7 @@ impl FhirPathEvaluator for FhirPathEngine {
         resource: Arc<JsonValue>,
         constraints: &[FhirPathConstraint],
     ) -> octofhir_fhir_model::Result<ValidationResult> {
+        let schema_generation = self.element_type_cache.generation();
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
 
@@ -611,7 +672,7 @@ impl FhirPathEvaluator for FhirPathEngine {
         .await
         .map_err(|e| octofhir_fhir_model::ModelError::evaluation_error(e.to_string()))?;
 
-        let eval_context = EvaluationContext::new_with_server_and_element_type_cache(
+        let eval_context = EvaluationContext::new_with_schema_cache(
             collection.clone(),
             self.model_provider.clone(),
             self.terminology_provider.clone(),
@@ -619,8 +680,12 @@ impl FhirPathEvaluator for FhirPathEngine {
             self.trace_provider.clone(),
             self.server_provider.clone(),
             self.element_type_cache.clone(),
+            schema_generation,
         );
 
+        eval_context.ensure_current_schema().map_err(|error| {
+            octofhir_fhir_model::ModelError::evaluation_error(error.to_string())
+        })?;
         if let Some(first_value) = collection.first() {
             eval_context.set_variable("rootResource".to_string(), first_value.clone());
         }

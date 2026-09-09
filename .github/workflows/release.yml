@@ -161,6 +161,14 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: cargo test --workspace --all-features --exclude fhirpath-dev-tools
 
+      - name: Enforce FHIRPath specification compliance
+        if: matrix.os == 'ubuntu-latest'
+        timeout-minutes: 15
+        run: |
+          cargo test --package fhirpath-dev-tools --bin test-coverage
+          # A failed gate blocks build-binaries and its release/publish dependents.
+          cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176
+
       - name: Build fhirpath-cli binary with all features
         run: |
           cargo build --release --target ${{ matrix.target }} --package fhirpath-cli --all-features
@@ -342,7 +350,8 @@ jobs:
         run: |
           echo "🧪 Testing publishing octofhir-fhirpath with dry run..."
           cd crates/octofhir-fhirpath
-          cargo publish --dry-run
+          # The workflow has already changed the workspace version and lockfile.
+          cargo publish --dry-run --allow-dirty --locked
 
       - name: Publish octofhir-fhirpath to crates.io
         id: publish
@@ -358,7 +367,7 @@ jobs:
           cd crates/octofhir-fhirpath
 
           # Try to publish - capture exit code
-          if cargo publish --token $CARGO_REGISTRY_TOKEN --allow-dirty; then
+          if cargo publish --token $CARGO_REGISTRY_TOKEN --allow-dirty --locked; then
             echo "✅ Publishing successful!"
             echo "success=true" >> $GITHUB_OUTPUT
           else
@@ -378,7 +387,7 @@ jobs:
         if: steps.publish.outputs.success == 'true'
         run: |
           echo "📝 Committing version bump and changelog for ${{ needs.create-github-release.outputs.version }}"
-          git add Cargo.toml CHANGELOG.md
+          git add Cargo.toml Cargo.lock CHANGELOG.md
           git commit -m "chore: bump version to ${{ needs.create-github-release.outputs.version }} and update changelog [ci skip]"
 
           echo "📤 Pushing version bump and changelog to remote"

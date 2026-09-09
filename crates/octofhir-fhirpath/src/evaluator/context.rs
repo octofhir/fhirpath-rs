@@ -6,7 +6,12 @@
 use papaya::HashMap as LockFreeHashMap;
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::{
+    Arc, LazyLock,
+    atomic::{AtomicBool, Ordering},
+};
+
+use super::element_type_cache::ElementTypeCache;
 
 use crate::core::model_provider::TypeInfo;
 use crate::core::trace::SharedTraceProvider;
@@ -67,7 +72,9 @@ struct SharedContextState {
     resolution_cache: Arc<LockFreeHashMap<String, Arc<serde_json::Value>>>,
     type_info_cache: Arc<LockFreeHashMap<String, Arc<TypeInfo>>>,
     descendants_cache: Arc<LockFreeHashMap<DescendantsKey, DescendantsEntry>>,
-    element_type_cache: Arc<LockFreeHashMap<String, Option<Arc<TypeInfo>>>>,
+    element_type_cache: Arc<ElementTypeCache>,
+    schema_generation: u64,
+    schema_lookup_failed: AtomicBool,
     server_registry: Arc<LockFreeHashMap<String, Arc<dyn ServerProvider>>>,
     base_env_variables: Arc<LockFreeHashMap<String, FhirPathValue>>,
 }
@@ -145,7 +152,7 @@ pub struct EvaluationContext {
 }
 
 /// Fixed slots avoid variable-name allocations and hashing inside lambdas.
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct ScopeVariables {
     this: Option<FhirPathValue>,
     index: Option<FhirPathValue>,
@@ -261,7 +268,9 @@ impl EvaluationContext {
     /// `children()`, `dom-3`'s `descendants()`), so a fresh per-context cache
     /// re-walks the schema from cold each time. Threading one cache through lets
     /// those lookups plateau. The key space is bounded by the schema set, so this
-    /// does not grow unboundedly; the engine clears it when schemas change.
+    /// Caller-owned maps require external coordination when schemas change:
+    /// stop users of the old map and construct new contexts with a fresh map.
+    /// Engine-prepared contexts instead use an internal generation-aware cache.
     #[allow(clippy::too_many_arguments)]
     pub fn new_with_server_and_element_type_cache(
         input_collection: Collection,
@@ -271,6 +280,29 @@ impl EvaluationContext {
         trace_provider: Option<SharedTraceProvider>,
         server_provider: Option<Arc<dyn ServerProvider>>,
         element_type_cache: Arc<LockFreeHashMap<String, Option<Arc<TypeInfo>>>>,
+    ) -> Self {
+        Self::new_with_schema_cache(
+            input_collection,
+            model_provider,
+            terminology_provider,
+            validation_provider,
+            trace_provider,
+            server_provider,
+            Arc::new(ElementTypeCache::legacy(element_type_cache)),
+            0,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn new_with_schema_cache(
+        input_collection: Collection,
+        model_provider: Arc<dyn ModelProvider + Send + Sync>,
+        terminology_provider: Option<Arc<dyn TerminologyProvider>>,
+        validation_provider: Option<Arc<dyn ValidationProvider>>,
+        trace_provider: Option<SharedTraceProvider>,
+        server_provider: Option<Arc<dyn ServerProvider>>,
+        element_type_cache: Arc<ElementTypeCache>,
+        schema_generation: u64,
     ) -> Self {
         // Only create dynamic variables (terminologies, factory, server).
         // Base env vars (sct, loinc, ucum, vs-*, ext-*) are in BASE_ENV_VARIABLES.
@@ -299,6 +331,8 @@ impl EvaluationContext {
             type_info_cache: Arc::new(LockFreeHashMap::new()),
             descendants_cache: Arc::new(LockFreeHashMap::new()),
             element_type_cache,
+            schema_generation,
+            schema_lookup_failed: AtomicBool::new(false),
             server_registry,
             base_env_variables: BASE_ENV_VARIABLES.clone(),
         });
@@ -403,6 +437,18 @@ impl EvaluationContext {
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
             root_resource: self.root_resource.clone(),    // Share Arc reference
             hoist_scope: self.hoist_scope.clone(),
+        }
+    }
+
+    /// New invariant focus with shared resource caches but fresh root aliases.
+    pub(super) fn constraint_context(&self, input: Collection) -> Self {
+        Self {
+            root_resource: input.first().cloned().map(Arc::new),
+            input_collection: input,
+            shared: self.shared.clone(),
+            variables: Arc::new(RwLock::new(self.variables.read().clone())),
+            parent_context: None,
+            hoist_scope: None,
         }
     }
 
@@ -513,13 +559,20 @@ impl EvaluationContext {
     /// Get or fetch TypeInfo from cache, falling back to model provider on cache miss
     /// This reduces redundant model provider calls for the same type
     pub async fn get_or_fetch_type_info(&self, type_name: &str) -> Option<Arc<TypeInfo>> {
+        if !self.schema_is_current() {
+            return None;
+        }
         // Check cache first
         if let Some(cached) = self.shared.type_info_cache.pin().get(type_name) {
             return Some(cached.clone());
         }
 
         // Cache miss - fetch from model provider
-        match self.shared.model_provider.get_type(type_name).await {
+        let resolved = self.shared.model_provider.get_type(type_name).await;
+        if !self.schema_is_current() {
+            return None;
+        }
+        match resolved {
             Ok(Some(type_info)) => {
                 let arc_type_info = Arc::new(type_info);
                 self.shared
@@ -528,13 +581,34 @@ impl EvaluationContext {
                     .insert(type_name.to_string(), arc_type_info.clone());
                 Some(arc_type_info)
             }
-            _ => None,
+            Err(_) => {
+                self.shared
+                    .schema_lookup_failed
+                    .store(true, Ordering::Relaxed);
+                None
+            }
+            Ok(None) => None,
         }
     }
 
     /// Get the shared TypeInfo cache
     pub fn type_info_cache(&self) -> &Arc<LockFreeHashMap<String, Arc<TypeInfo>>> {
         &self.shared.type_info_cache
+    }
+
+    pub(super) fn schema_is_current(&self) -> bool {
+        self.shared.schema_generation == self.shared.element_type_cache.generation()
+    }
+
+    pub(super) fn ensure_current_schema(&self) -> crate::core::Result<()> {
+        if self.schema_is_current() {
+            Ok(())
+        } else {
+            Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0054,
+                "Schema cache invalidated; prepare a new evaluation context or validation resource",
+            ))
+        }
     }
 
     /// Return this context with `scope` pushed on top of any inherited scope.
@@ -573,35 +647,36 @@ impl EvaluationContext {
         parent_type: &TypeInfo,
         property: &str,
     ) -> Option<Arc<TypeInfo>> {
-        let key = match &parent_type.name {
-            Some(name) => format!("{name}.{property}"),
-            None => format!("{}.{property}", parent_type.type_name),
-        };
-
-        if let Some(cached) = self.shared.element_type_cache.pin().get(&key) {
-            return cached.clone();
-        }
-
-        let resolved = self
+        match self
             .shared
-            .model_provider
-            .get_element_type(parent_type, property)
-            .await
-            .ok()
-            .flatten()
-            .map(Arc::new);
-
-        self.shared
             .element_type_cache
-            .pin()
-            .insert(key, resolved.clone());
-        resolved
+            .resolve_at(
+                self.shared.schema_generation,
+                self.shared.model_provider.as_ref(),
+                parent_type,
+                property,
+            )
+            .await
+        {
+            Ok(value) => value,
+            Err(_) => {
+                // Preserve the optional-lookup API, but don't retain a traversal
+                // whose fallback typing was caused by a transient provider error.
+                self.shared
+                    .schema_lookup_failed
+                    .store(true, Ordering::Relaxed);
+                None
+            }
+        }
     }
 
     /// Look up a memoized `descendants()` result for `value`.
     ///
     /// Returns `None` for scalars (no stable identity) and on a miss.
     pub fn cached_descendants(&self, value: &FhirPathValue) -> Option<Arc<Vec<FhirPathValue>>> {
+        if !self.schema_is_current() || self.shared.schema_lookup_failed.load(Ordering::Relaxed) {
+            return None;
+        }
         let key = descendants_key(value)?;
         self.shared
             .descendants_cache
@@ -616,6 +691,9 @@ impl EvaluationContext {
     /// lifetime of the shared context state, so it is bounded by the resources
     /// actually navigated during one evaluation.
     pub fn cache_descendants(&self, value: &FhirPathValue, descendants: Arc<Vec<FhirPathValue>>) {
+        if !self.schema_is_current() || self.shared.schema_lookup_failed.load(Ordering::Relaxed) {
+            return;
+        }
         let Some(key) = descendants_key(value) else {
             return;
         };

@@ -97,3 +97,7 @@ lsp = ["dep:async-lsp", "dep:lsp-types", "dep:tower", "dep:tokio-util", "dep:axu
 [[bench]]
 name = "evaluation_hot_paths"
 harness = false
+
+[[bench]]
+name = "prepared_constraints"
+harness = false

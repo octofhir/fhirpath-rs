@@ -692,23 +692,29 @@ async fn main() -> Result<()> {
                 .help("Output file for coverage report")
                 .default_value("TEST_COVERAGE.md"),
         )
+        .arg(
+            Arg::new("min-tests")
+                .long("min-tests")
+                .value_parser(clap::value_parser!(usize))
+                .default_value("1")
+                .help("Minimum number of tests required; every test must pass"),
+        )
         .get_matches();
 
     let specs_dir = PathBuf::from(matches.get_one::<String>("specs-dir").unwrap());
     let output_file = PathBuf::from(matches.get_one::<String>("output").unwrap());
+    let minimum_tests = *matches.get_one::<usize>("min-tests").unwrap();
 
     println!("🧪 Generating FHIRPath Test Coverage Report");
     println!("============================================");
 
     if !specs_dir.exists() {
-        println!("❌ Specs directory not found: {}", specs_dir.display());
-        return Ok(());
+        anyhow::bail!("Specs directory not found: {}", specs_dir.display());
     }
 
     let test_files = get_all_test_files(&specs_dir);
     if test_files.is_empty() {
-        println!("❌ No test files found in specs directory");
-        return Ok(());
+        anyhow::bail!("No test files found in specs directory");
     }
 
     println!("📁 Found {} test files", test_files.len());
@@ -809,7 +815,8 @@ async fn main() -> Result<()> {
                     let total = runner
                         .load_test_suite(test_file)
                         .map(|s| s.tests.len())
-                        .unwrap_or(0);
+                        .unwrap_or(1)
+                        .max(1);
                     test_results.push((
                         filename.to_string(),
                         TestStats {
@@ -850,6 +857,36 @@ async fn main() -> Result<()> {
     println!("   Total Tests: {total_tests}");
     println!("   Pass Rate: {overall_pass_rate:.1}%");
 
+    ensure_compliance(&test_results, minimum_tests)
+}
+
+/// Use exact counts, not rounded percentages, and reject missing/failed suites.
+fn ensure_compliance(
+    results: &[(String, TestStats, Option<String>)],
+    minimum_tests: usize,
+) -> Result<()> {
+    let total: usize = results.iter().map(|(_, stats, _)| stats.total).sum();
+    anyhow::ensure!(
+        total > 0 && total >= minimum_tests,
+        "Compliance gate failed: ran {total} tests, need at least {}",
+        minimum_tests.max(1)
+    );
+    for (suite, stats, _) in results {
+        anyhow::ensure!(
+            stats.total > 0
+                && stats.passed == stats.total
+                && stats.failed == 0
+                && stats.errored == 0
+                && stats.skipped == 0
+                && stats.error_details.is_empty(),
+            "Compliance gate failed: suite '{suite}' passed {}/{}, failed {}, errors {}, skipped {}",
+            stats.passed,
+            stats.total,
+            stats.failed,
+            stats.errored,
+            stats.skipped
+        );
+    }
     Ok(())
 }
 
@@ -1130,7 +1167,7 @@ The fhirpath-rs implementation currently passes approximately **{:.1}% of all FH
 ---
 
 *Report generated on: {}*
-*Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*
+*Command: `just test-coverage` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176`*
 "#,
         overall_pass_rate,
         total_suites,
@@ -1140,4 +1177,73 @@ The fhirpath-rs implementation currently passes approximately **{:.1}% of all FH
     ));
 
     report
+}
+
+#[cfg(test)]
+mod compliance_gate_tests {
+    use super::*;
+
+    fn suite(stats: TestStats) -> Vec<(String, TestStats, Option<String>)> {
+        vec![("fixture".to_string(), stats, None)]
+    }
+
+    fn passing(total: usize) -> TestStats {
+        TestStats {
+            total,
+            passed: total,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn accepts_complete_baseline_and_additional_passing_tests() {
+        assert!(ensure_compliance(&suite(passing(1176)), 1176).is_ok());
+        assert!(ensure_compliance(&suite(passing(1177)), 1176).is_ok());
+    }
+
+    #[test]
+    fn rejects_regressions_even_when_percentage_rounds_to_100() {
+        let stats = TestStats {
+            total: 10000,
+            passed: 9999,
+            failed: 1,
+            ..Default::default()
+        };
+        assert_eq!(format!("{:.1}", stats.pass_rate()), "100.0");
+        assert!(ensure_compliance(&suite(stats), 1176).is_err());
+    }
+
+    #[test]
+    fn rejects_missing_tests_and_empty_runs() {
+        assert!(ensure_compliance(&suite(passing(1175)), 1176).is_err());
+        assert!(ensure_compliance(&[], 0).is_err());
+        assert!(ensure_compliance(&suite(passing(0)), 0).is_err());
+    }
+
+    #[test]
+    fn rejects_errors_skips_and_zero_count_suite_errors() {
+        for stats in [
+            TestStats::default(),
+            TestStats {
+                errored: 1,
+                ..passing(1176)
+            },
+            TestStats {
+                skipped: 1,
+                ..passing(1176)
+            },
+            TestStats {
+                failed: 1,
+                ..passing(1176)
+            },
+            TestStats {
+                error_details: vec!["Suite timed out".to_string()],
+                ..Default::default()
+            },
+        ] {
+            let mut results = suite(passing(1176));
+            results.push(("broken".to_string(), stats, None));
+            assert!(ensure_compliance(&results, 1176).is_err());
+        }
+    }
 }

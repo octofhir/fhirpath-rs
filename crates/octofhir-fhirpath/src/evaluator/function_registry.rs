@@ -430,6 +430,16 @@ pub trait PureFunctionEvaluator: Send + Sync {
         ))
     }
 
+    /// Evaluate borrowed prepared arguments without cloning their collections.
+    /// Existing custom implementations keep the owned compatibility path.
+    fn evaluate_sync_borrowed(
+        &self,
+        input: Collection,
+        args: &[Collection],
+    ) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args.to_vec())
+    }
+
     /// Evaluate the function with pre-evaluated arguments
     /// - input: The input collection that the function operates on
     /// - args: Pre-evaluated function arguments (each Collection is one argument)
@@ -464,6 +474,12 @@ pub trait ProviderPureFunctionEvaluator: Send + Sync {
 /// (like where, select, aggregate, etc.)
 #[async_trait]
 pub trait LazyFunctionEvaluator: Send + Sync {
+    /// Optionally specialize a call without arguments into a context-independent
+    /// pure evaluator. The specialization must preserve results and errors.
+    fn prepare_no_args(&self) -> Option<Arc<dyn PureFunctionEvaluator>> {
+        None
+    }
+
     /// Borrow expressions without cloning their AST on every lambda call.
     async fn evaluate_borrowed(
         &self,

@@ -62,6 +62,41 @@ fn empty_collection(bencher: Bencher) {
     bencher.bench_local(|| black_box(Collection::empty()));
 }
 
+/// Compare caller-managed and generation-aware engine caches on warm hits.
+/// Both retain the same TypeInfo Arc; preparation and cold lookups are untimed.
+#[divan::bench(consts = [false, true], threads = [1, 8])]
+fn element_type_cache_hit<const MANAGED: bool>(bencher: Bencher) {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let provider = Arc::new(EmptyModelProvider);
+    let engine = runtime
+        .block_on(FhirPathEngine::new(
+            Arc::new(octofhir_fhirpath::create_function_registry()),
+            provider.clone(),
+        ))
+        .unwrap();
+    let source = Arc::new(serde_json::json!({"resourceType":"Patient"}));
+    let context = if MANAGED {
+        runtime
+            .block_on(engine.prepare_context(source, None, &Default::default()))
+            .unwrap()
+    } else {
+        EvaluationContext::new(
+            Collection::single(FhirPathValue::resource_from_arc(source)),
+            provider,
+            None,
+            None,
+            None,
+        )
+    };
+    let parent = octofhir_fhir_model::TypeInfo::new_complex("Patient");
+    runtime.block_on(context.cached_element_type(&parent, "name"));
+    bencher.bench(|| {
+        black_box(runtime.block_on(context.cached_element_type(&parent, black_box("name"))))
+    });
+}
+
 #[divan::bench]
 fn single_collection(bencher: Bencher) {
     bencher.bench_local(|| black_box(Collection::single(FhirPathValue::integer(1))));
@@ -171,5 +206,43 @@ fn validation_groups(bencher: Bencher, groups: usize) {
                 .unwrap();
             assert!(results.into_iter().all(|result| result.unwrap()));
         }
+    });
+}
+
+/// Shared compiled lambda: expose instruction-state refcount contention, which
+/// single-thread warm evaluation cannot detect.
+#[divan::bench(threads = [1, 8, 32])]
+fn parallel_lambda(bencher: Bencher) {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let provider = Arc::new(EmptyModelProvider);
+    let engine = runtime
+        .block_on(FhirPathEngine::new(
+            Arc::new(octofhir_fhirpath::create_function_registry()),
+            provider.clone(),
+        ))
+        .unwrap();
+    let context = EvaluationContext::new(
+        Collection::single(FhirPathValue::resource(serde_json::json!({
+            "item": (0..100).map(|i| serde_json::json!({
+                "id": format!("item-{i}"), "active": i % 2 == 0,
+            })).collect::<Vec<_>>(),
+        }))),
+        provider,
+        None,
+        None,
+        None,
+    );
+    let expression = "item.where(id.matches('^item-[0-9]+$')).count()";
+    runtime
+        .block_on(engine.evaluate(expression, &context))
+        .unwrap();
+    bencher.bench(|| {
+        black_box(
+            runtime
+                .block_on(engine.evaluate(expression, &context))
+                .unwrap(),
+        )
     });
 }

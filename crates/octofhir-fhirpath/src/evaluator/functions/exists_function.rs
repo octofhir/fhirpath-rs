@@ -5,6 +5,7 @@ use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+    PureFunctionEvaluator,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use std::sync::Arc;
@@ -48,6 +49,13 @@ impl ExistsFunctionEvaluator {
 
 #[async_trait::async_trait]
 impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
+    fn prepare_no_args(&self) -> Option<Arc<dyn PureFunctionEvaluator>> {
+        let mut metadata = self.metadata.clone();
+        metadata.signature.parameters.clear();
+        metadata.signature.max_params = Some(0);
+        Some(Arc::new(ExistsWithoutCriteria { metadata }))
+    }
+
     async fn evaluate(
         &self,
         input: Collection,
@@ -122,6 +130,38 @@ impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
         Ok(EvaluationResult {
             value: crate::core::Collection::single(FhirPathValue::boolean(false)),
         })
+    }
+
+    fn metadata(&self) -> &FunctionMetadata {
+        &self.metadata
+    }
+}
+
+/// Context-independent specialization of exists() without a predicate.
+struct ExistsWithoutCriteria {
+    metadata: FunctionMetadata,
+}
+
+#[async_trait::async_trait]
+impl PureFunctionEvaluator for ExistsWithoutCriteria {
+    fn supports_sync(&self) -> bool {
+        true
+    }
+
+    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        if !args.is_empty() {
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::FP0053,
+                "Prepared exists() does not accept criteria",
+            ));
+        }
+        Ok(EvaluationResult {
+            value: Collection::single(FhirPathValue::boolean(!input.is_empty())),
+        })
+    }
+
+    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync(input, args)
     }
 
     fn metadata(&self) -> &FunctionMetadata {

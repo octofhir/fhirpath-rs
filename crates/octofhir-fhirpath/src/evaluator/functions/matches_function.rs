@@ -85,6 +85,14 @@ impl PureFunctionEvaluator for MatchesFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync_borrowed(input, &args)
+    }
+
+    fn evaluate_sync_borrowed(
+        &self,
+        input: Collection,
+        args: &[Collection],
+    ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -108,7 +116,7 @@ impl PureFunctionEvaluator for MatchesFunctionEvaluator {
 
         // Get the input string
         let input_str = match &input[0] {
-            FhirPathValue::String(s, _, _) => s.clone(),
+            FhirPathValue::String(s, _, _) => s.as_str(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
@@ -135,7 +143,7 @@ impl PureFunctionEvaluator for MatchesFunctionEvaluator {
         }
 
         let pattern_str = match &pattern_values[0] {
-            FhirPathValue::String(s, _, _) => s.clone(),
+            FhirPathValue::String(s, _, _) => s.as_str(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0057,
@@ -145,25 +153,25 @@ impl PureFunctionEvaluator for MatchesFunctionEvaluator {
         };
 
         // Compile the regex pattern (no anchoring for partial matching)
-        let regex = match self
+        let cached_regex;
+        let regex = if let Some(regex) = self
             .compiled
-            .as_ref()
-            .filter(|regex| regex.as_str() == pattern_str.as_str())
-            .cloned()
-            .map(Ok)
-            .unwrap_or_else(|| super::regex_cache::compile(&pattern_str))
+            .as_deref()
+            .filter(|regex| regex.as_str() == pattern_str)
         {
-            Ok(r) => r,
-            Err(e) => {
-                return Err(FhirPathError::evaluation_error(
+            regex
+        } else {
+            cached_regex = super::regex_cache::compile(pattern_str).map_err(|e| {
+                FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
                     format!("Invalid regular expression pattern '{pattern_str}': {e}"),
-                ));
-            }
+                )
+            })?;
+            cached_regex.as_ref()
         };
 
         // Test if the string contains a match for the pattern
-        let matches = regex.is_match(&input_str);
+        let matches = regex.is_match(input_str);
 
         Ok(EvaluationResult {
             value: crate::core::Collection::from(vec![FhirPathValue::boolean(matches)]),

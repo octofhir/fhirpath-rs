@@ -91,6 +91,14 @@ impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync_borrowed(input, &args)
+    }
+
+    fn evaluate_sync_borrowed(
+        &self,
+        input: Collection,
+        args: &[Collection],
+    ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -152,21 +160,21 @@ impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
         };
 
         // Compile the regex pattern
-        let regex = match self
+        let cached_regex;
+        let regex = if let Some(regex) = self
             .compiled
-            .as_ref()
+            .as_deref()
             .filter(|regex| regex.as_str() == full_pattern.as_str())
-            .cloned()
-            .map(Ok)
-            .unwrap_or_else(|| super::regex_cache::compile(&full_pattern))
         {
-            Ok(r) => r,
-            Err(e) => {
-                return Err(FhirPathError::evaluation_error(
+            regex
+        } else {
+            cached_regex = super::regex_cache::compile(&full_pattern).map_err(|e| {
+                FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
                     format!("Invalid regular expression pattern '{full_pattern}': {e}"),
-                ));
-            }
+                )
+            })?;
+            cached_regex.as_ref()
         };
 
         // Test if the string matches the full pattern

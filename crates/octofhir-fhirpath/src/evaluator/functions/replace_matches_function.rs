@@ -92,6 +92,14 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        self.evaluate_sync_borrowed(input, &args)
+    }
+
+    fn evaluate_sync_borrowed(
+        &self,
+        input: Collection,
+        args: &[Collection],
+    ) -> Result<EvaluationResult> {
         if args.len() != 2 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
@@ -126,8 +134,7 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
                     crate::core::error_code::FP0055,
                     "replaceMatches function pattern parameter must be a string".to_string(),
                 )
-            })?
-            .to_string();
+            })?;
 
         // Get the substitution argument (pre-evaluated)
         let substitution_arg = &args[1];
@@ -153,8 +160,7 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
                     crate::core::error_code::FP0055,
                     "replaceMatches function substitution parameter must be a string".to_string(),
                 )
-            })?
-            .to_string();
+            })?;
 
         if input.is_empty() {
             return Ok(EvaluationResult {
@@ -162,32 +168,30 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
             });
         }
 
+        let cached_regex;
         let regex = if pattern.is_empty() {
             None
+        } else if let Some(regex) = self
+            .compiled
+            .as_deref()
+            .filter(|regex| regex.as_str() == pattern)
+        {
+            Some(regex)
         } else {
-            Some(
-                self.compiled
-                    .as_ref()
-                    .filter(|regex| regex.as_str() == pattern.as_str())
-                    .cloned()
-                    .map(Ok)
-                    .unwrap_or_else(|| super::regex_cache::compile(&pattern))
-                    .map_err(|err| {
-                        FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0058,
-                            format!("Invalid regular expression pattern '{pattern}': {err}"),
-                        )
-                    })?,
-            )
+            cached_regex = super::regex_cache::compile(pattern).map_err(|err| {
+                FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0058,
+                    format!("Invalid regular expression pattern '{pattern}': {err}"),
+                )
+            })?;
+            Some(cached_regex.as_ref())
         };
 
         let mut results = Vec::with_capacity(input.len());
         for value in input {
             if let FhirPathValue::String(content, type_info, primitive) = &value {
                 let replaced = if let Some(regex) = &regex {
-                    regex
-                        .replace_all(content, substitution.as_str())
-                        .into_owned()
+                    regex.replace_all(content, substitution).into_owned()
                 } else {
                     content.clone()
                 };

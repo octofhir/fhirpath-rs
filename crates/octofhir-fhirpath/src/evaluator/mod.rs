@@ -5,6 +5,9 @@
 
 // Core evaluator modules
 pub mod context;
+mod element_type_cache;
+#[cfg(test)]
+mod element_type_cache_tests;
 pub mod engine;
 pub mod environment_variables;
 #[allow(clippy::module_inception)]
@@ -14,6 +17,7 @@ pub mod function_registry;
 pub mod functions;
 pub mod lambda_hoisting;
 pub mod metadata_collector;
+mod model_prepared;
 pub mod operations;
 pub mod operator_registry;
 pub mod plan;
@@ -22,6 +26,7 @@ pub mod quantity_utils;
 pub mod result;
 pub mod server_variable;
 pub mod terminologies_variable;
+mod vm;
 
 #[cfg(test)]
 mod terminologies_variable_integration_test;

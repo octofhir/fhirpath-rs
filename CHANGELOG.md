@@ -2,6 +2,10 @@
 
 ### Performance Improvements
 
+- Execute compiled expressions with explicit VM frames and wake-driven async
+  callbacks; borrow hot-path operands and prepared regex arguments.
+- Implement the published model's prepared-resource and executable-constraint
+  API for schema validation, with resource/engine ownership checks.
 - Reuse prepared resource trees across validation groups; add ValidationSession
   and JSON Pointer node contexts without breaking the model evaluator interface.
 - Use allocation-free empty collections, single-allocation singleton collections,
@@ -14,6 +18,17 @@
 
 ### Bug Fixes
 
+- Order schema-cache invalidation against in-flight lookup publication; discard
+  stale successes, absence and errors without locking warm cache reads.
+- Do not memoize transient provider failures or descendants with fallback typing
+  caused by those failures. Reject old engine-prepared contexts/resources after
+  schema invalidation; recreate them while retaining compiled expression handles.
+- Require published fhir-model 0.1.17, canonical-manager 0.2.3 and FHIRSchema
+  0.3.29; remove sibling path overrides from release builds.
+- Enforce the full 1176-test specification gate in local checks, CI and releases,
+  rejecting skipped, missing or failing tests instead of rounded percentages.
+- Allow the workflow's automatic version changes during publish dry-run and
+  commit the corresponding Cargo.lock update after successful publication.
 - Bind the current $this in repeat and repeatAll; all 1176 compliance tests pass.
 - Compare decimals exactly for consistent equality and set membership.
 - Package crate-relative tests and benchmarks; keep CLI tests from saving user
@@ -24,7 +39,7 @@
   compatibility of untyped scalar/array inputs.
 
 See docs/EVALUATOR_PERFORMANCE.md for measurements, regression checks, scope
-boundaries and existing dependency-audit warnings.
+boundaries and remaining release qualification work.
 
 ## [0.4.52](https://github.com/octofhir/fhirpath-rs/compare/v0.4.51...v0.4.52) (2026-07-24)
 
@@ -465,4 +480,3 @@ boundaries and existing dependency-audit warnings.
 * support publishing all crates to cratesio ([998414b](https://github.com/octofhir/fhirpath-rs/commit/998414be7730cf17c6b3cf8dddb890e1a3fc731d))
 * support raw json input for cli ([f2401b0](https://github.com/octofhir/fhirpath-rs/commit/f2401b07f98f770cb1dfc7cc4c1e2f57a9b95116))
 * support variables in engine ([1df5f27](https://github.com/octofhir/fhirpath-rs/commit/1df5f2740528799767b6db5c1a7a4220b8bb75e4))
-

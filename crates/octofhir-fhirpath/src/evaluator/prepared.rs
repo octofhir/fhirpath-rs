@@ -111,6 +111,7 @@ impl<'a> ValidationSession<'a> {
         pointer: &str,
         type_name: Option<&str>,
     ) -> Result<EvaluationContext> {
+        self.context.ensure_current_schema()?;
         let FhirPathValue::Resource(root, _, _) = &self.root else {
             unreachable!()
         };
@@ -158,6 +159,7 @@ impl<'a> ValidationSession<'a> {
         if let Some(focus) = collection.first() {
             context.set_this(focus.clone());
         }
+        context.ensure_current_schema()?;
         Ok(context)
     }
 

@@ -67,7 +67,7 @@ test:
 
 test-coverage:
     @echo "🔍 Running comprehensive test coverage analysis (FHIR R5)..."
-    cargo run --package fhirpath-dev-tools --bin test-coverage
+    cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176
  
 # Convert official R5 XML test suite to grouped JSON files (in same directory as XML)
 convert-r5-xml FILE="test-cases/tests-fhir-r5.xml":

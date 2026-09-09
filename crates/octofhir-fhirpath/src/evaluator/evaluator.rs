@@ -96,12 +96,23 @@ impl Evaluator {
     }
 
     /// Evaluate an AST node within the given context
-    pub async fn evaluate_node(
+    #[cfg(test)]
+    pub(super) async fn evaluate_reference(
         &self,
         node: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         self.evaluate_node_inner(node, context).await
+    }
+
+    /// Evaluate an AST with the stack machine. Retain a compiled plan to avoid compilation here.
+    pub async fn evaluate_node(
+        &self,
+        node: &ExpressionNode,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResult> {
+        let program = super::vm::Program::compile(Arc::new(node.clone()), self);
+        super::vm::run(program, self, context).await
     }
 
     fn is_this_variable(node: &ExpressionNode) -> bool {
@@ -114,7 +125,7 @@ impl Evaluator {
         }
     }
 
-    fn is_reference_type_check(node: &ExpressionNode) -> bool {
+    pub(super) fn is_reference_type_check(node: &ExpressionNode) -> bool {
         match node {
             ExpressionNode::TypeCheck(check) => {
                 check.target_type == "Reference" && Self::is_this_variable(&check.expression)
@@ -124,7 +135,7 @@ impl Evaluator {
         }
     }
 
-    fn descendants_receiver(node: &ExpressionNode) -> Option<&ExpressionNode> {
+    pub(super) fn descendants_receiver(node: &ExpressionNode) -> Option<&ExpressionNode> {
         match node {
             ExpressionNode::MethodCall(method_call)
                 if method_call.method == "descendants" && method_call.arguments.is_empty() =>
@@ -136,7 +147,7 @@ impl Evaluator {
         }
     }
 
-    fn collect_reference_descendants(
+    pub(super) fn collect_reference_descendants(
         &self,
         root: &crate::core::node::FhirNode,
         results: &mut Vec<FhirPathValue>,
@@ -844,7 +855,7 @@ impl Evaluator {
     }
 
     /// Evaluate a path navigation (property access) with enhanced ModelProvider integration
-    async fn evaluate_path(
+    pub(super) async fn evaluate_path(
         &self,
         identifier: &str,
         context: &EvaluationContext,
@@ -1570,7 +1581,15 @@ impl Evaluator {
     }
 
     /// Evaluate variable access ($this, $index, $total, user variables)
-    async fn evaluate_variable(
+    pub(super) async fn evaluate_variable(
+        &self,
+        variable_name: &str,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResult> {
+        self.evaluate_variable_sync(variable_name, context)
+    }
+
+    pub(super) fn evaluate_variable_sync(
         &self,
         variable_name: &str,
         context: &EvaluationContext,
@@ -2462,7 +2481,7 @@ impl Evaluator {
         }
     }
 
-    /// Evaluate a function call using the function registry
+    /// Reference/metadata dispatch. Normal compiled evaluation supplies a VM callback.
     async fn evaluate_function_call(
         &self,
         function_name: &str,
@@ -2470,94 +2489,97 @@ impl Evaluator {
         context: &EvaluationContext,
         input_override: Option<Collection>,
     ) -> Result<EvaluationResult> {
-        // Get the function evaluator wrapper from the registry
-        if let Some(wrapper) = self.function_registry.get_function_wrapper(function_name) {
-            let metadata = wrapper.metadata();
+        let wrapper = self
+            .function_registry
+            .get_function_wrapper(function_name)
+            .ok_or_else(|| {
+                FhirPathError::evaluation_error(
+                    crate::core::FP0054,
+                    format!("Unknown function: {function_name}"),
+                )
+            })?;
+        self.evaluate_function_wrapper(
+            wrapper,
+            arguments,
+            context,
+            input_override.unwrap_or_else(|| context.input_collection().clone()),
+            AsyncNodeEvaluator::new(self),
+        )
+        .await
+    }
 
-            // Determine input values (method calls can override input)
-            let input_values: Collection =
-                input_override.unwrap_or_else(|| context.input_collection().clone());
-
-            // Check null propagation strategy against the actual function input (supports method calls)
-            use crate::evaluator::function_registry::NullPropagationStrategy;
-            if matches!(metadata.null_propagation, NullPropagationStrategy::Focus)
-                && input_values.is_empty()
-            {
-                return Ok(EvaluationResult {
-                    value: crate::core::Collection::empty(),
-                });
-            }
-
-            // Handle evaluation based on function type and argument strategy
-            match wrapper {
-                crate::evaluator::function_registry::FunctionEvaluatorWrapper::Pure(
-                    pure_evaluator,
-                ) => {
-                    // Pure function - pre-evaluate arguments and call simple interface
-                    return self
-                        .evaluate_pure_function(pure_evaluator, arguments, context, input_values)
-                        .await;
-                }
-                crate::evaluator::function_registry::FunctionEvaluatorWrapper::ProviderPure(
-                    provider_pure_evaluator,
-                ) => {
-                    // Provider Pure function - pre-evaluate arguments and provide context for providers
-                    return self
-                        .evaluate_provider_pure_function(
-                            provider_pure_evaluator,
-                            arguments,
-                            context,
-                            input_values,
-                        )
-                        .await;
-                }
-                crate::evaluator::function_registry::FunctionEvaluatorWrapper::Lazy(
-                    lazy_evaluator,
-                ) => {
-                    // Lazy function - pass expressions for custom evaluation
-                    let async_evaluator = AsyncNodeEvaluator::new(self);
-
-                    lazy_evaluator
-                        .evaluate_borrowed(input_values, context, arguments, async_evaluator)
-                        .await
-                }
-                crate::evaluator::function_registry::FunctionEvaluatorWrapper::Standard(
-                    standard_evaluator,
-                ) => {
-                    // Standard function - handle based on argument evaluation strategy
-                    match metadata.argument_evaluation {
-                        crate::evaluator::function_registry::ArgumentEvaluationStrategy::Root => {
-                            // Functions that need root context evaluation (combine, union, etc.)
-                            return self
-                                .evaluate_function_with_root_context(
-                                    standard_evaluator.clone(),
-                                    arguments,
-                                    context,
-                                )
-                                .await;
-                        }
-                        _ => {
-                            // Standard evaluation in current context
-                            let async_evaluator = AsyncNodeEvaluator::new(self);
-
-                            standard_evaluator
-                                .evaluate_borrowed(
-                                    input_values,
-                                    context,
-                                    arguments,
-                                    async_evaluator,
-                                )
-                                .await
-                        }
-                    }
-                }
-            }
-        } else {
-            Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0054,
-                format!("Unknown function: {function_name}"),
-            ))
+    pub(super) async fn evaluate_function_wrapper(
+        &self,
+        wrapper: &super::function_registry::FunctionEvaluatorWrapper,
+        arguments: &[ExpressionNode],
+        context: &EvaluationContext,
+        input_values: Collection,
+        async_evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
+        use super::function_registry::{
+            ArgumentEvaluationStrategy, FunctionEvaluatorWrapper as Wrapper,
+            NullPropagationStrategy,
+        };
+        let metadata = wrapper.metadata();
+        if matches!(metadata.null_propagation, NullPropagationStrategy::Focus)
+            && input_values.is_empty()
+        {
+            return Ok(EvaluationResult {
+                value: Collection::empty(),
+            });
         }
+        match wrapper {
+            Wrapper::Pure(function) => {
+                self.evaluate_pure_function(
+                    function,
+                    arguments,
+                    context,
+                    input_values,
+                    &async_evaluator,
+                )
+                .await
+            }
+            Wrapper::ProviderPure(function) => {
+                self.evaluate_provider_pure_function(
+                    function,
+                    arguments,
+                    context,
+                    input_values,
+                    &async_evaluator,
+                )
+                .await
+            }
+            Wrapper::Lazy(function) => {
+                function
+                    .evaluate_borrowed(input_values, context, arguments, async_evaluator)
+                    .await
+            }
+            Wrapper::Standard(function) => {
+                // Preserve the existing Root strategy's focus and let the
+                // implementation choose argument scopes, without cloning ASTs.
+                let input = if matches!(
+                    metadata.argument_evaluation,
+                    ArgumentEvaluationStrategy::Root
+                ) {
+                    context.input_collection().clone()
+                } else {
+                    input_values
+                };
+                function
+                    .evaluate_borrowed(input, context, arguments, async_evaluator)
+                    .await
+            }
+        }
+    }
+
+    pub(super) fn type_context(&self, input: Collection) -> EvaluationContext {
+        EvaluationContext::new(
+            input,
+            self.model_provider.clone(),
+            self.terminology_provider.clone(),
+            self.validation_provider.clone(),
+            self.trace_provider.clone(),
+        )
     }
 
     /// Evaluate pure function with pre-evaluated arguments
@@ -2567,6 +2589,7 @@ impl Evaluator {
         arguments: &[ExpressionNode],
         context: &EvaluationContext,
         input_values: Collection,
+        async_evaluator: &AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
         let metadata = evaluator.metadata();
 
@@ -2623,7 +2646,7 @@ impl Evaluator {
             // Evaluate each argument in an isolated nested scope so variables defined
             // within one argument do not collide with or leak into other arguments.
             let nested_ctx = eval_ctx.nest();
-            let arg_result = self.evaluate_node(arg, &nested_ctx).await?;
+            let arg_result = async_evaluator.evaluate(arg, &nested_ctx).await?;
             evaluated_args.push(arg_result.value);
         }
 
@@ -2643,6 +2666,7 @@ impl Evaluator {
         arguments: &[ExpressionNode],
         context: &EvaluationContext,
         input_values: Collection,
+        async_evaluator: &AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
         let metadata = evaluator.metadata();
 
@@ -2675,7 +2699,7 @@ impl Evaluator {
                 }
                 _ => context.nest(),
             };
-            let arg_result = self.evaluate_node(arg, &nested_ctx).await?;
+            let arg_result = async_evaluator.evaluate(arg, &nested_ctx).await?;
             evaluated_args.push(arg_result.value);
         }
 
@@ -2726,6 +2750,7 @@ impl Evaluator {
     }
 
     /// Evaluate function with root context argument evaluation
+    #[allow(dead_code)]
     async fn evaluate_function_with_root_context(
         &self,
         evaluator: std::sync::Arc<dyn crate::evaluator::function_registry::FunctionEvaluator>,
@@ -2868,7 +2893,15 @@ impl Evaluator {
     }
 
     /// Evaluate an index operation (e.g., collection[0])
-    async fn evaluate_index_operation(
+    pub(super) async fn evaluate_index_operation(
+        &self,
+        collection: Collection,
+        index: Collection,
+    ) -> Result<EvaluationResult> {
+        self.evaluate_index_sync(collection, index)
+    }
+
+    pub(super) fn evaluate_index_sync(
         &self,
         collection: Collection,
         index: Collection,
@@ -2974,11 +3007,26 @@ impl Evaluator {
 /// Async node evaluator wrapper for function evaluation
 pub struct AsyncNodeEvaluator<'a> {
     evaluator: &'a Evaluator,
+    vm: Option<super::vm::Callback<'a>>,
 }
 
 impl<'a> AsyncNodeEvaluator<'a> {
     fn new(evaluator: &'a Evaluator) -> Self {
-        Self { evaluator }
+        Self {
+            evaluator,
+            vm: None,
+        }
+    }
+
+    pub(super) fn for_vm(
+        evaluator: &'a Evaluator,
+        bridge: &'a super::vm::Bridge,
+        program: Arc<super::vm::Program>,
+    ) -> Self {
+        Self {
+            evaluator,
+            vm: Some(super::vm::Callback::new(bridge, program)),
+        }
     }
 
     /// Evaluate a node asynchronously within a given context
@@ -2987,7 +3035,10 @@ impl<'a> AsyncNodeEvaluator<'a> {
         node: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
-        self.evaluator.evaluate_node_inner(node, context).await
+        match &self.vm {
+            Some(callback) => callback.evaluate(self.evaluator, node, context).await,
+            None => self.evaluator.evaluate_node_inner(node, context).await,
+        }
     }
 }
 
