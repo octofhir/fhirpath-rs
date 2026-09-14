@@ -43,7 +43,7 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 chumsky = { version = "0.13", features = ["pratt"] }
 ariadne = "0.6"
-tabled = { version = "0.21", default-features = false, features = ["std"] }
+tabled = { version = "0.22", default-features = false, features = ["std"] }
 
 url = { workspace = true }
 parking_lot = { workspace = true }
