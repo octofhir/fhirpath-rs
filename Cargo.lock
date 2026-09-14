@@ -1149,6 +1149,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d57d423b3c82e89b9a24ca3091fee61f456a26edbd28d26c65906f4bc1dcd8f"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
 name = "dirs-sys"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1387,7 +1396,7 @@ dependencies = [
  "console",
  "crossterm 0.29.0",
  "dialoguer",
- "dirs",
+ "dirs 7.0.0",
  "fuzzy-matcher",
  "glob",
  "human-panic",
@@ -2885,7 +2894,7 @@ dependencies = [
  "crossbeam-channel",
  "dashmap",
  "deadpool-sqlite",
- "dirs",
+ "dirs 6.0.0",
  "flate2",
  "fs4",
  "futures-util",
