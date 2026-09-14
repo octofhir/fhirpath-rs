@@ -85,7 +85,7 @@ tower-http = { version = "0.7", features = ["cors"], optional = true }
 [dev-dependencies]
 divan = "0.1"
 pretty_assertions = "1.4.1"
-rstest = "0.26"
+rstest = "0.27"
 rust_decimal_macros = "1.40"
 
 [features]
