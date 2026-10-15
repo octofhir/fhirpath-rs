@@ -2975,7 +2975,6 @@ dependencies = [
  "parking_lot",
  "pretty_assertions",
  "regex",
- "reqwest 0.13.4",
  "rstest",
  "rust_decimal",
  "rust_decimal_macros",

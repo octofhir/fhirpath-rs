@@ -64,10 +64,6 @@ async-recursion = "1.1"
 futures = { workspace = true }
 tokio = { workspace = true }
 
-# HTTP client for external profile fetching
-reqwest = { workspace = true }
-
-
 # Optional diagnostic dependencies
 colored = { workspace = true }
 
