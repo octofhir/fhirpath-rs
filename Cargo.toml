@@ -24,7 +24,7 @@ glob = "0.3"
 hex = "0.4"
 indexmap = "2.14.0"
 log = "0.4"
-octofhir-ucum = { version = "0.5.2", features = ["fhir", "serde"] }
+octofhir-ucum = { version = "0.6.1", features = ["fhir", "serde"] }
 octofhir-fhir-model = { version = "0.1.17", features = ["serde"] }
 octofhir-canonical-manager = { version = "0.2.4" }
 papaya = "0.2"
