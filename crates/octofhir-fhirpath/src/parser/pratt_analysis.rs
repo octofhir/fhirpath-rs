@@ -1029,37 +1029,24 @@ mod tests {
     }
 
     #[test]
-    fn test_performance_with_valid_expressions() {
-        use std::time::Instant;
-
-        let expressions = vec![
+    fn test_repeated_parsing_with_valid_expressions() {
+        let expressions = [
             "Patient.name.first()",
-            "true AND false OR true",
-            "a == b",
+            "true and false or true",
+            "a = b",
             "Patient.extension.value.as(string)",
         ];
 
-        let start = Instant::now();
-
-        for _ in 0..1000 {
-            for expr in &expressions {
-                let _ = parse_for_analysis(expr);
+        for _ in 0..100 {
+            for expr in expressions {
+                let result = parse_for_analysis(expr);
+                assert!(
+                    !result.has_errors,
+                    "Analysis parser failed for {expr:?}: {:?}",
+                    result.diagnostics
+                );
+                assert!(result.ast.is_some(), "No AST for {expr:?}");
             }
         }
-
-        let duration = start.elapsed();
-        let ops_per_sec = 4000.0 / duration.as_secs_f64();
-        println!(
-            "Parsed 4000 valid expressions in {:?} ({:.2} ops/sec)",
-            duration, ops_per_sec
-        );
-
-        // Analysis parser should still be reasonably fast
-        // Very lenient threshold for CI environments where performance can vary
-        assert!(
-            ops_per_sec > 1_000.0,
-            "Analysis parser too slow: {} ops/sec (threshold: 1000 ops/sec)",
-            ops_per_sec
-        );
     }
 }

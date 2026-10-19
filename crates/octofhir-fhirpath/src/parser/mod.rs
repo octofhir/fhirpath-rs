@@ -998,55 +998,33 @@ mod tests {
     }
 
     #[test]
-    fn test_performance_characteristics() {
-        use std::time::Instant;
-
-        let expressions = vec![
+    fn test_repeated_parsing_in_both_modes() {
+        let expressions = [
             "Patient.name.given.first()",
             "age > 18 and status = 'active'",
             "value * 2.5 + offset",
             "items.where(active = true).count() > 0",
         ];
 
-        // Test fast parser performance
-        let start = Instant::now();
-        for _ in 0..100 {
-            for expr in &expressions {
-                let _ = parse_with_mode(expr, ParsingMode::Fast);
+        // Keep correctness independent of CI load and coverage instrumentation.
+        // Throughput is measured by the parser_modes Divan benchmark.
+        for mode in [ParsingMode::Fast, ParsingMode::Analysis] {
+            for _ in 0..100 {
+                for expr in expressions {
+                    let result = parse_with_mode(expr, mode);
+                    assert!(
+                        result.success,
+                        "{mode} parser failed for {expr:?}: {:?}",
+                        result.diagnostics
+                    );
+                    assert!(
+                        result.ast.is_some(),
+                        "{mode} parser produced no AST for {expr:?}"
+                    );
+                    assert!(!result.has_errors());
+                }
             }
         }
-        let fast_time = start.elapsed();
-
-        // Test analysis parser performance
-        let start = Instant::now();
-        for _ in 0..100 {
-            for expr in &expressions {
-                let _ = parse_with_mode(expr, ParsingMode::Analysis);
-            }
-        }
-        let analysis_time = start.elapsed();
-
-        println!("Fast parser: {:?} for 400 expressions", fast_time);
-        println!("Analysis parser: {:?} for 400 expressions", analysis_time);
-
-        // Fast parser should complete quickly
-        let fast_ops_per_sec = 400.0 / fast_time.as_secs_f64();
-        let analysis_ops_per_sec = 400.0 / analysis_time.as_secs_f64();
-
-        assert!(
-            fast_ops_per_sec > 2_000.0,
-            "Fast parser too slow: {} ops/sec",
-            fast_ops_per_sec
-        );
-        assert!(
-            analysis_ops_per_sec > 1_000.0,
-            "Analysis parser too slow: {} ops/sec",
-            analysis_ops_per_sec
-        );
-
-        // Fast should generally be faster (though small samples might vary)
-        println!("Fast parser: {:.0} ops/sec", fast_ops_per_sec);
-        println!("Analysis parser: {:.0} ops/sec", analysis_ops_per_sec);
     }
 
     #[test]

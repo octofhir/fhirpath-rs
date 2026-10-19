@@ -97,3 +97,7 @@ harness = false
 [[bench]]
 name = "prepared_constraints"
 harness = false
+
+[[bench]]
+name = "parser_modes"
+harness = false
