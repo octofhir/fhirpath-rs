@@ -171,37 +171,43 @@ pub fn days_in_month(year: i32, month: u32) -> u32 {
     }
 }
 
-/// Resolve the target precision for a `PrecisionDateTime` given optional digits.
+/// Resolve the target precision for a `PrecisionDateTime` given optional digits. With no
+/// digits the type's greatest precision is used, as the FHIRPath spec
+/// requires ("If no precision is specified, the greatest precision of the type
+/// of the input value is used").
 pub fn resolve_datetime_precision(
-    current: TemporalPrecision,
     digits: Option<i32>,
 ) -> Result<TemporalPrecision, NumericBoundaryError> {
     match digits {
-        None => Ok(current),
+        None => Ok(TemporalPrecision::Millisecond),
         Some(d) => {
             datetime_precision_from_digits(d).ok_or(NumericBoundaryError::PrecisionOutOfRange)
         }
     }
 }
 
-/// Resolve the target precision for a `PrecisionDate` value.
+/// Resolve the target precision for a `PrecisionDate` value given optional digits. With no
+/// digits the type's greatest precision is used, as the FHIRPath spec
+/// requires ("If no precision is specified, the greatest precision of the type
+/// of the input value is used").
 pub fn resolve_date_precision(
-    current: TemporalPrecision,
     digits: Option<i32>,
 ) -> Result<TemporalPrecision, NumericBoundaryError> {
     match digits {
-        None => Ok(current),
+        None => Ok(TemporalPrecision::Day),
         Some(d) => date_precision_from_digits(d).ok_or(NumericBoundaryError::PrecisionOutOfRange),
     }
 }
 
-/// Resolve the target precision for a `PrecisionTime` value.
+/// Resolve the target precision for a `PrecisionTime` value given optional digits. With no
+/// digits the type's greatest precision is used, as the FHIRPath spec
+/// requires ("If no precision is specified, the greatest precision of the type
+/// of the input value is used").
 pub fn resolve_time_precision(
-    current: TemporalPrecision,
     digits: Option<i32>,
 ) -> Result<TemporalPrecision, NumericBoundaryError> {
     match digits {
-        None => Ok(current),
+        None => Ok(TemporalPrecision::Millisecond),
         Some(d) => time_precision_from_digits(d).ok_or(NumericBoundaryError::PrecisionOutOfRange),
     }
 }

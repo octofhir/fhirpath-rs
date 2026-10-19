@@ -188,7 +188,7 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
                 }
             },
             FhirPathValue::DateTime(datetime, type_info, primitive) => {
-                match resolve_datetime_precision(datetime.precision, precision_value) {
+                match resolve_datetime_precision(precision_value) {
                     Ok(target_precision) => {
                         let adjusted = compute_datetime_boundary(
                             datetime,
@@ -205,7 +205,7 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
                 }
             }
             FhirPathValue::Date(date, type_info, primitive) => {
-                match resolve_date_precision(date.precision, precision_value) {
+                match resolve_date_precision(precision_value) {
                     Ok(target_precision) => {
                         let adjusted =
                             compute_date_boundary(date, target_precision, BoundaryKind::High);
@@ -219,7 +219,7 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
                 }
             }
             FhirPathValue::Time(time, type_info, primitive) => {
-                match resolve_time_precision(time.precision, precision_value) {
+                match resolve_time_precision(precision_value) {
                     Ok(target_precision) => {
                         let adjusted =
                             compute_time_boundary(time, target_precision, BoundaryKind::High);
@@ -235,7 +235,7 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
             FhirPathValue::String(s, type_info, primitive) => {
                 // Try to parse as temporal value
                 if let Ok(parsed_date) = crate::core::parsing::parse_date_string(s) {
-                    match resolve_date_precision(parsed_date.precision, precision_value) {
+                    match resolve_date_precision(precision_value) {
                         Ok(target_precision) => {
                             let adjusted = compute_date_boundary(
                                 &parsed_date,
@@ -251,7 +251,7 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
                         }
                     }
                 } else if let Ok(parsed_datetime) = crate::core::parsing::parse_datetime_string(s) {
-                    match resolve_datetime_precision(parsed_datetime.precision, precision_value) {
+                    match resolve_datetime_precision(precision_value) {
                         Ok(target_precision) => {
                             let adjusted = compute_datetime_boundary(
                                 &parsed_datetime,
