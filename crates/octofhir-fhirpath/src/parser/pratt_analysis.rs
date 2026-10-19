@@ -254,9 +254,10 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Type operations - precedence 7
+            // Type operations - precedence 8, above union (FHIRPath operator
+            // precedence #06 and #07)
             infix(
-                left(7),
+                left(8),
                 choice((text::keyword("is"), text::keyword("as"))).padded(),
                 |left, op: &str, right, extra| {
                     let loc = Some(span_to_loc(extra.span()));
@@ -294,8 +295,8 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     }
                 },
             ),
-            // Union - precedence 8
-            infix(left(8), just("|").padded(), |left, _, right, extra| {
+            // Union - precedence 7
+            infix(left(7), just("|").padded(), |left, _, right, extra| {
                 ExpressionNode::Union(UnionNode {
                     left: Box::new(left),
                     right: Box::new(right),

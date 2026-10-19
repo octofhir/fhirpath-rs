@@ -11,6 +11,8 @@ use crate::evaluator::operator_registry::{
 use crate::evaluator::quantity_utils;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
+use super::comparison_types::check_comparable;
+
 pub struct GreaterEqualOperatorEvaluator {
     metadata: OperatorMetadata,
 }
@@ -164,7 +166,10 @@ impl OperationEvaluator for GreaterEqualOperatorEvaluator {
             });
         }
 
-        match self.compare_values(left.first().unwrap(), right.first().unwrap()) {
+        let (left_value, right_value) = (left.first().unwrap(), right.first().unwrap());
+        check_comparable(left_value, right_value, ">=")?;
+
+        match self.compare_values(left_value, right_value) {
             Some(result) => Ok(EvaluationResult {
                 value: Collection::single(FhirPathValue::boolean(result)),
             }),
