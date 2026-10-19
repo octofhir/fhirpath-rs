@@ -2123,9 +2123,16 @@ impl Evaluator {
         match value.as_str() {
             Some(s) => match type_name_lower.as_str() {
                 "datetime" | "instant" => {
-                    // Parse as DateTime
+                    // Parse as DateTime; FHIR allows a dateTime of only a date
+                    // (`2016-03-28`), which is still a dateTime.
                     if let Some(parsed) = crate::core::temporal::PrecisionDateTime::parse(s) {
                         Ok(FhirPathValue::DateTime(parsed, arc_type_info, None))
+                    } else if let Some(date) = crate::core::temporal::PrecisionDate::parse(s) {
+                        Ok(FhirPathValue::DateTime(
+                            crate::core::temporal::PrecisionDateTime::from_date(&date),
+                            arc_type_info,
+                            None,
+                        ))
                     } else {
                         // Fallback to string if parsing fails
                         Ok(FhirPathValue::String(s.to_string(), arc_type_info, None))
