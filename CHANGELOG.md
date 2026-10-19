@@ -1,3 +1,18 @@
+## [0.4.57](https://github.com/octofhir/fhirpath-rs/compare/v0.4.56...v0.4.57) (2026-10-19)
+
+
+### Bug Fixes
+
+* **deps:** update canonical manager and patch TLS vulnerabilities ([992cdd5](https://github.com/octofhir/fhirpath-rs/commit/992cdd5e683cb4c5bc421e215088f358ffcaced3))
+* **evaluator:** a date-only dateTime value is still a dateTime ([c3cc571](https://github.com/octofhir/fhirpath-rs/commit/c3cc571347be735e3c515edcc314dda82e2bb2c4))
+* **functions:** a datetime boundary states the offset it pins ([8f63174](https://github.com/octofhir/fhirpath-rs/commit/8f63174667984ebfbd1fe5f93790dab3d6300da5))
+* **functions:** hasValue() is true only for a single primitive with a value ([0f1df14](https://github.com/octofhir/fhirpath-rs/commit/0f1df14c94031875bcff0b8009af228c51a43cb7))
+* **functions:** widen date/time boundaries to full precision by default ([4f766db](https://github.com/octofhir/fhirpath-rs/commit/4f766db92cca4d83c0d62770757e0b25e87466fa))
+* **parser:** give is/as the precedence the FHIRPath spec defines ([cb8ef73](https://github.com/octofhir/fhirpath-rs/commit/cb8ef7365ae2c1362a92de791f4fcd65c1484a4f)), closes [#06](https://github.com/octofhir/fhirpath-rs/issues/06) [#07](https://github.com/octofhir/fhirpath-rs/issues/07) [#08](https://github.com/octofhir/fhirpath-rs/issues/08)
+* **test:** move parser timing checks out of coverage tests ([f86fefe](https://github.com/octofhir/fhirpath-rs/commit/f86fefef8fa599f081768e50354ad6049d0bbea3))
+
+
+
 ## [0.4.55](https://github.com/octofhir/fhirpath-rs/compare/v0.4.54...v0.4.55) (2026-09-09)
 
 
