@@ -66,25 +66,21 @@ impl PureFunctionEvaluator for HasValueFunctionEvaluator {
             ));
         }
 
-        // hasValue returns true if the input collection is not empty
-        // and contains at least one non-null value
-        let has_value = !input.is_empty()
-            && input.iter().any(|v| {
-                // Check if the value is not null/empty
-                match v {
-                    // For primitive types, we consider them to have value if they exist
-                    FhirPathValue::String(s, _, _) => !s.is_empty(),
-                    FhirPathValue::Boolean(_, _, _) => true,
-                    FhirPathValue::Integer(_, _, _) => true,
-                    FhirPathValue::Decimal(_, _, _) => true,
-                    FhirPathValue::Date(_, _, _) => true,
-                    FhirPathValue::DateTime(_, _, _) => true,
-                    FhirPathValue::Time(_, _, _) => true,
-                    FhirPathValue::Quantity { .. } => true,
-                    FhirPathValue::Resource(_, _, _) => true,
-                    _ => false,
-                }
-            });
+        // FHIR: true if the input is a single FHIR primitive that has a value.
+        // A complex type (an element or resource node, or a Quantity) never
+        // has a value, even when it has content; nor does a primitive that
+        // carries only extensions.
+        let has_value = input.len() == 1
+            && match input.first().unwrap() {
+                FhirPathValue::String(s, _, _) => !s.is_empty(),
+                FhirPathValue::Boolean(_, _, _)
+                | FhirPathValue::Integer(_, _, _)
+                | FhirPathValue::Decimal(_, _, _)
+                | FhirPathValue::Date(_, _, _)
+                | FhirPathValue::DateTime(_, _, _)
+                | FhirPathValue::Time(_, _, _) => true,
+                _ => false,
+            };
 
         Ok(EvaluationResult {
             value: crate::core::Collection::single(FhirPathValue::boolean(has_value)),
