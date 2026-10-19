@@ -9,11 +9,7 @@ use crate::core::{FhirPathError, FhirPathValue, Result};
 
 /// Fail when `left` and `right` cannot be ordered: a Boolean on either side
 /// (booleans have no ordering), or a number against a string.
-pub fn check_comparable(
-    left: &FhirPathValue,
-    right: &FhirPathValue,
-    operator: &str,
-) -> Result<()> {
+pub fn check_comparable(left: &FhirPathValue, right: &FhirPathValue, operator: &str) -> Result<()> {
     let is_boolean = |v: &FhirPathValue| matches!(v, FhirPathValue::Boolean(..));
     let is_numeric = |v: &FhirPathValue| {
         matches!(
