@@ -492,6 +492,21 @@ impl PrecisionDateTime {
         Self::new(datetime, TemporalPrecision::Millisecond)
     }
 
+    /// A datetime with only a date part (`2016-03-28`, `2016-03`, `2016`), as
+    /// FHIR allows in a dateTime element: midnight UTC at the date's precision,
+    /// with no timezone given, as the literal `@2016-03-28T` is parsed.
+    pub fn from_date(date: &PrecisionDate) -> Self {
+        let midnight = date.date.and_time(NaiveTime::MIN);
+        let datetime =
+            DateTime::from_naive_utc_and_offset(midnight, FixedOffset::east_opt(0).unwrap());
+        let precision = match date.precision {
+            TemporalPrecision::Year => TemporalPrecision::Year,
+            TemporalPrecision::Month => TemporalPrecision::Month,
+            _ => TemporalPrecision::Day,
+        };
+        Self::new_with_tz(datetime, precision, false)
+    }
+
     /// Get the date component
     pub fn date(&self) -> PrecisionDate {
         let naive_date = self.datetime.date_naive();

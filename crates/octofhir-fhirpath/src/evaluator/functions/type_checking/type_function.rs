@@ -70,8 +70,9 @@ impl TypeFunctionEvaluator {
             }
             FhirPathValue::String(_, type_info, _) => {
                 if type_info.namespace.as_deref() == Some("FHIR") {
-                    // Use the actual FHIR type name (could be string, uri, uuid, etc.)
-                    ("FHIR".to_string(), type_info.type_name.to_lowercase())
+                    // Use the actual FHIR type name (could be string, uri, uuid,
+                    // base64Binary, etc.); only its first letter is lower case.
+                    ("FHIR".to_string(), lower_first(&type_info.type_name))
                 } else {
                     ("System".to_string(), "String".to_string())
                 }
@@ -164,5 +165,15 @@ impl PureFunctionEvaluator for TypeFunctionEvaluator {
 
     fn metadata(&self) -> &FunctionMetadata {
         &self.metadata
+    }
+}
+
+/// `name` with its first letter in lower case: FHIR primitive type names are
+/// lowerCamelCase (`dateTime`, `base64Binary`).
+fn lower_first(name: &str) -> String {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(first) => first.to_lowercase().chain(chars).collect(),
+        None => String::new(),
     }
 }
