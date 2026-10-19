@@ -325,7 +325,10 @@ pub fn compute_datetime_boundary(
         .or_else(|| tz.from_local_datetime(&naive_datetime).latest())
         .unwrap();
 
-    PrecisionDateTime::new_with_tz(adjusted, target, value.tz_specified)
+    // A boundary of a value with no timezone is pinned to the widest offset
+    // (+14:00 low, -12:00 high), which the result then states explicitly, so
+    // it compares with values that have a timezone.
+    PrecisionDateTime::new_with_tz(adjusted, target, true)
 }
 
 /// Compute the temporal boundary for a date value.

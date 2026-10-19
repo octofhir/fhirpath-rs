@@ -75,3 +75,17 @@ async fn an_explicit_precision_still_applies() {
         json!("T10:30:59.999")
     );
 }
+
+#[tokio::test]
+async fn a_boundary_of_a_value_without_a_timezone_compares_with_one_that_has_one() {
+    // The boundary pins the value to +14:00 (low) or -12:00 (high), so it has
+    // a timezone, and ordering it against a value with one is not left empty.
+    assert_eq!(
+        evaluate("@2001-05-06T.lowBoundary() < @2001-05-06T10:10:10Z.highBoundary()").await,
+        json!(true)
+    );
+    assert_eq!(
+        evaluate("@2001-05-06T10:10.lowBoundary(17) < @2001-05-06T10:10:00Z").await,
+        json!(true)
+    );
+}
