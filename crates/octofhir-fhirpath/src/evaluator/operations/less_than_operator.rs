@@ -14,6 +14,8 @@ use crate::evaluator::operator_registry::{
 use crate::evaluator::quantity_utils;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
+use super::comparison_types::check_comparable;
+
 /// Less than operator evaluator
 pub struct LessThanOperatorEvaluator {
     metadata: OperatorMetadata,
@@ -313,26 +315,7 @@ impl OperationEvaluator for LessThanOperatorEvaluator {
         let left_value = left.first().unwrap();
         let right_value = right.first().unwrap();
 
-        // Detect invalid numeric vs string comparison and raise execution error
-        let is_numeric = matches!(
-            left_value,
-            FhirPathValue::Integer(_, _, _)
-                | FhirPathValue::Decimal(_, _, _)
-                | FhirPathValue::Quantity { .. }
-        ) || matches!(
-            right_value,
-            FhirPathValue::Integer(_, _, _)
-                | FhirPathValue::Decimal(_, _, _)
-                | FhirPathValue::Quantity { .. }
-        );
-        let is_string_pair = matches!(left_value, FhirPathValue::String(_, _, _))
-            || matches!(right_value, FhirPathValue::String(_, _, _));
-        if is_numeric && is_string_pair {
-            return Err(crate::core::FhirPathError::evaluation_error(
-                crate::core::error_code::FP0051,
-                "Type mismatch: cannot compare numeric and string with '<'".to_string(),
-            ));
-        }
+        check_comparable(left_value, right_value, "<")?;
 
         match self.compare_values(left_value, right_value) {
             Some(result) => Ok(EvaluationResult {

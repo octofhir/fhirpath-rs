@@ -10,6 +10,7 @@ pub mod or_operator;
 pub mod xor_operator;
 
 // Comparison operators
+mod comparison_types;
 pub mod equals_operator;
 pub mod equivalent_operator;
 pub mod greater_equal_operator;

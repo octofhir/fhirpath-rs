@@ -2768,26 +2768,23 @@
       "expression": "1 > 2 is Boolean",
       "input": null,
       "inputfile": "patient-example.json",
-      "expected": [
-        true
-      ],
+      "expected": [],
       "tags": [
         "r5-xml",
         "testPrecedence",
         "other_operations"
       ],
-      "outputTypes": [
-        "boolean"
-      ],
-      "subcategory": "control_flow"
+      "subcategory": "control_flow",
+      "expectError": true,
+      "invalidKind": "execution"
     },
     {
       "name": "testPrecedence4",
-      "expression": "1 | 1 is Integer",
+      "expression": "(1 | 1 is Integer).count()",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
-        true
+        2
       ],
       "tags": [
         "r5-xml",
@@ -2795,7 +2792,7 @@
         "other_operations"
       ],
       "outputTypes": [
-        "boolean"
+        "integer"
       ],
       "subcategory": "control_flow"
     },

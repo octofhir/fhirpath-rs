@@ -314,7 +314,7 @@ fn fhirpath_parser<'a>()
             ),
         ));
 
-        // Layer 2: High precedence operators (type, multiplicative, additive, union)
+        // Layer 2: High precedence operators (multiplicative, additive, type)
         let with_high_precedence = with_postfix.pratt((
             // Multiplicative operators - precedence 11
             infix(left(11), just('*').padded(), |left, _, right, extra| {
@@ -374,6 +374,76 @@ fn fhirpath_parser<'a>()
                     right: Box::new(right),
                     location: Some(span_to_loc(extra.span())),
                 })
+            }),
+            // Type operators - precedence 9, below additive and above union
+            // (FHIRPath operator precedence #06): `1 > 2 is Boolean` is
+            // `1 > (2 is Boolean)`, and `$this is dateTime and x` is
+            // `($this is dateTime) and x`.
+            infix(left(9), just("is").padded(), |left, _, right, extra| {
+                let loc = Some(span_to_loc(extra.span()));
+                match right {
+                    ExpressionNode::Identifier(ident) => ExpressionNode::TypeCheck(TypeCheckNode {
+                        expression: Box::new(left),
+                        target_type: ident.name,
+                        location: loc,
+                    }),
+                    ExpressionNode::PropertyAccess(prop) => {
+                        if let ExpressionNode::Identifier(base) = *prop.object {
+                            let target_type = format!("{}.{}", base.name, prop.property);
+                            ExpressionNode::TypeCheck(TypeCheckNode {
+                                expression: Box::new(left),
+                                target_type,
+                                location: loc,
+                            })
+                        } else {
+                            ExpressionNode::BinaryOperation(BinaryOperationNode {
+                                left: Box::new(left),
+                                operator: BinaryOperator::Is,
+                                right: Box::new(ExpressionNode::PropertyAccess(prop)),
+                                location: loc,
+                            })
+                        }
+                    }
+                    other => ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::Is,
+                        right: Box::new(other),
+                        location: loc,
+                    }),
+                }
+            }),
+            infix(left(9), just("as").padded(), |left, _, right, extra| {
+                let loc = Some(span_to_loc(extra.span()));
+                match right {
+                    ExpressionNode::Identifier(ident) => ExpressionNode::TypeCast(TypeCastNode {
+                        expression: Box::new(left),
+                        target_type: ident.name,
+                        location: loc,
+                    }),
+                    ExpressionNode::PropertyAccess(prop) => {
+                        if let ExpressionNode::Identifier(base) = *prop.object {
+                            let target_type = format!("{}.{}", base.name, prop.property);
+                            ExpressionNode::TypeCast(TypeCastNode {
+                                expression: Box::new(left),
+                                target_type,
+                                location: loc,
+                            })
+                        } else {
+                            ExpressionNode::BinaryOperation(BinaryOperationNode {
+                                left: Box::new(left),
+                                operator: BinaryOperator::As,
+                                right: Box::new(ExpressionNode::PropertyAccess(prop)),
+                                location: loc,
+                            })
+                        }
+                    }
+                    other => ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::As,
+                        right: Box::new(other),
+                        location: loc,
+                    }),
+                }
             }),
         ));
 
@@ -487,73 +557,6 @@ fn fhirpath_parser<'a>()
 
         // Layer 4: Low precedence logical operators (and, xor, or, implies)
         with_medium_precedence.pratt((
-            // Type operators - precedence 3.5 (lower than membership, same as XOR but evaluated first)
-            infix(left(3), just("is").padded(), |left, _, right, extra| {
-                let loc = Some(span_to_loc(extra.span()));
-                match right {
-                    ExpressionNode::Identifier(ident) => ExpressionNode::TypeCheck(TypeCheckNode {
-                        expression: Box::new(left),
-                        target_type: ident.name,
-                        location: loc,
-                    }),
-                    ExpressionNode::PropertyAccess(prop) => {
-                        if let ExpressionNode::Identifier(base) = *prop.object {
-                            let target_type = format!("{}.{}", base.name, prop.property);
-                            ExpressionNode::TypeCheck(TypeCheckNode {
-                                expression: Box::new(left),
-                                target_type,
-                                location: loc,
-                            })
-                        } else {
-                            ExpressionNode::BinaryOperation(BinaryOperationNode {
-                                left: Box::new(left),
-                                operator: BinaryOperator::Is,
-                                right: Box::new(ExpressionNode::PropertyAccess(prop)),
-                                location: loc,
-                            })
-                        }
-                    }
-                    other => ExpressionNode::BinaryOperation(BinaryOperationNode {
-                        left: Box::new(left),
-                        operator: BinaryOperator::Is,
-                        right: Box::new(other),
-                        location: loc,
-                    }),
-                }
-            }),
-            infix(left(3), just("as").padded(), |left, _, right, extra| {
-                let loc = Some(span_to_loc(extra.span()));
-                match right {
-                    ExpressionNode::Identifier(ident) => ExpressionNode::TypeCast(TypeCastNode {
-                        expression: Box::new(left),
-                        target_type: ident.name,
-                        location: loc,
-                    }),
-                    ExpressionNode::PropertyAccess(prop) => {
-                        if let ExpressionNode::Identifier(base) = *prop.object {
-                            let target_type = format!("{}.{}", base.name, prop.property);
-                            ExpressionNode::TypeCast(TypeCastNode {
-                                expression: Box::new(left),
-                                target_type,
-                                location: loc,
-                            })
-                        } else {
-                            ExpressionNode::BinaryOperation(BinaryOperationNode {
-                                left: Box::new(left),
-                                operator: BinaryOperator::As,
-                                right: Box::new(ExpressionNode::PropertyAccess(prop)),
-                                location: loc,
-                            })
-                        }
-                    }
-                    other => ExpressionNode::BinaryOperation(BinaryOperationNode {
-                        left: Box::new(left),
-                        operator: BinaryOperator::As,
-                        right: Box::new(other),
-                        location: loc,
-                    }),
-                }
-            }),
             // Logical AND - precedence 4
             infix(left(4), just("and").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -804,6 +807,36 @@ mod tests {
 
         let result = parse("value as string").unwrap();
         assert!(matches!(result, ExpressionNode::TypeCast(_)));
+    }
+
+    #[test]
+    fn test_type_operator_precedence() {
+        // `is` and `as` bind tighter than comparison (FHIRPath operator
+        // precedence #06 and #08): `1 > (2 is Boolean)`.
+        let result = parse("1 > 2 is Boolean").unwrap();
+        let ExpressionNode::BinaryOperation(node) = result else {
+            panic!("Expected a comparison, got {result:?}");
+        };
+        assert_eq!(node.operator, BinaryOperator::GreaterThan);
+        assert!(matches!(*node.right, ExpressionNode::TypeCheck(_)));
+
+        // ... and tighter than union (#07): `1 | (1 is Integer)`.
+        let result = parse("1 | 1 is Integer").unwrap();
+        let ExpressionNode::Union(node) = result else {
+            panic!("Expected a union, got {result:?}");
+        };
+        assert!(matches!(*node.right, ExpressionNode::TypeCheck(_)));
+
+        // ... and than `and` (#11): `($this is dateTime) and x`.
+        let result = parse("$this is dateTime and $this.exists()").unwrap();
+        let ExpressionNode::BinaryOperation(node) = result else {
+            panic!("Expected `and`, got {result:?}");
+        };
+        assert_eq!(node.operator, BinaryOperator::And);
+        assert!(matches!(*node.left, ExpressionNode::TypeCheck(_)));
+
+        let result = parse("(Observation.value as Quantity).unit").unwrap();
+        assert!(matches!(result, ExpressionNode::PropertyAccess(_)));
     }
 
     #[test]
