@@ -62,8 +62,9 @@ impl WeightFunctionEvaluator {
                             && (url == ITEM_WEIGHT_EXTENSION_URL
                                 || url == ORDINAL_VALUE_EXTENSION_URL)
                         {
-                            if let Some(val) = ext.get("valueDecimal").and_then(|v| v.as_f64()) {
-                                return Decimal::try_from(val).ok();
+                            if let Some(val) = ext.get("valueDecimal").and_then(|v| v.as_decimal())
+                            {
+                                return Some(val);
                             }
                             if let Some(val) = ext.get("valueInteger").and_then(|v| v.as_i64()) {
                                 return Some(Decimal::from(val));
@@ -81,8 +82,8 @@ impl WeightFunctionEvaluator {
                             || ext.url == ORDINAL_VALUE_EXTENSION_URL
                         {
                             let json = ext.to_json();
-                            if let Some(val) = json.get("valueDecimal").and_then(|v| v.as_f64()) {
-                                return Decimal::try_from(val).ok();
+                            if let Some(serde_json::Value::Number(n)) = json.get("valueDecimal") {
+                                return crate::core::value::utils::decimal_from_json_number(n);
                             }
                             if let Some(val) = json.get("valueInteger").and_then(|v| v.as_i64()) {
                                 return Some(Decimal::from(val));

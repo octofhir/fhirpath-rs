@@ -67,6 +67,22 @@ pub mod utils {
     use rust_decimal::prelude::FromPrimitive;
     use std::sync::Arc;
 
+    /// The decimal a JSON number was written as.
+    ///
+    /// Reads the number's text rather than its `f64` value, so `1.0` keeps
+    /// its decimal place and `0.1` stays `0.1` (through `f64` it becomes
+    /// `1` and `0.1000000000000000055511151231`).
+    pub fn decimal_from_json_number(n: &serde_json::Number) -> Option<Decimal> {
+        decimal_from_text(&n.to_string()).or_else(|| n.as_f64().and_then(Decimal::from_f64))
+    }
+
+    /// A decimal from its text, plain (`1.50`) or in exponent form (`1e-7`).
+    pub fn decimal_from_text(text: &str) -> Option<Decimal> {
+        text.parse::<Decimal>()
+            .ok()
+            .or_else(|| Decimal::from_scientific(text).ok())
+    }
+
     /// Infer FHIR type from JSON object structure
     fn infer_fhir_type_from_json(obj: &serde_json::Map<String, JsonValue>) -> Option<String> {
         // Look for Quantity pattern
@@ -83,18 +99,11 @@ pub mod utils {
         // Extract value - handle both string and number representations
         let value = obj
             .get("value")
-            .and_then(|v| {
-                // Try as number first
-                if let Some(f) = v.as_f64() {
-                    Some(f)
-                } else if let Some(s) = v.as_str() {
-                    // Try to parse string as number
-                    s.parse::<f64>().ok()
-                } else {
-                    None
-                }
+            .and_then(|v| match v {
+                JsonValue::Number(n) => decimal_from_json_number(n),
+                JsonValue::String(s) => decimal_from_text(s),
+                _ => None,
             })
-            .map(|f| Decimal::from_f64(f).unwrap_or(Decimal::ZERO))
             .unwrap_or_default();
 
         let unit_display = obj
@@ -120,12 +129,8 @@ pub mod utils {
             JsonValue::Number(n) => {
                 if let Some(i) = n.as_i64() {
                     FhirPathValue::integer(i)
-                } else if let Some(f) = n.as_f64() {
-                    if let Some(decimal) = Decimal::from_f64(f) {
-                        FhirPathValue::decimal(decimal)
-                    } else {
-                        FhirPathValue::string(n.to_string())
-                    }
+                } else if let Some(decimal) = decimal_from_json_number(&n) {
+                    FhirPathValue::decimal(decimal)
                 } else {
                     FhirPathValue::string(n.to_string())
                 }
@@ -182,11 +187,11 @@ pub mod utils {
             JsonValue::Number(n) => {
                 if let Some(i) = n.as_i64() {
                     Ok(FhirPathValue::integer(i))
-                } else if let Some(f) = n.as_f64() {
-                    let decimal = Decimal::from_f64(f).ok_or_else(|| {
+                } else if n.is_f64() {
+                    let decimal = decimal_from_json_number(&n).ok_or_else(|| {
                         crate::core::FhirPathError::evaluation_error(
                             crate::core::error_code::FP0054,
-                            format!("Invalid decimal value: {f}"),
+                            format!("Invalid decimal value: {n}"),
                         )
                     })?;
                     Ok(FhirPathValue::decimal(decimal))
