@@ -172,9 +172,18 @@ impl EqualsOperatorEvaluator {
             // Time equality
             (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => Some(l == r),
 
-            // Cross-type temporal comparisons should return empty (None)
-            (FhirPathValue::Date(_, _, _), FhirPathValue::DateTime(_, _, _)) => None,
-            (FhirPathValue::DateTime(_, _, _), FhirPathValue::Date(_, _, _)) => None,
+            // A Date converts to a DateTime (FHIRPath's implicit conversion):
+            // `@2012-04-15 = @2012-04-15T` is true. At different precisions,
+            // as between any two DateTimes, the result is empty.
+            (FhirPathValue::Date(d, _, _), FhirPathValue::DateTime(dt, _, _))
+            | (FhirPathValue::DateTime(dt, _, _), FhirPathValue::Date(d, _, _)) => {
+                let date = PrecisionDateTime::from_date(d);
+                if date.precision != dt.precision || date.tz_specified != dt.tz_specified {
+                    None
+                } else {
+                    Some(date == *dt)
+                }
+            }
             // Date vs Time are never equal
             (FhirPathValue::Date(_, _, _), FhirPathValue::Time(_, _, _)) => Some(false),
             (FhirPathValue::Time(_, _, _), FhirPathValue::Date(_, _, _)) => Some(false),

@@ -58,3 +58,24 @@ async fn it_orders_against_other_datetimes() {
         vec![json!(true)]
     );
 }
+
+#[tokio::test]
+async fn a_date_compares_with_a_datetime_of_the_same_precision() {
+    // A Date converts to a DateTime, so a date literal still equals a
+    // date-only dateTime (`@2016-03-28T`, as a model reads `2016-03-28` in a
+    // dateTime element).
+    assert_eq!(evaluate("@2016-03-28 = @2016-03-28T").await, [json!(true)]);
+    assert_eq!(evaluate("@2016-03-28T = @2016-03-28").await, [json!(true)]);
+    assert_eq!(evaluate("@2016-03-28 = @2016-03-29T").await, [json!(false)]);
+    assert_eq!(evaluate("@2016-03-28 ~ @2016-03-28T").await, [json!(true)]);
+    assert_eq!(evaluate("@2016-03 = @2016-03T").await, [json!(true)]);
+    // At different precisions `=` is empty and `~` is false (testEquality19,
+    // testEquivalent16).
+    let empty: Vec<Value> = vec![];
+    assert_eq!(evaluate("@2012-04-15 = @2012-04-15T10:00:00").await, empty);
+    assert_eq!(
+        evaluate("@2012-04-15 ~ @2012-04-15T10:00:00").await,
+        [json!(false)]
+    );
+    assert_eq!(evaluate("@2012-04 = @2012-04-15T").await, empty);
+}

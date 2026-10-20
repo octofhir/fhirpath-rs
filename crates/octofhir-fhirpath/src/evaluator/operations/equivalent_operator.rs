@@ -173,6 +173,13 @@ impl EquivalentOperatorEvaluator {
                 Some(l == r)
             }
 
+            // A Date converts to a DateTime (FHIRPath's implicit conversion);
+            // at different precisions they are not equivalent.
+            (FhirPathValue::Date(d, _, _), FhirPathValue::DateTime(dt, _, _))
+            | (FhirPathValue::DateTime(dt, _, _), FhirPathValue::Date(d, _, _)) => {
+                Some(crate::core::temporal::PrecisionDateTime::from_date(d) == *dt)
+            }
+
             // Time equivalence
             (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => Some(l == r),
 
