@@ -55,7 +55,7 @@ smallvec = { workspace = true }
 thiserror = { workspace = true }
 once_cell = { workspace = true }
 urlencoding = "2.1"
-html-escape = "0.2"
+html-escape = "0.3"
 stacker = "0.1"
 
 # Async dependencies
