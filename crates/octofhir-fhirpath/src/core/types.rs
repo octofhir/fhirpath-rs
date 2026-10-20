@@ -1795,11 +1795,8 @@ fn json_to_evaluation_result(value: &JsonValue) -> EvaluationResult {
         JsonValue::Number(n) => {
             if let Some(i) = n.as_i64() {
                 EvaluationResult::integer(i)
-            } else if let Some(f) = n.as_f64() {
-                f.to_string()
-                    .parse::<Decimal>()
-                    .map(EvaluationResult::decimal)
-                    .unwrap_or(EvaluationResult::Empty)
+            } else if let Some(d) = crate::core::value::utils::decimal_from_json_number(n) {
+                EvaluationResult::decimal(d)
             } else {
                 EvaluationResult::Empty
             }

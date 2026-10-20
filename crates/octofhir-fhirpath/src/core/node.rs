@@ -170,6 +170,16 @@ impl FhirNode {
         }
     }
 
+    /// The decimal a number (or a numeric string) was written as, with its
+    /// digits kept: `1.0` keeps its decimal place, `0.1` stays `0.1`.
+    pub fn as_decimal(&self) -> Option<rust_decimal::Decimal> {
+        match self {
+            FhirNode::Number(n) => crate::core::value::utils::decimal_from_json_number(n),
+            FhirNode::Str(s) => crate::core::value::utils::decimal_from_text(s),
+            _ => None,
+        }
+    }
+
     /// Returns the object entries as an ordered slice. Replaces
     /// `serde_json::Value::as_object` — iterate as `(&str, &FhirNode)`.
     #[inline]

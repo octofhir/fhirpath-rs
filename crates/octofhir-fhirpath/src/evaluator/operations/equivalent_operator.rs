@@ -5,7 +5,6 @@
 
 use async_trait::async_trait;
 use rust_decimal::Decimal;
-use rust_decimal::prelude::FromPrimitive;
 use std::sync::Arc;
 
 use crate::core::model_provider::TypeInfo;
@@ -75,13 +74,8 @@ impl EquivalentOperatorEvaluator {
             let fhir_code = fhir_json.get("code")?.as_str()?;
 
             // Convert FHIR value to Decimal (could be integer, float, or string)
-            let fhir_decimal = if let Some(int_val) = fhir_value.as_i64() {
-                Decimal::from(int_val)
-            } else if let Some(float_val) = fhir_value.as_f64() {
-                Decimal::from_f64(float_val)?
-            } else if let Some(str_val) = fhir_value.as_str() {
-                // Handle string values (common in FHIR JSON)
-                str_val.parse::<Decimal>().ok()?
+            let fhir_decimal = if let Some(decimal) = fhir_value.as_decimal() {
+                decimal
             } else {
                 return Some(false); // Invalid value type
             };

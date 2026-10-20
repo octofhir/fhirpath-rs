@@ -21,8 +21,7 @@ pub fn parse_string_to_quantity_value(s: &str) -> Option<FhirPathValue> {
     let trimmed = s.trim();
 
     // 1) Plain number → unitless quantity
-    if let Ok(v) = trimmed.parse::<f64>() {
-        let dec = rust_decimal::Decimal::from_f64_retain(v)?;
+    if let Some(dec) = crate::core::value::utils::decimal_from_text(trimmed) {
         return Some(FhirPathValue::quantity_with_components(
             dec,
             Some("1".to_string()),
@@ -41,8 +40,7 @@ pub fn parse_string_to_quantity_value(s: &str) -> Option<FhirPathValue> {
     }
 
     // Parse number first
-    let value = num.parse::<f64>().ok()?;
-    let dec = rust_decimal::Decimal::from_f64_retain(value)?;
+    let dec = crate::core::value::utils::decimal_from_text(num)?;
 
     // Quoted UCUM: '<unit>'
     if unit_part.len() >= 2 && unit_part.starts_with('\'') && unit_part.ends_with('\'') {

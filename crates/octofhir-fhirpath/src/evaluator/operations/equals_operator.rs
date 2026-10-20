@@ -46,12 +46,7 @@ impl EqualsOperatorEvaluator {
         json: &crate::core::node::FhirNode,
     ) -> Option<FhirPathValue> {
         // Handle both numeric and string values in FHIR JSON
-        let value_node = json.get("value")?;
-        let value = if let Some(n) = value_node.as_f64() {
-            n
-        } else {
-            value_node.as_str()?.parse::<f64>().ok()?
-        };
+        let value = json.get("value")?.as_decimal()?;
         let unit_display = json
             .get("unit")
             .and_then(|u| u.as_str())
@@ -66,7 +61,7 @@ impl EqualsOperatorEvaluator {
             .map(|s| s.to_string());
 
         Some(FhirPathValue::quantity_with_components(
-            rust_decimal::Decimal::from_f64_retain(value)?,
+            value,
             unit_display,
             code,
             system,

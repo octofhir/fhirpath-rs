@@ -234,12 +234,8 @@ fn json_value_to_eval_result(value: &serde_json::Value) -> ModelEvalResult {
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
                 ModelEvalResult::integer(i)
-            } else if let Some(f) = n.as_f64() {
-                if let Some(d) = rust_decimal::Decimal::from_f64_retain(f) {
-                    ModelEvalResult::decimal(d)
-                } else {
-                    ModelEvalResult::Empty
-                }
+            } else if let Some(d) = crate::core::value::utils::decimal_from_json_number(n) {
+                ModelEvalResult::decimal(d)
             } else {
                 ModelEvalResult::Empty
             }
