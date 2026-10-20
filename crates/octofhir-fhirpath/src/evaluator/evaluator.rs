@@ -1121,28 +1121,30 @@ impl Evaluator {
                         }
                     }
                 }
-                FhirPathValue::Quantity { value, unit, .. } => {
-                    // Handle quantity property access
-                    match identifier {
+                FhirPathValue::Quantity {
+                    value,
+                    unit,
+                    code,
+                    system,
+                    ..
+                } => {
+                    // A Quantity's elements. A Quantity read from a resource
+                    // keeps value, unit, code and system; its comparator, id
+                    // and extensions are not kept, so they are empty here.
+                    let text = match identifier {
                         "value" => {
-                            // Return the actual decimal value for numeric operations
                             result_values.push(FhirPathValue::decimal(*value));
+                            None
                         }
-                        "unit" => {
-                            if let Some(unit_str) = unit {
-                                result_values.push(FhirPathValue::string(unit_str.clone()));
-                            }
-                            // If no unit, return empty (standard FHIRPath behavior)
-                        }
-                        "code" => {
-                            // For FHIR compatibility, code is an alias for unit
-                            if let Some(unit_str) = unit {
-                                result_values.push(FhirPathValue::string(unit_str.clone()));
-                            }
-                        }
-                        _ => {
-                            // Unknown property on quantity - return empty
-                        }
+                        "unit" => unit.as_ref(),
+                        // A quantity literal (`5 'mg'`) has a unit but no
+                        // separate code: its code is the unit.
+                        "code" => code.as_ref().or(unit.as_ref()),
+                        "system" => system.as_ref(),
+                        _ => None,
+                    };
+                    if let Some(text) = text {
+                        result_values.push(FhirPathValue::string(text.clone()));
                     }
                 }
                 _ => {
