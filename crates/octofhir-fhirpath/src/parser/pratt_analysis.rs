@@ -146,9 +146,10 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Logical XOR - precedence 2 (between AND and OR)
+            // Logical XOR - precedence 1, the same level as OR (FHIRPath
+            // operator precedence #12)
             infix(
-                left(2),
+                left(1),
                 text::keyword("xor").padded(),
                 |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -879,6 +880,19 @@ mod tests {
         assert!(
             result.ast.is_some(),
             "Should produce AST for valid expression"
+        );
+    }
+
+    #[test]
+    fn test_xor_and_or_share_a_level() {
+        // `(true or true) xor true`, not `true or (true xor true)`.
+        let result = parse_for_analysis("true or true xor true");
+        let Some(ExpressionNode::BinaryOperation(node)) = result.ast else {
+            panic!("Expected `xor`, got {:?}", result.ast);
+        };
+        assert_eq!(node.operator, BinaryOperator::Xor);
+        assert!(
+            matches!(*node.left, ExpressionNode::BinaryOperation(ref l) if l.operator == BinaryOperator::Or)
         );
     }
 

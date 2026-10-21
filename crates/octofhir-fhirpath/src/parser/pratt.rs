@@ -566,8 +566,9 @@ fn fhirpath_parser<'a>()
                     location: Some(span_to_loc(extra.span())),
                 })
             }),
-            // Logical XOR - precedence 3
-            infix(left(3), just("xor").padded(), |left, _, right, extra| {
+            // Logical XOR - precedence 2, the same level as `or` (FHIRPath
+            // operator precedence #12)
+            infix(left(2), just("xor").padded(), |left, _, right, extra| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Xor,
@@ -688,7 +689,7 @@ mod tests {
 
     #[test]
     fn test_logical_operator_precedence() {
-        // Test: implies < or < xor < and
+        // Test: implies < or = xor < and
         let result = parse("a and b or c xor d implies e").unwrap();
         assert!(matches!(result, ExpressionNode::BinaryOperation(_)));
 
@@ -696,6 +697,32 @@ mod tests {
         if let ExpressionNode::BinaryOperation(node) = result {
             assert_eq!(node.operator, BinaryOperator::Implies);
         }
+    }
+
+    #[test]
+    fn test_xor_and_or_share_a_level() {
+        // `xor` and `or` are one level (FHIRPath operator precedence #12),
+        // left-associative: `(true or true) xor true`, which is false.
+        let result = parse("true or true xor true").unwrap();
+        let ExpressionNode::BinaryOperation(node) = result else {
+            panic!("Expected `xor`, got {result:?}");
+        };
+        assert_eq!(node.operator, BinaryOperator::Xor);
+        let ExpressionNode::BinaryOperation(left) = *node.left else {
+            panic!("Expected `or` on the left");
+        };
+        assert_eq!(left.operator, BinaryOperator::Or);
+
+        // ... and the other way round: `(a xor b) or c`.
+        let result = parse("a xor b or c").unwrap();
+        let ExpressionNode::BinaryOperation(node) = result else {
+            panic!("Expected `or`, got {result:?}");
+        };
+        assert_eq!(node.operator, BinaryOperator::Or);
+        let ExpressionNode::BinaryOperation(left) = *node.left else {
+            panic!("Expected `xor` on the left");
+        };
+        assert_eq!(left.operator, BinaryOperator::Xor);
     }
 
     #[test]
