@@ -19,7 +19,7 @@
 //! `xor` and `implies` operators which were previously missing due to parser limits.
 
 use chumsky::extra;
-use chumsky::pratt::{infix, left, postfix, prefix, right};
+use chumsky::pratt::{infix, left, postfix, prefix};
 use chumsky::prelude::*;
 
 use super::combinators::{
@@ -585,9 +585,10 @@ fn fhirpath_parser<'a>()
                     location: Some(span_to_loc(extra.span())),
                 })
             }),
-            // Logical implies - precedence 1 (right-associative)
+            // Logical implies - precedence 1, left-associative like every
+            // binary operator in the FHIRPath grammar
             infix(
-                right(1),
+                left(1),
                 just("implies").padded(),
                 |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -723,6 +724,22 @@ mod tests {
             panic!("Expected `xor` on the left");
         };
         assert_eq!(left.operator, BinaryOperator::Xor);
+    }
+
+    #[test]
+    fn test_implies_is_left_associative() {
+        // The grammar has no right-associative rule:
+        // `(false implies true) implies false`, which is false.
+        let result = parse("false implies true implies false").unwrap();
+        let ExpressionNode::BinaryOperation(node) = result else {
+            panic!("Expected `implies`, got {result:?}");
+        };
+        assert_eq!(node.operator, BinaryOperator::Implies);
+        assert!(matches!(*node.right, ExpressionNode::Literal(_)));
+        let ExpressionNode::BinaryOperation(left) = *node.left else {
+            panic!("Expected `implies` on the left");
+        };
+        assert_eq!(left.operator, BinaryOperator::Implies);
     }
 
     #[test]

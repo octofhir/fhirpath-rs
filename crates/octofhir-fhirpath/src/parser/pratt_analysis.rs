@@ -5,7 +5,7 @@
 //! is essential. Uses Chumsky 0.10's Rich error types for detailed diagnostics.
 
 use chumsky::error::{Rich, RichReason};
-use chumsky::pratt::{infix, left, postfix, prefix, right};
+use chumsky::pratt::{infix, left, postfix, prefix};
 use chumsky::prelude::*;
 
 use super::combinators::{
@@ -120,9 +120,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
 
         // Pratt parser with essential operators (reduced to fit Chumsky limits)
         atom.pratt((
-            // Logical IMPLIES - precedence 0 (right-associative)
+            // Logical IMPLIES - precedence 0, left-associative
             infix(
-                right(0),
+                left(0),
                 text::keyword("implies").padded(),
                 |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -893,6 +893,19 @@ mod tests {
         assert_eq!(node.operator, BinaryOperator::Xor);
         assert!(
             matches!(*node.left, ExpressionNode::BinaryOperation(ref l) if l.operator == BinaryOperator::Or)
+        );
+    }
+
+    #[test]
+    fn test_implies_is_left_associative() {
+        // `(false implies true) implies false`.
+        let result = parse_for_analysis("false implies true implies false");
+        let Some(ExpressionNode::BinaryOperation(node)) = result.ast else {
+            panic!("Expected `implies`, got {:?}", result.ast);
+        };
+        assert_eq!(node.operator, BinaryOperator::Implies);
+        assert!(
+            matches!(*node.left, ExpressionNode::BinaryOperation(ref l) if l.operator == BinaryOperator::Implies)
         );
     }
 
