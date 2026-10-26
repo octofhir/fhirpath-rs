@@ -30,7 +30,7 @@ octofhir-canonical-manager = { version = "0.2.4" }
 papaya = "0.2"
 url = "2.5"
 percent-encoding = "2.3"
-parking_lot = "0.12.5"
+parking_lot = "0.13.0"
 regex = "1.13.1"
 rust_decimal = { version = "1.42.1", features = ["serde-with-str"] }
 serde = { version = "1.0.229", features = ["derive"] }
