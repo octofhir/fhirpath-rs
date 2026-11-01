@@ -1,0 +1,67 @@
+{
+  "name": "testConformsTo",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testConformsTo1",
+      "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Patient')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testConformsTo"
+      ],
+      "testing": "conformsTo",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testConformsTo2",
+      "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Person')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testConformsTo"
+      ],
+      "testing": "conformsTo",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testConformsTo3",
+      "expression": "conformsTo('http://trash')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testConformsTo"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "conformsTo"
+    }
+  ]
+}

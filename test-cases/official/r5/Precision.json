@@ -1,0 +1,140 @@
+{
+  "name": "Precision",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "PrecisionDecimal",
+      "expression": "1.58700.precision()",
+      "input": null,
+      "expected": [
+        5
+      ],
+      "tags": [
+        "official-r5",
+        "Precision"
+      ],
+      "testing": "precision",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "name": "PrecisionYear",
+      "expression": "@2014.precision()",
+      "input": null,
+      "expected": [
+        4
+      ],
+      "tags": [
+        "official-r5",
+        "Precision"
+      ],
+      "testing": "precision",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "name": "PrecisionDateTimeMilliseconds",
+      "expression": "@2014-01-05T10:30:00.000.precision()",
+      "input": null,
+      "expected": [
+        17
+      ],
+      "tags": [
+        "official-r5",
+        "Precision"
+      ],
+      "testing": "precision",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "name": "PrecisionTimeMinutes",
+      "expression": "@T10:30.precision()",
+      "input": null,
+      "expected": [
+        4
+      ],
+      "tags": [
+        "official-r5",
+        "Precision"
+      ],
+      "testing": "precision",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "name": "PrecisionTimeMilliseconds",
+      "expression": "@T10:30:00.000.precision()",
+      "input": null,
+      "expected": [
+        9
+      ],
+      "tags": [
+        "official-r5",
+        "Precision"
+      ],
+      "testing": "precision",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "9"
+        }
+      ]
+    },
+    {
+      "name": "PrecisionEmpty",
+      "expression": "{}.precision().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "Precision"
+      ],
+      "testing": "precision",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

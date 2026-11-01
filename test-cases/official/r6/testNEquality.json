@@ -1,0 +1,598 @@
+{
+  "name": "testNEquality",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testNEquality1",
+      "expression": "1 != 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality2",
+      "expression": "{} != {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!="
+    },
+    {
+      "name": "testNEquality3",
+      "expression": "1 != 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality4",
+      "expression": "'a' != 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality5",
+      "expression": "'a' != 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality6",
+      "expression": "1.1 != 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality7",
+      "expression": "1.1 != 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality8",
+      "expression": "1.10 != 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality9",
+      "expression": "0 != 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality10",
+      "expression": "0.0 != 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality11",
+      "expression": "@2012-04-15 != @2012-04-15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality12",
+      "expression": "@2012-04-15 != @2012-04-16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality13",
+      "expression": "@2012-04-15 != @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!="
+    },
+    {
+      "name": "testNEquality14",
+      "expression": "@2012-04-15T15:00:00 != @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality15",
+      "expression": "@2012-04-15T15:30:31 != @2012-04-15T15:30:31.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality16",
+      "expression": "@2012-04-15T15:30:31 != @2012-04-15T15:30:31.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality17",
+      "expression": "@2012-04-15T15:00:00Z != @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!="
+    },
+    {
+      "name": "testNEquality18",
+      "expression": "@2012-04-15T15:00:00+02:00 != @2012-04-15T16:00:00+03:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality19",
+      "expression": "name != name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality20",
+      "expression": "name.take(2) != name.take(2).first() | name.take(2).last()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality21",
+      "expression": "name.take(2) != name.take(2).last() | name.take(2).first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality22",
+      "expression": "(1.2 / 1.8).round(2) != 0.6666667",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality23",
+      "expression": "(1.2 / 1.8).round(2) != 0.67",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality24",
+      "expression": "Observation.value != 185 'kg'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality25",
+      "expression": "name.first() != 'Peter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "description": "A primitive and a complex value are different types, so they are not equal",
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality26",
+      "expression": "'Peter' != name.first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "description": "A primitive and a complex value are different types, so they are not equal",
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNEquality27",
+      "expression": "@2015-02-04T10:00 != @2015-02-04T11:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testNEquality"
+      ],
+      "description": "dateTimes with minute precision",
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

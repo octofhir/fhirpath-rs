@@ -1,0 +1,178 @@
+{
+  "name": "testQuantityUnitComparison",
+  "description": "Comparing quantities that have no UCUM code, by unit text or the lack of a unit",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testQuantityNoUnitEqual",
+      "expression": "Parameters.parameter[0].value = Parameters.parameter[1].value",
+      "input": null,
+      "inputfile": "parameters-example-quantities.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testQuantityUnitComparison"
+      ],
+      "description": "two quantities with the same value and no unit are equal",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantityNoUnitEquivalent",
+      "expression": "Parameters.parameter[0].value ~ Parameters.parameter[1].value",
+      "input": null,
+      "inputfile": "parameters-example-quantities.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testQuantityUnitComparison"
+      ],
+      "description": "two quantities with the same value and no unit are equivalent",
+      "testing": "~",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantityUnitTextEqual",
+      "expression": "Parameters.parameter[2].value = Parameters.parameter[3].value",
+      "input": null,
+      "inputfile": "parameters-example-quantities.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testQuantityUnitComparison"
+      ],
+      "description": "two quantities with the same value and the same unit text (no code) are equal",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantityUnitTextEquivalent",
+      "expression": "Parameters.parameter[2].value ~ Parameters.parameter[3].value",
+      "input": null,
+      "inputfile": "parameters-example-quantities.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testQuantityUnitComparison"
+      ],
+      "description": "two quantities with the same value and the same unit text (no code) are equivalent",
+      "testing": "~",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantityUnitVsNoUnitEqual",
+      "expression": "Parameters.parameter[2].value = Parameters.parameter[0].value",
+      "input": null,
+      "inputfile": "parameters-example-quantities.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testQuantityUnitComparison"
+      ],
+      "description": "a quantity with a unit and one without are not comparable, whichever side the unit is on",
+      "testing": "="
+    },
+    {
+      "name": "testQuantityNoUnitVsUnitEqual",
+      "expression": "Parameters.parameter[0].value = Parameters.parameter[2].value",
+      "input": null,
+      "inputfile": "parameters-example-quantities.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testQuantityUnitComparison"
+      ],
+      "description": "a quantity with a unit and one without are not comparable, whichever side the unit is on",
+      "testing": "="
+    },
+    {
+      "name": "testQuantityUnitVsNoUnitEquivalent",
+      "expression": "Parameters.parameter[2].value ~ Parameters.parameter[0].value",
+      "input": null,
+      "inputfile": "parameters-example-quantities.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testQuantityUnitComparison"
+      ],
+      "description": "a quantity with a unit is not equivalent to one without, whichever side the unit is on",
+      "testing": "~",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testQuantityNoUnitVsUnitEquivalent",
+      "expression": "Parameters.parameter[0].value ~ Parameters.parameter[2].value",
+      "input": null,
+      "inputfile": "parameters-example-quantities.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testQuantityUnitComparison"
+      ],
+      "description": "a quantity with a unit is not equivalent to one without, whichever side the unit is on",
+      "testing": "~",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    }
+  ]
+}

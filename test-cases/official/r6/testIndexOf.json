@@ -1,0 +1,145 @@
+{
+  "name": "testIndexOf",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testIndexOf1",
+      "expression": "'LogicalModel-Person'.indexOf('-')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        12
+      ],
+      "tags": [
+        "official-r6",
+        "testIndexOf"
+      ],
+      "testing": "indexOf",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "12"
+        }
+      ]
+    },
+    {
+      "name": "testIndexOf2",
+      "expression": "'LogicalModel-Person'.indexOf('z')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        -1
+      ],
+      "tags": [
+        "official-r6",
+        "testIndexOf"
+      ],
+      "testing": "indexOf",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "name": "testIndexOf3",
+      "expression": "'LogicalModel-Person'.indexOf('')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        0
+      ],
+      "tags": [
+        "official-r6",
+        "testIndexOf"
+      ],
+      "testing": "indexOf",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "name": "testIndexOf5",
+      "expression": "'LogicalModel-Person'.indexOf({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testIndexOf"
+      ],
+      "testing": "indexOf",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIndexOf4",
+      "expression": "{}.indexOf('-').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testIndexOf"
+      ],
+      "testing": "indexOf",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIndexOf6",
+      "expression": "{}.indexOf({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testIndexOf"
+      ],
+      "testing": "indexOf",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

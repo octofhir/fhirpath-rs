@@ -1,0 +1,53 @@
+{
+  "name": "testFirstLast",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testFirstLast1",
+      "expression": "Patient.name.first().given = 'Peter' | 'James'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testFirstLast"
+      ],
+      "testing": "first",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testFirstLast2",
+      "expression": "Patient.name.last().given = 'Peter' | 'James'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testFirstLast"
+      ],
+      "testing": "last",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

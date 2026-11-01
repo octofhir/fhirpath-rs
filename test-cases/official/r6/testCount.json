@@ -1,0 +1,99 @@
+{
+  "name": "testCount",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testCount1",
+      "expression": "Patient.name.count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        3
+      ],
+      "tags": [
+        "official-r6",
+        "testCount"
+      ],
+      "testing": "count",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "name": "testCount2",
+      "expression": "Patient.name.count() = 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testCount"
+      ],
+      "testing": "count",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testCount3",
+      "expression": "Patient.name.first().count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        1
+      ],
+      "tags": [
+        "official-r6",
+        "testCount"
+      ],
+      "testing": "count",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "testCount4",
+      "expression": "Patient.name.first().count() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testCount"
+      ],
+      "testing": "count",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

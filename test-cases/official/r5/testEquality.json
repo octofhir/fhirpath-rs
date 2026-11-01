@@ -1,0 +1,874 @@
+{
+  "name": "testEquality",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testEquality1",
+      "expression": "1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality2",
+      "expression": "{} = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "="
+    },
+    {
+      "name": "testEquality3",
+      "expression": "true = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "="
+    },
+    {
+      "name": "testEquality4",
+      "expression": "(1) = (1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality5",
+      "expression": "(1 | 2) = (1 | 2)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality6",
+      "expression": "(1 | 2 | 3) = (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality7",
+      "expression": "(1 | 1) = (1 | 2 | {})",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality8",
+      "expression": "1 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality9",
+      "expression": "'a' = 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality10",
+      "expression": "'a' = 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality11",
+      "expression": "'a' = 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality12",
+      "expression": "1.1 = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality13",
+      "expression": "1.1 = 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality14",
+      "expression": "1.10 = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality15",
+      "expression": "0 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality16",
+      "expression": "0.0 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality17",
+      "expression": "@2012-04-15 = @2012-04-15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality18",
+      "expression": "@2012-04-15 = @2012-04-16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality19",
+      "expression": "@2012-04-15 = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "="
+    },
+    {
+      "name": "testEquality20",
+      "expression": "@2012-04-15T15:00:00 = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality21",
+      "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality22",
+      "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality23",
+      "expression": "@2012-04-15T15:00:00Z = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "This could be impacted by the timezone of the engine running the test",
+      "testing": "="
+    },
+    {
+      "name": "testEquality24",
+      "expression": "@2012-04-15T15:00:00+02:00 = @2012-04-15T16:00:00+03:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality25",
+      "expression": "name = name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality26",
+      "expression": "name.take(2) = name.take(2).first() | name.take(2).last()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality27",
+      "expression": "name.take(2) = name.take(2).last() | name.take(2).first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality28",
+      "expression": "Observation.value = 185 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality29",
+      "expression": "name.first() = 'Peter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "A primitive and a complex value are different types, so they are not equal",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality30",
+      "expression": "'Peter' = name.first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "A primitive and a complex value are different types, so they are not equal",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality31",
+      "expression": "100 = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "Only zeros after the decimal point are insignificant: 100 is not 1",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality32",
+      "expression": "10 = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "Only zeros after the decimal point are insignificant: 10 is not 1",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality33",
+      "expression": "10 = 10.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "An integer equals the decimal with the same value",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality34",
+      "expression": "1.50 = 1.5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "Trailing zeros after the decimal point are insignificant",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality35",
+      "expression": "100.toDecimal() = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "A decimal without a decimal point keeps its trailing zeros",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality36",
+      "expression": "1 year = 1 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "for equality, the calendar duration year and the UCUM unit a are not comparable",
+      "testing": "="
+    },
+    {
+      "name": "testEquality37",
+      "expression": "@2015-02-04T10:00 = @2015-02-04T10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "dateTimes with minute precision",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEquality38",
+      "expression": "@2015-02-04T10:00 = @2015-02-04T11:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "dateTimes with minute precision",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEquality39",
+      "expression": "@2015-02-04T10:00:00 = @2015-02-04T10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "dateTimes with different precision",
+      "testing": "="
+    },
+    {
+      "name": "testEquality40",
+      "expression": "@2015-02-04T10:00-05:00 = @2015-02-04T10:00-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testEquality"
+      ],
+      "description": "dateTimes with minute precision and an offset",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

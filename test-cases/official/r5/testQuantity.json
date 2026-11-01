@@ -1,0 +1,271 @@
+{
+  "name": "testQuantity",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testQuantity1",
+      "expression": "4.0000 'g' = 4000.0 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "equality with unit conversion",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity2",
+      "expression": "4 'g' ~ 4000 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "equivalence with unit conversion",
+      "testing": "~",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity3",
+      "expression": "4 'g' != 4040 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "not-equals with unit conversion (different values)",
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity4",
+      "expression": "4 'g' ~ 4040 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "equivalence with unit conversion",
+      "testing": "~",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity5",
+      "expression": "7 days = 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "equality with unit conversion: calendar units",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity6",
+      "expression": "7 days = 1 'wk'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "equality with unit conversion: mixed UCUM and calendar units",
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity7",
+      "expression": "6 days < 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "less-than with unit conversion",
+      "testing": "<",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity8",
+      "expression": "8 days > 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "greater-than with unit conversion",
+      "testing": ">",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity9",
+      "expression": "2.0 'cm' * 2.0 'm' = 0.040 'm2'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "multiplication with unit conversion",
+      "testing": "*",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity10",
+      "expression": "4.0 'g' / 2.0 'm' = 2 'g/m'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "division producing compound unit",
+      "testing": "/",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantity11",
+      "expression": "1.0 'm' / 1.0 'm' = 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testQuantity"
+      ],
+      "description": "division of same units produces dimensionless quantity",
+      "testing": "/",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

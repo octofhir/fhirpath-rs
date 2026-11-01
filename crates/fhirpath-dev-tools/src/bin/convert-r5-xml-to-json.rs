@@ -1,337 +1,517 @@
-// Convert the official R5 XML FHIRPath tests into grouped JSON suites
-// Usage:
-//   cargo run --bin convert-r5-xml-to-json -- specs/fhirpath/tests/tests-fhir-r5.xml
+//! Convert an official FHIRPath XML test suite (fhir-test-cases `tests-fhir-r5.xml`,
+//! `tests-fhir-r6.xml`) into one JSON suite file per `<group>`.
+//!
+//! The conversion is lossless: every attribute and child element the test schema
+//! defines is carried over, outputs keep their source text next to the typed value,
+//! and an attribute or element the converter does not know is an error. After writing,
+//! the suites are read back and checked against the XML test by test.
+//!
+//! Usage:
+//!   convert-r5-xml-to-json <tests.xml> [--out DIR] [--fhir-version r5|r6] [--source TEXT]
+//!
+//! Without `--out` the suites are written next to the XML file.
 
-use quick_xml::Reader;
-use quick_xml::events::Event;
-use quick_xml::name::QName;
+use roxmltree::{Document, Node};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+const TESTS_NS: &str = "http://hl7.org/fhirpath/tests";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct Capability {
+    code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<String>,
+}
+
+/// An `<output>` exactly as written: its declared type and its text.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct RawOutput {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    output_type: Option<String>,
+    value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct JsonTestCase {
     name: String,
     expression: String,
-    #[serde(default)]
     input: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     inputfile: Option<String>,
     expected: Value,
-    #[serde(default)]
     tags: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    expecterror: Option<bool>,
     #[serde(rename = "expectError", skip_serializing_if = "Option::is_none")]
-    expect_error_alias: Option<bool>,
+    expect_error: Option<bool>,
+    #[serde(rename = "invalidKind", skip_serializing_if = "Option::is_none")]
+    invalid_kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     disabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     predicate: Option<bool>,
     #[serde(rename = "skipStaticCheck", skip_serializing_if = "Option::is_none")]
     skip_static_check: Option<bool>,
-    #[serde(rename = "invalidKind", skip_serializing_if = "Option::is_none")]
-    invalid_kind: Option<String>,
+    /// The test's `mode`, else its group's.
     #[serde(skip_serializing_if = "Option::is_none")]
     mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ordered: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    testing: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context: Option<String>,
+    #[serde(rename = "contextType", skip_serializing_if = "Option::is_none")]
+    context_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
+    #[serde(rename = "versionTo", skip_serializing_if = "Option::is_none")]
+    version_to: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    notes: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    capabilities: Vec<Capability>,
     #[serde(rename = "outputTypes", skip_serializing_if = "Option::is_none")]
     output_types: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    outputs: Vec<RawOutput>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct JsonTestSuite {
     name: String,
-    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
-    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     source: Option<String>,
+    #[serde(rename = "fhirVersion", skip_serializing_if = "Option::is_none")]
+    fhir_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
+    #[serde(rename = "versionTo", skip_serializing_if = "Option::is_none")]
+    version_to: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    notes: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    capabilities: Vec<Capability>,
     tests: Vec<JsonTestCase>,
 }
 
-fn unescape_html_entities(text: &str) -> String {
-    text.replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&apos;", "'")
+struct Options {
+    fhir_version: String,
+    source: String,
 }
 
-fn xml_text_to_value(ty: &str, text: &str) -> Value {
+/// The local name of an element in the tests namespace, or an error for anything else.
+fn tag<'a>(node: Node<'a, '_>) -> Result<&'a str, String> {
+    match node.tag_name().namespace() {
+        Some(TESTS_NS) | None => Ok(node.tag_name().name()),
+        Some(ns) => Err(format!(
+            "element <{}> in unexpected namespace {ns}",
+            node.tag_name().name()
+        )),
+    }
+}
+
+/// Reject any attribute of `node` not in `allowed`.
+fn check_attributes(node: Node, allowed: &[&str], what: &str) -> Result<(), String> {
+    for attr in node.attributes() {
+        if attr.namespace().is_some() {
+            continue; // xmlns:*, xsi:* and friends
+        }
+        if !allowed.contains(&attr.name()) {
+            return Err(format!("unknown attribute '{}' on {what}", attr.name()));
+        }
+    }
+    Ok(())
+}
+
+fn attr(node: Node, name: &str) -> Option<String> {
+    node.attribute(name).map(str::to_string)
+}
+
+fn bool_attr(node: Node, name: &str) -> Result<Option<bool>, String> {
+    match node.attribute(name) {
+        None => Ok(None),
+        Some("true") => Ok(Some(true)),
+        Some("false") => Ok(Some(false)),
+        Some(other) => Err(format!("attribute '{name}' is not a boolean: '{other}'")),
+    }
+}
+
+/// All text inside an element (text and CDATA), unescaped.
+fn text(node: Node) -> String {
+    node.descendants()
+        .filter(|n| n.is_text())
+        .filter_map(|n| n.text())
+        .collect()
+}
+
+fn capability(node: Node) -> Result<Capability, String> {
+    check_attributes(node, &["code", "value"], "<capability>")?;
+    Ok(Capability {
+        code: attr(node, "code").ok_or("<capability> without code")?,
+        value: attr(node, "value"),
+    })
+}
+
+/// Typed JSON value for an `<output>`, as the runners compare it.
+fn output_value(output_type: &str, text: &str) -> Value {
     let trimmed = text.trim();
-    match ty {
+    match output_type {
         "boolean" => match trimmed {
-            "true" | "True" | "TRUE" => Value::Bool(true),
-            "false" | "False" | "FALSE" => Value::Bool(false),
-            _ => Value::Null,
+            "true" => Value::Bool(true),
+            "false" => Value::Bool(false),
+            _ => Value::String(trimmed.to_string()),
         },
         "integer" => trimmed
             .parse::<i64>()
             .map(|v| Value::Number(v.into()))
-            .unwrap_or(Value::Null),
-        "decimal" => serde_json::Number::from_f64(trimmed.parse::<f64>().unwrap_or(0.0))
+            .unwrap_or_else(|_| Value::String(trimmed.to_string())),
+        "decimal" => trimmed
+            .parse::<f64>()
+            .ok()
+            .and_then(serde_json::Number::from_f64)
             .map(Value::Number)
-            .unwrap_or(Value::Null),
-        // Strip '@' leading for date types
-        "date" | "dateTime" | "time" => Value::String(unescape_html_entities(
-            trimmed.strip_prefix('@').unwrap_or(trimmed),
-        )),
-        "code" | "string" => Value::String(unescape_html_entities(trimmed)),
-        _ => Value::String(unescape_html_entities(trimmed)),
-    }
-}
-
-fn map_inputfile(inputfile: &str) -> String {
-    if inputfile.ends_with(".xml") {
-        inputfile.trim_end_matches(".xml").to_string() + ".json"
-    } else {
-        inputfile.to_string()
-    }
-}
-
-fn as_bool(s: &str) -> Option<bool> {
-    match s.trim() {
-        "true" | "True" | "TRUE" => Some(true),
-        "false" | "False" | "FALSE" => Some(false),
-        _ => None,
-    }
-}
-
-fn sanitize_group_name(name: &str) -> String {
-    name.chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-        .collect()
-}
-
-fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, String> {
-    let bytes = fs::read(xml_path).map_err(|e| format!("read {}: {}", xml_path.display(), e))?;
-    let mut reader = Reader::from_reader(&bytes[..]);
-    // Trim whitespace in text nodes for simpler parsing
-    reader.config_mut().trim_text(true);
-
-    let mut buf = Vec::new();
-    let _in_group = false;
-    let mut in_test = false;
-    // We will read expression/output text via read_text, no flags needed
-
-    let mut current_group_name = String::new();
-    let mut _current_group_desc: Option<String> = None;
-
-    let mut current_test_name = String::new();
-    let mut current_test_desc: Option<String> = None;
-    let mut current_inputfile: Option<String> = None;
-    let mut current_expression = String::new();
-    let mut current_expect_error = false;
-    let mut _current_output_type: Option<String> = None;
-    let mut current_expected: Vec<Value> = Vec::new();
-    let mut current_output_types: Vec<String> = Vec::new();
-    let mut current_disabled: Option<bool> = None;
-    let mut current_predicate: Option<bool> = None;
-    let mut current_skip_static: Option<bool> = None;
-    let mut current_invalid_kind: Option<String> = None;
-    let mut current_expr_mode: Option<String> = None;
-
-    let mut groups: HashMap<String, JsonTestSuite> = HashMap::new();
-
-    loop {
-        match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(e)) => {
-                let tag = e.name().as_ref().to_string();
-                match tag.as_str() {
-                    "group" => {
-                        // Processing a group
-                        current_group_name.clear();
-                        _current_group_desc = None;
-                        for a in e.attributes().flatten() {
-                            {
-                                let k: &str = a.key.as_ref();
-                                let v = a
-                                    .normalized_value(quick_xml::XmlVersion::Implicit1_0)
-                                    .unwrap_or_default()
-                                    .to_string();
-                                match k {
-                                    "name" => current_group_name = v,
-                                    "description" => _current_group_desc = Some(v),
-                                    _ => {}
-                                }
-                            }
-                        }
-                        let key = current_group_name.clone();
-                        groups.entry(key.clone()).or_insert(JsonTestSuite {
-                            name: current_group_name.clone(),
-                            description: _current_group_desc.clone(),
-                            source: Some("fhir-test-cases r5".to_string()),
-                            tests: Vec::new(),
-                        });
-                    }
-                    "test" => {
-                        in_test = true;
-                        current_test_name.clear();
-                        current_test_desc = None;
-                        current_inputfile = None;
-                        current_expression.clear();
-                        current_expect_error = false;
-                        current_expected.clear();
-                        current_output_types.clear();
-                        current_disabled = None;
-                        current_predicate = None;
-                        current_skip_static = None;
-                        current_invalid_kind = None;
-                        current_expr_mode = None;
-                        for a in e.attributes().flatten() {
-                            {
-                                let k: &str = a.key.as_ref();
-                                let v = a
-                                    .normalized_value(quick_xml::XmlVersion::Implicit1_0)
-                                    .unwrap_or_default()
-                                    .to_string();
-                                match k {
-                                    "name" => current_test_name = v,
-                                    "description" => current_test_desc = Some(v),
-                                    "inputfile" => current_inputfile = Some(map_inputfile(&v)),
-                                    "disabled" => current_disabled = as_bool(&v),
-                                    "predicate" => current_predicate = as_bool(&v),
-                                    "skipStaticCheck" => current_skip_static = as_bool(&v),
-                                    _ => {}
-                                }
-                            }
-                        }
-                    }
-                    "expression" => {
-                        // Capture expression attributes
-                        for a in e.attributes().flatten() {
-                            if a.key.as_ref() == "invalid" {
-                                current_expect_error = true;
-                                current_invalid_kind = Some(
-                                    a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
-                                        .unwrap_or_default()
-                                        .to_string(),
-                                );
-                            } else if a.key.as_ref() == "mode" {
-                                current_expr_mode = Some(
-                                    a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
-                                        .unwrap_or_default()
-                                        .to_string(),
-                                );
-                            }
-                        }
-
-                        // Read expression text content (unescaped and trimmed).
-                        // quick-xml >= 0.42 returns a `BytesText` over `str`.
-                        let expr_text = reader
-                            .read_text(QName("expression"))
-                            .ok()
-                            .map(|t| t.into_inner().into_owned())
-                            .unwrap_or_default();
-                        current_expression = unescape_html_entities(expr_text.trim());
-                    }
-                    "output" => {
-                        // Capture output type
-                        _current_output_type = None;
-                        for a in e.attributes().flatten() {
-                            if a.key.as_ref() == "type" {
-                                _current_output_type = Some(
-                                    a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
-                                        .unwrap_or_default()
-                                        .to_string(),
-                                );
-                            }
-                        }
-
-                        // Read output text in one shot and convert.
-                        let out_text = reader
-                            .read_text(QName("output"))
-                            .ok()
-                            .map(|t| t.into_inner().into_owned())
-                            .unwrap_or_default();
-                        let ty = _current_output_type.as_deref().unwrap_or("string");
-                        current_expected.push(xml_text_to_value(ty, &out_text));
-                        current_output_types.push(ty.to_string());
-                        _current_output_type = None;
-                    }
-                    _ => {}
-                }
-            }
-            Ok(Event::End(e)) => {
-                let tag = e.name().as_ref().to_string();
-                match tag.as_str() {
-                    "test" => {
-                        if in_test {
-                            // build case
-                            let expected = Value::Array(current_expected.clone());
-                            let tags = vec!["r5-xml".to_string(), current_group_name.clone()];
-                            let case = JsonTestCase {
-                                name: current_test_name.clone(),
-                                expression: current_expression.clone(),
-                                input: Some(Value::Null),
-                                inputfile: current_inputfile.clone(),
-                                expected,
-                                tags,
-                                description: current_test_desc.clone(),
-                                // Standardize on camelCase key only to avoid duplicates
-                                expecterror: None,
-                                expect_error_alias: current_expect_error.then_some(true),
-                                disabled: current_disabled,
-                                predicate: current_predicate,
-                                skip_static_check: current_skip_static,
-                                invalid_kind: current_invalid_kind.clone(),
-                                mode: current_expr_mode.clone(),
-                                output_types: if current_output_types.is_empty() {
-                                    None
-                                } else {
-                                    Some(current_output_types.clone())
-                                },
-                            };
-
-                            if let Some(suite) = groups.get_mut(&current_group_name) {
-                                suite.tests.push(case);
-                            }
-                            in_test = false;
-                        }
-                    }
-                    "group" => {
-                        // End of group
-                    }
-                    _ => {}
-                }
-            }
-            Ok(Event::Text(_)) => { /* handled via read_text_into */ }
-            Ok(Event::Eof) => break,
-            Err(e) => return Err(format!("XML parse error: {e}")),
-            _ => {}
+            .unwrap_or_else(|| Value::String(trimmed.to_string())),
+        "date" | "dateTime" | "time" => {
+            Value::String(trimmed.strip_prefix('@').unwrap_or(trimmed).to_string())
         }
-        buf.clear();
+        _ => Value::String(trimmed.to_string()),
     }
-
-    Ok(groups)
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 2 {
-        eprintln!("Usage: {} <path-to-tests-fhir-r5.xml>", args[0]);
+/// Input files are referenced by their XML names; the suites use the JSON conversions.
+fn map_inputfile(inputfile: &str) -> String {
+    match inputfile.strip_suffix(".xml") {
+        Some(stem) => format!("{stem}.json"),
+        None => inputfile.to_string(),
+    }
+}
+
+fn parse_test(
+    node: Node,
+    group: &str,
+    group_mode: Option<&str>,
+    opts: &Options,
+) -> Result<JsonTestCase, String> {
+    let name = attr(node, "name").ok_or("<test> without name")?;
+    let ctx = |e: String| format!("test '{name}': {e}");
+    check_attributes(
+        node,
+        &[
+            "name",
+            "description",
+            "inputfile",
+            "predicate",
+            "skipStaticCheck",
+            "ordered",
+            "mode",
+            "version",
+            "versionTo",
+            "reference",
+            "testing",
+            "context",
+            "contextType",
+            "disabled",
+        ],
+        "<test>",
+    )
+    .map_err(ctx)?;
+
+    let mut expression = None;
+    let mut invalid_kind = None;
+    let mut outputs = Vec::new();
+    let mut notes = None;
+    let mut capabilities = Vec::new();
+    for child in node.children().filter(Node::is_element) {
+        match tag(child).map_err(ctx)? {
+            "expression" => {
+                if expression.is_some() {
+                    return Err(ctx("more than one <expression>".into()));
+                }
+                check_attributes(child, &["invalid"], "<expression>").map_err(ctx)?;
+                invalid_kind = attr(child, "invalid");
+                expression = Some(text(child).trim().to_string());
+            }
+            "output" => {
+                check_attributes(child, &["type"], "<output>").map_err(ctx)?;
+                outputs.push(RawOutput {
+                    output_type: attr(child, "type"),
+                    value: text(child),
+                });
+            }
+            "notes" => notes = Some(text(child)),
+            "capability" => capabilities.push(capability(child).map_err(ctx)?),
+            other => return Err(ctx(format!("unknown element <{other}>"))),
+        }
+    }
+
+    let expected = Value::Array(
+        outputs
+            .iter()
+            .map(|o| output_value(o.output_type.as_deref().unwrap_or("string"), &o.value))
+            .collect(),
+    );
+    let output_types: Vec<String> = outputs
+        .iter()
+        .map(|o| o.output_type.clone().unwrap_or_else(|| "string".into()))
+        .collect();
+
+    Ok(JsonTestCase {
+        expression: expression.ok_or_else(|| ctx("no <expression>".into()))?,
+        input: None,
+        inputfile: attr(node, "inputfile").map(|f| map_inputfile(&f)),
+        expected,
+        tags: vec![format!("official-{}", opts.fhir_version), group.to_string()],
+        description: attr(node, "description"),
+        expect_error: invalid_kind.is_some().then_some(true),
+        invalid_kind,
+        disabled: bool_attr(node, "disabled").map_err(ctx)?,
+        predicate: bool_attr(node, "predicate").map_err(ctx)?,
+        skip_static_check: bool_attr(node, "skipStaticCheck").map_err(ctx)?,
+        mode: attr(node, "mode").or_else(|| group_mode.map(str::to_string)),
+        ordered: bool_attr(node, "ordered").map_err(ctx)?,
+        testing: attr(node, "testing"),
+        context: attr(node, "context"),
+        context_type: attr(node, "contextType"),
+        version: attr(node, "version"),
+        version_to: attr(node, "versionTo"),
+        reference: attr(node, "reference"),
+        notes,
+        capabilities,
+        output_types: (!output_types.is_empty()).then_some(output_types),
+        outputs,
+        name,
+    })
+}
+
+fn parse_suites(xml: &str, opts: &Options) -> Result<Vec<JsonTestSuite>, String> {
+    let doc = Document::parse(xml).map_err(|e| format!("XML parse error: {e}"))?;
+    let root = doc.root_element();
+    if tag(root)? != "tests" {
+        return Err("root element is not <tests>".into());
+    }
+    check_attributes(
+        root,
+        &["name", "description", "reference", "version", "versionTo"],
+        "<tests>",
+    )?;
+
+    let mut suites = Vec::new();
+    let mut test_names = HashSet::new();
+    for group in root.children().filter(Node::is_element) {
+        match tag(group)? {
+            "group" => {}
+            // Suite-level notes/capabilities have no per-group home and are not used.
+            "notes" | "capability" => {
+                return Err(format!(
+                    "top-level <{}> is not supported by the converter",
+                    tag(group)?
+                ));
+            }
+            other => return Err(format!("unknown element <{other}> in <tests>")),
+        }
+        check_attributes(
+            group,
+            &[
+                "name",
+                "description",
+                "reference",
+                "mode",
+                "version",
+                "versionTo",
+            ],
+            "<group>",
+        )?;
+        let name = attr(group, "name").ok_or("<group> without name")?;
+        let mode = attr(group, "mode");
+        let mut suite = JsonTestSuite {
+            name: name.clone(),
+            description: attr(group, "description"),
+            source: Some(opts.source.clone()),
+            fhir_version: Some(opts.fhir_version.clone()),
+            mode: mode.clone(),
+            version: attr(group, "version"),
+            version_to: attr(group, "versionTo"),
+            reference: attr(group, "reference"),
+            notes: None,
+            capabilities: Vec::new(),
+            tests: Vec::new(),
+        };
+        for child in group.children().filter(Node::is_element) {
+            match tag(child)? {
+                "test" => {
+                    let test = parse_test(child, &name, mode.as_deref(), opts)?;
+                    if !test_names.insert(test.name.clone()) {
+                        return Err(format!("duplicate test name '{}'", test.name));
+                    }
+                    suite.tests.push(test);
+                }
+                "notes" => suite.notes = Some(text(child)),
+                "capability" => suite.capabilities.push(capability(child)?),
+                other => return Err(format!("unknown element <{other}> in group '{name}'")),
+            }
+        }
+        suites.push(suite);
+    }
+    Ok(suites)
+}
+
+fn file_name(group: &str) -> String {
+    let safe: String = group
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect();
+    format!("{safe}.json")
+}
+
+/// Read the written suites back and compare them with what was parsed from the XML.
+fn verify(out_dir: &Path, suites: &[JsonTestSuite], xml: &str) -> Result<usize, String> {
+    let declared = Document::parse(xml)
+        .map_err(|e| e.to_string())?
+        .descendants()
+        .filter(|n| n.is_element() && n.tag_name().name() == "test")
+        .count();
+    let mut total = 0;
+    for suite in suites {
+        let path = out_dir.join(file_name(&suite.name));
+        let back: JsonTestSuite = serde_json::from_str(
+            &fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?,
+        )
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+        if back.tests != suite.tests {
+            return Err(format!("{} does not read back identically", path.display()));
+        }
+        total += back.tests.len();
+    }
+    if total != declared {
+        return Err(format!(
+            "XML declares {declared} <test> elements but {total} were written"
+        ));
+    }
+    Ok(total)
+}
+
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("❌ {e}");
         std::process::exit(1);
     }
-    let xml_path = Path::new(&args[1]);
-    println!("📖 Converting XML: {}", xml_path.display());
+}
 
-    let groups = parse_groups(xml_path).map_err(|e| format!("Parse failed: {e}"))?;
+fn run() -> Result<(), String> {
+    let mut args = std::env::args().skip(1);
+    let mut xml_path = None;
+    let mut out_dir = None;
+    let mut fhir_version = None;
+    let mut source = None;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--out" => out_dir = args.next().map(PathBuf::from),
+            "--fhir-version" => fhir_version = args.next(),
+            "--source" => source = args.next(),
+            _ if xml_path.is_none() => xml_path = Some(PathBuf::from(arg)),
+            _ => return Err(format!("unexpected argument '{arg}'")),
+        }
+    }
+    let xml_path = xml_path.ok_or(
+        "usage: convert-r5-xml-to-json <tests.xml> [--out DIR] [--fhir-version r5|r6] [--source TEXT]",
+    )?;
+    let fhir_version = fhir_version.unwrap_or_else(|| "r5".into());
+    let opts = Options {
+        source: source.unwrap_or_else(|| format!("fhir-test-cases {fhir_version}")),
+        fhir_version,
+    };
+    let out_dir = out_dir.unwrap_or_else(|| {
+        xml_path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from("."))
+    });
 
-    // Write JSON suites into the same directory as the XML file
-    let out_dir = xml_path.parent().unwrap_or_else(|| Path::new("."));
-    let mut files_written = 0usize;
-    for (group_name, suite) in groups {
-        let file_name = format!("{}.json", sanitize_group_name(&group_name));
-        let path = out_dir.join(file_name);
-        let json = serde_json::to_string_pretty(&suite)?;
-        fs::write(&path, json)?;
-        files_written += 1;
-        println!("📝 Wrote {} ({} tests)", path.display(), suite.tests.len());
+    println!("📖 Converting {}", xml_path.display());
+    let xml = fs::read_to_string(&xml_path).map_err(|e| format!("{}: {e}", xml_path.display()))?;
+    let suites = parse_suites(&xml, &opts)?;
+
+    fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
+    let mut files = BTreeMap::new();
+    for suite in &suites {
+        let name = file_name(&suite.name);
+        if files.insert(name.clone(), suite.name.clone()).is_some() {
+            return Err(format!("two groups map to the file name {name}"));
+        }
+        let json = serde_json::to_string_pretty(suite).map_err(|e| e.to_string())?;
+        fs::write(out_dir.join(&name), json + "\n").map_err(|e| e.to_string())?;
     }
 
-    println!("✅ Done. Wrote {files_written} group files.");
+    let total = verify(&out_dir, &suites, &xml)?;
+    println!(
+        "✅ Wrote {} suites ({total} tests) to {}, verified against the XML",
+        suites.len(),
+        out_dir.display()
+    );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn opts() -> Options {
+        Options {
+            fhir_version: "r5".into(),
+            source: "test".into(),
+        }
+    }
+
+    const XML: &str = r#"<tests xmlns="http://hl7.org/fhirpath/tests" name="t">
+      <group name="g1" mode="strict" description="d">
+        <test name="a" testing="=" inputfile="patient-example.xml" context="Observation.effective" contextType="Period" ordered="false" version="2.1.0">
+          <expression invalid="semantic">'1&lt;2' &amp; 'x'</expression>
+          <output type="decimal">1.50</output>
+          <output type="date">@2014</output>
+        </test>
+        <test name="b" mode="tx"><expression><![CDATA[1 < 2]]></expression><output type="boolean">true</output></test>
+      </group>
+    </tests>"#;
+
+    #[test]
+    fn carries_every_attribute_and_keeps_output_text() {
+        let suites = parse_suites(XML, &opts()).unwrap();
+        let a = &suites[0].tests[0];
+        assert_eq!(a.expression, "'1<2' & 'x'");
+        assert_eq!(a.invalid_kind.as_deref(), Some("semantic"));
+        assert_eq!(a.expect_error, Some(true));
+        assert_eq!(a.mode.as_deref(), Some("strict"));
+        assert_eq!(a.context.as_deref(), Some("Observation.effective"));
+        assert_eq!(a.context_type.as_deref(), Some("Period"));
+        assert_eq!(a.ordered, Some(false));
+        assert_eq!(a.testing.as_deref(), Some("="));
+        assert_eq!(a.version.as_deref(), Some("2.1.0"));
+        assert_eq!(a.inputfile.as_deref(), Some("patient-example.json"));
+        assert_eq!(a.outputs[0].value, "1.50");
+        assert_eq!(a.expected, serde_json::json!([1.5, "2014"]));
+        let b = &suites[0].tests[1];
+        assert_eq!(b.expression, "1 < 2");
+        assert_eq!(b.mode.as_deref(), Some("tx"));
+    }
+
+    #[test]
+    fn unknown_attributes_and_elements_are_errors() {
+        let attr = XML.replace("version=\"2.1.0\"", "surprise=\"1\"");
+        assert!(parse_suites(&attr, &opts()).is_err());
+        let elem = XML.replace("<output type=\"date\">@2014</output>", "<extra/>");
+        assert!(parse_suites(&elem, &opts()).is_err());
+    }
 }

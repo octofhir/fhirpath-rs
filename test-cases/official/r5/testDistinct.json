@@ -1,0 +1,891 @@
+{
+  "name": "testDistinct",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testDistinct1",
+      "expression": "(1 | 2 | 3).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct2",
+      "expression": "Questionnaire.descendants().linkId.isDistinct()",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct3",
+      "expression": "Questionnaire.descendants().linkId.select(substring(0,1)).isDistinct().not()",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct4",
+      "expression": "(1 | 2 | 3).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        1,
+        2,
+        3
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "testing": "distinct",
+      "outputTypes": [
+        "integer",
+        "integer",
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "1"
+        },
+        {
+          "type": "integer",
+          "value": "2"
+        },
+        {
+          "type": "integer",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct5",
+      "expression": "Questionnaire.descendants().linkId.distinct().count()",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        10
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "testing": "distinct",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "10"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct6",
+      "expression": "Questionnaire.descendants().linkId.select(substring(0,1)).distinct().count()",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        2
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "testing": "distinct",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct7",
+      "expression": "Patient.name.given.isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "string values, one repeated",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct8",
+      "expression": "Patient.name.given.distinct().isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "string values, none repeated",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct9",
+      "expression": "Patient.gender.combine('male').isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "a code and a string with the same value are not distinct",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct10",
+      "expression": "Patient.gender.combine('female').isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "a code and a string with different values",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct11",
+      "expression": "CodeSystem.url.combine('http://hl7.org/fhir/CodeSystem/example').isDistinct()",
+      "input": null,
+      "inputfile": "codesystem-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "a uri and a string with the same value are not distinct",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct12",
+      "expression": "'1'.combine(2).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "a string and an integer",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct13",
+      "expression": "1.0.combine(1.00).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "decimals with different precision",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct14",
+      "expression": "1.combine(2).combine(1).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "integers, one repeated",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct15",
+      "expression": "true.combine(false).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "booleans",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct16",
+      "expression": "true.combine(false).combine(true).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "booleans, one repeated",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct17",
+      "expression": "@T10:00:00.combine(@T11:00:00).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "times",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct18",
+      "expression": "@T10:00:00.combine(@T10:00:00).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "times, one repeated",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct19",
+      "expression": "1.combine('a').combine(true).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "an integer, a string and a boolean",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct20",
+      "expression": "1.combine('a').combine(true).combine('a').isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "an integer, a string and a boolean, with the string repeated",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct21",
+      "expression": "1.combine(1.0).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "an integer and a decimal with the same value are not distinct",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct22",
+      "expression": "1.5.combine(2.5).combine(10.0).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "decimals, none the same",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct23",
+      "expression": "1.5.combine(2.0).combine(1.50).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "decimals that differ only in trailing zeros are not distinct",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct24",
+      "expression": "'1.0'.combine('1.00').combine(5.0).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "strings that differ only in trailing zeros, with a decimal",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct25",
+      "expression": "10.combine(1.5).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "an integer and a decimal",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct26",
+      "expression": "@2020-01-01.combine(@2020-01-02).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "dates",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct27",
+      "expression": "@2020-01-01.combine(@2020-01-01).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "dates, one repeated",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct28",
+      "expression": "@2020-01-01T10:00:00+10:00.combine(@2020-01-01T00:00:00Z).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "the same time in different timezones",
+      "testing": "isDistinct",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct29",
+      "expression": "@2020.combine(@2020-01-01).isDistinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "dates with different precision can't be compared",
+      "testing": "isDistinct"
+    },
+    {
+      "name": "testDistinct30",
+      "expression": "'a'.combine('b').combine('a').distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "b",
+        "a"
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "the last of each repeated value is kept",
+      "testing": "distinct",
+      "outputTypes": [
+        "string",
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "b"
+        },
+        {
+          "type": "string",
+          "value": "a"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct31",
+      "expression": "Patient.gender.combine('male').distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "male"
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "the last of a code and a string with the same value is kept",
+      "testing": "distinct",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "male"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct32",
+      "expression": "1.combine(2).combine(1).combine(3).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        2,
+        1,
+        3
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "integers",
+      "testing": "distinct",
+      "outputTypes": [
+        "integer",
+        "integer",
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "2"
+        },
+        {
+          "type": "integer",
+          "value": "1"
+        },
+        {
+          "type": "integer",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct33",
+      "expression": "1.combine(2).combine(1.0).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        2,
+        1.0
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "an integer and a decimal with the same value",
+      "testing": "distinct",
+      "outputTypes": [
+        "integer",
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "2"
+        },
+        {
+          "type": "decimal",
+          "value": "1.0"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct34",
+      "expression": "true.combine(false).combine(true).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false,
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "booleans",
+      "testing": "distinct",
+      "outputTypes": [
+        "boolean",
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        },
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct35",
+      "expression": "@2020-01-01.combine(@2020-01-02).combine(@2020-01-01).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "2020-01-02",
+        "2020-01-01"
+      ],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "dates",
+      "testing": "distinct",
+      "outputTypes": [
+        "date",
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@2020-01-02"
+        },
+        {
+          "type": "date",
+          "value": "@2020-01-01"
+        }
+      ]
+    },
+    {
+      "name": "testDistinct36",
+      "expression": "@2020.combine(@2020-01-01).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testDistinct"
+      ],
+      "description": "dates with different precision can't be compared",
+      "testing": "distinct"
+    }
+  ]
+}

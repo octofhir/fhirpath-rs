@@ -42,6 +42,26 @@ pub struct TestCase {
     pub category: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subcategory: Option<String>,
+    // Fields carried over from the official XML suites
+    /// `false` when the outputs may come back in any order.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ordered: Option<bool>,
+    /// Expression selecting the focus the test expression is evaluated on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<String>,
+    /// Static type(s) of the context, `|`-separated, for semantic checks.
+    #[serde(
+        rename = "contextType",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub context_type: Option<String>,
+    /// The operator or function the test exercises.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub testing: Option<String>,
+    /// FHIRPath version that introduced the tested behaviour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -55,6 +75,16 @@ pub struct TestSuite {
     // New fields for organized test structure
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
+    /// FHIR version an official suite targets (`r5`, `r6`).
+    #[serde(
+        rename = "fhirVersion",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub fhir_version: Option<String>,
+    /// Group-level mode of an official suite (`strict`, `tx`, `custom`, ...).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
 }
 
 pub fn normalize_type_name(name: &str) -> String {
@@ -83,6 +113,48 @@ pub fn verify_output_types(expected: &[String], actual: &Collection) -> Result<(
     let expected_norm: Vec<String> = expected.iter().map(|t| normalize_type_name(t)).collect();
 
     if actual_norm == expected_norm {
+        Ok(())
+    } else {
+        Err(TypeMismatch {
+            expected: expected.to_vec(),
+            actual: actual_raw,
+        })
+    }
+}
+
+/// Like [`compare_results`], but the items may come back in any order.
+pub fn compare_results_unordered(expected: &Value, actual: &Collection) -> bool {
+    let Ok(Value::Array(mut remaining)) = serde_json::to_value(actual) else {
+        return compare_results(expected, actual);
+    };
+    let Value::Array(wanted) = expected else {
+        return compare_results(expected, actual);
+    };
+    if wanted.len() != remaining.len() {
+        return false;
+    }
+    wanted
+        .iter()
+        .all(|w| match remaining.iter().position(|a| a == w) {
+            Some(i) => {
+                remaining.swap_remove(i);
+                true
+            }
+            None => false,
+        })
+}
+
+/// Item types of a result, order-insensitive check against the expected types.
+pub fn verify_output_types_unordered(
+    expected: &[String],
+    actual: &Collection,
+) -> Result<(), TypeMismatch> {
+    let actual_raw = collect_type_names(actual);
+    let mut expected_norm: Vec<String> = expected.iter().map(|t| normalize_type_name(t)).collect();
+    let mut actual_norm: Vec<String> = actual_raw.iter().map(|t| normalize_type_name(t)).collect();
+    expected_norm.sort();
+    actual_norm.sort();
+    if expected.is_empty() || expected_norm == actual_norm {
         Ok(())
     } else {
         Err(TypeMismatch {

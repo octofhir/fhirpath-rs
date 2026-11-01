@@ -29,20 +29,24 @@
         {
           "code": "271649006",
           "display": "Systolic blood pressure",
-          "target": {
-            "code": "1000000008",
-            "display": "BP -  Systolic blood pressure",
-            "relationship": "equivalent"
-          }
+          "target": [
+            {
+              "code": "1000000008",
+              "display": "BP -  Systolic blood pressure",
+              "relationship": "equivalent"
+            }
+          ]
         },
         {
           "code": "271650006",
           "display": "Diastolic blood pressure",
-          "target": {
-            "code": "1000000009",
-            "display": "BP - Diastolic blood pressure",
-            "relationship": "equivalent"
-          }
+          "target": [
+            {
+              "code": "1000000009",
+              "display": "BP - Diastolic blood pressure",
+              "relationship": "equivalent"
+            }
+          ]
         }
       ],
       "source": "http://snomed.info/sct",
@@ -91,20 +95,24 @@
         {
           "code": "1000000008",
           "display": "BP -  Systolic blood pressure",
-          "target": {
-            "code": "8480-6",
-            "display": "Systolic blood pressure",
-            "relationship": "equivalent"
-          }
+          "target": [
+            {
+              "code": "8480-6",
+              "display": "Systolic blood pressure",
+              "relationship": "equivalent"
+            }
+          ]
         },
         {
           "code": "1000000009",
           "display": "BP - Diastolic blood pressure",
-          "target": {
-            "code": "8462-4",
-            "display": "Diastolic blood pressure",
-            "relationship": "equivalent"
-          }
+          "target": [
+            {
+              "code": "8462-4",
+              "display": "Diastolic blood pressure",
+              "relationship": "equivalent"
+            }
+          ]
         }
       ],
       "source": "http://example.org/CodeSystem/local-measure-type",
@@ -115,20 +123,24 @@
         {
           "code": "8480-6",
           "display": "Systolic blood pressure",
-          "target": {
-            "code": "1000000008",
-            "display": "BP -  Systolic blood pressure",
-            "relationship": "equivalent"
-          }
+          "target": [
+            {
+              "code": "1000000008",
+              "display": "BP -  Systolic blood pressure",
+              "relationship": "equivalent"
+            }
+          ]
         },
         {
           "code": "8462-4",
           "display": "Diastolic blood pressure",
-          "target": {
-            "code": "1000000009",
-            "display": "BP - Diastolic blood pressure",
-            "relationship": "equivalent"
-          }
+          "target": [
+            {
+              "code": "1000000009",
+              "display": "BP - Diastolic blood pressure",
+              "relationship": "equivalent"
+            }
+          ]
         }
       ],
       "source": "http://loinc.org",

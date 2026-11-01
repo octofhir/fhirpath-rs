@@ -1,0 +1,65 @@
+{
+  "name": "testSqrt",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testSqrt1",
+      "expression": "81.sqrt() = 9.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSqrt"
+      ],
+      "testing": "sqrt",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSqrt2",
+      "expression": "(-1).sqrt()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testSqrt"
+      ],
+      "testing": "sqrt"
+    },
+    {
+      "name": "testSqrtEmpty",
+      "expression": "{}.sqrt().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSqrt"
+      ],
+      "testing": "sqrt",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

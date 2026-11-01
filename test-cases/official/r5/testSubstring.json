@@ -1,0 +1,412 @@
+{
+  "name": "testSubstring",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testSubstring1",
+      "expression": "'12345'.substring(2) = '345'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring2",
+      "expression": "'12345'.substring(2,1) = '3'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring3",
+      "expression": "'12345'.substring(2,5) = '345'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring4",
+      "expression": "'12345'.substring(25).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring5",
+      "expression": "'12345'.substring(-1).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring7",
+      "expression": "'LogicalModel-Person'.substring(0, 12)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "LogicalModel"
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "LogicalModel"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring8",
+      "expression": "'LogicalModel-Person'.substring(0, 'LogicalModel-Person'.indexOf('-'))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "LogicalModel"
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "LogicalModel"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring9",
+      "expression": "{}.substring(25).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring10",
+      "expression": "Patient.name.family.first().select(substring(2, length()-5))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "alm"
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "alm"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring10a",
+      "expression": "Patient.name.family.first().substring(2, length()-5)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "testing": "substring"
+    },
+    {
+      "name": "testSubstring11",
+      "expression": "{}.substring({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring12",
+      "expression": "'string'.substring({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring13",
+      "expression": "'abcdefg'.substring(3, -1) = ''",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring14",
+      "expression": "'abcdefg'.substring(0, -1) = ''",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring15",
+      "expression": "'abcdefg'.substring(1, 2147483647) = 'bcdefg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring16",
+      "expression": "'abcdefg'.substring(3, 0) = ''",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring17",
+      "expression": "'abcdefg'.substring(3, {}) = 'defg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSubstring18",
+      "expression": "'abcdefg'.substring(0, {}) = 'abcdefg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSubstring"
+      ],
+      "testing": "substring",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,692 @@
+{
+  "name": "testLessOrEqual",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testLessOrEqual1",
+      "expression": "1 <= 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual2",
+      "expression": "1.0 <= 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual3",
+      "expression": "'a' <= 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual4",
+      "expression": "'A' <= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual5",
+      "expression": "@2014-12-12 <= @2014-12-13",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual6",
+      "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual7",
+      "expression": "@T12:00:00 <= @T14:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual8",
+      "expression": "1 <= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual9",
+      "expression": "1.0 <= 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual10",
+      "expression": "'a' <= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual11",
+      "expression": "'A' <= 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual12",
+      "expression": "@2014-12-12 <= @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual13",
+      "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual14",
+      "expression": "@T12:00:00 <= @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual15",
+      "expression": "2 <= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual16",
+      "expression": "1.1 <= 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual17",
+      "expression": "'b' <= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual18",
+      "expression": "'B' <= 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual19",
+      "expression": "@2014-12-13 <= @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual20",
+      "expression": "@2014-12-13T12:00:01 <= @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual21",
+      "expression": "@T12:00:01 <= @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual22",
+      "expression": "Observation.value <= 200 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual23",
+      "expression": "@2018-03 <= @2018-03-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<="
+    },
+    {
+      "name": "testLessOrEqual24",
+      "expression": "@2018-03-01T10:30 <= @2018-03-01T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<="
+    },
+    {
+      "name": "testLessOrEqual25",
+      "expression": "@T10:30 <= @T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<="
+    },
+    {
+      "name": "testLessOrEqual26",
+      "expression": "@2018-03-01T10:30:00  <= @2018-03-01T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual27",
+      "expression": "@T10:30:00 <= @T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqualEmpty1",
+      "expression": "1 <= {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<="
+    },
+    {
+      "name": "testLessOrEqualEmpty2",
+      "expression": "{} <= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<="
+    },
+    {
+      "name": "testLessOrEqualEmpty3",
+      "expression": "{} <= {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "testing": "<="
+    },
+    {
+      "name": "testLessOrEqual28",
+      "expression": "1 year <= 2 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "description": "a calendar year and a duration in days can't be compared",
+      "testing": "<="
+    },
+    {
+      "name": "testLessOrEqual29",
+      "expression": "1 'kg' <= 999 'g'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "description": "quantities with the same dimension are compared in canonical units",
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLessOrEqual30",
+      "expression": "Parameters.parameter[0].value <= Parameters.parameter[1].value",
+      "input": null,
+      "inputfile": "parameters-quantity-unit-text.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testLessOrEqual"
+      ],
+      "description": "a quantity with only unit text and a coded quantity with the same unit text",
+      "testing": "<=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

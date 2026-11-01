@@ -1,0 +1,142 @@
+{
+  "name": "testCollectionBoolean",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testCollectionBoolean1",
+      "expression": "iif(1 | 2 | 3, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testCollectionBoolean"
+      ],
+      "description": "singleton evaluation: multi-item collection as criterion is an error",
+      "expectError": true,
+      "invalidKind": "semantic",
+      "testing": "iif"
+    },
+    {
+      "name": "testCollectionBoolean2",
+      "expression": "iif({}, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testCollectionBoolean"
+      ],
+      "description": "empty collection as criterion evaluates to false",
+      "testing": "iif",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testCollectionBoolean3",
+      "expression": "iif(true, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testCollectionBoolean"
+      ],
+      "description": "baseline: simple boolean true criterion",
+      "testing": "iif",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testCollectionBoolean4",
+      "expression": "iif({} | true, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testCollectionBoolean"
+      ],
+      "description": "singleton evaluation: union with empty resolves to single-item collection",
+      "testing": "iif",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testCollectionBoolean5",
+      "expression": "iif(true, true, 1/0)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testCollectionBoolean"
+      ],
+      "description": "short-circuit: otherwise-result not evaluated when criterion is true",
+      "testing": "iif",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testCollectionBoolean6",
+      "expression": "iif(false, 1/0, true)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testCollectionBoolean"
+      ],
+      "description": "short-circuit: true-result not evaluated when criterion is false",
+      "testing": "iif",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

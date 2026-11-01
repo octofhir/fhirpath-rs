@@ -1,0 +1,2450 @@
+{
+  "name": "testTypes",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testStringYearConvertsToDate",
+      "expression": "'2015'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDate",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringMonthConvertsToDate",
+      "expression": "'2015-02'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDate",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDayConvertsToDate",
+      "expression": "'2015-02-04'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDate",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringYearConvertsToDateTime",
+      "expression": "'2015'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringMonthConvertsToDateTime",
+      "expression": "'2015-02'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDayConvertsToDateTime",
+      "expression": "'2015-02-04'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringHourConvertsToDateTime",
+      "expression": "'2015-02-04T14'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringMinuteConvertsToDateTime",
+      "expression": "'2015-02-04T14:34'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringSecondConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringMillisecondConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28.123'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringUTCConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28Z'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringTZConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28+10:00'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralYearToDateTime",
+      "expression": "'2015'.toDateTime() = @2015",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralMonthToDateTime",
+      "expression": "'2015-02'.toDateTime() = @2015-02",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDayToDateTime",
+      "expression": "'2015-02-04'.toDateTime() = @2015-02-04",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralSecondToDateTime",
+      "expression": "'2015-02-04T14:34:28'.toDateTime() = @2015-02-04T14:34:28",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralMillisecondToDateTime",
+      "expression": "'2015-02-04T14:34:28.123'.toDateTime() = @2015-02-04T14:34:28.123",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralUTCToDateTime",
+      "expression": "'2015-02-04T14:34:28Z'.toDateTime() = @2015-02-04T14:34:28Z",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralTZToDateTime",
+      "expression": "'2015-02-04T14:34:28+10:00'.toDateTime() = @2015-02-04T14:34:28+10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringHourConvertsToTime",
+      "expression": "'14'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringMinuteConvertsToTime",
+      "expression": "'14:34'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringSecondConvertsToTime",
+      "expression": "'14:34:28'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringMillisecondConvertsToTime",
+      "expression": "'14:34:28.123'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToInteger",
+      "expression": "1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsInteger",
+      "expression": "1.is(Integer)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsSystemInteger",
+      "expression": "1.is(System.Integer)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringLiteralConvertsToInteger",
+      "expression": "'1'.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringLiteralConvertsToIntegerFalse",
+      "expression": "'a'.convertsToInteger().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDecimalConvertsToIntegerFalse",
+      "expression": "'1.0'.convertsToInteger().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringLiteralIsNotInteger",
+      "expression": "'1'.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralConvertsToInteger",
+      "expression": "true.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralIsNotInteger",
+      "expression": "true.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDateIsNotInteger",
+      "expression": "@2013-04-05.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToInteger",
+      "expression": "1.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralToInteger",
+      "expression": "'1'.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToInteger",
+      "expression": "'1.1'.toInteger() = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toInteger"
+    },
+    {
+      "name": "testDecimalLiteralToIntegerIsEmpty",
+      "expression": "'1.1'.toInteger().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralToInteger",
+      "expression": "true.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toInteger",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToDecimal",
+      "expression": "1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsNotDecimal",
+      "expression": "1.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralConvertsToDecimal",
+      "expression": "1.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralIsDecimal",
+      "expression": "1.0.is(Decimal)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralConvertsToDecimal",
+      "expression": "'1'.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralIsNotDecimal",
+      "expression": "'1'.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringLiteralConvertsToDecimalFalse",
+      "expression": "'1.a'.convertsToDecimal().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToDecimal",
+      "expression": "'1.0'.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralIsNotDecimal",
+      "expression": "'1.0'.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralConvertsToDecimal",
+      "expression": "true.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralIsNotDecimal",
+      "expression": "true.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToDecimal",
+      "expression": "1.toDecimal() = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToDeciamlEquivalent",
+      "expression": "1.toDecimal() ~ 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "~",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToDecimal",
+      "expression": "1.0.toDecimal() = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToDecimalEqual",
+      "expression": "'1.1'.toDecimal() = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralToDecimal",
+      "expression": "true.toDecimal() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toDecimal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToQuantity",
+      "expression": "1.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsNotQuantity",
+      "expression": "1.is(Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralConvertsToQuantity",
+      "expression": "1.0.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralIsNotQuantity",
+      "expression": "1.0.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralConvertsToQuantity",
+      "expression": "'1'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralIsNotQuantity",
+      "expression": "'1'.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringQuantityLiteralConvertsToQuantity",
+      "expression": "'1 day'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringQuantityWeekConvertsToQuantity",
+      "expression": "'1 \\'wk\\''.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringQuantityWeekConvertsToQuantityFalse",
+      "expression": "'1 wk'.convertsToQuantity().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToQuantityFalse",
+      "expression": "'1.a'.convertsToQuantity().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToQuantity",
+      "expression": "'1.0'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralIsNotSystemQuantity",
+      "expression": "'1.0'.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralConvertsToQuantity",
+      "expression": "true.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralIsNotSystemQuantity",
+      "expression": "true.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToQuantity",
+      "expression": "1.toQuantity() = 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToQuantity",
+      "expression": "1.0.toQuantity() = 1.0 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralToQuantity",
+      "expression": "'1'.toQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 '1'"
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toQuantity",
+      "outputTypes": [
+        "Quantity"
+      ],
+      "outputs": [
+        {
+          "type": "Quantity",
+          "value": "1 '1'"
+        }
+      ]
+    },
+    {
+      "name": "testStringQuantityLiteralToQuantity",
+      "expression": "'1 day'.toQuantity() = 1 day",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringQuantityDayLiteralToQuantity",
+      "expression": "'1 day'.toQuantity() = 1 'd'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "description": "Contested: calendar day units are not equal to ucum day units",
+      "testing": "toQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringQuantityWeekLiteralToQuantity",
+      "expression": "'1 \\'wk\\''.toQuantity() = 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringQuantityMonthLiteralToQuantity",
+      "expression": "'1 \\'mo\\''.toQuantity() = 1 month",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toQuantity"
+    },
+    {
+      "name": "testStringQuantityYearLiteralToQuantity",
+      "expression": "'1 \\'a\\''.toQuantity() = 1 year",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toQuantity"
+    },
+    {
+      "name": "testStringQuantityMonthToQuantityEquivalent",
+      "expression": "'1 month'.toQuantity() ~ 1 month",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "description": "the quantity converted from '1 month' is equivalent to the calendar duration 1 month",
+      "testing": "toQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringQuantityYearToQuantityEquivalent",
+      "expression": "'1 year'.toQuantity() ~ 1 year",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "description": "the quantity converted from '1 year' is equivalent to the calendar duration 1 year",
+      "testing": "toQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralToQuantity",
+      "expression": "'1.0'.toQuantity() ~ 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toQuantity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToBoolean",
+      "expression": "1.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToBooleanFalse",
+      "expression": "2.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNegativeIntegerLiteralConvertsToBooleanFalse",
+      "expression": "(-1).convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralFalseConvertsToBoolean",
+      "expression": "0.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralConvertsToBoolean",
+      "expression": "1.0.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringTrueLiteralConvertsToBoolean",
+      "expression": "'true'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringFalseLiteralConvertsToBoolean",
+      "expression": "'false'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringFalseLiteralAlsoConvertsToBoolean",
+      "expression": "'False'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testTrueLiteralConvertsToBoolean",
+      "expression": "true.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testFalseLiteralConvertsToBoolean",
+      "expression": "false.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToBoolean",
+      "expression": "1.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToBooleanEmpty",
+      "expression": "2.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toBoolean"
+    },
+    {
+      "name": "testIntegerLiteralToBooleanFalse",
+      "expression": "0.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testStringTrueToBoolean",
+      "expression": "'true'.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringFalseToBoolean",
+      "expression": "'false'.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toBoolean",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToString",
+      "expression": "1.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToString",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsNotString",
+      "expression": "1.is(String).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNegativeIntegerLiteralConvertsToString",
+      "expression": "(-1).convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToString",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralConvertsToString",
+      "expression": "1.0.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToString",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStringLiteralConvertsToString",
+      "expression": "'true'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToString",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralConvertsToString",
+      "expression": "true.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToString",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantityLiteralConvertsToString",
+      "expression": "1 'wk'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "convertsToString",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToString",
+      "expression": "1.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1"
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toString",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "testNegativeIntegerLiteralToString",
+      "expression": "(-1).toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "-1"
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toString",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToString",
+      "expression": "1.0.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1.0"
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toString",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "1.0"
+        }
+      ]
+    },
+    {
+      "name": "testStringLiteralToString",
+      "expression": "'true'.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true"
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toString",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testBooleanLiteralToString",
+      "expression": "true.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true"
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toString",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testQuantityLiteralWkToString",
+      "expression": "1 'wk'.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 'wk'"
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toString",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "1 'wk'"
+        }
+      ]
+    },
+    {
+      "name": "testQuantityLiteralWeekToString",
+      "expression": "1 week.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 week"
+      ],
+      "tags": [
+        "official-r5",
+        "testTypes"
+      ],
+      "testing": "toString",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "1 week"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,480 @@
+{
+  "name": "testInheritance",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testFHIRPathIsFunction1",
+      "expression": "Patient.gender.is(code)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction2",
+      "expression": "Patient.gender.is(string)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction3",
+      "expression": "Patient.gender.is(id)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction4",
+      "expression": "Questionnaire.url.is(uri)",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction5",
+      "expression": "Questionnaire.url.is(url)",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction6",
+      "expression": "ValueSet.version.is(string)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction7",
+      "expression": "ValueSet.version.is(code)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction8",
+      "expression": "Observation.extension('http://example.com/fhir/StructureDefinition/patient-age').value is Age",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction9",
+      "expression": "Observation.extension('http://example.com/fhir/StructureDefinition/patient-age').value is Quantity",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathIsFunction10",
+      "expression": "Observation.extension('http://example.com/fhir/StructureDefinition/patient-age').value is Duration",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "is",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathAsFunction11",
+      "expression": "Patient.gender.as(string)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "description": "Contested: code type is a subtype of string",
+      "testing": "as"
+    },
+    {
+      "name": "testFHIRPathAsFunction12",
+      "expression": "Patient.gender.as(code)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "male"
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "as",
+      "outputTypes": [
+        "code"
+      ],
+      "outputs": [
+        {
+          "type": "code",
+          "value": "male"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathAsFunction13",
+      "expression": "Patient.gender.as(id)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "as"
+    },
+    {
+      "name": "testFHIRPathAsFunction14",
+      "expression": "ValueSet.version.as(string)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        "20150622"
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "as",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "20150622"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathAsFunction15",
+      "expression": "ValueSet.version.as(code)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "as"
+    },
+    {
+      "name": "testFHIRPathAsFunction16",
+      "expression": "Patient.gender.ofType(string)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "description": "Contested: code type is a subtype of string",
+      "testing": "ofType"
+    },
+    {
+      "name": "testFHIRPathAsFunction17",
+      "expression": "Patient.gender.ofType(code)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "male"
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "ofType",
+      "outputTypes": [
+        "code"
+      ],
+      "outputs": [
+        {
+          "type": "code",
+          "value": "male"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathAsFunction18",
+      "expression": "Patient.gender.ofType(id)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "ofType"
+    },
+    {
+      "name": "testFHIRPathAsFunction19",
+      "expression": "ValueSet.version.ofType(string)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        "20150622"
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "ofType",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "20150622"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathAsFunction20",
+      "expression": "ValueSet.version.ofType(code)",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "ofType"
+    },
+    {
+      "name": "testFHIRPathAsFunction21",
+      "expression": "Patient.name.as(HumanName).use",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "as"
+    },
+    {
+      "name": "testFHIRPathAsFunction22",
+      "expression": "Patient.name.ofType(HumanName).use",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "official",
+        "usual",
+        "maiden"
+      ],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "testing": "ofType",
+      "outputTypes": [
+        "code",
+        "code",
+        "code"
+      ],
+      "outputs": [
+        {
+          "type": "code",
+          "value": "official"
+        },
+        {
+          "type": "code",
+          "value": "usual"
+        },
+        {
+          "type": "code",
+          "value": "maiden"
+        }
+      ]
+    },
+    {
+      "name": "testFHIRPathAsFunction23",
+      "expression": "Patient.gender.as(string1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "as"
+    },
+    {
+      "name": "testFHIRPathAsFunction24",
+      "expression": "Patient.gender.ofType(string1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testInheritance"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "ofType"
+    }
+  ]
+}

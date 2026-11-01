@@ -1,10 +1,12 @@
 {
-  "caseSensitive": "true",
-  "concept": {
-    "code": "125901",
-    "definition": "CARDIOsphere&#153; ultrasonic contrast agent produced by POINT Biomedical",
-    "display": "CARDIOsphere"
-  },
+  "caseSensitive": true,
+  "concept": [
+    {
+      "code": "125901",
+      "definition": "CARDIOsphere ultrasonic contrast agent produced by POINT Biomedical",
+      "display": "CARDIOsphere"
+    }
+  ],
   "content": "complete",
   "resourceType": "CodeSystem",
   "status": "active"

@@ -1,0 +1,44 @@
+{
+  "name": "testSingle",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testSingle1",
+      "expression": "Patient.name.first().single().exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testSingle"
+      ],
+      "testing": "single",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSingle2",
+      "expression": "Patient.name.single().exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testSingle"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "single"
+    }
+  ]
+}

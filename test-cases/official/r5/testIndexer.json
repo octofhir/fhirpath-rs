@@ -1,0 +1,66 @@
+{
+  "name": "testIndexer",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testIndexer1",
+      "expression": "Patient.name[0].given = 'Peter' | 'James'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testIndexer"
+      ],
+      "testing": "[]",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIndexer2",
+      "expression": "Patient.name[1].given = 'Jim'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testIndexer"
+      ],
+      "testing": "[]",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIndexer3",
+      "expression": "Patient.name[-1]",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testIndexer"
+      ],
+      "description": "a negative index is out of range, so the result is empty",
+      "testing": "[]"
+    }
+  ]
+}

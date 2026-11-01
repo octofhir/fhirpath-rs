@@ -1,0 +1,57 @@
+{
+  "name": "from-Zulip",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "reference": "http://hl7.org/fhirpath/#singleton-evaluation-of-collections",
+  "notes": "These tests are based on the discussion here: https://chat.fhir.org/#narrow/stream/179266-fhirpath/topic/Singleton.20Evaluation.20of.20Collections\n\t\tIn particular, per Singleton Evaluation of Collections, if an argument does not implicitly convert to a boolean, it is considered true if there is a single element, empty otherwise, so `true and 'foo'` evaluates to `true`, which is not empty,\n\t\tbut `true | 'foo'` is a collection, which results in an error because `'foo'` cannot be converted to a boolean for consideration in `allTrue()`.",
+  "tests": [
+    {
+      "name": "from-zulip-1",
+      "expression": "(true and 'foo').empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "from-Zulip"
+      ],
+      "testing": "and",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "from-zulip-2",
+      "expression": "(true | 'foo').allTrue()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "from-Zulip"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "allTrue",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    }
+  ]
+}

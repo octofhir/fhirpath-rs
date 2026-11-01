@@ -1,0 +1,757 @@
+{
+  "name": "testPlus",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testPlus1",
+      "expression": "1 + 1 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testPlus2",
+      "expression": "1 + 0 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testPlus3",
+      "expression": "1.2 + 1.8 = 3.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testPlus4",
+      "expression": "'a'+'b' = 'ab'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testPlus5",
+      "expression": "'a'+{}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+"
+    },
+    {
+      "name": "testPlusDate1",
+      "expression": "@1973-12-25 + 7 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@1974-01-01"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate2",
+      "expression": "@1973-12-25 + 7.7 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@1974-01-01"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate3",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 7 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01T00:00:00.000+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1974-01-01T00:00:00.000+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate4",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 7.7 days",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01T00:00:00.000+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1974-01-01T00:00:00.000+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate5",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 second",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:01.000+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T00:00:01.000+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate6",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 10 millisecond",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:00.010+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T00:00:00.010+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate7",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 minute",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:01:00.000+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T00:01:00.000+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate8",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 hour",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T01:00:00.000+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T01:00:00.000+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate9",
+      "expression": "@1973-12-25 + 1 day",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-26"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@1973-12-26"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate10",
+      "expression": "@1973-12-25 + 1 month",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-25"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@1974-01-25"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate11",
+      "expression": "@1973-12-25 + 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@1974-01-01"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate12",
+      "expression": "@1973-12-25 + 1 year",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-12-25"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@1974-12-25"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate13",
+      "expression": "@1973-12-25 + 1 'd'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-26"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@1973-12-26"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate14",
+      "expression": "@1973-12-25 + 1 'mo'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "+"
+    },
+    {
+      "name": "testPlusDate15",
+      "expression": "@1973-12-25 + 1 'wk'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-01-01"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "date"
+      ],
+      "outputs": [
+        {
+          "type": "date",
+          "value": "@1974-01-01"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate16",
+      "expression": "@1973-12-25 + 1 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "+"
+    },
+    {
+      "name": "testPlusDate17",
+      "expression": "@1975-12-25 + 1 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "+"
+    },
+    {
+      "name": "testPlusDate18",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 's'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:01.000+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T00:00:01.000+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate19",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 0.1 's'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:00.100+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T00:00:00.100+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate20",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 10 'ms'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:00:00.010+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T00:00:00.010+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate21",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 'min'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T00:01:00.000+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T00:01:00.000+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate22",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 'h'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1973-12-25T01:00:00.000+10:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@1973-12-25T01:00:00.000+10:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlus6",
+      "expression": "@1974-12-25 + 7",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "testing": "+"
+    },
+    {
+      "name": "testPlusTime1",
+      "expression": "@T01:00:00 + 2 hours",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T03:00:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "time"
+      ],
+      "outputs": [
+        {
+          "type": "time",
+          "value": "@T03:00:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusTime2",
+      "expression": "@T23:00:00 + 2 hours",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T01:00:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "time"
+      ],
+      "outputs": [
+        {
+          "type": "time",
+          "value": "@T01:00:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusTime3",
+      "expression": "@T23:00:00 + 50 hours",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T01:00:00"
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+",
+      "outputTypes": [
+        "time"
+      ],
+      "outputs": [
+        {
+          "type": "time",
+          "value": "@T01:00:00"
+        }
+      ]
+    },
+    {
+      "name": "testPlusEmpty1",
+      "expression": "1 + {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+"
+    },
+    {
+      "name": "testPlusEmpty2",
+      "expression": "{} + 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+"
+    },
+    {
+      "name": "testPlusEmpty3",
+      "expression": "{} + {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "testing": "+"
+    },
+    {
+      "name": "testPlusDate23",
+      "expression": "@2015-02-04T10:00Z + 1 hour = @2015-02-04T11:00Z",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "description": "a dateTime with minute precision plus a calendar duration",
+      "testing": "+",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testPlusDate24",
+      "expression": "@2015-02-04T10Z + 1 hour = @2015-02-04T11Z",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testPlus"
+      ],
+      "description": "a dateTime written with the hour only plus a calendar duration",
+      "testing": "+",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

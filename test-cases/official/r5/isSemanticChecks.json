@@ -1,0 +1,858 @@
+{
+  "name": "isSemanticChecks",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "mode": "semantic",
+  "tests": [
+    {
+      "name": "isEffectOnLogic1Base",
+      "expression": "$this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isEffectOnLogic2Base",
+      "expression": "$this.toString().length() > 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "dateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "isEffectOnLogic3Base",
+      "expression": "$this.toString().length() > 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isEffectOnLogic1",
+      "expression": "$this is dateTime implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isEffectOnLogic2",
+      "expression": "$this is dateTime implies $this.toString().length() > 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "dateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "isEffectOnLogic3",
+      "expression": "$this is dateTime implies $this.toString().length() > 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "isGuardFnImplies",
+      "expression": "$this.is(dateTime) implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardFnImpliesBad",
+      "expression": "$this.is(Period) implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing"
+    },
+    {
+      "name": "isGuardImpliesBad",
+      "expression": "$this is Period implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing"
+    },
+    {
+      "name": "isGuardImpliesEmpty",
+      "expression": "$this is dateTime implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardOrTypesImplies",
+      "expression": "($this is dateTime or $this is instant) implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardOrTypesImpliesBad",
+      "expression": "($this is dateTime or $this is Period) implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isGuardOrTypesImpliesAll",
+      "expression": "($this is dateTime or $this is Period) implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardOrFnTypesImpliesBad",
+      "expression": "($this.is(dateTime) or $this.is(Period)) implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isGuardAndOtherImplies",
+      "expression": "($this is dateTime and %resource.status = 'final') implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardOtherAndImplies",
+      "expression": "(%resource.status = 'final' and $this is dateTime) implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardOrOtherImpliesBad",
+      "expression": "($this is dateTime or %resource.status = 'final') implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isGuardOrOtherImpliesNoParensBad",
+      "expression": "$this is dateTime or %resource.status = 'final' implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isGuardOrInnerImplies",
+      "expression": "$this is Period or (%resource.status = 'final' implies $this.toString().length() >= 10)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardOrInnerImpliesBad",
+      "expression": "$this is Period or (%resource.status = 'final' implies $this.toString().length() >= 10)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing"
+    },
+    {
+      "name": "isGuardAnd",
+      "expression": "$this is dateTime and $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardAndBad",
+      "expression": "$this is Period and $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing"
+    },
+    {
+      "name": "isGuardOr",
+      "expression": "$this is Period or $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardOr2",
+      "expression": "$this is Period or $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|dateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardOrBad",
+      "expression": "$this is Period or $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing"
+    },
+    {
+      "name": "isGuardOrBoth",
+      "expression": "$this is Period or $this is Timing or $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardXorBad",
+      "expression": "$this is dateTime xor $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isGuardXorBad2",
+      "expression": "$this is dateTime xor $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|dateTime",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "isGuardNotImplies",
+      "expression": "($this is Period).not() implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardNotImpliesBad",
+      "expression": "($this is Period).not() implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing"
+    },
+    {
+      "name": "isGuardIifTrue",
+      "expression": "iif($this is dateTime, $this.toString().length() >= 10, true)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardIifElse",
+      "expression": "iif($this is Period, true, $this.toString().length() >= 10)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardIifBad",
+      "expression": "iif($this is Period, $this.toString().length() >= 10, true)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isGuardNested",
+      "expression": "$this is Period implies ($this is dateTime implies $this.toString().length() >= 10)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period|Timing",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardSupertypeBad",
+      "expression": "$this is Element implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isGuardOtherExpressionBad",
+      "expression": "$this.start is dateTime implies $this.toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period"
+    },
+    {
+      "name": "isGuardOfType",
+      "expression": "$this.ofType(dateTime).toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "isGuardAs",
+      "expression": "($this as dateTime).toString().length() >= 10",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "isSemanticChecks"
+      ],
+      "mode": "semantic",
+      "testing": "is",
+      "context": "Observation.effective",
+      "contextType": "Period",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

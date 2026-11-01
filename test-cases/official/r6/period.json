@@ -1,0 +1,55 @@
+{
+  "name": "period",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testPeriodInvariantOld",
+      "expression": "Patient.identifier.period.all(start.hasValue().not() or end.hasValue().not() or (start <= end))",
+      "input": null,
+      "inputfile": "patient-example-period.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "period"
+      ],
+      "description": "old period invariant using hasValue() - incorrectly rejects valid boundary data",
+      "testing": "invariant",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testPeriodInvariantNew",
+      "expression": "Patient.identifier.period.all(start.empty() or end.empty() or (start.lowBoundary() < end.highBoundary()))",
+      "input": null,
+      "inputfile": "patient-example-period.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "period"
+      ],
+      "description": "new period invariant using lowBoundary/highBoundary - correctly accepts boundary data",
+      "testing": "invariant",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

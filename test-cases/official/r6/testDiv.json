@@ -1,0 +1,183 @@
+{
+  "name": "testDiv",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testDiv1",
+      "expression": "1 div 1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDiv2",
+      "expression": "4 div 2 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDiv3",
+      "expression": "5 div 2 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDiv4",
+      "expression": "2.2 div 1.8 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDiv5",
+      "expression": "5 div 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div"
+    },
+    {
+      "name": "testDiv6",
+      "expression": "-5.5 div 2 = -2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDivEmpty1",
+      "expression": "1 div {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div"
+    },
+    {
+      "name": "testDivEmpty2",
+      "expression": "{} div 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div"
+    },
+    {
+      "name": "testDivEmpty3",
+      "expression": "{} div {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "testing": "div"
+    },
+    {
+      "name": "testDiv7",
+      "expression": "0 div 0.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testDiv"
+      ],
+      "description": "div by a decimal zero is empty, also when the dividend is zero",
+      "testing": "div"
+    }
+  ]
+}

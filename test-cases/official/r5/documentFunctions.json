@@ -1,0 +1,2718 @@
+{
+  "name": "documentFunctions",
+  "description": "Functions for FHIR documents: section(), entry(), entryIn(), resources(), resourcesIn(), sameSubject() and hasCoding(). These are not part of FHIRPath, nor of the FHIR specification's additional FHIRPath functions - they are an extension of the HL7 Java reference implementation (org.hl7.fhir.core), so other engines run them only if they choose to implement the functions",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "mode": "custom",
+  "notes": "\n  section(system, code [, min, max]): on documents (Bundles) or Compositions (a document's Composition is its first Composition entry), the\n    Composition's sections, nested ones too, whose code has a coding that matches system and code. min and max default to 1 and 1.\n  entry(system, code [, min, max]): on sections, their entries (resolved in the document) whose code has a coding that matches system and\n    code. min and max default to 0 and *.\n  entryIn(valueSet [, min, max]): as entry(), with a code in the value set (a canonical, with |version or not). Empty if valueSet is empty.\n  resources(system, code [, type]): on documents, or anything in one, every resource in the document whose code has a coding that matches\n    system and code (and of that type, unless type is empty or isn't given).\n  resourcesIn(valueSet [, type]): as resources(), with a code in the value set. Empty if valueSet is empty.\n  sameSubject([other]): whether the focus resource has the same subject (its subject or its patient) as other - or, without other, as the\n    Composition of the document the evaluation is on (a Bundle of type document). Empty if the focus or other isn't a single resource, either\n    has no subject (or more than one), or, without other, the evaluation isn't on a document. Otherwise true if both references are present and\n    identical strings; else if both identifiers are present and have identical system and value; otherwise false. other given as empty\n    ({}) is not the same as no other: the result is empty.\n  hasCoding(system, code [, version]): on Codings or CodeableConcepts, whether any coding matches. A parameter that is a string must\n    match the coding's system, code or version precisely (so a coding without a version doesn't match a version that is given); a\n    parameter that is empty ({}), or the version when it isn't given, is ignored. Empty when the input is empty; otherwise true or false.\n\n  A resource's code is its code, vaccineCode or medication (a CodeableConcept, or a CodeableReference's concept).\n  A coding matches system and code as in hasCoding(): a string must match precisely, and an empty one ({}) is ignored.\n  min and max are both given or neither; max may be '*'. Either may be empty ({}), and an empty one - or both, when they aren't given -\n  takes the function's default. Other than sameSubject's other, a parameter is a single value or empty: one that is more than one\n  makes the result empty. When the number found for an input item is outside min..max, that item adds\n  nothing to the output - it is not an error. A value set that can't be found, or a membership that can't be determined, is an error.\n  References are resolved in the document as the validator resolves references in a Bundle: an absolute reference by fullUrl, a\n  relative one (Type/id) against the base of the Composition's fullUrl when that is a RESTful URL (before R4, also by type and id),\n  and '#id' as a resource contained in the Composition. A fragment on a reference is ignored, and more than one match is no match.\n  One that can't be resolved is left out.\n\t\t",
+  "tests": [
+    {
+      "name": "testSection1",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        1
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "testSection2",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').title",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "Problems"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "Problems"
+        }
+      ]
+    },
+    {
+      "name": "testSection3",
+      "expression": "Bundle.section('http://loinc.org', '11450-4', 1, 1).exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSection4",
+      "expression": "Bundle.section('http://loinc.org', '11450-4', 0, '*').exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSection5",
+      "expression": "Bundle.section('http://loinc.org', '11450-4', 2, '*').exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testSection6",
+      "expression": "Bundle.section('http://loinc.org', '11348-0', 0, 0).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSection7",
+      "expression": "Bundle.section('http://loinc.org', '8716-3').title",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "Vital signs"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "Vital signs"
+        }
+      ]
+    },
+    {
+      "name": "testSection8",
+      "expression": "Bundle.entry.resource.ofType(Composition).section('http://loinc.org', '48765-2').count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        1
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "testSection9",
+      "expression": "Bundle.section('http://snomed.info/sct', '11450-4').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSection10",
+      "expression": "Bundle.entry.resource.ofType(Patient).section('http://loinc.org', '11450-4').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSection11",
+      "expression": "Bundle.section('http://loinc.org', '11450-4', 2, 1)",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "mode": "custom",
+      "testing": "section"
+    },
+    {
+      "name": "testSection12",
+      "expression": "Bundle.section('http://loinc.org', '11450-4', 1, 'many')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "mode": "custom",
+      "testing": "section"
+    },
+    {
+      "name": "testSection13",
+      "expression": "Bundle.section('http://loinc.org', '11450-4', 1)",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "syntax",
+      "mode": "custom",
+      "testing": "section"
+    },
+    {
+      "name": "testSection14",
+      "expression": "Bundle.section({}, '11450-4').title",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "Problems"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty system is ignored",
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "Problems"
+        }
+      ]
+    },
+    {
+      "name": "testSection15",
+      "expression": "Bundle.section('http://loinc.org', {}, 0, '*').count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        6
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty code is ignored: all six sections have a LOINC code",
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "name": "testSection16",
+      "expression": "Bundle.section('http://loinc.org', {}).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "without min and max, exactly one section must match: six do, so none are returned",
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSection17",
+      "expression": "Bundle.section('http://loinc.org', '11450-4', {}, {}).count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        1
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "empty min and max are the defaults, 1 and 1",
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "testSection18",
+      "expression": "Bundle.section('http://loinc.org', {}, {}, {}).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "empty min and max are the defaults, 1 and 1: six sections match, so none are returned",
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSection19",
+      "expression": "Bundle.section('http://LOINC.org', '11450-4').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "the system must match precisely",
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSection20",
+      "expression": "Bundle.section('http://loinc.org', '11450-4', (0 | 1), '*').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a parameter with more than one value makes the result empty (checking the expression gives a warning)",
+      "mode": "custom",
+      "testing": "section",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntry1",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', '38341003').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c1"
+        }
+      ]
+    },
+    {
+      "name": "testEntry2",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', '44054006').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "Condition/c2 is a relative reference, and the Composition's fullUrl is not a RESTful URL, so it doesn't resolve - even though there is an entry whose fullUrl ends with Condition/c2",
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntry3",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', '195967001').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntry4",
+      "expression": "Bundle.section('http://loinc.org', '10160-0').entry('http://snomed.info/sct', '108774000').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "m1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "m1"
+        }
+      ]
+    },
+    {
+      "name": "testEntry5",
+      "expression": "Bundle.section('http://loinc.org', '10160-0').entry('http://snomed.info/sct', '387207008').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "med2"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "med2"
+        }
+      ]
+    },
+    {
+      "name": "testEntry6",
+      "expression": "Bundle.section('http://loinc.org', '11369-6').entry('http://snomed.info/sct', '871875004').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "i1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "i1"
+        }
+      ]
+    },
+    {
+      "name": "testEntry7",
+      "expression": "Bundle.section('http://loinc.org', '30954-2').entry('http://loinc.org', '8480-6').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntry8",
+      "expression": "Bundle.section('http://loinc.org', '8716-3').entry('http://loinc.org', '8480-6').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "o1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "o1"
+        }
+      ]
+    },
+    {
+      "name": "testEntry9",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', '38341003', 1, 1).exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntry10",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', '38341003', 2, '*').exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEntry11",
+      "expression": "Bundle.section('http://loinc.org', '48765-2').entry('http://snomed.info/sct', '764146007').patient.reference",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "urn:uuid:5b6a5a3e-46f3-4a4e-9c3b-8f0e1b2d6a03"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "urn:uuid:5b6a5a3e-46f3-4a4e-9c3b-8f0e1b2d6a03"
+        }
+      ]
+    },
+    {
+      "name": "testEntry12",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "syntax",
+      "mode": "custom",
+      "testing": "entry"
+    },
+    {
+      "name": "testEntry13",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry({}, '38341003').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty system is ignored",
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c1"
+        }
+      ]
+    },
+    {
+      "name": "testEntry14",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', {}).id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty code is ignored: c4 is not a SNOMED CT code, and Condition/c2 doesn't resolve",
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c1"
+        }
+      ]
+    },
+    {
+      "name": "testEntry15",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry({}, {}).where(id = 'c4').exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "with system and code both empty, every resolved entry that has a coding matches - c4 too",
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntry16",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry({}, {}).count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        2
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "name": "testEntry17",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry({}, {}, {}, {}).count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        2
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "empty min and max are the defaults, 0 and *",
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "name": "testEntry18",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry({}, {}, 2, {}).count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        2
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty max is the default, *",
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "name": "testEntry19",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry({}, {}, {}, 1).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty min is the default, 0: two match, more than max",
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntry20",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', ('38341003' | '44054006')).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a parameter with more than one value makes the result empty (checking the expression gives a warning)",
+      "mode": "custom",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntryIn1",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn('http://hl7.org/fhir/ValueSet/data-absent-reason').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c4"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entryIn",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c4"
+        }
+      ]
+    },
+    {
+      "name": "testEntryIn2",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn('http://hl7.org/fhir/ValueSet/data-absent-reason', 1, 1).exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entryIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntryIn3",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn('http://hl7.org/fhir/ValueSet/data-absent-reason', 0, 0).exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entryIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testEntryIn4",
+      "expression": "Bundle.section('http://loinc.org', '48765-2').entryIn('http://hl7.org/fhir/ValueSet/data-absent-reason').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "entryIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntryIn5",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn('http://example.org/fhir/ValueSet/not-a-value-set')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "mode": "custom",
+      "testing": "entryIn"
+    },
+    {
+      "name": "testEntryIn6",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn('not a value set')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "mode": "custom",
+      "testing": "entryIn"
+    },
+    {
+      "name": "testEntryIn7",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn({}).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "empty when the value set is empty",
+      "mode": "custom",
+      "testing": "entryIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEntryIn8",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn('http://hl7.org/fhir/ValueSet/data-absent-reason', {}, {}).id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c4"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "empty min and max are the defaults, 0 and *",
+      "mode": "custom",
+      "testing": "entryIn",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c4"
+        }
+      ]
+    },
+    {
+      "name": "testEntryIn9",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn(('http://hl7.org/fhir/ValueSet/data-absent-reason' | 'http://hl7.org/fhir/ValueSet/condition-code')).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a parameter with more than one value makes the result empty (checking the expression gives a warning)",
+      "mode": "custom",
+      "testing": "entryIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResources1",
+      "expression": "Bundle.resources('http://snomed.info/sct', '195967001').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c3"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c3"
+        }
+      ]
+    },
+    {
+      "name": "testResources2",
+      "expression": "Bundle.resources('http://snomed.info/sct', '38341003', 'Condition').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c1"
+        }
+      ]
+    },
+    {
+      "name": "testResources3",
+      "expression": "Bundle.resources('http://snomed.info/sct', '38341003', 'Observation').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResources4",
+      "expression": "Bundle.entry.resource.ofType(Composition).resources('http://snomed.info/sct', '108774000').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "m1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "m1"
+        }
+      ]
+    },
+    {
+      "name": "testResources5",
+      "expression": "Bundle.resources('http://snomed.info/sct', '871875004').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "i1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "i1"
+        }
+      ]
+    },
+    {
+      "name": "testResources6",
+      "expression": "Bundle.resources('http://snomed.info/sct', '387207008').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResources7",
+      "expression": "Bundle.resources('http://snomed.info/sct', '38341003', 'condition')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "mode": "custom",
+      "testing": "resources"
+    },
+    {
+      "name": "testResources8",
+      "expression": "Bundle.resources({}, '38341003').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty system is ignored",
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c1"
+        }
+      ]
+    },
+    {
+      "name": "testResources9",
+      "expression": "Bundle.resources('http://loinc.org', {}).count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        4
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty code is ignored",
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "name": "testResources10",
+      "expression": "Bundle.resources('http://snomed.info/sct', '38341003', {}).id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c1"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty type is ignored",
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c1"
+        }
+      ]
+    },
+    {
+      "name": "testResources11",
+      "expression": "Bundle.resources({}, {}, 'Observation').count()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        4
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "name": "testResources12",
+      "expression": "Bundle.resources('http://snomed.info/sct', '38341003', ('Condition' | 'Observation')).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a parameter with more than one value makes the result empty (checking the expression gives a warning)",
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResourcesIn1",
+      "expression": "Bundle.resourcesIn('http://hl7.org/fhir/ValueSet/data-absent-reason').id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c4"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resourcesIn",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c4"
+        }
+      ]
+    },
+    {
+      "name": "testResourcesIn2",
+      "expression": "Bundle.resourcesIn('http://hl7.org/fhir/ValueSet/data-absent-reason', 'Observation').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resourcesIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResourcesIn3",
+      "expression": "Bundle.resourcesIn('http://example.org/fhir/ValueSet/not-a-value-set')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "mode": "custom",
+      "testing": "resourcesIn"
+    },
+    {
+      "name": "testResourcesIn4",
+      "expression": "Bundle.resourcesIn({}).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "empty when the value set is empty",
+      "mode": "custom",
+      "testing": "resourcesIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResourcesIn5",
+      "expression": "Bundle.resourcesIn('http://hl7.org/fhir/ValueSet/data-absent-reason', {}).id",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        "c4"
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty type is ignored",
+      "mode": "custom",
+      "testing": "resourcesIn",
+      "outputTypes": [
+        "id"
+      ],
+      "outputs": [
+        {
+          "type": "id",
+          "value": "c4"
+        }
+      ]
+    },
+    {
+      "name": "testResourcesIn6",
+      "expression": "Bundle.resourcesIn(('http://hl7.org/fhir/ValueSet/data-absent-reason' | 'http://hl7.org/fhir/ValueSet/condition-code')).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a parameter with more than one value makes the result empty (checking the expression gives a warning)",
+      "mode": "custom",
+      "testing": "resourcesIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject1",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').sameSubject()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject2",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c5').sameSubject()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject3",
+      "expression": "Bundle.entry.resource.ofType(AllergyIntolerance).sameSubject()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "patient (AllergyIntolerance), not subject",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject4",
+      "expression": "Bundle.entry.resource.ofType(Composition).sameSubject()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject5",
+      "expression": "Bundle.entry.resource.ofType(Patient).first().sameSubject().empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a Patient has no subject or patient",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject6",
+      "expression": "Bundle.entry.resource.ofType(Condition).sameSubject().empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "the focus must be a single resource",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject7",
+      "expression": "Bundle.entry.resource.ofType(Condition).all(sameSubject())",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject8",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', '38341003').all(sameSubject())",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject9",
+      "expression": "Bundle.entry.resource.ofType(Immunization).sameSubject(%resource.entry.resource.ofType(Condition).where(id = 'c1'))",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "subject and patient are compared",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject10",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').sameSubject(%resource.entry.resource.ofType(Condition).where(id = 'c5'))",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject11",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').sameSubject(%resource.entry.resource.ofType(Condition)).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "other must be a single resource",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject12",
+      "expression": "Bundle.entry.resource.ofType(Observation).where(id = 'o2').sameSubject(%resource.entry.resource.ofType(Observation).where(id = 'o3'))",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "identifiers are compared when neither has a reference",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject13",
+      "expression": "Bundle.entry.resource.ofType(Observation).where(id = 'o2').sameSubject(%resource.entry.resource.ofType(Observation).where(id = 'o4'))",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "the identifier systems differ",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject14",
+      "expression": "Bundle.entry.resource.ofType(Observation).where(id = 'o2').sameSubject()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a reference and an identifier aren't compared, even though the patient has that identifier",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject15",
+      "expression": "Observation.sameSubject().empty()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "without other, the evaluation must be on a document",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSameSubject16",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').sameSubject(%resource, %resource)",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "syntax",
+      "mode": "custom",
+      "testing": "sameSubject"
+    },
+    {
+      "name": "testSameSubject17",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').sameSubject({}).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "other given but empty: the result is empty - the Composition is used only when other isn't given",
+      "mode": "custom",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDocumentElement1",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entry('http://snomed.info/sct', '38341003').id = 'c1'",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "element",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDocumentElement2",
+      "expression": "Bundle.resources('http://snomed.info/sct', '871875004').id = 'i1'",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "element",
+      "testing": "resources",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDocumentElement3",
+      "expression": "Bundle.section('http://loinc.org', '11450-4').entryIn('http://hl7.org/fhir/ValueSet/data-absent-reason').id = 'c4'",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "element",
+      "testing": "entryIn",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDocumentElement4",
+      "expression": "Bundle.section('http://loinc.org', '10160-0').entry('http://snomed.info/sct', '387207008').id = 'med2'",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "element",
+      "testing": "entry",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDocumentElement5",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c5').sameSubject() = false",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "element",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDocumentElement6",
+      "expression": "Bundle.entry.resource.ofType(Observation).where(id = 'o2').sameSubject(%resource.entry.resource.ofType(Observation).where(id = 'o3'))",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "element",
+      "testing": "sameSubject",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResourcesAbstract1",
+      "expression": "Bundle.resources('http://snomed.info/sct', '38341003').category.empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "without a type, resources() is Resource, which is abstract: the elements of any resource type check",
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResourcesAbstract2",
+      "expression": "Bundle.resources('http://loinc.org', '8480-6').value.exists()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "resources",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testResourcesAbstract3",
+      "expression": "Bundle.resources('http://snomed.info/sct', '38341003').nonsenseElement",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an element that no resource type has does not check",
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "custom",
+      "testing": "resources"
+    },
+    {
+      "name": "testHasCoding1",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('http://snomed.info/sct', '38341003')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "on a CodeableConcept",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding2",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('http://snomed.info/sct', '44054006')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding3",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.coding.hasCoding('http://snomed.info/sct', '38341003')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "on Codings",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding4",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('http://loinc.org', '38341003')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "the system must match too",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding5",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('http://snomed.info/sct', '38341003', '20250101')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "when a version is given, the coding must have it",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding6",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').category.hasCoding('http://snomed.info/sct', '38341003').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "empty when the input is empty",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding7",
+      "expression": "Bundle.entry.resource.ofType(Condition).code.hasCoding('http://snomed.info/sct', '44054006')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "any coding in the input",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding8",
+      "expression": "Bundle.entry.resource.ofType(Condition).all(code.hasCoding('http://snomed.info/sct', '38341003'))",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "each resource, with all()",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding9",
+      "expression": "Bundle.resources('http://snomed.info/sct', '38341003').all(code.hasCoding('http://snomed.info/sct', '38341003'))",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding10",
+      "expression": "Bundle.entry.resource.ofType(Condition).code.hasCoding('http://snomed.info/sct')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "expectError": true,
+      "invalidKind": "syntax",
+      "mode": "custom",
+      "testing": "hasCoding"
+    },
+    {
+      "name": "testHasCoding11",
+      "expression": "Bundle.entry.resource.ofType(Patient).name.hasCoding('http://snomed.info/sct', '38341003')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "only on Codings and CodeableConcepts",
+      "expectError": true,
+      "invalidKind": "semantic",
+      "mode": "custom",
+      "testing": "hasCoding"
+    },
+    {
+      "name": "testHasCoding12",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding({}, '38341003')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty system is ignored: a coding with any system matches",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding13",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('http://snomed.info/sct', {})",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty code is ignored: a coding with any code matches",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding14",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('http://snomed.info/sct', '38341003', {})",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty version is ignored, as if it wasn't given",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding15",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').children().hasCoding('http://snomed.info/sct', '38341003')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "input of mixed types: items that are not Codings or CodeableConcepts are passed over",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding16",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('http://snomed.info/SCT', '38341003')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a string must match precisely - case matters",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding17",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('', '38341003')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an empty string is not ignored: it must match precisely",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding18",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding({}, '44054006')",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an ignored system doesn't make a different code match",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding19",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding('http://loinc.org', {})",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "an ignored code doesn't make a different system match",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding20",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding({}, {}, {})",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "with everything ignored, any coding matches",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding21",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').category.hasCoding({}, {}).empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "empty when the input is empty, whatever the parameters",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCoding22",
+      "expression": "Bundle.entry.resource.ofType(Condition).where(id = 'c1').code.hasCoding(('http://snomed.info/sct' | 'http://loinc.org'), '38341003').empty()",
+      "input": null,
+      "inputfile": "bundle-document-ips.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "documentFunctions"
+      ],
+      "description": "a parameter with more than one value makes the result empty (checking the expression gives a warning)",
+      "mode": "custom",
+      "testing": "hasCoding",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

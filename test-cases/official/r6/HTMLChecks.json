@@ -1,0 +1,103 @@
+{
+  "name": "HTMLChecks",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "htmlTest01",
+      "expression": "text.div.htmlChecks()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "HTMLChecks"
+      ],
+      "mode": "html",
+      "testing": "htmlChecks",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "htmlTest02",
+      "expression": "%resource.parameter.where(name='goodHtml').value.htmlChecks()",
+      "input": null,
+      "inputfile": "parameters-example-html.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "HTMLChecks"
+      ],
+      "mode": "html",
+      "testing": "htmlChecks",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "htmlTest03",
+      "expression": "%resource.parameter.where(name='badHtml').value.htmlChecks()",
+      "input": null,
+      "inputfile": "parameters-example-html.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "HTMLChecks"
+      ],
+      "mode": "html",
+      "testing": "htmlChecks",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "htmlTest04",
+      "expression": "%resource.parameter.where(name='notString').value.htmlChecks().empty()",
+      "input": null,
+      "inputfile": "parameters-example-html.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "HTMLChecks"
+      ],
+      "mode": "html",
+      "testing": "htmlChecks",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

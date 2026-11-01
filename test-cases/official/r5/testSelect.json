@@ -1,0 +1,76 @@
+{
+  "name": "testSelect",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testSelect1",
+      "expression": "Patient.name.select(given).count() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSelect"
+      ],
+      "testing": "select",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSelect2",
+      "expression": "Patient.name.select(given | family).count() = 7",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "testSelect"
+      ],
+      "testing": "select",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testSelect3",
+      "expression": "name.select(use.contains('i')).count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        3
+      ],
+      "tags": [
+        "official-r5",
+        "testSelect"
+      ],
+      "testing": "select",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "3"
+        }
+      ]
+    }
+  ]
+}

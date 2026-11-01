@@ -1,0 +1,79 @@
+{
+  "name": "cdaTests",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testHasCodingTemplateId1",
+      "expression": "hasTemplateIdOf('http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD')",
+      "input": null,
+      "inputfile": "ccda.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "cdaTests"
+      ],
+      "mode": "cda",
+      "testing": "hasTemplateIdOf",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCodingTemplateId2",
+      "expression": "ClinicalDocument.hasTemplateIdOf('http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD')",
+      "input": null,
+      "inputfile": "ccda.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r5",
+        "cdaTests"
+      ],
+      "mode": "cda",
+      "testing": "hasTemplateIdOf",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCodingTemplateId3",
+      "expression": "recordTarget.patientRole.hasTemplateIdOf('http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD')",
+      "input": null,
+      "inputfile": "ccda.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r5",
+        "cdaTests"
+      ],
+      "mode": "cda",
+      "testing": "hasTemplateIdOf",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    }
+  ]
+}

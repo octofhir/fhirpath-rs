@@ -1,0 +1,779 @@
+{
+  "name": "LowBoundary",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "LowBoundaryDecimalDefault",
+      "expression": "1.587.lowBoundary()",
+      "input": null,
+      "expected": [
+        1.5865
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "1.58650000"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal1",
+      "expression": "1.587.lowBoundary(6)",
+      "input": null,
+      "expected": [
+        1.5865
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "1.586500"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal2",
+      "expression": "1.587.lowBoundary(2)",
+      "input": null,
+      "expected": [
+        1.58
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "1.58"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal3",
+      "expression": "1.587.lowBoundary(-1)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary"
+    },
+    {
+      "name": "LowBoundaryDecimal4",
+      "expression": "1.587.lowBoundary(0)",
+      "input": null,
+      "expected": [
+        1.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal5",
+      "expression": "1.587.lowBoundary(32)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary"
+    },
+    {
+      "name": "LowBoundaryNegDecimalDefault",
+      "expression": "(-1.587).lowBoundary()",
+      "input": null,
+      "expected": [
+        -1.5875
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-1.58750000"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryNegDecimal1",
+      "expression": "(-1.587).lowBoundary(6)",
+      "input": null,
+      "expected": [
+        -1.5875
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-1.587500"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryNegDecimal2",
+      "expression": "(-1.587).lowBoundary(2)",
+      "input": null,
+      "expected": [
+        -1.59
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-1.59"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryNegDecimal3",
+      "expression": "(-1.587).lowBoundary(-1)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary"
+    },
+    {
+      "name": "LowBoundaryNegDecimal4",
+      "expression": "(-1.587).lowBoundary(0)",
+      "input": null,
+      "expected": [
+        -2.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-2"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryNegDecimal5",
+      "expression": "(-1.587).lowBoundary(32)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary"
+    },
+    {
+      "name": "LowBoundaryDecimal6",
+      "expression": "1.587.lowBoundary(39)",
+      "input": null,
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary"
+    },
+    {
+      "name": "LowBoundaryDecimal7",
+      "expression": "1.toDecimal().lowBoundary()",
+      "input": null,
+      "expected": [
+        0.5
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "0.50000000"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal8",
+      "expression": "1.lowBoundary(0)",
+      "input": null,
+      "expected": [
+        0.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal9",
+      "expression": "1.lowBoundary(5)",
+      "input": null,
+      "expected": [
+        0.5
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "0.50000"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal10",
+      "expression": "12.587.lowBoundary(2)",
+      "input": null,
+      "expected": [
+        12.58
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "12.58"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal11",
+      "expression": "12.500.lowBoundary(4)",
+      "input": null,
+      "expected": [
+        12.4995
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "12.4995"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal12",
+      "expression": "120.lowBoundary(2)",
+      "input": null,
+      "expected": [
+        119.5
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "119.50"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal13",
+      "expression": "(-120).lowBoundary(2)",
+      "input": null,
+      "expected": [
+        -120.5
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-120.50"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal14",
+      "expression": "0.0034.lowBoundary(1)",
+      "input": null,
+      "expected": [
+        0.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "0.0"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimal15",
+      "expression": "(-0.0034).lowBoundary(1)",
+      "input": null,
+      "expected": [
+        -0.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-0.0"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalCarry1",
+      "expression": "(-9.96).lowBoundary(1)",
+      "input": null,
+      "expected": [
+        -10.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "rounding the magnitude up carries into the digits to the left",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-10.0"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalCarry2",
+      "expression": "(-99.96).lowBoundary(1)",
+      "input": null,
+      "expected": [
+        -100.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "rounding the magnitude up carries into the digits to the left",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-100.0"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalCarry3",
+      "expression": "(-9).lowBoundary(0)",
+      "input": null,
+      "expected": [
+        -10.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "rounding the magnitude up carries into the digits to the left",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-10"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalBorrow1",
+      "expression": "10.lowBoundary(0)",
+      "input": null,
+      "expected": [
+        9.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "no leading zero when the boundary borrows from the first digit",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "9"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalBorrow2",
+      "expression": "100.lowBoundary(2)",
+      "input": null,
+      "expected": [
+        99.5
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "no leading zero when the boundary borrows from the first digit",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "99.50"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalExponent1",
+      "expression": "Parameters.parameter[0].value.lowBoundary(0)",
+      "input": null,
+      "inputfile": "parameters-example-decimals.json",
+      "expected": [
+        945.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "9.5e2: the precision is in the mantissa, and the result has no exponent",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "945"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalExponent2",
+      "expression": "Parameters.parameter[1].value.lowBoundary()",
+      "input": null,
+      "inputfile": "parameters-example-decimals.json",
+      "expected": [
+        0.00145
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "1.5e-3: a negative exponent",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "0.00145000"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalExponent3",
+      "expression": "Parameters.parameter[2].value.lowBoundary(0)",
+      "input": null,
+      "inputfile": "parameters-example-decimals.json",
+      "expected": [
+        -955.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "-9.5e2: a negative value with an exponent",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "-955"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDecimalExponent4",
+      "expression": "Parameters.parameter[3].value.lowBoundary(1)",
+      "input": null,
+      "inputfile": "parameters-example-decimals.json",
+      "expected": [
+        145.0
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "description": "1.5E2: an upper case exponent",
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "decimal"
+      ],
+      "outputs": [
+        {
+          "type": "decimal",
+          "value": "145.0"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryQuantity",
+      "expression": "1.587 'cm'.lowBoundary(8)",
+      "input": null,
+      "expected": [
+        "1.58650000 'cm'"
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "Quantity"
+      ],
+      "outputs": [
+        {
+          "type": "Quantity",
+          "value": "1.58650000 'cm'"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDateMonth",
+      "expression": "@2014.lowBoundary(6)",
+      "input": null,
+      "expected": [
+        "2014-01"
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@2014-01"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDateTimeMillisecond1",
+      "expression": "@2014-01-01T08.lowBoundary(17)",
+      "input": null,
+      "expected": [
+        "2014-01-01T08:00:00.000+14:00"
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@2014-01-01T08:00:00.000+14:00"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDateTimeMillisecond2",
+      "expression": "@2014-01-01T08:05+08:00.lowBoundary(17)",
+      "input": null,
+      "expected": [
+        "2014-01-01T08:05:00.000+08:00"
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@2014-01-01T08:05:00.000+08:00"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryDateTimeMillisecond3",
+      "expression": "@2014-01-01T08.lowBoundary(8)",
+      "input": null,
+      "expected": [
+        "2014-01-01"
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "dateTime"
+      ],
+      "outputs": [
+        {
+          "type": "dateTime",
+          "value": "@2014-01-01"
+        }
+      ]
+    },
+    {
+      "name": "LowBoundaryTimeMillisecond",
+      "expression": "@T10:30.lowBoundary(9)",
+      "input": null,
+      "expected": [
+        "T10:30:00.000"
+      ],
+      "tags": [
+        "official-r6",
+        "LowBoundary"
+      ],
+      "testing": "lowBoundary",
+      "outputTypes": [
+        "time"
+      ],
+      "outputs": [
+        {
+          "type": "time",
+          "value": "@T10:30:00.000"
+        }
+      ]
+    }
+  ]
+}

@@ -1,9 +1,7 @@
 {
-  "parameter": {
-    "name": [
-      "test"
-    ],
-    "valueString": "invalid: &#x0013;, not invalid: &#0013;"
-  },
-  "resourceType": "Parameters"
+  "resourceType" : "Parameters",
+  "parameter" : [{
+    "name" : "test",
+    "valueString" : "invalid: \u0013, not invalid: \u000d"
+  }]
 }

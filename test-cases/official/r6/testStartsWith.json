@@ -1,0 +1,311 @@
+{
+  "name": "testStartsWith",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testStartsWith1",
+      "expression": "'12345'.startsWith('2') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith2",
+      "expression": "'12345'.startsWith('1') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith3",
+      "expression": "'12345'.startsWith('12') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith4",
+      "expression": "'12345'.startsWith('13') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith5",
+      "expression": "'12345'.startsWith('12345') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith6",
+      "expression": "'12345'.startsWith('123456') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith7",
+      "expression": "'12345'.startsWith('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith8",
+      "expression": "{}.startsWith('1').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith9",
+      "expression": "{}.startsWith('').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith10",
+      "expression": "''.startsWith('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith11",
+      "expression": "{}.startsWith('').exists() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith12",
+      "expression": "'987654321'.select(startsWith(length().toString()))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "testing": "startsWith",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testStartsWith12a",
+      "expression": "'987654321'.startsWith(length().toString())",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "testing": "startsWith"
+    },
+    {
+      "name": "testStartsWithNonString1",
+      "expression": "Appointment.identifier.startsWith('rand')",
+      "input": null,
+      "inputfile": "appointment-examplereq.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testStartsWith"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "testing": "startsWith"
+    }
+  ]
+}

@@ -1,0 +1,313 @@
+{
+  "name": "testUnion",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testUnion1",
+      "expression": "(1 | 2 | 3).count() = 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "|",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testUnion2",
+      "expression": "(1 | 2 | 2).count() = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "|",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testUnion3",
+      "expression": "(1|1).count() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "|",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testUnion4",
+      "expression": "1.union(2).union(3).count() = 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "union",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testUnion5",
+      "expression": "1.union(2.union(3)).count() = 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "union",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testUnion6",
+      "expression": "(1 | 2).combine(2).count() = 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "combine",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testUnion7",
+      "expression": "1.combine(1).count() = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "combine",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testUnion8",
+      "expression": "1.combine(1).union(2).count() = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "union",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testUnion9",
+      "expression": "name.select(use | given).count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        8
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "|",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "name": "testUnion10",
+      "expression": "name.select(use.union($this.given)).count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        8
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "union",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "name": "testUnion11",
+      "expression": "name.select(use.union(given)).count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        8
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "union",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "name": "testUnion12",
+      "expression": "true | Patient.name.given.first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true,
+        "Peter"
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "testing": "|",
+      "outputTypes": [
+        "boolean",
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        },
+        {
+          "type": "string",
+          "value": "Peter"
+        }
+      ]
+    },
+    {
+      "name": "testUnion13",
+      "expression": "(@2015-02-04T10:00 | @2015-02-04T10:00).count() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testUnion"
+      ],
+      "description": "the union removes a repeated dateTime with minute precision",
+      "testing": "|",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

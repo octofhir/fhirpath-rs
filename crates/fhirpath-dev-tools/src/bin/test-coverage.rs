@@ -26,7 +26,8 @@ use std::path::{Path, PathBuf};
 // Integration test runner functionality
 mod integration_test_runner {
     use fhirpath_dev_tools::test_support::{
-        TestCase, TestSuite, TypeMismatch, compare_results, verify_output_types,
+        TestCase, TestSuite, TypeMismatch, compare_results, compare_results_unordered,
+        verify_output_types, verify_output_types_unordered,
     };
     use octofhir_fhir_model::FhirVersion;
     use octofhir_fhirpath::FhirPathValue;
@@ -37,6 +38,7 @@ mod integration_test_runner {
     use serde_json::{Value, json};
     use std::collections::HashMap;
     use std::fs;
+    use std::io::Write as _;
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
@@ -87,14 +89,13 @@ mod integration_test_runner {
     }
 
     impl IntegrationTestRunner {
-        /// Create a new integration test runner with FHIR R4 ModelProvider (same as test-runner)
-        pub async fn new() -> Self {
-            println!("🔄 Loading FHIR R5 ModelProvider (using schema packages)...");
+        /// Create a new integration test runner on the embedded model for `fhir_version`
+        pub async fn new(fhir_version: FhirVersion) -> Self {
+            println!("🔄 Loading FHIR {fhir_version:?} ModelProvider (using schema packages)...");
             let model_provider: std::sync::Arc<dyn octofhir_fhirpath::ModelProvider> = {
-                // Add timeout to prevent hanging
-                let _timeout_duration = std::time::Duration::from_secs(60);
-                let provider = octofhir_fhirschema::EmbeddedSchemaProvider::new(FhirVersion::R5);
-                println!("✅ EmbeddedModelProvider (R5) loaded successfully");
+                let label = format!("{fhir_version:?}");
+                let provider = octofhir_fhirschema::EmbeddedSchemaProvider::new(fhir_version);
+                println!("✅ EmbeddedModelProvider ({label}) loaded successfully");
                 std::sync::Arc::new(provider)
             };
 
@@ -184,11 +185,11 @@ mod integration_test_runner {
                 return Ok(cached.clone());
             }
 
-            // Try multiple possible paths for input files
+            // Try multiple possible paths for input files; the suite set's own inputs win
             let possible_paths = vec![
+                self.base_path.join("input").join(filename),
                 PathBuf::from("test-cases/input").join(filename),
                 PathBuf::from("input").join(filename),
-                self.base_path.join("input").join(filename),
             ];
 
             let mut content = None;
@@ -296,12 +297,37 @@ mod integration_test_runner {
             }
         }
 
+        /// Static type for semantic checks: the test's declared `contextType` (first of a
+        /// `|` union), else the input resource's type.
+        async fn static_context_type(
+            &self,
+            test: &TestCase,
+            input_data: &Value,
+        ) -> Option<octofhir_fhir_model::TypeInfo> {
+            let type_name = match test.context_type.as_deref() {
+                Some(declared) => declared.split('|').next()?.trim().to_string(),
+                None => input_data.get("resourceType")?.as_str()?.to_string(),
+            };
+            self.model_provider
+                .get_type(&type_name)
+                .await
+                .ok()
+                .flatten()
+        }
+
         /// Run a single test case using the integrated stack
         pub async fn run_test(&mut self, test: &TestCase) -> TestResult {
             // Skip disabled tests
             if test.disabled.unwrap_or(false) {
                 return TestResult::Skipped {
                     reason: "disabled".into(),
+                };
+            }
+            // mode="custom" groups exercise Java RI extensions that are neither FHIRPath
+            // nor FHIR (e.g. the documentFunctions group).
+            if test.mode.as_deref() == Some("custom") {
+                return TestResult::Skipped {
+                    reason: "mode=custom (non-standard extension functions)".into(),
                 };
             }
             if self.verbose {
@@ -328,22 +354,7 @@ mod integration_test_runner {
             // Check if this is an analyzer category test - run analyzer-only execution
             if test.category.as_ref().is_some_and(|c| c == "analyzer") {
                 // For analyzer tests, only run semantic analysis
-                let context_type = if input_data != serde_json::Value::Null {
-                    // Try to determine FHIR resource type from input
-                    if let Some(resource_type) =
-                        input_data.get("resourceType").and_then(|v| v.as_str())
-                    {
-                        self.model_provider
-                            .get_type(resource_type)
-                            .await
-                            .ok()
-                            .flatten()
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
+                let context_type = self.static_context_type(test, &input_data).await;
 
                 let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
                     &test.expression,
@@ -423,23 +434,7 @@ mod integration_test_runner {
                 && let Some(ref invalid_kind) = test.invalid_kind
                 && invalid_kind == "semantic"
             {
-                // Extract context type from input data if available
-                let context_type = if input_data != serde_json::Value::Null {
-                    // Try to determine FHIR resource type from input
-                    if let Some(resource_type) =
-                        input_data.get("resourceType").and_then(|v| v.as_str())
-                    {
-                        self.model_provider
-                            .get_type(resource_type)
-                            .await
-                            .ok()
-                            .flatten()
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
+                let context_type = self.static_context_type(test, &input_data).await;
 
                 let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
                     &test.expression,
@@ -482,6 +477,19 @@ mod integration_test_runner {
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(10_000);
+
+            // A test `context` selects the focus; %resource stays the input resource.
+            let context = match &test.context {
+                Some(context_expr) => match self.engine.evaluate(context_expr, &context).await {
+                    Ok(focus) => context.create_child_context(focus.value),
+                    Err(e) => {
+                        return TestResult::Error {
+                            error: format!("Evaluating context '{context_expr}' failed: {e}"),
+                        };
+                    }
+                },
+                None => context,
+            };
 
             let eval_fut = self.engine.evaluate(&test.expression, &context);
             let result =
@@ -535,9 +543,14 @@ mod integration_test_runner {
                 };
             }
 
+            let unordered = test.ordered == Some(false);
+            let types_check = if unordered {
+                verify_output_types_unordered(&test.output_types, &result)
+            } else {
+                verify_output_types(&test.output_types, &result)
+            };
             if !test.output_types.is_empty()
-                && let Err(TypeMismatch { expected, actual }) =
-                    verify_output_types(&test.output_types, &result)
+                && let Err(TypeMismatch { expected, actual }) = types_check
             {
                 return TestResult::Failed {
                     expected: json!({"values": test.expected.clone(), "types": expected}),
@@ -557,7 +570,12 @@ mod integration_test_runner {
             }
 
             // Compare results using the entire collection (matches test-runner behavior)
-            if compare_results(&test.expected, &result) {
+            let matches = if unordered {
+                compare_results_unordered(&test.expected, &result)
+            } else {
+                compare_results(&test.expected, &result)
+            };
+            if matches {
                 TestResult::Passed
             } else {
                 // Convert actual result to JSON for display
@@ -587,6 +605,19 @@ mod integration_test_runner {
                 }
                 println!("Total tests: {}", suite.tests.len());
                 println!();
+            }
+
+            // A whole group marked mode="custom" is non-standard, whatever its tests say.
+            if suite.mode.as_deref() == Some("custom") {
+                for test in &suite.tests {
+                    results.insert(
+                        test.name.clone(),
+                        TestResult::Skipped {
+                            reason: "group mode=custom (non-standard extension functions)".into(),
+                        },
+                    );
+                }
+                return results;
             }
 
             for test in &suite.tests {
@@ -644,8 +675,34 @@ mod integration_test_runner {
                 total: suite.tests.len(),
                 ..Default::default()
             };
+            // FHIRPATH_FAILURES=<file> appends one JSON line per failing or erroring test.
+            let mut failures_out = std::env::var_os("FHIRPATH_FAILURES").and_then(|p| {
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(p)
+                    .ok()
+            });
             for test in &suite.tests {
                 let result = &results[&test.name];
+                if let Some(out) = failures_out.as_mut() {
+                    let detail = match result {
+                        TestResult::Failed { expected, actual } => {
+                            Some(json!({"expected": expected, "actual": actual}))
+                        }
+                        TestResult::Error { error } => Some(json!({"error": error})),
+                        _ => None,
+                    };
+                    if let Some(detail) = detail {
+                        let line = json!({
+                            "suite": suite.name,
+                            "name": test.name,
+                            "expression": test.expression,
+                            "detail": detail,
+                        });
+                        let _ = writeln!(out, "{line}");
+                    }
+                }
                 match result {
                     TestResult::Passed => stats.passed += 1,
                     TestResult::Failed { .. } => stats.failed += 1,
@@ -662,8 +719,11 @@ mod integration_test_runner {
                 }
             }
 
-            // Extract category from test suite for grouping
-            let category = suite.category.clone();
+            // Extract category from test suite for grouping; official suites group by version
+            let category = suite
+                .category
+                .clone()
+                .or_else(|| suite.fhir_version.as_ref().map(|v| format!("official-{v}")));
 
             Ok((stats, category))
         }
@@ -681,16 +741,21 @@ async fn main() -> Result<()> {
             Arg::new("specs-dir")
                 .long("specs-dir")
                 .value_name("DIR")
-                .help("Path to FHIRPath test specifications")
-                .default_value("test-cases"),
+                .help("Path to FHIRPath test specifications [default: test-cases, or test-cases/official/<VERSION> with --official]"),
         )
         .arg(
             Arg::new("output")
                 .short('o')
                 .long("output")
                 .value_name("FILE")
-                .help("Output file for coverage report")
-                .default_value("TEST_COVERAGE.md"),
+                .help("Output file for coverage report [default: TEST_COVERAGE.md, or TEST_COVERAGE_OFFICIAL_<VERSION>.md with --official]"),
+        )
+        .arg(
+            Arg::new("official")
+                .long("official")
+                .value_name("VERSION")
+                .value_parser(["r5", "r6"])
+                .help("Run the official fhir-test-cases suite for this FHIR version (report only, no compliance gate)"),
         )
         .arg(
             Arg::new("min-tests")
@@ -701,9 +766,22 @@ async fn main() -> Result<()> {
         )
         .get_matches();
 
-    let specs_dir = PathBuf::from(matches.get_one::<String>("specs-dir").unwrap());
-    let output_file = PathBuf::from(matches.get_one::<String>("output").unwrap());
+    let official = matches.get_one::<String>("official").cloned();
+    let specs_dir = PathBuf::from(match (matches.get_one::<String>("specs-dir"), &official) {
+        (Some(dir), _) => dir.clone(),
+        (None, Some(version)) => format!("test-cases/official/{version}"),
+        (None, None) => "test-cases".to_string(),
+    });
+    let output_file = PathBuf::from(match (matches.get_one::<String>("output"), &official) {
+        (Some(file), _) => file.clone(),
+        (None, Some(version)) => format!("TEST_COVERAGE_OFFICIAL_{}.md", version.to_uppercase()),
+        (None, None) => "TEST_COVERAGE.md".to_string(),
+    });
     let minimum_tests = *matches.get_one::<usize>("min-tests").unwrap();
+    let fhir_version = match official.as_deref() {
+        Some("r6") => octofhir_fhir_model::FhirVersion::R6,
+        _ => octofhir_fhir_model::FhirVersion::R5,
+    };
 
     println!("🧪 Generating FHIRPath Test Coverage Report");
     println!("============================================");
@@ -712,7 +790,8 @@ async fn main() -> Result<()> {
         anyhow::bail!("Specs directory not found: {}", specs_dir.display());
     }
 
-    let test_files = get_all_test_files(&specs_dir);
+    // The official suites only run when asked for, so the default gate stays the curated set.
+    let test_files = get_all_test_files(&specs_dir, official.is_none());
     if test_files.is_empty() {
         anyhow::bail!("No test files found in specs directory");
     }
@@ -720,7 +799,7 @@ async fn main() -> Result<()> {
     println!("📁 Found {} test files", test_files.len());
     println!("🏃 Running tests...\n");
 
-    let mut runner = IntegrationTestRunner::new()
+    let mut runner = IntegrationTestRunner::new(fhir_version)
         .await
         .with_base_path(&specs_dir)
         .with_verbose(false);
@@ -840,7 +919,13 @@ async fn main() -> Result<()> {
     println!("\n📊 Generating coverage report...");
 
     // Generate comprehensive report
-    let report = generate_coverage_report(&test_results);
+    let command = match &official {
+        Some(version) => format!(
+            "just test-official-{version}` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --official {version}"
+        ),
+        None => "just test-coverage` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176".to_string(),
+    };
+    let report = generate_coverage_report(&test_results, &command);
     fs::write(&output_file, report)?;
 
     let total_tests: usize = test_results.iter().map(|(_, r, _)| r.total).sum();
@@ -857,6 +942,19 @@ async fn main() -> Result<()> {
     println!("   Total Tests: {total_tests}");
     println!("   Pass Rate: {overall_pass_rate:.1}%");
 
+    if official.is_some() {
+        let skipped: usize = test_results.iter().map(|(_, r, _)| r.skipped).sum();
+        let executed = total_tests - skipped;
+        println!("   Skipped: {skipped}");
+        if executed > 0 {
+            println!(
+                "   Pass Rate (executed only): {:.1}% ({total_passed}/{executed})",
+                total_passed as f64 / executed as f64 * 100.0
+            );
+        }
+        println!("   (official suites are report-only: no compliance gate)");
+        return Ok(());
+    }
     ensure_compliance(&test_results, minimum_tests)
 }
 
@@ -890,19 +988,21 @@ fn ensure_compliance(
     Ok(())
 }
 
-fn get_all_test_files(specs_path: &Path) -> Vec<PathBuf> {
-    fn collect(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+fn get_all_test_files(specs_path: &Path, skip_official: bool) -> Vec<PathBuf> {
+    fn collect(dir: &std::path::Path, out: &mut Vec<PathBuf>, skip_official: bool) {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
                     // Skip input data directories — they contain JSON resources, not test suites
                     if path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
-                        n.eq_ignore_ascii_case("input") || n.eq_ignore_ascii_case("inputs")
+                        n.eq_ignore_ascii_case("input")
+                            || n.eq_ignore_ascii_case("inputs")
+                            || (skip_official && n == "official")
                     }) {
                         continue;
                     }
-                    collect(&path, out);
+                    collect(&path, out, skip_official);
                 } else if path.extension().is_some_and(|ext| ext == "json") {
                     // Skip metadata.json - it's not a test suite
                     if path
@@ -919,12 +1019,15 @@ fn get_all_test_files(specs_path: &Path) -> Vec<PathBuf> {
     }
 
     let mut test_files = Vec::new();
-    collect(specs_path, &mut test_files);
+    collect(specs_path, &mut test_files, skip_official);
     test_files.sort();
     test_files
 }
 
-fn generate_coverage_report(test_results: &[(String, TestStats, Option<String>)]) -> String {
+fn generate_coverage_report(
+    test_results: &[(String, TestStats, Option<String>)],
+    command: &str,
+) -> String {
     let now: DateTime<Utc> = Utc::now();
     let timestamp = now.format("%Y-%m-%d").to_string();
 
@@ -933,6 +1036,7 @@ fn generate_coverage_report(test_results: &[(String, TestStats, Option<String>)]
     let total_passed: usize = test_results.iter().map(|(_, r, _)| r.passed).sum();
     let total_failed: usize = test_results.iter().map(|(_, r, _)| r.failed).sum();
     let total_errors: usize = test_results.iter().map(|(_, r, _)| r.errored).sum();
+    let total_skipped: usize = test_results.iter().map(|(_, r, _)| r.skipped).sum();
 
     let overall_pass_rate = if total_tests > 0 {
         (total_passed as f64 / total_tests as f64) * 100.0
@@ -959,6 +1063,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 | **Passing Tests** | {} | {:.1}% |
 | **Failing Tests** | {} | {:.1}% |
 | **Error Tests** | {} | {:.1}% |
+| **Skipped Tests** | {} | {:.1}% |
 
 ## Test Results by Suite
 
@@ -977,6 +1082,12 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
         total_errors,
         if total_tests > 0 {
             (total_errors as f64 / total_tests as f64) * 100.0
+        } else {
+            0.0
+        },
+        total_skipped,
+        if total_tests > 0 {
+            (total_skipped as f64 / total_tests as f64) * 100.0
         } else {
             0.0
         }
@@ -1167,13 +1278,14 @@ The fhirpath-rs implementation currently passes approximately **{:.1}% of all FH
 ---
 
 *Report generated on: {}*
-*Command: `just test-coverage` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176`*
+*Command: `{}`*
 "#,
         overall_pass_rate,
         total_suites,
         total_tests,
         overall_pass_rate,
-        now.format("%Y-%m-%d %H:%M:%S")
+        now.format("%Y-%m-%d %H:%M:%S"),
+        command
     ));
 
     report

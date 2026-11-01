@@ -1,0 +1,45 @@
+{
+  "name": "testJoin",
+  "source": "fhir-test-cases r5/fhirpath/tests-fhir-r5.xml @ 4435b9d",
+  "fhirVersion": "r5",
+  "tests": [
+    {
+      "name": "testJoin",
+      "expression": "name.given.join(',')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter,James,Jim,Peter,James"
+      ],
+      "tags": [
+        "official-r5",
+        "testJoin"
+      ],
+      "testing": "join",
+      "version": "2.1.0",
+      "outputTypes": [
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "Peter,James,Jim,Peter,James"
+        }
+      ]
+    },
+    {
+      "name": "testJoinEmpty",
+      "expression": "name.prefix.join(',')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r5",
+        "testJoin"
+      ],
+      "description": "join() on an empty collection returns empty, not an empty string",
+      "testing": "join",
+      "version": "2.1.0"
+    }
+  ]
+}

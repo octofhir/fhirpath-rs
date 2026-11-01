@@ -1,0 +1,79 @@
+{
+  "name": "TerminologyTests",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "txTest01",
+      "expression": "%terminologies.expand('http://hl7.org/fhir/ValueSet/administrative-gender').expansion.contains.count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        4
+      ],
+      "tags": [
+        "official-r6",
+        "TerminologyTests"
+      ],
+      "mode": "tx",
+      "testing": "expand",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "name": "txTest02",
+      "expression": "%terminologies.validateVS('http://hl7.org/fhir/ValueSet/administrative-gender', $this.gender).parameter.where(name = 'result').value",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "TerminologyTests"
+      ],
+      "mode": "tx",
+      "testing": "validateVS",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "txTest03",
+      "expression": "%terminologies.translate('http://hl7.org/fhir/ConceptMap/cm-address-use-v2', $this.address.use).parameter.where(name = 'match').part.where(name = 'concept').value.code",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "H"
+      ],
+      "tags": [
+        "official-r6",
+        "TerminologyTests"
+      ],
+      "mode": "tx",
+      "testing": "translate",
+      "outputTypes": [
+        "code"
+      ],
+      "outputs": [
+        {
+          "type": "code",
+          "value": "H"
+        }
+      ]
+    }
+  ]
+}

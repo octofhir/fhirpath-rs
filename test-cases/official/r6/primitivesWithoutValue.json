@@ -1,0 +1,199 @@
+{
+  "name": "primitivesWithoutValue",
+  "description": "FHIR primitive elements that carry extensions but no value (e.g. the data-absent-reason extension). Such an element is present in the tree, but it has no system value, so functions that need the value get an empty collection as input, and return empty (see hasValue()/getValue() in the FHIR spec)",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testNoValueExists",
+      "expression": "Patient.name.given.first().exists()",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "exists",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNoValueExistsElement",
+      "expression": "Patient.name.given.first().exists()",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "mode": "element",
+      "testing": "exists",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNoValueHasValue",
+      "expression": "Patient.name.given.first().hasValue()",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "hasValue",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testNoValueLength",
+      "expression": "Patient.name.given.first().length()",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "length"
+    },
+    {
+      "name": "testNoValueLengthElement",
+      "expression": "Patient.name.given.first().length()",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "mode": "element",
+      "testing": "length"
+    },
+    {
+      "name": "testValueLength",
+      "expression": "Patient.name.given.last().length()",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [
+        5
+      ],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "length",
+      "outputTypes": [
+        "integer"
+      ],
+      "outputs": [
+        {
+          "type": "integer",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "name": "testNoValueToChars",
+      "expression": "Patient.name.given.first().toChars()",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "toChars"
+    },
+    {
+      "name": "testNoValueSubstring",
+      "expression": "Patient.name.given.first().substring(0, 1)",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "substring"
+    },
+    {
+      "name": "testNoValueUpper",
+      "expression": "Patient.name.given.first().upper()",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "upper"
+    },
+    {
+      "name": "testNoValueComparison",
+      "expression": "Patient.name.given.first() < 'x'",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "comparison"
+    },
+    {
+      "name": "testNoValueInvariant",
+      "expression": "Patient.name.given.first().exists() and Patient.name.given.first().length() = 1",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "testing": "length"
+    },
+    {
+      "name": "testNoValueInvariantElement",
+      "expression": "Patient.name.given.first().exists() and Patient.name.given.first().length() = 1",
+      "input": null,
+      "inputfile": "patient-name-extensions.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "primitivesWithoutValue"
+      ],
+      "mode": "element",
+      "testing": "length"
+    }
+  ]
+}

@@ -1,0 +1,1812 @@
+{
+  "name": "testLiterals",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testLiteralTrue",
+      "expression": "Patient.name.exists() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralFalse",
+      "expression": "Patient.name.empty() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralString1",
+      "expression": "Patient.name.given.first() = 'Peter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralInteger1",
+      "expression": "1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralInteger0",
+      "expression": "0.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerNegative1",
+      "expression": "(-1).convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerNegative1Invalid",
+      "expression": "-1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "literal"
+    },
+    {
+      "name": "testLiteralIntegerMax",
+      "expression": "2147483647.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralString2",
+      "expression": "'test'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralStringEscapes",
+      "expression": "'\\\\\\/\\f\\r\\n\\t\\\"\\`\\'\\u002a'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralBooleanTrue",
+      "expression": "true.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralBooleanFalse",
+      "expression": "false.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimal10",
+      "expression": "1.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimal01",
+      "expression": "0.1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimal00",
+      "expression": "0.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimalNegative01",
+      "expression": "(-0.1).convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimalNegative01Invalid",
+      "expression": "-0.1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "literal"
+    },
+    {
+      "name": "testLiteralDecimalMax",
+      "expression": "1234567890987654321.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimalStep",
+      "expression": "0.00000001.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateYear",
+      "expression": "@2015.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateMonth",
+      "expression": "@2015-02.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateDay",
+      "expression": "@2015-02-04.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeYear",
+      "expression": "@2015T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeMonth",
+      "expression": "@2015-02T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeDay",
+      "expression": "@2015-02-04T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeHour",
+      "expression": "@2015-02-04T14.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeMinute",
+      "expression": "@2015-02-04T14:34.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeSecond",
+      "expression": "@2015-02-04T14:34:28.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeMillisecond",
+      "expression": "@2015-02-04T14:34:28.123.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeUTC",
+      "expression": "@2015-02-04T14:34:28Z.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTimezoneOffset",
+      "expression": "@2015-02-04T14:34:28+10:00.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralTimeHour",
+      "expression": "@T14.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralTimeMinute",
+      "expression": "@T14:34.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralTimeSecond",
+      "expression": "@T14:34:28.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralTimeMillisecond",
+      "expression": "@T14:34:28.123.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralTimeUTC",
+      "expression": "@T14:34:28Z.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "literal"
+    },
+    {
+      "name": "testLiteralTimeTimezoneOffset",
+      "expression": "@T14:34:28+10:00.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "literal"
+    },
+    {
+      "name": "testLiteralQuantityDecimal",
+      "expression": "10.1 'mg'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralQuantityInteger",
+      "expression": "10 'mg'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralQuantityDay",
+      "expression": "4 days.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerNotEqual",
+      "expression": "-3 != 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerEqual",
+      "expression": "Patient.name.given.count() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testPolarityPrecedence",
+      "expression": "-Patient.name.given.count() = -5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "polarity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerGreaterThan",
+      "expression": "Patient.name.given.count() > -3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": ">",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerCountNotEqual",
+      "expression": "Patient.name.given.count() != 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerLessThanTrue",
+      "expression": "1 < 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "<",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerLessThanFalse",
+      "expression": "1 < -2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "<",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerLessThanPolarityTrue",
+      "expression": "+1 < +2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "polarity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralIntegerLessThanPolarityFalse",
+      "expression": "-1 < 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "polarity",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanNonZeroTrue",
+      "expression": "Observation.value.value > 180.0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": ">",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanZeroTrue",
+      "expression": "Observation.value.value > 0.0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": ">",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanIntegerTrue",
+      "expression": "Observation.value.value > 0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": ">",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimalLessThanInteger",
+      "expression": "Observation.value.value < 190",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "<",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDecimalLessThanInvalid",
+      "expression": "Observation.value.value < 'test'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "<"
+    },
+    {
+      "name": "testDateEqual",
+      "expression": "Patient.birthDate = @1974-12-25",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDateNotEqual",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!="
+    },
+    {
+      "name": "testDateNotEqualTimezoneOffsetBefore",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00-10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!="
+    },
+    {
+      "name": "testDateNotEqualTimezoneOffsetAfter",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00+10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!="
+    },
+    {
+      "name": "testDateNotEqualUTC",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00Z",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!="
+    },
+    {
+      "name": "testDateNotEqualTimeSecond",
+      "expression": "Patient.birthDate != @T12:14:15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDateNotEqualTimeMinute",
+      "expression": "Patient.birthDate != @T12:14",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDateNotEqualToday",
+      "expression": "Patient.birthDate < today()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "<",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDateTimeGreaterThanDate1",
+      "expression": "now() > Patient.birthDate",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": ">",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDateGreaterThanDate",
+      "expression": "today() > Patient.birthDate",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": ">",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testDateTimeGreaterThanDate2",
+      "expression": "now() > today()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": ">"
+    },
+    {
+      "name": "testLiteralDateTimeTZGreater",
+      "expression": "@2017-11-05T01:30:00.0-04:00 > @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": ">",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTZLess",
+      "expression": "@2017-11-05T01:30:00.0-04:00 < @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "<",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTZEqualFalse",
+      "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTZEqualTrue",
+      "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T00:30:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralUnicode",
+      "expression": "Patient.name.given.first() = 'P\\u0065ter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "literal",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralUnicodeInvalid",
+      "expression": "'\\u+041'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "syntax",
+      "testing": "literal"
+    },
+    {
+      "name": "testCollectionNotEmpty",
+      "expression": "Patient.name.given.empty().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "not",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testCollectionNotEqualEmpty",
+      "expression": "Patient.name.given != {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "!="
+    },
+    {
+      "name": "testExpressions",
+      "expression": "Patient.name.select(given | family).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Chalmers",
+        "Jim",
+        "Windsor"
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "ordered": false,
+      "testing": "distinct",
+      "outputTypes": [
+        "string",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "outputs": [
+        {
+          "type": "string",
+          "value": "Peter"
+        },
+        {
+          "type": "string",
+          "value": "James"
+        },
+        {
+          "type": "string",
+          "value": "Chalmers"
+        },
+        {
+          "type": "string",
+          "value": "Jim"
+        },
+        {
+          "type": "string",
+          "value": "Windsor"
+        }
+      ]
+    },
+    {
+      "name": "testExpressionsEqual",
+      "expression": "Patient.name.given.count() = 1 + 4",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "=",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNotEmpty",
+      "expression": "Patient.name.empty().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "not",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testEmpty",
+      "expression": "Patient.link.empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "empty",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralNotOnEmpty",
+      "expression": "{}.not().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "not",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralNotTrue",
+      "expression": "true.not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "not",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testLiteralNotFalse",
+      "expression": "false.not() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "not",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerBooleanNotTrue",
+      "expression": "(0).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "not",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testIntegerBooleanNotFalse",
+      "expression": "(1).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "testing": "not",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testNotInvalid",
+      "expression": "(1|2).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "official-r6",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution",
+      "testing": "not"
+    }
+  ]
+}

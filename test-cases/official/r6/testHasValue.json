@@ -1,0 +1,79 @@
+{
+  "name": "testHasValue",
+  "description": "hasValue() is true only for a primitive with a value",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testHasCodingValue1",
+      "expression": "name.first().given.first().hasValue()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testHasValue"
+      ],
+      "testing": "hasValue",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testHasCodingValue2",
+      "expression": "name.first().hasValue()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "testHasValue"
+      ],
+      "description": "Only a primitive has a value: a complex type is never hasValue(), even when it has content",
+      "testing": "hasValue",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testHasCodingValue3",
+      "expression": "name.first().given.first().hasValue() and name.first() != 'Peter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "testHasValue"
+      ],
+      "description": "A complex item never has a value, and it is not equal to a string - the pattern used in a context invariant that applies to both a code and a TypeRef",
+      "testing": "hasValue",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

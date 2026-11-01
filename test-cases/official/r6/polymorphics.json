@@ -1,0 +1,103 @@
+{
+  "name": "polymorphics",
+  "source": "fhir-test-cases r6/fhirpath/tests-fhir-r6.xml @ 4435b9d",
+  "fhirVersion": "r6",
+  "tests": [
+    {
+      "name": "testPolymorphicsA",
+      "expression": "Observation.value.exists()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "polymorphics"
+      ],
+      "testing": "paths",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testPolymorphicsB",
+      "expression": "Observation.valueQuantity.exists()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "polymorphics"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic",
+      "testing": "paths",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "name": "testPolymorphicsC",
+      "expression": "Observation.valueQuantity.exists()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "official-r6",
+        "polymorphics"
+      ],
+      "mode": "lenient/polymorphics",
+      "testing": "paths",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "testPolymorphicsD",
+      "expression": "Observation.valueString.exists()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "official-r6",
+        "polymorphics"
+      ],
+      "mode": "lenient/polymorphics",
+      "testing": "paths",
+      "outputTypes": [
+        "boolean"
+      ],
+      "outputs": [
+        {
+          "type": "boolean",
+          "value": "false"
+        }
+      ]
+    }
+  ]
+}
