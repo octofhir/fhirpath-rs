@@ -34,7 +34,7 @@ impl TodayFunctionEvaluator {
                     max_params: Some(0),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
-                null_propagation: NullPropagationStrategy::Focus,
+                null_propagation: NullPropagationStrategy::None,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: false, // Current date is non-deterministic
                 category: FunctionCategory::Utility,

@@ -239,6 +239,7 @@ impl DocumentSymbolProvider {
             | ExpressionNode::Variable(_)
             | ExpressionNode::Lambda(_)
             | ExpressionNode::Collection(_)
+            | ExpressionNode::InstanceSelector(_)
             | ExpressionNode::Filter(_)
             | ExpressionNode::Path(_)
             | ExpressionNode::TypeInfo(_)

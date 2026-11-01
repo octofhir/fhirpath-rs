@@ -13,10 +13,16 @@ use crate::evaluator::function_registry::{
     FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
 
+/// `pattern` anchored to the start and end of the whole input (not of a line, so it holds in
+/// multi-line mode too).
+fn anchor_whole(pattern: &str) -> String {
+    format!(r"\A(?:{pattern})\z")
+}
+
 /// MatchesFull function evaluator
 #[derive(Clone)]
 pub struct MatchesFullFunctionEvaluator {
-    compiled: Option<Arc<regex::Regex>>,
+    compiled: Option<Arc<super::regex_cache::PreparedRegex>>,
     metadata: FunctionMetadata,
 }
 
@@ -38,12 +44,20 @@ impl MatchesFullFunctionEvaluator {
                             is_expression: false,
                             description: "Regular expression pattern to match against the entire string".to_string(),
                             default_value: None,
+                        },
+                        FunctionParameter {
+                            name: "flags".to_string(),
+                            parameter_type: vec!["String".to_string()],
+                            optional: true,
+                            is_expression: false,
+                            description: "Regex flags: 'i' case-insensitive, 'm' multi-line".to_string(),
+                            default_value: None,
                         }
                     ],
                     return_type: "Boolean".to_string(),
                     polymorphic: false,
                     min_params: 1,
-                    max_params: Some(1),
+                    max_params: Some(2),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
                 null_propagation: NullPropagationStrategy::Focus,
@@ -65,24 +79,13 @@ impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
 
     fn prepare(&self, args: &[Collection]) -> Option<Arc<dyn PureFunctionEvaluator>> {
         let pattern = args.first()?.first()?.as_string()?;
-        if pattern.len() > 4096 {
-            return None;
-        }
-        let pattern = if pattern.starts_with('^') && pattern.ends_with('$') {
-            pattern.to_string()
-        } else if pattern.starts_with('^') {
-            format!("{pattern}$")
-        } else if pattern.ends_with('$') {
-            format!("^{pattern}")
-        } else {
-            format!("^{pattern}$")
-        };
-        let compiled = regex::RegexBuilder::new(&pattern)
-            .size_limit(256 * 1024)
-            .build()
-            .ok()?;
+        let flags = super::regex_cache::flags_arg(args, 1, "matchesFull").ok()?;
+        let effective =
+            super::regex_cache::effective_pattern(&anchor_whole(pattern), &flags).ok()?;
         let mut evaluator = self.clone();
-        evaluator.compiled = Some(Arc::new(compiled));
+        evaluator.compiled = Some(super::regex_cache::PreparedRegex::new(
+            pattern, &flags, &effective,
+        )?);
         Some(Arc::new(evaluator))
     }
 
@@ -99,11 +102,19 @@ impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
         input: Collection,
         args: &[Collection],
     ) -> Result<EvaluationResult> {
-        if args.len() != 1 {
+        if args.is_empty() || args.len() > 2 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                "matchesFull function requires exactly one argument (pattern)".to_string(),
+                "matchesFull function takes a pattern and optional flags".to_string(),
             ));
+        }
+        let flags = super::regex_cache::flags_arg(args, 1, "matchesFull")?;
+
+        // An empty input or pattern gives an empty result.
+        if input.is_empty() || args[0].is_empty() {
+            return Ok(EvaluationResult {
+                value: Collection::empty(),
+            });
         }
 
         if input.len() != 1 {
@@ -144,38 +155,11 @@ impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
             }
         };
 
-        // Create full-match pattern by anchoring if not already anchored
-        let full_pattern = if pattern_str.starts_with('^') && pattern_str.ends_with('$') {
-            // Pattern already anchored
-            pattern_str
-        } else if pattern_str.starts_with('^') {
-            // Only start anchored, add end anchor
-            format!("{pattern_str}$")
-        } else if pattern_str.ends_with('$') {
-            // Only end anchored, add start anchor
-            format!("^{pattern_str}")
-        } else {
-            // Not anchored, add both anchors
-            format!("^{pattern_str}$")
-        };
-
-        // Compile the regex pattern
-        let cached_regex;
-        let regex = if let Some(regex) = self
-            .compiled
-            .as_deref()
-            .filter(|regex| regex.as_str() == full_pattern.as_str())
-        {
-            regex
-        } else {
-            cached_regex = super::regex_cache::compile(&full_pattern).map_err(|e| {
-                FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0058,
-                    format!("Invalid regular expression pattern '{full_pattern}': {e}"),
-                )
+        // The whole string must match: anchor the pattern at both ends of the input.
+        let regex =
+            super::regex_cache::regex_for(self.compiled.as_ref(), &pattern_str, &flags, || {
+                super::regex_cache::effective_pattern(&anchor_whole(&pattern_str), &flags)
             })?;
-            cached_regex.as_ref()
-        };
 
         // Test if the string matches the full pattern
         let matches = regex.is_match(&input_str);

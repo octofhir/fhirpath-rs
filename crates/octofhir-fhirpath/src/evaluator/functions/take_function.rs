@@ -94,11 +94,11 @@ impl LazyFunctionEvaluator for TakeFunctionEvaluator {
         // Evaluate the num argument
         let num_result = evaluator.evaluate(num_expr, context).await?;
 
+        // An empty count takes nothing: the result is empty.
         if num_result.value.is_empty() {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                "take argument cannot be empty".to_string(),
-            ));
+            return Ok(EvaluationResult {
+                value: Collection::empty(),
+            });
         }
 
         if num_result.value.len() != 1 {

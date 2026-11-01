@@ -334,6 +334,10 @@ impl Evaluator {
                 self.evaluate_collection(&collection_node.elements, context)
                     .await
             }
+            ExpressionNode::InstanceSelector(selector) => {
+                self.evaluate_instance_selector(selector, None, context)
+                    .await
+            }
             ExpressionNode::Variable(variable_node) => {
                 // Evaluate variable access ($this, $index, $total, user variables)
                 self.evaluate_variable(&variable_node.name, context).await
@@ -441,6 +445,7 @@ impl Evaluator {
             ExpressionNode::PropertyAccess(_) => "PropertyAccess",
             ExpressionNode::MethodCall(_) => "MethodCall",
             ExpressionNode::Collection(_) => "Collection",
+            ExpressionNode::InstanceSelector(_) => "InstanceSelector",
             ExpressionNode::Variable(_) => "Variable",
             ExpressionNode::Parenthesized(_) => "Parenthesized",
             ExpressionNode::Union(_) => "Union",
@@ -662,6 +667,10 @@ impl Evaluator {
                 self.evaluate_collection(&collection_node.elements, context)
                     .await
             }
+            ExpressionNode::InstanceSelector(selector) => {
+                self.evaluate_instance_selector(selector, None, context)
+                    .await
+            }
             ExpressionNode::Variable(variable_node) => {
                 self.evaluate_variable(&variable_node.name, context).await
             }
@@ -855,6 +864,85 @@ impl Evaluator {
     }
 
     /// Evaluate a path navigation (property access) with enhanced ModelProvider integration
+    /// Give the values navigated from `parent` along `name` their [`ValueOrigin`]: the
+    /// parent's origin (the root resource's type when `parent` is the root) plus `name`
+    /// and, for an array element, its index. Values of a parent with no known place in
+    /// the root resource (computed objects, resolved references) get none.
+    fn attach_origins(
+        parent: &FhirPathValue,
+        name: &str,
+        context: &EvaluationContext,
+        children: &mut [FhirPathValue],
+    ) {
+        use crate::core::ValueOrigin;
+        if !context.tracks_paths() {
+            return;
+        }
+        let FhirPathValue::Resource(node, type_info, _) = parent else {
+            return;
+        };
+        if children.is_empty() {
+            return;
+        }
+        let parent_origin = match parent.origin() {
+            Some(origin) => origin.clone(),
+            None => {
+                let is_root = context.root_resource_value().is_some_and(|root| {
+                    matches!(&root, FhirPathValue::Resource(root_node, _, _)
+                        if root_node.identity().is_some() && root_node.identity() == node.identity())
+                });
+                if !is_root {
+                    return;
+                }
+                let root_name = node
+                    .get("resourceType")
+                    .and_then(crate::core::node::FhirNode::as_str)
+                    .map(str::to_string)
+                    .unwrap_or_else(|| type_info.type_name.clone());
+                ValueOrigin::root(root_name)
+            }
+        };
+        // The JSON key holding the element: the name itself, or `name` + type for a choice.
+        let element = node.get(name).or_else(|| {
+            node.entries()
+                .find(|(key, _)| {
+                    key.len() > name.len()
+                        && key.starts_with(name)
+                        && key[name.len()..].starts_with(|c: char| c.is_ascii_uppercase())
+                })
+                .map(|(_, value)| value)
+        });
+        let Some(element) = element else {
+            return;
+        };
+        let name: std::sync::Arc<str> = name.into();
+        match element.as_array() {
+            None if children.len() == 1 => {
+                children[0].set_origin(parent_origin.child(name, None));
+            }
+            None => {}
+            Some(items) => {
+                // Values come in array order; `null` entries (a primitive with only an
+                // extension) may or may not have produced one.
+                let positions: Vec<usize> = if children.len() == items.len() {
+                    (0..items.len()).collect()
+                } else {
+                    items
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, item)| !item.is_null())
+                        .map(|(i, _)| i)
+                        .collect()
+                };
+                if positions.len() == children.len() {
+                    for (child, index) in children.iter_mut().zip(positions) {
+                        child.set_origin(parent_origin.child(name.clone(), Some(index)));
+                    }
+                }
+            }
+        }
+    }
+
     pub(super) async fn evaluate_path(
         &self,
         identifier: &str,
@@ -871,6 +959,7 @@ impl Evaluator {
 
         // Navigate each item in the input collection
         for item in context.input_collection().iter() {
+            let start = result_values.len();
             match item {
                 FhirPathValue::Resource(json, type_info, _) => {
                     // Handle resource type validation when identifier starts with capital letter
@@ -909,11 +998,22 @@ impl Evaluator {
                                     is_empty: Some(false),
                                 });
 
-                            let resource_value = FhirPathValue::Resource(
+                            let mut resource_value = FhirPathValue::Resource(
                                 json.clone(),
                                 std::sync::Arc::new(resource_type_info),
                                 None,
                             );
+                            // `Patient` on the root resource is the root of every pathname().
+                            let is_root = context.tracks_paths()
+                                && context.root_resource_value().is_some_and(|root| {
+                                    matches!(&root, FhirPathValue::Resource(root_node, _, _)
+                                    if root_node.identity().is_some()
+                                        && root_node.identity() == json.identity())
+                                });
+                            if is_root {
+                                resource_value
+                                    .set_origin(crate::core::ValueOrigin::root(identifier));
+                            }
                             result_values.push(resource_value);
                         } else {
                             // Resource type mismatch - return empty per FHIRPath spec
@@ -1192,6 +1292,8 @@ impl Evaluator {
                     }
                 }
             }
+            // Record where each value navigated from a resource sits, for pathname().
+            Self::attach_origins(item, identifier, context, &mut result_values[start..]);
         }
 
         Ok(EvaluationResult {
@@ -1632,13 +1734,19 @@ impl Evaluator {
                 }
             }
             "total" => {
-                // System variable $total
+                // System variable $total. An accumulator holding several
+                // items, or none (`aggregate()` without `init` starts with
+                // `{}`), is stored as a collection value: it reads back as
+                // that collection, so `$total.empty()` is true at the start.
                 if let Some(total_value) = context
                     .get_variable("total")
                     .or_else(|| context.get_variable("$total"))
                 {
                     Ok(EvaluationResult {
-                        value: Collection::single(total_value),
+                        value: match total_value {
+                            FhirPathValue::Collection(items) => items,
+                            single => Collection::single(single),
+                        },
                     })
                 } else {
                     // Return empty if $total is not set
@@ -1750,7 +1858,7 @@ impl Evaluator {
                                 if let Some(quantity_value) =
                                     self.extract_quantity_from_json(element).await
                                 {
-                                    quantity_value
+                                    Self::typed_quantity(quantity_value, &element_type_info)
                                 } else {
                                     // If quantity extraction fails, fall back to Resource
                                     FhirPathValue::Resource(
@@ -1814,7 +1922,7 @@ impl Evaluator {
                         if let Some(quantity_value) =
                             self.extract_quantity_from_json(property_value).await
                         {
-                            results.push(quantity_value);
+                            results.push(Self::typed_quantity(quantity_value, &element_type_info));
                         } else {
                             // If quantity extraction fails, fall back to Resource
                             let fhir_value = FhirPathValue::Resource(
@@ -1910,6 +2018,20 @@ impl Evaluator {
             std::sync::Arc::new(property_type_info),
             None,
         ))
+    }
+
+    /// Give a Quantity read from a FHIR element that element's (FHIR) type, so
+    /// `is(FHIR.Quantity)` and `type()` see a FHIR.Quantity rather than a System.Quantity.
+    fn typed_quantity(
+        mut quantity: FhirPathValue,
+        element_type_info: &std::sync::Arc<crate::core::model_provider::TypeInfo>,
+    ) -> FhirPathValue {
+        if let FhirPathValue::Quantity { type_info, .. } = &mut quantity
+            && element_type_info.namespace.as_deref() == Some("FHIR")
+        {
+            *type_info = element_type_info.clone();
+        }
+        quantity
     }
 
     /// Extract quantity value from FHIR Quantity JSON with UCUM unit parsing support
@@ -2522,12 +2644,9 @@ impl Evaluator {
     ) -> Result<EvaluationResult> {
         use super::function_registry::{
             ArgumentEvaluationStrategy, FunctionEvaluatorWrapper as Wrapper,
-            NullPropagationStrategy,
         };
         let metadata = wrapper.metadata();
-        if matches!(metadata.null_propagation, NullPropagationStrategy::Focus)
-            && input_values.is_empty()
-        {
+        if super::function_registry::focus_is_null(metadata, &input_values) {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });

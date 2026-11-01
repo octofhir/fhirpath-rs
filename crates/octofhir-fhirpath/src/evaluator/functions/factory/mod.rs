@@ -11,6 +11,7 @@ pub mod create_function;
 pub mod extension_function;
 pub mod human_name_function;
 pub mod identifier_function;
+pub mod primitive_function;
 pub mod quantity_function;
 pub mod with_extension_function;
 pub mod with_property_function;

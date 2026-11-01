@@ -78,6 +78,7 @@ pub mod truncate_function;
 pub mod define_variable_function;
 
 // Temporal functions
+pub mod date_time_of_function;
 pub mod day_of_function;
 pub mod difference_function;
 pub mod duration_function;
@@ -86,7 +87,10 @@ pub mod millisecond_function;
 pub mod minute_of_function;
 pub mod month_of_function;
 pub mod now_function;
+pub mod pathname_function;
 pub mod second_of_function;
+#[cfg(feature = "sql-on-fhir")]
+pub mod sql_on_fhir;
 pub mod time_of_day_function;
 pub mod timezone_offset_of_function;
 pub mod today_function;
@@ -287,10 +291,11 @@ pub use weight_function::WeightFunctionEvaluator;
 pub use conversion::{
     ConvertsToBooleanFunctionEvaluator, ConvertsToDateFunctionEvaluator,
     ConvertsToDateTimeFunctionEvaluator, ConvertsToDecimalFunctionEvaluator,
-    ConvertsToIntegerFunctionEvaluator, ConvertsToQuantityFunctionEvaluator,
-    ConvertsToStringFunctionEvaluator, ConvertsToTimeFunctionEvaluator, ToBooleanFunctionEvaluator,
-    ToDateFunctionEvaluator, ToDateTimeFunctionEvaluator, ToDecimalFunctionEvaluator,
-    ToIntegerFunctionEvaluator, ToQuantityFunctionEvaluator, ToStringFunctionEvaluator,
+    ConvertsToIntegerFunctionEvaluator, ConvertsToLongFunctionEvaluator,
+    ConvertsToQuantityFunctionEvaluator, ConvertsToStringFunctionEvaluator,
+    ConvertsToTimeFunctionEvaluator, ToBooleanFunctionEvaluator, ToDateFunctionEvaluator,
+    ToDateTimeFunctionEvaluator, ToDecimalFunctionEvaluator, ToIntegerFunctionEvaluator,
+    ToLongFunctionEvaluator, ToQuantityFunctionEvaluator, ToStringFunctionEvaluator,
     ToTimeFunctionEvaluator,
 };
 pub use factory::{

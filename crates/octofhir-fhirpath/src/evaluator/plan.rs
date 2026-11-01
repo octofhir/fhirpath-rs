@@ -1,8 +1,6 @@
 //! Cached instructions for CPU-only regions and a stack-machine program for
 //! provider access and context-sensitive constructs. No speculative execution.
-use super::function_registry::{
-    FunctionEvaluatorWrapper, NullPropagationStrategy, PureFunctionEvaluator,
-};
+use super::function_registry::{FunctionEvaluatorWrapper, PureFunctionEvaluator};
 use super::operator_registry::OperationEvaluator;
 use super::{EvaluationContext, EvaluationResult, Evaluator};
 use crate::ast::{BinaryOperator, ExpressionNode};
@@ -111,12 +109,7 @@ impl CompiledPlan {
                 }
                 Instruction::Call(function, args) => {
                     let input = stack.pop().unwrap();
-                    if input.is_empty()
-                        && matches!(
-                            function.metadata().null_propagation,
-                            NullPropagationStrategy::Focus
-                        )
-                    {
+                    if super::function_registry::focus_is_null(function.metadata(), &input) {
                         stack.push(Collection::empty());
                     } else {
                         stack.push(function.evaluate_sync_borrowed(input, args)?.value);

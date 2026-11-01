@@ -127,11 +127,16 @@ impl PureFunctionEvaluator for EncodeFunctionEvaluator {
             "hex" => hex::encode(input_str.as_bytes()),
             "url" => urlencoding::encode(&input_str).to_string(),
             "html" => html_escape::encode_text(&input_str).to_string(),
+            // Lossy: every character above code 127 becomes `?` (one per character).
+            "ascii" => input_str
+                .chars()
+                .map(|c| if c.is_ascii() { c } else { '?' })
+                .collect(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
                     format!(
-                        "Unsupported encoding format: {format_str}. Supported formats: base64, urlbase64, hex, url, html"
+                        "Unsupported encoding format: {format_str}. Supported formats: base64, urlbase64, hex, ascii, url, html"
                     ),
                 ));
             }

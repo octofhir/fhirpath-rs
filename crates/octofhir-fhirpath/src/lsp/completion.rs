@@ -435,6 +435,11 @@ impl CompletionProvider {
                 "Resource",
                 "The root resource being evaluated",
             ),
+            Self::create_constant_item(
+                "%rootResource",
+                "Resource",
+                "The top-level resource (e.g. the Bundle or the resource holding contained ones)",
+            ),
             Self::create_constant_item("%context", "Element", "The evaluation context element"),
             Self::create_constant_item("%ucum", "string", "UCUM unit system URL"),
             Self::create_constant_item("%sct", "string", "SNOMED CT system URL"),

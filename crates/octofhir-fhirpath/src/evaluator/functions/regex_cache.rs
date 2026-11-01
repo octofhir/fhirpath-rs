@@ -23,6 +23,106 @@ pub(super) fn compile(pattern: &str) -> CompiledRegex {
     PATTERNS.get_with_by_ref(pattern, compile)
 }
 
+/// The pattern FHIRPath evaluates, as inline flags: always single-line mode (`.` matches a
+/// newline), plus the optional `flags` of `matches`/`matchesFull`/`replaceMatches`
+/// (`i` case-insensitive, `m` multi-line `^`/`$`).
+pub(super) fn effective_pattern(pattern: &str, flags: &str) -> crate::core::Result<String> {
+    let mut inline = String::from("s");
+    for flag in flags.chars() {
+        match flag {
+            'i' | 'm' if !inline.contains(flag) => inline.push(flag),
+            'i' | 'm' => {}
+            other => {
+                return Err(crate::core::FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0058,
+                    format!("Invalid regular expression flag '{other}' (expected 'i' or 'm')"),
+                ));
+            }
+        }
+    }
+    Ok(format!("(?{inline}){pattern}"))
+}
+
+/// The optional flags argument at `index`: absent or empty means no flags; anything but a
+/// single string is an error.
+pub(super) fn flags_arg(
+    args: &[crate::core::Collection],
+    index: usize,
+    function: &str,
+) -> crate::core::Result<String> {
+    match args.get(index) {
+        None => Ok(String::new()),
+        Some(arg) if arg.is_empty() => Ok(String::new()),
+        Some(arg) => match (arg.len(), arg.first().and_then(|v| v.as_string())) {
+            (1, Some(flags)) => Ok(flags.to_string()),
+            _ => Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0057,
+                format!("{function} flags argument must be a single string"),
+            )),
+        },
+    }
+}
+
+/// Compile `pattern` (already passed through [`effective_pattern`]) for a plan, with the
+/// size limit that keeps retained regexes bounded.
+pub(super) fn compile_for_plan(pattern: &str) -> Option<Arc<Regex>> {
+    if pattern.len() > MAX_CACHED_PATTERN_BYTES {
+        return None;
+    }
+    regex::RegexBuilder::new(pattern)
+        .size_limit(256 * 1024)
+        .build()
+        .ok()
+        .map(Arc::new)
+}
+
+/// The cached compilation of `pattern` (as [`effective_pattern`] gives it).
+fn compile_checked(pattern: &str) -> crate::core::Result<Arc<Regex>> {
+    compile(pattern).map_err(|err| {
+        crate::core::FhirPathError::evaluation_error(
+            crate::core::error_code::FP0058,
+            format!("Invalid regular expression pattern '{pattern}': {err}"),
+        )
+    })
+}
+
+/// A regex compiled when a plan was prepared, with the arguments it was compiled from.
+#[derive(Debug)]
+pub(super) struct PreparedRegex {
+    pattern: String,
+    flags: String,
+    regex: Arc<Regex>,
+}
+
+impl PreparedRegex {
+    /// Compile `effective` (the pattern as [`effective_pattern`] gives it) for `pattern` and
+    /// `flags`, as written in the expression.
+    pub(super) fn new(pattern: &str, flags: &str, effective: &str) -> Option<Arc<Self>> {
+        Some(Arc::new(Self {
+            pattern: pattern.to_string(),
+            flags: flags.to_string(),
+            regex: compile_for_plan(effective)?,
+        }))
+    }
+}
+
+/// The regex for `pattern` with `flags`: the prepared one when it was compiled for the same
+/// arguments (no allocation), otherwise a cached compilation of `effective()`.
+pub(super) fn regex_for(
+    prepared: Option<&Arc<PreparedRegex>>,
+    pattern: &str,
+    flags: &str,
+    effective: impl FnOnce() -> crate::core::Result<String>,
+) -> crate::core::Result<Arc<Regex>> {
+    if let Some(prepared) = prepared
+        && prepared.pattern == pattern
+        && prepared.flags == flags
+    {
+        return Ok(prepared.regex.clone());
+    }
+    compile_checked(&effective()?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

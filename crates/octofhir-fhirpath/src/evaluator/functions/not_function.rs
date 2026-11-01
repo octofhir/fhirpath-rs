@@ -82,7 +82,7 @@ impl PureFunctionEvaluator for NotFunctionEvaluator {
                     results.push(FhirPathValue::Boolean(
                         !b,
                         type_info.clone(),
-                        primitive.clone(),
+                        crate::core::types::computed_element(primitive),
                     ));
                 }
                 FhirPathValue::Integer(_i, type_info, primitive) => {
@@ -90,7 +90,7 @@ impl PureFunctionEvaluator for NotFunctionEvaluator {
                     results.push(FhirPathValue::Boolean(
                         false,
                         type_info.clone(),
-                        primitive.clone(),
+                        crate::core::types::computed_element(primitive),
                     ));
                 }
                 _ => {

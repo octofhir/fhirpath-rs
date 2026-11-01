@@ -120,54 +120,75 @@ impl DivideOperatorEvaluator {
                 )))
             }
 
-            // Quantity / Quantity = Decimal (when units cancel) or Quantity (with unit division)
+            // Number / Quantity: the number is a Quantity with unit '1' (`60 / 1 's'` is
+            // `60 '/s'`). Calendar durations do not divide.
+            (
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+                FhirPathValue::Quantity {
+                    value: rv,
+                    code: rc,
+                    unit: ru,
+                    system: rs,
+                    calendar_unit: rcal,
+                    ..
+                },
+            ) => {
+                if *rv == Decimal::ZERO || rcal.is_some() {
+                    return Ok(None);
+                }
+                let number = match left {
+                    FhirPathValue::Integer(n, _, _) => Decimal::from(*n),
+                    FhirPathValue::Decimal(n, _, _) => *n,
+                    _ => return Ok(None),
+                };
+                let right_unit = rc.as_deref().or(ru.as_deref()).unwrap_or("1");
+                let unit = crate::evaluator::quantity_utils::combine_units("1", right_unit, true);
+                Ok(number.checked_div(*rv).map(|value| {
+                    FhirPathValue::quantity_with_components(
+                        value,
+                        Some(unit.clone()),
+                        Some(unit),
+                        rs.clone(),
+                    )
+                }))
+            }
+
+            // Quantity / Quantity = Quantity, units combined by UCUM unit algebra
+            // (`120 'm' / 60 's'` is `2 'm/s'`, `1 'm' / 1 'm'` is `1 '1'`). Calendar
+            // durations do not divide.
             (
                 FhirPathValue::Quantity {
                     value: lv,
-                    unit: lu,
                     code: lc,
+                    unit: lu,
                     system: ls,
+                    calendar_unit: lcal,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
-                    unit: ru,
                     code: rc,
+                    unit: ru,
                     system: rs,
+                    calendar_unit: rcal,
                     ..
                 },
             ) => {
-                if *rv == Decimal::ZERO {
+                if *rv == Decimal::ZERO || lcal.is_some() || rcal.is_some() {
                     return Ok(None);
                 }
-
-                // If same units, units cancel and result is a Decimal (not Quantity)
-                // Per FHIRPath spec: "6 'kg' / 2 'kg' -> 3.0"
-                if lu == ru {
-                    Ok(Some(FhirPathValue::decimal(*lv / *rv)))
-                } else {
-                    // TODO: Implement proper unit division using UCUM
-                    // For now, simple concatenation with division
-                    let combined_unit = match (lu, ru) {
-                        (None, None) => None,
-                        (Some(l), None) => Some(l.clone()),
-                        (None, Some(r)) => Some(format!("1/{r}")),
-                        (Some(l), Some(r)) => Some(format!("{l}/{r}")),
-                    };
-                    // Combine codes the same way as units for consistency
-                    let combined_code = match (lc, rc) {
-                        (None, None) => None,
-                        (Some(l), None) => Some(l.clone()),
-                        (None, Some(r)) => Some(format!("1/{r}")),
-                        (Some(l), Some(r)) => Some(format!("{l}/{r}")),
-                    };
-                    Ok(Some(FhirPathValue::quantity_with_components(
-                        *lv / *rv,
-                        combined_unit,
-                        combined_code,
+                let left_unit = lc.as_deref().or(lu.as_deref()).unwrap_or("1");
+                let right_unit = rc.as_deref().or(ru.as_deref()).unwrap_or("1");
+                let unit =
+                    crate::evaluator::quantity_utils::combine_units(left_unit, right_unit, true);
+                Ok(lv.checked_div(*rv).map(|value| {
+                    FhirPathValue::quantity_with_components(
+                        value,
+                        Some(unit.clone()),
+                        Some(unit),
                         ls.clone().or_else(|| rs.clone()),
-                    )))
-                }
+                    )
+                }))
             }
 
             // Invalid combinations
@@ -438,10 +459,20 @@ mod tests {
         assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(3.75)));
     }
 
-    // ========== Quantity / Quantity → Decimal ==========
+    // ========== Quantity / Quantity with the same unit → Quantity '1' ==========
+
+    fn assert_unity(value: &FhirPathValue, expected: Decimal) {
+        match value {
+            FhirPathValue::Quantity { value, unit, .. } => {
+                assert_eq!(*value, expected);
+                assert_eq!(unit.as_deref(), Some("1"));
+            }
+            other => panic!("expected a Quantity, got {other:?}"),
+        }
+    }
 
     #[tokio::test]
-    async fn test_quantity_divide_quantity_same_units_returns_decimal() {
+    async fn test_quantity_divide_quantity_same_units_returns_unity() {
         let evaluator = DivideOperatorEvaluator::new();
         let context = create_test_context();
 
@@ -454,8 +485,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        // Should return Decimal, not Quantity
-        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(3.0)));
+        // A Quantity in the unit '1' (FHIRPath §1.6.6.2: Quantity inputs give a Quantity)
+        assert_unity(result.value.first().unwrap(), dec!(3));
     }
 
     #[tokio::test]
@@ -472,7 +503,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(2.0)));
+        assert_unity(result.value.first().unwrap(), dec!(2));
     }
 
     #[tokio::test]
@@ -489,7 +520,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first().unwrap().as_decimal(), Some(dec!(2.0)));
+        assert_unity(result.value.first().unwrap(), dec!(2));
     }
 
     // ========== Quantity / Number → Quantity ==========

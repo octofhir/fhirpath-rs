@@ -15,7 +15,7 @@ use crate::evaluator::function_registry::{
 /// replaceMatches function evaluator
 #[derive(Clone)]
 pub struct ReplaceMatchesFunctionEvaluator {
-    compiled: Option<Arc<regex::Regex>>,
+    compiled: Option<Arc<super::regex_cache::PreparedRegex>>,
     metadata: FunctionMetadata,
 }
 
@@ -46,11 +46,19 @@ impl ReplaceMatchesFunctionEvaluator {
                             description: "Replacement text for each match".to_string(),
                             default_value: None,
                         },
+                        FunctionParameter {
+                            name: "flags".to_string(),
+                            parameter_type: vec!["String".to_string()],
+                            optional: true,
+                            is_expression: false,
+                            description: "Regex flags: 'i' case-insensitive, 'm' multi-line".to_string(),
+                            default_value: None,
+                        },
                     ],
                     return_type: "String".to_string(),
                     polymorphic: false,
                     min_params: 2,
-                    max_params: Some(2),
+                    max_params: Some(3),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
                 null_propagation: NullPropagationStrategy::Focus,
@@ -72,18 +80,14 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
 
     fn prepare(&self, args: &[Collection]) -> Option<Arc<dyn PureFunctionEvaluator>> {
         let pattern = args.first()?.first()?.as_string()?;
+        let flags = super::regex_cache::flags_arg(args, 2, "replaceMatches").ok()?;
+        let effective = super::regex_cache::effective_pattern(pattern, &flags).ok()?;
         // Keep compiled-plan retention bounded even for adversarial regexes.
         // Oversized/expensive patterns keep the normal runtime compilation path.
-        if pattern.len() > 4096 {
-            return None;
-        }
-
-        let compiled = regex::RegexBuilder::new(pattern)
-            .size_limit(256 * 1024)
-            .build()
-            .ok()?;
         let mut evaluator = self.clone();
-        evaluator.compiled = Some(Arc::new(compiled));
+        evaluator.compiled = Some(super::regex_cache::PreparedRegex::new(
+            pattern, &flags, &effective,
+        )?);
         Some(Arc::new(evaluator))
     }
 
@@ -100,15 +104,16 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
         input: Collection,
         args: &[Collection],
     ) -> Result<EvaluationResult> {
-        if args.len() != 2 {
+        if !(2..=3).contains(&args.len()) {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
                 format!(
-                    "replaceMatches function expects 2 arguments, got {}",
+                    "replaceMatches function expects 2 or 3 arguments, got {}",
                     args.len()
                 ),
             ));
         }
+        let flags = super::regex_cache::flags_arg(args, 2, "replaceMatches")?;
 
         // Get the pattern argument (pre-evaluated)
         let pattern_arg = &args[0];
@@ -168,23 +173,15 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
             });
         }
 
-        let cached_regex;
         let regex = if pattern.is_empty() {
             None
-        } else if let Some(regex) = self
-            .compiled
-            .as_deref()
-            .filter(|regex| regex.as_str() == pattern)
-        {
-            Some(regex)
         } else {
-            cached_regex = super::regex_cache::compile(pattern).map_err(|err| {
-                FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0058,
-                    format!("Invalid regular expression pattern '{pattern}': {err}"),
-                )
-            })?;
-            Some(cached_regex.as_ref())
+            Some(super::regex_cache::regex_for(
+                self.compiled.as_ref(),
+                pattern,
+                &flags,
+                || super::regex_cache::effective_pattern(pattern, &flags),
+            )?)
         };
 
         let mut results = Vec::with_capacity(input.len());
@@ -199,7 +196,7 @@ impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
                 results.push(FhirPathValue::String(
                     replaced,
                     type_info.clone(),
-                    primitive.clone(),
+                    crate::core::types::computed_element(primitive),
                 ));
             } else {
                 return Err(FhirPathError::evaluation_error(

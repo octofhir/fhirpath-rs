@@ -47,6 +47,8 @@ impl SemanticAnalyzer {
             "%context",
             "resource",
             "%resource",
+            "rootResource",
+            "%rootResource",
             "terminologies",
             "sct",
             "loinc",

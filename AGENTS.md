@@ -4,7 +4,7 @@ This file contains comprehensive guidance for AI agents when working with the fh
 
 ## Project Overview
 
-This is **fhirpath-rs** (octofhir-fhirpath), a FHIRPath implementation in Rust for healthcare data processing. It provides an implementation of the FHIRPath expression language for FHIR resources with **100.0% specification compliance** (1118/1118 tests passing as of 2025-09-23).
+This is **fhirpath-rs** (octofhir-fhirpath), a FHIRPath implementation in Rust for healthcare data processing. It provides an implementation of the FHIRPath expression language for FHIR resources tracking FHIRPath 3.x: the curated gate (`just test-coverage`, 1228 tests) passes 100%, and the official fhir-test-cases R5/R6 suites (`just test-official-r5|r6`, report only) pass about 97% of the tests that run.
 
 ## Common Commands
 
@@ -176,7 +176,7 @@ fhirpath> :quit
 ### Testing Strategy
 - **Unit Tests**: Each crate has comprehensive unit tests
 - **Integration Tests**: Cross-crate functionality testing
-- **Specification Compliance**: 114 official FHIRPath test suites, 1118 tests total (100.0% pass rate)
+- **Specification Compliance**: curated gate of 1228 tests (100% required); official R5/R6 suites in `test-cases/official` are report-only
 - **Performance Tests**: Automated benchmarking and regression detection
 - Always run `just test-coverage` to update compliance report
 
@@ -217,7 +217,7 @@ The main CLI binary is now in `crates/fhirpath-cli/src/main.rs`. All CLI functio
 - `cargo test --package crate-name` - Tests for specific crate
 
 ### Test Coverage
-Current status: **100.0%** (1118/1118 tests passing)
+Current status: curated gate **100.0%** (1228/1228); official R5 96.5%, R6 96.9% of executed tests
 - Run `just test-coverage` to update TEST_COVERAGE.md
 - Focus on improving coverage in areas marked 🟠 or 🔴 in test report
 - All new functionality must include tests

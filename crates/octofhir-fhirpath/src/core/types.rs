@@ -423,6 +423,83 @@ pub struct WrappedPrimitiveElement {
     pub id: Option<String>,
     /// Extensions for primitive types
     pub extensions: Vec<WrappedExtension>,
+    /// Where the value was navigated from in the root resource (for `pathname()`)
+    pub origin: Option<ValueOrigin>,
+}
+
+/// Where a value navigated from the root resource sits in it: its element name and
+/// position in each ancestor, up to the root. Values that were computed rather than
+/// navigated have none.
+///
+/// Provenance is not part of a value: two origins always compare equal, so values compare
+/// the same with or without one.
+#[derive(Debug, Clone)]
+pub struct ValueOrigin(Arc<OriginStep>);
+
+#[derive(Debug)]
+enum OriginStep {
+    Root(Arc<str>),
+    Child {
+        parent: ValueOrigin,
+        name: Arc<str>,
+        /// Position in the parent's array, `None` when the element is not an array
+        index: Option<usize>,
+    },
+}
+
+impl PartialEq for ValueOrigin {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl ValueOrigin {
+    /// The root resource itself, named by its type.
+    pub fn root(resource_type: impl Into<Arc<str>>) -> Self {
+        Self(Arc::new(OriginStep::Root(resource_type.into())))
+    }
+
+    /// The element `name` of this value, at `index` when the element is an array.
+    pub fn child(&self, name: impl Into<Arc<str>>, index: Option<usize>) -> Self {
+        Self(Arc::new(OriginStep::Child {
+            parent: self.clone(),
+            name: name.into(),
+            index,
+        }))
+    }
+
+    /// The path from the root, e.g. `Patient.name[0].given[1]`. Every element gets an
+    /// indexer (`[0]` for a single value) unless `short`, which keeps indexers only on
+    /// elements that are arrays.
+    pub fn path(&self, short: bool) -> String {
+        let mut steps: Vec<(&str, Option<usize>)> = Vec::new();
+        let mut current = self;
+        loop {
+            match current.0.as_ref() {
+                OriginStep::Root(name) => {
+                    let mut path = name.to_string();
+                    for (name, index) in steps.iter().rev() {
+                        path.push('.');
+                        path.push_str(name);
+                        match (index, short) {
+                            (Some(i), _) => path.push_str(&format!("[{i}]")),
+                            (None, false) => path.push_str("[0]"),
+                            (None, true) => {}
+                        }
+                    }
+                    return path;
+                }
+                OriginStep::Child {
+                    parent,
+                    name,
+                    index,
+                } => {
+                    steps.push((name, *index));
+                    current = parent;
+                }
+            }
+        }
+    }
 }
 
 /// Extension for wrapped primitive elements
@@ -438,6 +515,21 @@ pub struct WrappedExtension {
     pub extensions: Vec<WrappedExtension>,
 }
 
+/// The type of a computed (System) Quantity.
+pub(crate) fn quantity_type_info() -> Arc<TypeInfo> {
+    QUANTITY_TYPE.clone()
+}
+
+/// The primitive element for a value computed from another (e.g. `upper()`): its id and
+/// extensions carry over, but not its [`ValueOrigin`], since the result was not navigated.
+pub fn computed_element(
+    element: &Option<WrappedPrimitiveElement>,
+) -> Option<WrappedPrimitiveElement> {
+    let mut element = element.clone()?;
+    element.origin = None;
+    (!element.is_empty()).then_some(element)
+}
+
 impl Default for WrappedPrimitiveElement {
     fn default() -> Self {
         Self::new()
@@ -450,6 +542,7 @@ impl WrappedPrimitiveElement {
         Self {
             id: None,
             extensions: Vec::new(),
+            origin: None,
         }
     }
 
@@ -458,6 +551,7 @@ impl WrappedPrimitiveElement {
         Self {
             id: Some(id),
             extensions: Vec::new(),
+            origin: None,
         }
     }
 
@@ -661,16 +755,33 @@ impl CalendarUnit {
         }
     }
 
+    /// The calendar duration named by a FHIRPath keyword (`year`, `months`, `day`, ...). A
+    /// UCUM code such as `'s'` or `'wk'` is a definite duration, not a calendar unit.
+    pub fn from_keyword(s: &str) -> Option<Self> {
+        match s {
+            "millisecond" | "milliseconds" => Some(Self::Millisecond),
+            "second" | "seconds" => Some(Self::Second),
+            "minute" | "minutes" => Some(Self::Minute),
+            "hour" | "hours" => Some(Self::Hour),
+            "day" | "days" => Some(Self::Day),
+            "week" | "weeks" => Some(Self::Week),
+            "month" | "months" => Some(Self::Month),
+            "year" | "years" => Some(Self::Year),
+            _ => None,
+        }
+    }
+
     /// Parse from string
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "millisecond" | "milliseconds" | "ms" => Some(Self::Millisecond),
             "second" | "seconds" | "sec" | "secs" | "s" => Some(Self::Second),
-            "minute" | "minutes" | "min" | "mins" | "m" => Some(Self::Minute),
+            // Not "m": as a UCUM unit that is the metre.
+            "minute" | "minutes" | "min" | "mins" => Some(Self::Minute),
             "hour" | "hours" | "hr" | "hrs" | "h" => Some(Self::Hour),
             "day" | "days" | "d" => Some(Self::Day),
-            "week" | "weeks" | "wk" | "wks" | "w" => Some(Self::Week),
+            "week" | "weeks" | "wk" | "wks" => Some(Self::Week),
             "month" | "months" | "mos" => Some(Self::Month), // Removed "mo" - UCUM only
             "year" | "years" | "yr" | "yrs" => Some(Self::Year), // Removed "a" - UCUM only
             _ => None,
@@ -805,6 +916,21 @@ impl FhirPathValue {
         Self::Integer(value, LONG_TYPE.clone(), None)
     }
 
+    /// Whether this is a System.Long (stored in the Integer variant with Long type info).
+    pub fn is_long(&self) -> bool {
+        matches!(self, Self::Integer(_, type_info, _) if type_info.type_name == "Long")
+    }
+
+    /// The result of integer arithmetic on `left` and `right`: a Long when either operand
+    /// is a Long (FHIRPath implicitly converts Integer to Long), otherwise an Integer.
+    pub fn integer_result(value: i64, left: &Self, right: &Self) -> Self {
+        if left.is_long() || right.is_long() {
+            Self::long(value)
+        } else {
+            Self::integer(value)
+        }
+    }
+
     /// Get TypeInfo for this value (always available in Phase 1)
     pub fn type_info(&self) -> &Arc<TypeInfo> {
         match self {
@@ -854,6 +980,32 @@ impl FhirPathValue {
             } => primitive_element.as_ref(),
             _ => None,
         }
+    }
+
+    /// Where this value was navigated from in the root resource, if it was.
+    pub fn origin(&self) -> Option<&ValueOrigin> {
+        self.wrapped_primitive_element()?.origin.as_ref()
+    }
+
+    /// Record where this value was navigated from (see [`ValueOrigin`]).
+    pub fn set_origin(&mut self, origin: ValueOrigin) {
+        let element = match self {
+            Self::Boolean(_, _, element)
+            | Self::Integer(_, _, element)
+            | Self::Decimal(_, _, element)
+            | Self::String(_, _, element)
+            | Self::Date(_, _, element)
+            | Self::DateTime(_, _, element)
+            | Self::Time(_, _, element)
+            | Self::Resource(_, _, element) => element,
+            Self::Quantity {
+                primitive_element, ..
+            } => primitive_element,
+            _ => return,
+        };
+        element
+            .get_or_insert_with(WrappedPrimitiveElement::new)
+            .origin = Some(origin);
     }
 
     /// Check if this value has primitive extensions
@@ -1283,7 +1435,7 @@ impl FhirPathValue {
 
         let (ucum_unit, calendar_unit) = if let Some(ref code_str) = code {
             let normalized = normalize_ucum_unit(code_str);
-            if let Some(cal_unit) = CalendarUnit::from_str(normalized.as_ref()) {
+            if let Some(cal_unit) = CalendarUnit::from_keyword(normalized.as_ref()) {
                 (None, Some(cal_unit))
             } else {
                 match ucum_unit_record(normalized.as_ref()) {
@@ -1298,7 +1450,7 @@ impl FhirPathValue {
             }
         } else if let Some(ref unit_str) = unit {
             let normalized = normalize_ucum_unit(unit_str);
-            if let Some(cal_unit) = CalendarUnit::from_str(normalized.as_ref()) {
+            if let Some(cal_unit) = CalendarUnit::from_keyword(normalized.as_ref()) {
                 (None, Some(cal_unit))
             } else {
                 match ucum_unit_record(normalized.as_ref()) {

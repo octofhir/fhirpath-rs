@@ -30,7 +30,7 @@ impl FactoryExtensionFunctionEvaluator {
                         FunctionParameter {
                             name: "url".to_string(),
                             parameter_type: vec!["String".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: false,
                             description: "Extension URL".to_string(),
                             default_value: None,
@@ -46,7 +46,7 @@ impl FactoryExtensionFunctionEvaluator {
                     ],
                     return_type: "Extension".to_string(),
                     polymorphic: false,
-                    min_params: 1,
+                    min_params: 0,
                     max_params: Some(2),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
@@ -79,18 +79,10 @@ impl PureFunctionEvaluator for FactoryExtensionFunctionEvaluator {
             ));
         }
 
-        let url = match args.first().and_then(|a| a.first()) {
-            Some(FhirPathValue::String(s, _, _)) => s.clone(),
-            _ => {
-                return Err(FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0056,
-                    "Extension function requires a string url argument".to_string(),
-                ));
-            }
-        };
-
         let mut ext = serde_json::Map::new();
-        ext.insert("url".to_string(), serde_json::Value::String(url));
+        if let Some(FhirPathValue::String(url, _, _)) = args.first().and_then(|a| a.first()) {
+            ext.insert("url".to_string(), serde_json::Value::String(url.clone()));
+        }
 
         // If value argument is provided, add it based on type
         if let Some(value_arg) = args.get(1).and_then(|a| a.first()) {
@@ -117,11 +109,20 @@ pub(crate) fn add_extension_value(
     value: &FhirPathValue,
 ) {
     match value {
-        FhirPathValue::String(s, _, _) => {
-            ext.insert(
-                "valueString".to_string(),
-                serde_json::Value::String(s.clone()),
-            );
+        FhirPathValue::String(s, type_info, _) => {
+            // A FHIR string-like primitive keeps its type: `valueCode`, `valueUri`, ...
+            let key = match type_info.name.as_deref() {
+                Some(name)
+                    if type_info.namespace.as_deref() == Some("FHIR")
+                        && name.starts_with(|c: char| c.is_ascii_lowercase()) =>
+                {
+                    let mut chars = name.chars();
+                    let first = chars.next().map(|c| c.to_ascii_uppercase()).unwrap_or('S');
+                    format!("value{first}{}", chars.as_str())
+                }
+                _ => "valueString".to_string(),
+            };
+            ext.insert(key, serde_json::Value::String(s.clone()));
         }
         FhirPathValue::Integer(i, _, _) => {
             ext.insert("valueInteger".to_string(), serde_json::json!(*i));

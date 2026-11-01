@@ -36,14 +36,14 @@ impl NegateOperatorEvaluator {
             FhirPathValue::Integer(i, type_info, primitive) => Ok(FhirPathValue::Integer(
                 -i,
                 type_info.clone(),
-                primitive.clone(),
+                crate::core::types::computed_element(primitive),
             )),
 
             // Decimal negation
             FhirPathValue::Decimal(d, type_info, primitive) => Ok(FhirPathValue::Decimal(
                 -*d,
                 type_info.clone(),
-                primitive.clone(),
+                crate::core::types::computed_element(primitive),
             )),
 
             // Quantity negation
@@ -72,7 +72,7 @@ impl NegateOperatorEvaluator {
                     ucum_unit: ucum_unit.clone(),
                     calendar_unit: *calendar_unit,
                     type_info: type_info.clone(),
-                    primitive_element: primitive_element.clone(),
+                    primitive_element: crate::core::types::computed_element(primitive_element),
                 })
             }
 

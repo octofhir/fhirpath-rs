@@ -10,7 +10,7 @@ use crate::evaluator::EvaluationResult;
 use crate::evaluator::factory_variable::is_factory_variable;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
-    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
 };
 
 pub struct FactoryWithPropertyFunctionEvaluator {
@@ -18,7 +18,7 @@ pub struct FactoryWithPropertyFunctionEvaluator {
 }
 
 impl FactoryWithPropertyFunctionEvaluator {
-    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
+    pub fn create() -> Arc<dyn ProviderPureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "withProperty".to_string(),
@@ -63,7 +63,7 @@ impl FactoryWithPropertyFunctionEvaluator {
                 deterministic: true,
                 category: FunctionCategory::Utility,
                 requires_terminology: false,
-                requires_model: false,
+                requires_model: true,
             },
         })
     }
@@ -114,78 +114,116 @@ fn to_json_value(value: &FhirPathValue) -> serde_json::Value {
     }
 }
 
+/// The JSON key of a choice element (`value`) holding `value`: `valueQuantity`, `valueCode`.
+fn choice_key(name: &str, value: &FhirPathValue) -> String {
+    let type_name = match value {
+        FhirPathValue::Resource(_, type_info, _) | FhirPathValue::String(_, type_info, _)
+            if type_info.namespace.as_deref() == Some("FHIR") =>
+        {
+            type_info
+                .name
+                .clone()
+                .unwrap_or_else(|| type_info.type_name.clone())
+        }
+        other => other.type_name().to_string(),
+    };
+    let mut chars = type_name.chars();
+    match chars.next() {
+        Some(first) => format!("{name}{}{}", first.to_ascii_uppercase(), chars.as_str()),
+        None => name.to_string(),
+    }
+}
+
 #[async_trait::async_trait]
-impl PureFunctionEvaluator for FactoryWithPropertyFunctionEvaluator {
-    async fn evaluate(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
-        self.evaluate_sync(input, args)
-    }
-
-    fn supports_sync(&self) -> bool {
-        true
-    }
-
-    fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+impl ProviderPureFunctionEvaluator for FactoryWithPropertyFunctionEvaluator {
+    /// A copy of `instance` with `name` set to `value`, replacing any existing value (an
+    /// empty value removes it). With a model, `name` must be an element of the instance's
+    /// type, a repeating element takes an array, and a choice element (`value`) takes its
+    /// typed name (`valueQuantity`).
+    async fn evaluate(
+        &self,
+        input: Collection,
+        args: Vec<Collection>,
+        context: &crate::evaluator::EvaluationContext,
+    ) -> Result<EvaluationResult> {
+        let error = |message: &str| {
+            FhirPathError::evaluation_error(crate::core::error_code::FP0056, message.to_string())
+        };
         if input.len() != 1 || !is_factory_variable(&input[0]) {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0058,
                 "withProperty function can only be called on %factory variable".to_string(),
             ));
         }
-
-        // First arg: instance
-        let instance = args.first().and_then(|a| a.first()).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "withProperty requires an instance argument".to_string(),
-            )
-        })?;
-
-        // Second arg: property name
-        let prop_name = match args.get(1).and_then(|a| a.first()) {
+        let instance = args
+            .first()
+            .and_then(|a| a.first())
+            .ok_or_else(|| error("withProperty requires an instance argument"))?;
+        let name = match args.get(1).and_then(|a| a.first()) {
             Some(FhirPathValue::String(s, _, _)) => s.clone(),
-            _ => {
-                return Err(FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0056,
-                    "withProperty requires a string name argument".to_string(),
-                ));
-            }
+            _ => return Err(error("withProperty requires a string name argument")),
+        };
+        let values = args
+            .get(2)
+            .ok_or_else(|| error("withProperty requires a value argument"))?;
+        let FhirPathValue::Resource(json, type_info, _) = instance else {
+            return Err(error("withProperty instance must be a FHIR complex type"));
         };
 
-        // Third arg: value (can be single or collection)
-        let value_args = args.get(2).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "withProperty requires a value argument".to_string(),
-            )
-        })?;
-
-        match instance {
-            FhirPathValue::Resource(json, type_info, _) => {
-                let mut new_json = json.to_json();
-
-                if let Some(obj) = new_json.as_object_mut() {
-                    // If collection has multiple values, store as array
-                    if value_args.len() > 1 {
-                        let arr: Vec<serde_json::Value> =
-                            value_args.iter().map(to_json_value).collect();
-                        obj.insert(prop_name, serde_json::Value::Array(arr));
-                    } else if let Some(val) = value_args.first() {
-                        obj.insert(prop_name, to_json_value(val));
-                    }
-                }
-
-                Ok(EvaluationResult {
-                    value: Collection::single(FhirPathValue::resource_wrapped(
-                        new_json,
-                        type_info.clone(),
-                    )),
-                })
-            }
-            _ => Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "withProperty instance must be a FHIR complex type".to_string(),
-            )),
+        let model = context.model_provider();
+        let element_type = model
+            .get_element_type(type_info, &name)
+            .await
+            .ok()
+            .flatten();
+        let element_names = model.get_element_names(type_info);
+        let is_choice = element_type.is_none()
+            && element_names.iter().any(|n| {
+                n.len() > name.len()
+                    && n.starts_with(name.as_str())
+                    && n[name.len()..].starts_with(|c: char| c.is_ascii_uppercase())
+            });
+        if element_type.is_none() && !is_choice && !element_names.is_empty() {
+            return Err(error(&format!(
+                "'{name}' is not an element of {}",
+                type_info.name.as_deref().unwrap_or(&type_info.type_name)
+            )));
         }
+        let repeats = element_type.as_ref().and_then(|t| t.singleton) == Some(false);
+
+        let mut new_json = json.to_json();
+        let Some(object) = new_json.as_object_mut() else {
+            return Err(error("withProperty instance must be a FHIR complex type"));
+        };
+        // The new value replaces the old one, including a choice's other typed forms.
+        object.remove(&name);
+        if is_choice {
+            object.retain(|key, _| {
+                !(key.len() > name.len()
+                    && key.starts_with(name.as_str())
+                    && key[name.len()..].starts_with(|c: char| c.is_ascii_uppercase()))
+            });
+        }
+        match values.len() {
+            0 => {}
+            1 if is_choice => {
+                object.insert(choice_key(&name, &values[0]), to_json_value(&values[0]));
+            }
+            1 if !repeats => {
+                object.insert(name, to_json_value(&values[0]));
+            }
+            _ if repeats || element_names.is_empty() => {
+                object.insert(
+                    name,
+                    serde_json::Value::Array(values.iter().map(to_json_value).collect()),
+                );
+            }
+            _ => return Err(error(&format!("'{name}' takes a single value"))),
+        }
+
+        Ok(EvaluationResult {
+            value: Collection::single(FhirPathValue::resource_wrapped(new_json, type_info.clone())),
+        })
     }
 
     fn metadata(&self) -> &FunctionMetadata {

@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::ast::ExpressionNode;
-use crate::core::{Collection, Result};
+use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::functions::{
     // Math functions
     AbsFunctionEvaluator,
@@ -399,6 +399,25 @@ pub trait FunctionEvaluator: Send + Sync {
 
         Ok(())
     }
+}
+
+/// Whether a call with this input yields empty without running the function: a function
+/// with `NullPropagationStrategy::Focus` on an empty input, and a string, math or conversion
+/// function on an input of primitives that have no value (only an id or extensions, e.g.
+/// `given: [null]` with `_given`), since there is no value to operate on.
+pub(crate) fn focus_is_null(metadata: &FunctionMetadata, input: &Collection) -> bool {
+    if !matches!(metadata.null_propagation, NullPropagationStrategy::Focus) {
+        return false;
+    }
+    input.is_empty()
+        || (matches!(
+            metadata.category,
+            FunctionCategory::StringManipulation
+                | FunctionCategory::Math
+                | FunctionCategory::Conversion
+        ) && input
+            .iter()
+            .all(|value| matches!(value, FhirPathValue::Empty)))
 }
 
 /// Pure function evaluator trait for business logic functions
@@ -841,6 +860,11 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_pure_function(ToIntegerFunctionEvaluator::create());
         self.registry
+            .register_pure_function(crate::evaluator::functions::ToLongFunctionEvaluator::create());
+        self.registry.register_pure_function(
+            crate::evaluator::functions::ConvertsToLongFunctionEvaluator::create(),
+        );
+        self.registry
             .register_pure_function(ToDecimalFunctionEvaluator::create());
         self.registry
             .register_pure_function(ToBooleanFunctionEvaluator::create());
@@ -995,6 +1019,17 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_pure_function(MillisecondFunctionEvaluator::create());
         self.registry
+            .register_pure_function(MillisecondFunctionEvaluator::create_named("millisecondOf"));
+        self.registry.register_pure_function(
+            crate::evaluator::functions::pathname_function::PathnameFunctionEvaluator::create(),
+        );
+        self.registry.register_pure_function(
+            crate::evaluator::functions::date_time_of_function::DateOfFunctionEvaluator::create(),
+        );
+        self.registry.register_pure_function(
+            crate::evaluator::functions::date_time_of_function::TimeOfFunctionEvaluator::create(),
+        );
+        self.registry
             .register_pure_function(TimezoneOffsetOfFunctionEvaluator::create());
         self.registry
             .register_pure_function(DurationFunctionEvaluator::create());
@@ -1139,6 +1174,14 @@ impl FunctionRegistryBuilder {
 
     /// Add factory functions (%factory variable operations)
     pub fn with_factory_functions(mut self) -> Self {
+        // %factory.{primitive}(value, extensions): code, string, date, ...
+        for primitive in crate::evaluator::functions::factory::primitive_function::FHIR_PRIMITIVES {
+            if self.registry.get_function_wrapper(primitive).is_none() {
+                self.registry.register_pure_function(
+                    crate::evaluator::functions::factory::primitive_function::FactoryPrimitiveFunctionEvaluator::create(primitive),
+                );
+            }
+        }
         self.registry
             .register_pure_function(FactoryExtensionFunctionEvaluator::create());
         self.registry
@@ -1160,7 +1203,7 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_pure_function(FactoryWithExtensionFunctionEvaluator::create());
         self.registry
-            .register_pure_function(FactoryWithPropertyFunctionEvaluator::create());
+            .register_provider_pure_function(FactoryWithPropertyFunctionEvaluator::create());
 
         self
     }
@@ -1171,6 +1214,20 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_pure_function(HasTemplateIdOfFunctionEvaluator::create());
 
+        self
+    }
+
+    /// Add the SQL on FHIR functions `getResourceKey()` and `getReferenceKey([type])`
+    /// (feature `sql-on-fhir`; not part of FHIRPath).
+    #[cfg(feature = "sql-on-fhir")]
+    pub fn with_sql_on_fhir_functions(mut self) -> Self {
+        use crate::evaluator::functions::sql_on_fhir::{
+            GetReferenceKeyFunctionEvaluator, GetResourceKeyFunctionEvaluator,
+        };
+        self.registry
+            .register_lazy_function(GetResourceKeyFunctionEvaluator::create());
+        self.registry
+            .register_lazy_function(GetReferenceKeyFunctionEvaluator::create());
         self
     }
 
@@ -1187,8 +1244,11 @@ impl Default for FunctionRegistryBuilder {
 }
 
 /// Create a comprehensive function registry with all FHIRPath functions
+///
+/// With the `sql-on-fhir` feature it also holds the SQL on FHIR functions
+/// (`getResourceKey`, `getReferenceKey`).
 pub fn create_function_registry() -> FunctionRegistry {
-    FunctionRegistryBuilder::new()
+    let builder = FunctionRegistryBuilder::new()
         .with_existence_functions()
         .with_filtering_projection_functions()
         .with_subsetting_functions()
@@ -1204,8 +1264,10 @@ pub fn create_function_registry() -> FunctionRegistry {
         .with_fhir_functions()
         .with_factory_functions()
         .with_server_functions()
-        .with_cda_functions()
-        .build()
+        .with_cda_functions();
+    #[cfg(feature = "sql-on-fhir")]
+    let builder = builder.with_sql_on_fhir_functions();
+    builder.build()
 }
 
 #[cfg(test)]

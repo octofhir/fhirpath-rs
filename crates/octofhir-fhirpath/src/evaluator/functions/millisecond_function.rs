@@ -30,9 +30,14 @@ pub struct MillisecondFunctionEvaluator {
 impl MillisecondFunctionEvaluator {
     /// Create a new millisecond function evaluator
     pub fn create() -> Arc<dyn PureFunctionEvaluator> {
+        Self::create_named("millisecond")
+    }
+
+    /// The same function under another name: FHIRPath 3.0 calls it `millisecondOf`.
+    pub fn create_named(name: &str) -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
-                name: "millisecond".to_string(),
+                name: name.to_string(),
                 description: "Extracts the millisecond component (0-999) from a DateTime or Time value with millisecond precision"
                     .to_string(),
                 signature: FunctionSignature {
@@ -127,13 +132,10 @@ impl PureFunctionEvaluator for MillisecondFunctionEvaluator {
                     })
                 }
             }
-            _ => Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0055,
-                format!(
-                    "millisecond function can only be applied to DateTime or Time values, got {}",
-                    value.type_name()
-                ),
-            )),
+            // Not a DateTime or Time: empty (FHIRPath §1.5.10.8.7)
+            _ => Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            }),
         }
     }
 
@@ -297,34 +299,22 @@ mod tests {
     async fn test_millisecond_invalid_type_integer() {
         let evaluator = MillisecondFunctionEvaluator::create();
 
-        // 123.millisecond() → error
+        // 123.millisecond() → empty: not a DateTime or Time (FHIRPath §1.5.10.8.7)
         let input = vec![FhirPathValue::integer(123)];
 
-        let result = evaluator.evaluate(input.into(), vec![]).await;
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("can only be applied to DateTime or Time")
-        );
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
+        assert!(result.value.is_empty());
     }
 
     #[tokio::test]
     async fn test_millisecond_invalid_type_string() {
         let evaluator = MillisecondFunctionEvaluator::create();
 
-        // 'string'.millisecond() → error
+        // 'string'.millisecond() → empty: not a DateTime or Time (FHIRPath §1.5.10.8.7)
         let input = vec![FhirPathValue::string("string".to_string())];
 
-        let result = evaluator.evaluate(input.into(), vec![]).await;
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("can only be applied to DateTime or Time")
-        );
+        let result = evaluator.evaluate(input.into(), vec![]).await.unwrap();
+        assert!(result.value.is_empty());
     }
 
     #[tokio::test]

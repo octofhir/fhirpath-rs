@@ -177,7 +177,6 @@ fn ucum_to_calendar_unit(ucum_unit: &str) -> Option<CalendarUnit> {
 }
 
 /// Map FHIRPath calendar unit to its equivalent UCUM unit
-#[allow(dead_code)]
 fn calendar_to_ucum_unit(cal_unit: CalendarUnit) -> &'static str {
     match cal_unit {
         CalendarUnit::Year => "a",
@@ -191,6 +190,253 @@ fn calendar_to_ucum_unit(cal_unit: CalendarUnit) -> &'static str {
     }
 }
 
+/// A UCUM unit as atoms with exponents: `kg.m/s2` is `kg^1 m^1 s^-2`. `None` for what
+/// this simple form cannot hold (annotations, parentheses).
+fn unit_terms(unit: &str) -> Option<Vec<(String, i32)>> {
+    if unit.contains(['{', '(', ')']) {
+        return None;
+    }
+    let mut terms: Vec<(String, i32)> = Vec::new();
+    let mut sign = 1;
+    let mut rest = unit;
+    if let Some(stripped) = rest.strip_prefix('/') {
+        sign = -1;
+        rest = stripped;
+    }
+    loop {
+        let end = rest.find(['.', '/']).unwrap_or(rest.len());
+        let term = &rest[..end];
+        let digits = term
+            .trim_end_matches(|c: char| c.is_ascii_digit())
+            .trim_end_matches(['-', '+']);
+        let atom = digits;
+        let exponent: i32 = if atom.len() == term.len() {
+            1
+        } else {
+            term[atom.len()..].parse().ok()?
+        };
+        if atom.is_empty() {
+            // A bare number: only `1` (unity) is meaningful.
+            if term != "1" {
+                return None;
+            }
+        } else {
+            match terms.iter_mut().find(|(a, _)| a == atom) {
+                Some((_, e)) => *e += sign * exponent,
+                None => terms.push((atom.to_string(), sign * exponent)),
+            }
+        }
+        if end == rest.len() {
+            break;
+        }
+        sign = if rest.as_bytes()[end] == b'/' { -1 } else { 1 };
+        rest = &rest[end + 1..];
+    }
+    Some(terms)
+}
+
+fn render_unit_terms(terms: &[(String, i32)]) -> String {
+    let term = |atom: &str, exponent: i32| {
+        if exponent == 1 {
+            atom.to_string()
+        } else {
+            format!("{atom}{exponent}")
+        }
+    };
+    let numerator: Vec<String> = terms
+        .iter()
+        .filter(|(_, e)| *e > 0)
+        .map(|(a, e)| term(a, *e))
+        .collect();
+    let denominator: Vec<String> = terms
+        .iter()
+        .filter(|(_, e)| *e < 0)
+        .map(|(a, e)| term(a, -*e))
+        .collect();
+    match (numerator.is_empty(), denominator.is_empty()) {
+        (true, true) => "1".to_string(),
+        (false, true) => numerator.join("."),
+        (true, false) => format!("/{}", denominator.join("/")),
+        (false, false) => format!("{}/{}", numerator.join("."), denominator.join("/")),
+    }
+}
+
+/// The unit of `left * right` (or `left / right`), with equal atoms combined:
+/// `cm * cm` is `cm2`, `m / m` is `1`, `m/s * s` is `m`, `1 / s` is `/s`.
+pub fn combine_units(left: &str, right: &str, divide: bool) -> String {
+    let fallback = || {
+        if divide {
+            format!("{left}/{right}")
+        } else {
+            format!("{left}.{right}")
+        }
+    };
+    let (Some(mut terms), Some(right_terms)) = (unit_terms(left), unit_terms(right)) else {
+        return fallback();
+    };
+    for (atom, exponent) in right_terms {
+        let exponent = if divide { -exponent } else { exponent };
+        match terms.iter_mut().find(|(a, _)| *a == atom) {
+            Some((_, e)) => *e += exponent,
+            None => terms.push((atom, exponent)),
+        }
+    }
+    terms.retain(|(_, e)| *e != 0);
+    render_unit_terms(&terms)
+}
+
+/// A UCUM definite duration (`'wk'`, `'d'`, `'h'`, `'min'`, `'s'`, `'ms'`) as the matching
+/// calendar duration, for date/time arithmetic, where they behave the same (FHIRPath
+/// §1.6.7.1: `@1973-12-25 + 1 'd'` is `@1973-12-26`). `'a'` and `'mo'` are not calendar
+/// years and months, so they and every other value are returned unchanged.
+pub fn definite_duration_as_calendar(value: &FhirPathValue) -> std::borrow::Cow<'_, FhirPathValue> {
+    if let FhirPathValue::Quantity {
+        value: amount,
+        unit,
+        code,
+        calendar_unit: None,
+        ..
+    } = value
+        && let Some(ucum) = code.as_deref().or(unit.as_deref())
+        && let Some(calendar) = ucum_to_calendar_unit(ucum)
+        && !matches!(calendar, CalendarUnit::Year | CalendarUnit::Month)
+    {
+        let keyword = match calendar {
+            CalendarUnit::Week => "week",
+            CalendarUnit::Day => "day",
+            CalendarUnit::Hour => "hour",
+            CalendarUnit::Minute => "minute",
+            CalendarUnit::Second => "second",
+            _ => "millisecond",
+        };
+        return std::borrow::Cow::Owned(FhirPathValue::quantity_with_components(
+            *amount,
+            Some(keyword.to_string()),
+            None,
+            None,
+        ));
+    }
+    std::borrow::Cow::Borrowed(value)
+}
+
+/// The unit a quantity's arithmetic works in: its UCUM code, a calendar unit's UCUM
+/// equivalent, or `'1'` without a unit. `None` for calendar years and months, which only
+/// combine with the same unit.
+fn arithmetic_unit(quantity: &FhirPathValue) -> Option<(String, bool)> {
+    let FhirPathValue::Quantity {
+        unit,
+        code,
+        calendar_unit,
+        ..
+    } = quantity
+    else {
+        return None;
+    };
+    match calendar_unit {
+        Some(CalendarUnit::Year | CalendarUnit::Month) => None,
+        Some(calendar) => Some((calendar_to_ucum_unit(*calendar).to_string(), true)),
+        None => Some((
+            code.clone()
+                .or_else(|| unit.clone())
+                .unwrap_or_else(|| "1".to_string()),
+            false,
+        )),
+    }
+}
+
+/// `left + right` (or `left - right`) for two quantities (FHIRPath §1.6.6.3, FHIR-56190):
+/// units must be commensurable, and the result is in the more granular of the two units
+/// (`3 'm' + 3 'cm'` is `303 'cm'`). Calendar years and months only combine with the same
+/// unit. Empty (`None`) when the units cannot be combined.
+pub fn add_quantities(
+    left: &FhirPathValue,
+    right: &FhirPathValue,
+    subtract: bool,
+) -> Option<FhirPathValue> {
+    let (FhirPathValue::Quantity { value: lv, .. }, FhirPathValue::Quantity { value: rv, .. }) =
+        (left, right)
+    else {
+        return None;
+    };
+    let combine = |a: Decimal, b: Decimal| {
+        if subtract {
+            a.checked_sub(b)
+        } else {
+            a.checked_add(b)
+        }
+    };
+    let same_calendar = matches!(
+        (left, right),
+        (
+            FhirPathValue::Quantity { calendar_unit: Some(l), .. },
+            FhirPathValue::Quantity { calendar_unit: Some(r), .. },
+        ) if l == r
+    );
+    let (base, value) = if same_calendar {
+        (left, combine(*lv, *rv)?)
+    } else {
+        let (left_unit, _) = arithmetic_unit(left)?;
+        let (right_unit, _) = arithmetic_unit(right)?;
+        if left_unit == right_unit {
+            (left, combine(*lv, *rv)?)
+        } else {
+            // How many right units one left unit is: above 1, the right unit is finer.
+            let factor = convert_ucum_quantity(Decimal::ONE, &left_unit, &right_unit)
+                .ok()?
+                .value;
+            if factor >= Decimal::ONE {
+                (right, combine(lv.checked_mul(factor)?, *rv)?)
+            } else {
+                let back = convert_ucum_quantity(Decimal::ONE, &right_unit, &left_unit)
+                    .ok()?
+                    .value;
+                (left, combine(*lv, rv.checked_mul(back)?)?)
+            }
+        }
+    };
+    let FhirPathValue::Quantity {
+        unit,
+        code,
+        system,
+        ucum_unit,
+        calendar_unit,
+        ..
+    } = base
+    else {
+        return None;
+    };
+    Some(FhirPathValue::Quantity {
+        value,
+        unit: unit.clone(),
+        code: code.clone(),
+        system: system.clone(),
+        ucum_unit: ucum_unit.clone(),
+        calendar_unit: *calendar_unit,
+        type_info: crate::core::types::quantity_type_info(),
+        primitive_element: None,
+    })
+}
+
+/// Calendar units for comparing a calendar duration with a UCUM definite duration: `'wk'`,
+/// `'d'`, `'h'`, `'min'`, `'s'` and `'ms'` equal their calendar counterparts
+/// (`7 days = 1 'wk'`), while `'a'` and `'mo'` do not (`1 year = 1 'a'` is empty).
+fn align_definite_durations(
+    left_unit: Option<&str>,
+    left_calendar: &Option<CalendarUnit>,
+    right_unit: Option<&str>,
+    right_calendar: &Option<CalendarUnit>,
+) -> (Option<CalendarUnit>, Option<CalendarUnit>) {
+    let definite = |unit: Option<&str>| {
+        unit.and_then(ucum_to_calendar_unit)
+            .filter(|c| !matches!(c, CalendarUnit::Year | CalendarUnit::Month))
+    };
+    match (left_calendar, right_calendar) {
+        (Some(l), None) => (Some(*l), definite(right_unit)),
+        (None, Some(r)) => (definite(left_unit), Some(*r)),
+        (l, r) => (*l, *r),
+    }
+}
+
 /// Compare two quantities and return an Ordering (for <, >, <= comparisons)
 pub fn compare_quantities(
     left_value: Decimal,
@@ -200,6 +446,12 @@ pub fn compare_quantities(
     right_unit: &Option<String>,
     right_calendar_unit: &Option<CalendarUnit>,
 ) -> Result<Option<std::cmp::Ordering>, QuantityError> {
+    let (left_calendar_unit, right_calendar_unit) = &align_definite_durations(
+        left_unit.as_deref(),
+        left_calendar_unit,
+        right_unit.as_deref(),
+        right_calendar_unit,
+    );
     // Handle simple cases first
     match (left_unit, right_unit) {
         // Both have no units - compare values directly
@@ -287,6 +539,12 @@ pub fn are_quantities_equivalent_with_codes(
         .map(|s| s.to_string())
         .or_else(|| right_unit.clone());
 
+    let (left_calendar_unit, right_calendar_unit) = &align_definite_durations(
+        effective_left_unit.as_deref(),
+        left_calendar_unit,
+        effective_right_unit.as_deref(),
+        right_calendar_unit,
+    );
     // Handle simple cases first
     match (&effective_left_unit, &effective_right_unit) {
         // Both have no units - compare values directly
@@ -401,6 +659,12 @@ pub fn are_quantities_equal_with_codes(
         .map(|s| s.to_string())
         .or_else(|| right_unit.clone());
 
+    let (left_calendar_unit, right_calendar_unit) = &align_definite_durations(
+        effective_left_unit.as_deref(),
+        left_calendar_unit,
+        effective_right_unit.as_deref(),
+        right_calendar_unit,
+    );
     // Handle simple cases first
     match (&effective_left_unit, &effective_right_unit) {
         // Both have no units - compare values directly
@@ -813,6 +1077,20 @@ mod tests {
         // Non-time units should return None
         assert_eq!(ucum_to_calendar_unit("kg"), None);
         assert_eq!(ucum_to_calendar_unit("m"), None);
+    }
+
+    #[test]
+    fn units_combine_by_atom() {
+        assert_eq!(combine_units("cm", "cm", false), "cm2");
+        assert_eq!(combine_units("cm", "cm2", false), "cm3");
+        assert_eq!(combine_units("m/s", "s", false), "m");
+        assert_eq!(combine_units("m", "m", true), "1");
+        assert_eq!(combine_units("cm2", "cm", true), "cm");
+        assert_eq!(combine_units("m", "s", true), "m/s");
+        assert_eq!(combine_units("1", "s", true), "/s");
+        assert_eq!(combine_units("kg.m", "s2", true), "kg.m/s2");
+        assert_eq!(combine_units("mg", "1", false), "mg");
+        assert_eq!(combine_units("{a}", "m", false), "{a}.m");
     }
 
     #[test]

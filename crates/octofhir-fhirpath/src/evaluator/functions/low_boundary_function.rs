@@ -128,7 +128,11 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                 match compute_numeric_boundaries(*value, precision_value) {
                     Ok(boundary) => {
                         let low = apply_requested_scale(boundary.low, boundary.requested_scale);
-                        FhirPathValue::Decimal(low, type_info.clone(), primitive.clone())
+                        FhirPathValue::Decimal(
+                            low,
+                            type_info.clone(),
+                            crate::core::types::computed_element(primitive),
+                        )
                     }
                     Err(NumericBoundaryError::PrecisionOutOfRange) => {
                         return Ok(EvaluationResult {
@@ -178,7 +182,7 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                         ucum_unit: ucum_unit.clone(),
                         calendar_unit: *calendar_unit,
                         type_info: type_info.clone(),
-                        primitive_element: primitive_element.clone(),
+                        primitive_element: crate::core::types::computed_element(primitive_element),
                     }
                 }
                 Err(NumericBoundaryError::PrecisionOutOfRange) => {
@@ -195,7 +199,11 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                             target_precision,
                             BoundaryKind::Low,
                         );
-                        FhirPathValue::DateTime(adjusted, type_info.clone(), primitive.clone())
+                        FhirPathValue::DateTime(
+                            adjusted,
+                            type_info.clone(),
+                            crate::core::types::computed_element(primitive),
+                        )
                     }
                     Err(NumericBoundaryError::PrecisionOutOfRange) => {
                         return Ok(EvaluationResult {
@@ -209,7 +217,11 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                     Ok(target_precision) => {
                         let adjusted =
                             compute_date_boundary(date, target_precision, BoundaryKind::Low);
-                        FhirPathValue::Date(adjusted, type_info.clone(), primitive.clone())
+                        FhirPathValue::Date(
+                            adjusted,
+                            type_info.clone(),
+                            crate::core::types::computed_element(primitive),
+                        )
                     }
                     Err(NumericBoundaryError::PrecisionOutOfRange) => {
                         return Ok(EvaluationResult {
@@ -223,7 +235,11 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                     Ok(target_precision) => {
                         let adjusted =
                             compute_time_boundary(time, target_precision, BoundaryKind::Low);
-                        FhirPathValue::Time(adjusted, type_info.clone(), primitive.clone())
+                        FhirPathValue::Time(
+                            adjusted,
+                            type_info.clone(),
+                            crate::core::types::computed_element(primitive),
+                        )
                     }
                     Err(NumericBoundaryError::PrecisionOutOfRange) => {
                         return Ok(EvaluationResult {
@@ -242,7 +258,11 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                                 target_precision,
                                 BoundaryKind::Low,
                             );
-                            FhirPathValue::Date(adjusted, type_info.clone(), primitive.clone())
+                            FhirPathValue::Date(
+                                adjusted,
+                                type_info.clone(),
+                                crate::core::types::computed_element(primitive),
+                            )
                         }
                         Err(NumericBoundaryError::PrecisionOutOfRange) => {
                             return Ok(EvaluationResult {
@@ -258,7 +278,11 @@ impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
                                 target_precision,
                                 BoundaryKind::Low,
                             );
-                            FhirPathValue::DateTime(adjusted, type_info.clone(), primitive.clone())
+                            FhirPathValue::DateTime(
+                                adjusted,
+                                type_info.clone(),
+                                crate::core::types::computed_element(primitive),
+                            )
                         }
                         Err(NumericBoundaryError::PrecisionOutOfRange) => {
                             return Ok(EvaluationResult {

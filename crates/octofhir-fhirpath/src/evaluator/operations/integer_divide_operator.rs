@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathError, FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
@@ -49,46 +49,47 @@ impl IntegerDivideOperatorEvaluator {
                 if *r == 0 {
                     return Ok(None);
                 }
-                Ok(Some(FhirPathValue::integer(l / r)))
+                Ok(l.checked_div(*r)
+                    .map(|v| FhirPathValue::integer_result(v, left, right)))
             }
 
             // Decimal integer division (truncate to integer)
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
                 if *r == Decimal::ZERO {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None); // division by zero is empty
                 }
                 let result = *l / *r;
                 // Convert to integer (truncate towards zero)
-                let integer_result = result.trunc().to_i64().unwrap_or(0);
+                let integer_result = match result.trunc().to_i64() {
+                    Some(value) => value,
+                    None => return Ok(None),
+                };
                 Ok(Some(FhirPathValue::integer(integer_result)))
             }
 
             // Mixed integer/decimal integer division
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
                 if *r == Decimal::ZERO {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None); // division by zero is empty
                 }
                 let left_decimal = Decimal::from(*l);
                 let result = left_decimal / *r;
-                let integer_result = result.trunc().to_i64().unwrap_or(0);
+                let integer_result = match result.trunc().to_i64() {
+                    Some(value) => value,
+                    None => return Ok(None),
+                };
                 Ok(Some(FhirPathValue::integer(integer_result)))
             }
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Integer(r, _, _)) => {
                 if *r == 0 {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None); // division by zero is empty
                 }
                 let right_decimal = Decimal::from(*r);
                 let result = *l / right_decimal;
-                let integer_result = result.trunc().to_i64().unwrap_or(0);
+                let integer_result = match result.trunc().to_i64() {
+                    Some(value) => value,
+                    None => return Ok(None),
+                };
                 Ok(Some(FhirPathValue::integer(integer_result)))
             }
 

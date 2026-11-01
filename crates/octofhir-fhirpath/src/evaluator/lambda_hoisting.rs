@@ -162,6 +162,9 @@ fn depends_on_focus(node: &ExpressionNode, focus_bound: bool) -> bool {
             .iter()
             .any(|element| depends_on_focus(element, focus_bound)),
 
+        // An instance selector creates its object from the current focus.
+        ExpressionNode::InstanceSelector(_) => true,
+
         ExpressionNode::TypeCast(cast) => depends_on_focus(&cast.expression, focus_bound),
         ExpressionNode::TypeCheck(check) => depends_on_focus(&check.expression, focus_bound),
 

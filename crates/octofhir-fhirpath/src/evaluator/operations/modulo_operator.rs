@@ -35,6 +35,16 @@ impl ModuloOperatorEvaluator {
         Arc::new(Self::new())
     }
 
+    fn decimal_mod(
+        left: rust_decimal::Decimal,
+        right: rust_decimal::Decimal,
+    ) -> Option<FhirPathValue> {
+        if right.is_zero() {
+            return None;
+        }
+        left.checked_rem(right).map(FhirPathValue::decimal)
+    }
+
     /// Perform modulo operation on two FhirPathValues
     fn modulo_values(
         &self,
@@ -47,13 +57,19 @@ impl ModuloOperatorEvaluator {
                 if *r == 0 {
                     return Ok(None);
                 }
-                Ok(Some(FhirPathValue::integer(l % r)))
+                Ok(l.checked_rem(*r)
+                    .map(|v| FhirPathValue::integer_result(v, left, right)))
             }
+            // Decimal modulo, with an Integer operand implicitly converted to Decimal.
+            // The remainder of a truncated division keeps the dividend's sign.
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
-                if r.is_zero() {
-                    return Ok(None);
-                }
-                Ok(Some(FhirPathValue::decimal(l % r)))
+                Ok(Self::decimal_mod(*l, *r))
+            }
+            (FhirPathValue::Integer(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
+                Ok(Self::decimal_mod(rust_decimal::Decimal::from(*l), *r))
+            }
+            (FhirPathValue::Decimal(l, _, _), FhirPathValue::Integer(r, _, _)) => {
+                Ok(Self::decimal_mod(*l, rust_decimal::Decimal::from(*r)))
             }
 
             _ => Ok(None),

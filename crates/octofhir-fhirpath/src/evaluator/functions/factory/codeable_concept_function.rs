@@ -30,7 +30,7 @@ impl FactoryCodeableConceptFunctionEvaluator {
                         FunctionParameter {
                             name: "coding".to_string(),
                             parameter_type: vec!["Any".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: false,
                             description: "Coding or collection of Codings".to_string(),
                             default_value: None,
@@ -46,7 +46,7 @@ impl FactoryCodeableConceptFunctionEvaluator {
                     ],
                     return_type: "CodeableConcept".to_string(),
                     polymorphic: false,
-                    min_params: 1,
+                    min_params: 0,
                     max_params: Some(2),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
@@ -80,12 +80,8 @@ impl PureFunctionEvaluator for FactoryCodeableConceptFunctionEvaluator {
         }
 
         // First arg: coding (single or collection)
-        let codings_arg = args.first().ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "CodeableConcept function requires at least a coding argument".to_string(),
-            )
-        })?;
+        let empty = Collection::empty();
+        let codings_arg = args.first().unwrap_or(&empty);
 
         let mut coding_array = Vec::new();
         for coding_value in codings_arg {

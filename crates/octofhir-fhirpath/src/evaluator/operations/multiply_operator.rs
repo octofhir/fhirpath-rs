@@ -44,9 +44,9 @@ impl MultiplyOperatorEvaluator {
     ) -> Option<FhirPathValue> {
         match (left, right) {
             // Integer multiplication
-            (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
-                Some(FhirPathValue::integer(l * r))
-            }
+            (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => l
+                .checked_mul(*r)
+                .map(|v| FhirPathValue::integer_result(v, left, right)),
 
             // Decimal multiplication
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
@@ -131,52 +131,43 @@ impl MultiplyOperatorEvaluator {
                 rs.clone(),
             )),
 
-            // Quantity * Quantity = Quantity (with unit combination using UCUM algebra)
+            // Quantity * Quantity = Quantity, units combined by UCUM unit algebra
+            // (`12 'cm' * 3 'cm'` is `36 'cm2'`). Calendar durations do not multiply.
             (
                 FhirPathValue::Quantity {
                     value: lv,
-                    unit: lu,
                     code: lc,
+                    unit: lu,
                     system: ls,
+                    calendar_unit: lcal,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
-                    unit: ru,
                     code: rc,
+                    unit: ru,
                     system: rs,
+                    calendar_unit: rcal,
                     ..
                 },
             ) => {
-                // Multiply values
-                let result_value = *lv * *rv;
-
-                // Handle unit combination using UCUM
-                let (result_unit, result_code) = match (lu.as_deref(), ru.as_deref()) {
-                    (None, None) => (None, None),
-                    (Some(l), None) | (Some(l), Some("1")) => (Some(l.to_string()), lc.clone()),
-                    (None, Some(r)) | (Some("1"), Some(r)) => (Some(r.to_string()), rc.clone()),
-                    (Some(l), Some(r)) => {
-                        // Use UCUM library for proper unit multiplication
-                        match octofhir_ucum::unit_multiply(l, r) {
-                            Ok(result) => {
-                                // Use the UCUM-computed result expression
-                                (Some(result.expression.clone()), Some(result.expression))
-                            }
-                            Err(_) => {
-                                // Fall back to simple concatenation if UCUM fails
-                                // This handles non-UCUM units gracefully
-                                let combined = format!("{l}.{r}");
-                                (Some(combined.clone()), Some(combined))
-                            }
-                        }
-                    }
-                };
-
+                if lcal.is_some() || rcal.is_some() {
+                    return None;
+                }
+                let left_unit = lc.as_deref().or(lu.as_deref());
+                let right_unit = rc.as_deref().or(ru.as_deref());
+                // Two quantities without a unit stay without one.
+                let unit = (left_unit.is_some() || right_unit.is_some()).then(|| {
+                    crate::evaluator::quantity_utils::combine_units(
+                        left_unit.unwrap_or("1"),
+                        right_unit.unwrap_or("1"),
+                        false,
+                    )
+                });
                 Some(FhirPathValue::quantity_with_components(
-                    result_value,
-                    result_unit.clone(),
-                    result_code,
+                    lv.checked_mul(*rv)?,
+                    unit.clone(),
+                    unit,
                     ls.clone().or_else(|| rs.clone()),
                 ))
             }
@@ -437,7 +428,7 @@ mod tests {
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
             assert_eq!(*value, dec!(6));
             // UCUM should produce m2 (square meters)
-            assert_eq!(unit.as_deref(), Some("m.m"));
+            assert_eq!(unit.as_deref(), Some("m2"));
         } else {
             panic!("Expected quantity result");
         }
@@ -459,7 +450,7 @@ mod tests {
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
             assert_eq!(*value, dec!(20));
-            assert_eq!(unit.as_deref(), Some("cm.cm"));
+            assert_eq!(unit.as_deref(), Some("cm2"));
         } else {
             panic!("Expected quantity result");
         }
@@ -481,7 +472,7 @@ mod tests {
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
             assert_eq!(*value, dec!(20));
-            assert_eq!(unit.as_deref(), Some("kg.kg"));
+            assert_eq!(unit.as_deref(), Some("kg2"));
         } else {
             panic!("Expected quantity result");
         }

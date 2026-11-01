@@ -141,6 +141,33 @@ impl EqualsOperatorEvaluator {
             // Decimal equality
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => Some(l == r),
 
+            // A number converts implicitly to a Quantity with the unit '1' (`1 '1' = 1.0`)
+            (
+                FhirPathValue::Quantity {
+                    value, unit, code, ..
+                },
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+            )
+            | (
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+                FhirPathValue::Quantity {
+                    value, unit, code, ..
+                },
+            ) => {
+                let number =
+                    match (left, right) {
+                        (FhirPathValue::Integer(n, _, _), _)
+                        | (_, FhirPathValue::Integer(n, _, _)) => Decimal::from(*n),
+                        (FhirPathValue::Decimal(n, _, _), _)
+                        | (_, FhirPathValue::Decimal(n, _, _)) => *n,
+                        _ => return None,
+                    };
+                match code.as_deref().or(unit.as_deref()) {
+                    None | Some("1") => Some(*value == number),
+                    Some(_) => None,
+                }
+            }
+
             // Integer vs Decimal comparison
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
                 let left_decimal = Decimal::from(*l);
@@ -161,7 +188,9 @@ impl EqualsOperatorEvaluator {
                     // Different timezone specifications - comparison returns empty
                     return None;
                 }
-                Some(l == r)
+                // Values of different precision are equal-or-empty up to the common
+                // precision: `@T10:00:00 = @T10:00` is empty, `@T10:00:00 = @T11:00` false.
+                l.partial_cmp(r).map(|ordering| ordering.is_eq())
             }
 
             // Time equality

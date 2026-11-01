@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2026-10-21
+Generated on: 2026-11-01
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -11,11 +11,12 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Test Suites** | 15 | 100% |
-| **Total Individual Tests** | 1176 | 100% |
-| **Passing Tests** | 1176 | 100.0% |
+| **Total Test Suites** | 16 | 100% |
+| **Total Individual Tests** | 1228 | 100% |
+| **Passing Tests** | 1228 | 100.0% |
 | **Failing Tests** | 0 | 0.0% |
 | **Error Tests** | 0 | 0.0% |
+| **Skipped Tests** | 0 | 0.0% |
 
 ## Test Results by Suite
 
@@ -45,6 +46,10 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 - **date_time_operations.json** - 100.0% (85/85 tests) (Complete)
 
+### ✅ FHIRPATH3 (100.0% - 52/52 tests)
+
+- **fhirpath3_features.json** - 100.0% (52/52 tests) (Complete)
+
 ### ✅ MATH (100.0% - 147/147 tests)
 
 - **math_operations.json** - 100.0% (147/147 tests) (Complete)
@@ -73,6 +78,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **conversion_operations.json** - 27/27 tests (conversion)
 - **type_operations.json** - 3/3 tests (conversion)
 - **date_time_operations.json** - 85/85 tests (dates)
+- **fhirpath3_features.json** - 52/52 tests (fhirpath3)
 - **math_operations.json** - 147/147 tests (math)
 - **advanced_features.json** - 2/2 tests (other)
 - **factory_functions.json** - 16/16 tests (other)
@@ -98,11 +104,11 @@ None currently.
 The fhirpath-rs implementation currently passes approximately **100.0% of all FHIRPath tests**.
 
 ### Key Statistics
-- **Test Suites**: 15
-- **Total Tests**: 1176
+- **Test Suites**: 16
+- **Total Tests**: 1228
 - **Pass Rate**: 100.0%
 
 ---
 
-*Report generated on: 2026-10-21 12:37:26*
+*Report generated on: 2026-11-01 16:38:46*
 *Command: `just test-coverage` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176`*

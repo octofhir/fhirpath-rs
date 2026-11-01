@@ -8,7 +8,10 @@ use chumsky::extra;
 use chumsky::prelude::*;
 use rust_decimal::Decimal;
 
-use crate::ast::{ExpressionNode, IdentifierNode, LiteralNode, LiteralValue, VariableNode};
+use crate::ast::{
+    ExpressionNode, IdentifierNode, LiteralNode, LiteralValue, UnaryOperationNode, UnaryOperator,
+    VariableNode,
+};
 use crate::core::SourceLocation;
 use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 
@@ -19,52 +22,246 @@ fn span_to_loc(span: SimpleSpan) -> SourceLocation {
     SourceLocation::new(0, 0, span.start, span.end - span.start)
 }
 
+/// Resolve FHIRPath `\`-escapes in the raw body of a string literal or delimited identifier
+/// (FHIRPath §1.4.1.2).
+///
+/// `\'`, `\"`, `` \` ``, `\r`, `\n`, `\t`, `\f`, `\\` and `\uXXXX` are escapes; `\uXXXX`
+/// is a UTF-16 code unit, and a surrogate must pair with its partner. A `\` before any other
+/// character is dropped (`'\p'` is `'p'`). A `\u` without four hex digits is an error.
+pub fn unescape_fhirpath(raw: &str) -> std::result::Result<String, String> {
+    fn hex4(chars: &[char], at: usize) -> Option<u32> {
+        let digits = chars.get(at..at + 4)?;
+        if !digits.iter().all(char::is_ascii_hexdigit) {
+            return None;
+        }
+        u32::from_str_radix(&digits.iter().collect::<String>(), 16).ok()
+    }
+
+    let chars: Vec<char> = raw.chars().collect();
+    let mut out = String::with_capacity(raw.len());
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c != '\\' {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let Some(&next) = chars.get(i + 1) else {
+            // A trailing `\` is ignored.
+            break;
+        };
+        i += 2;
+        match next {
+            'n' => out.push('\n'),
+            't' => out.push('\t'),
+            'r' => out.push('\r'),
+            'f' => out.push('\x0C'),
+            'u' => match hex4(&chars, i) {
+                Some(unit) => {
+                    i += 4;
+                    if (0xD800..0xDC00).contains(&unit) {
+                        let low = (chars.get(i) == Some(&'\\') && chars.get(i + 1) == Some(&'u'))
+                            .then(|| hex4(&chars, i + 2))
+                            .flatten()
+                            .filter(|low| (0xDC00..0xE000).contains(low))
+                            .ok_or_else(|| format!("Unpaired surrogate escape \\u{unit:04X}"))?;
+                        i += 6;
+                        let scalar = 0x10000 + ((unit - 0xD800) << 10) + (low - 0xDC00);
+                        out.push(char::from_u32(scalar).ok_or("Invalid surrogate pair")?);
+                    } else {
+                        out.push(
+                            char::from_u32(unit).ok_or_else(|| {
+                                format!("Unpaired surrogate escape \\u{unit:04X}")
+                            })?,
+                        );
+                    }
+                }
+                // The official suite treats a malformed `\u` escape as a syntax error
+                // (testLiteralUnicodeInvalid), although the spec text drops the `\`.
+                None => {
+                    return Err(
+                        "Invalid unicode escape: \\u must be followed by four hex digits".into(),
+                    );
+                }
+            },
+            // `\\`, `\'`, `\"`, `` \` `` and every unrecognised sequence keep the character.
+            other => out.push(other),
+        }
+    }
+    Ok(out)
+}
+
+/// Raw body of a literal delimited by `quote`: any character but the quote or `\`, or `\`
+/// followed by any character (kept verbatim for [`unescape_fhirpath`]).
+fn delimited_body<'a>(
+    quote: char,
+    extra_stops: &'static [char],
+) -> impl Parser<'a, &'a str, String, extra::Err<Rich<'a, char>>> + Clone {
+    any()
+        .filter(move |c: &char| *c != quote && *c != '\\' && !extra_stops.contains(c))
+        .map(|c: char| {
+            let mut s = String::new();
+            s.push(c);
+            s
+        })
+        .or(just('\\').then(any()).map(|(b, c): (char, char)| {
+            let mut s = String::new();
+            s.push(b);
+            s.push(c);
+            s
+        }))
+        .repeated()
+        .collect::<Vec<String>>()
+        .map(|parts| parts.concat())
+}
+
+/// A function argument, optionally followed by a sort direction (`asc` or `desc`, as in
+/// `sort(family desc, given.first())`). `expr desc` is read as `-(expr)`, the descending
+/// form `sort()` already understands; `expr asc` is `expr`.
+pub fn call_argument<'a, P>(
+    expr: P,
+) -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone
+where
+    P: Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone,
+{
+    let direction = text::ident()
+        .padded()
+        .try_map(|word: &str, span| match word {
+            "asc" => Ok(false),
+            "desc" => Ok(true),
+            _ => Err(Rich::custom(span, "expected asc or desc")),
+        });
+    expr.then(direction.or_not())
+        .map_with(|(argument, descending), extra| match descending {
+            Some(true) => ExpressionNode::UnaryOperation(UnaryOperationNode {
+                operator: UnaryOperator::Negate,
+                operand: Box::new(argument),
+                location: Some(span_to_loc(extra.span())),
+            }),
+            _ => argument,
+        })
+}
+
+/// Instance selector (FHIRPath §1.5.2.3): `[type] { element: value, ... }`, with `{ : }` for
+/// an object with no elements. The type is optional and may be qualified (`FHIR.Coding`).
+/// `{ }` without a `:` stays the empty collection.
+pub fn instance_selector<'a, P>(
+    expr: P,
+) -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone
+where
+    P: Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone + 'a,
+{
+    let name = || {
+        identifier_parser().try_map(|node, span| match node {
+            ExpressionNode::Identifier(identifier) => Ok(identifier.name),
+            _ => Err(Rich::custom(span, "expected an identifier")),
+        })
+    };
+    let type_name = name()
+        .then(just('.').ignore_then(name()).or_not())
+        .map(|(first, second)| match second {
+            Some(second) => format!("{first}.{second}"),
+            None => first,
+        });
+    let element = name()
+        .then_ignore(just(':').padded())
+        .then(expr)
+        .map(|(name, value)| (name, value));
+    let body = choice((
+        just(':').padded().to(Vec::new()),
+        element
+            .separated_by(just(',').padded())
+            .at_least(1)
+            .collect::<Vec<_>>(),
+    ))
+    .delimited_by(just('{').padded(), just('}').padded());
+    type_name
+        .then_ignore(text::whitespace())
+        .or_not()
+        .then(body)
+        .map_with(|(type_name, elements), extra| {
+            ExpressionNode::InstanceSelector(crate::ast::InstanceSelectorNode {
+                type_name,
+                elements,
+                location: Some(span_to_loc(extra.span())),
+            })
+        })
+}
+
+/// The arguments of a method called on `object`: `%factory.create(Patient)` takes a type
+/// specifier, which is passed on as the type's name (`%factory.create('Patient')`), since
+/// the factory functions receive evaluated arguments.
+pub fn resolve_method_arguments(
+    object: &ExpressionNode,
+    method: &str,
+    mut arguments: Vec<ExpressionNode>,
+) -> Vec<ExpressionNode> {
+    let is_factory = matches!(object, ExpressionNode::Variable(v) if v.name == "factory");
+    if is_factory && method == "create" && arguments.len() == 1 {
+        let type_name = match &arguments[0] {
+            ExpressionNode::Identifier(identifier) => Some(identifier.name.clone()),
+            ExpressionNode::PropertyAccess(access) => match access.object.as_ref() {
+                ExpressionNode::Identifier(namespace) if namespace.name == "FHIR" => {
+                    Some(access.property.clone())
+                }
+                _ => None,
+            },
+            ExpressionNode::TypeInfo(type_info) => Some(type_info.name.clone()),
+            _ => None,
+        };
+        if let Some(type_name) = type_name {
+            let location = arguments[0].location().cloned();
+            arguments[0] = ExpressionNode::Literal(LiteralNode {
+                value: LiteralValue::String(type_name),
+                location,
+            });
+        }
+    }
+    arguments
+}
+
+/// The registry name of a method called on `object`.
+///
+/// `%server` operations share names with other functions (`create` is also `%factory.create`),
+/// so they are registered as `serverCreate`, `serverSearch`, ...; a call such as
+/// `%server.create(r)` or `%server.at(url).search(...)` is resolved to that name here.
+pub fn resolve_method_name(object: &ExpressionNode, method: String) -> String {
+    fn is_server(expr: &ExpressionNode) -> bool {
+        match expr {
+            ExpressionNode::Variable(v) => v.name == "server",
+            ExpressionNode::MethodCall(call) => call.method == "at" && is_server(&call.object),
+            _ => false,
+        }
+    }
+    const SERVER_METHODS: [(&str, &str); 6] = [
+        ("create", "serverCreate"),
+        ("update", "serverUpdate"),
+        ("delete", "serverDelete"),
+        ("patch", "serverPatch"),
+        ("search", "serverSearch"),
+        ("validate", "serverValidate"),
+    ];
+    if is_server(object)
+        && let Some((_, registered)) = SERVER_METHODS.iter().find(|(name, _)| *name == method)
+    {
+        return (*registered).to_string();
+    }
+    method
+}
+
 /// Parser for string literals with single quotes (supports multi-line and escapes)
 pub fn string_literal_parser_single<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     just('\'')
-        .ignore_then(
-            // Support multi-line strings and proper escape sequences
-            none_of(['\'', '\\'])
-                .or(
-                    just('\'').then(just('\'')).to('\''), // Handle escaped quotes (double single quote)
-                )
-                .or(just('\\').ignore_then(choice((
-                    just('\\').to('\\'),
-                    just('n').to('\n'),
-                    just('t').to('\t'),
-                    just('r').to('\r'),
-                    just('\'').to('\''),
-                    just('\"').to('\"'),
-                    just('`').to('`'),    // backtick escape
-                    just('f').to('\x0C'), // form feed
-                    just('/').to('/'),    // forward slash
-                    // Unicode escape: \uXXXX
-                    just('u')
-                        .ignore_then(
-                            one_of("0123456789abcdefABCDEF")
-                                .repeated()
-                                .exactly(4)
-                                .collect::<String>(),
-                        )
-                        .try_map(|hex: String, span| {
-                            u32::from_str_radix(&hex, 16)
-                                .ok()
-                                .and_then(char::from_u32)
-                                .ok_or_else(|| {
-                                    Rich::custom(span, format!("Invalid unicode escape: \\u{hex}"))
-                                })
-                        }),
-                ))))
-                .repeated()
-                .collect::<String>(),
-        )
+        .ignore_then(delimited_body('\'', &[]))
         .then_ignore(just('\''))
-        .map_with(|s: String, extra| {
-            ExpressionNode::Literal(LiteralNode {
-                value: LiteralValue::String(s),
+        .try_map_with(|raw: String, extra| {
+            let value = unescape_fhirpath(&raw).map_err(|msg| Rich::custom(extra.span(), msg))?;
+            Ok(ExpressionNode::Literal(LiteralNode {
+                value: LiteralValue::String(value),
                 location: Some(span_to_loc(extra.span())),
-            })
+            }))
         })
 }
 
@@ -72,44 +269,14 @@ pub fn string_literal_parser_single<'a>()
 pub fn string_literal_parser_double<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     just('"')
-        .ignore_then(
-            // Support multi-line strings and comprehensive escape sequences
-            none_of(['"', '\\'])
-                .or(just('\\').ignore_then(choice((
-                    just('"').to('"'),
-                    just('\'').to('\''),
-                    just('\\').to('\\'),
-                    just('n').to('\n'),
-                    just('t').to('\t'),
-                    just('r').to('\r'),
-                    just('f').to('\x0C'), // form feed
-                    just('/').to('/'),    // forward slash
-                    // Unicode escape: \uXXXX
-                    just('u')
-                        .ignore_then(
-                            one_of("0123456789abcdefABCDEF")
-                                .repeated()
-                                .exactly(4)
-                                .collect::<String>(),
-                        )
-                        .try_map(|hex: String, span| {
-                            u32::from_str_radix(&hex, 16)
-                                .ok()
-                                .and_then(char::from_u32)
-                                .ok_or_else(|| {
-                                    Rich::custom(span, format!("Invalid unicode escape: \\u{hex}"))
-                                })
-                        }),
-                ))))
-                .repeated()
-                .collect::<String>(),
-        )
+        .ignore_then(delimited_body('"', &[]))
         .then_ignore(just('"'))
-        .map_with(|s: String, extra| {
-            ExpressionNode::Literal(LiteralNode {
-                value: LiteralValue::String(s),
+        .try_map_with(|raw: String, extra| {
+            let value = unescape_fhirpath(&raw).map_err(|msg| Rich::custom(extra.span(), msg))?;
+            Ok(ExpressionNode::Literal(LiteralNode {
+                value: LiteralValue::String(value),
                 location: Some(span_to_loc(extra.span())),
-            })
+            }))
         })
 }
 
@@ -264,13 +431,13 @@ pub fn number_parser<'a>()
 pub fn boolean_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     choice((
-        just("true").map_with(|_, extra| {
+        text::ascii::keyword("true").map_with(|_, extra| {
             ExpressionNode::Literal(LiteralNode {
                 value: LiteralValue::Boolean(true),
                 location: Some(span_to_loc(extra.span())),
             })
         }),
-        just("false").map_with(|_, extra| {
+        text::ascii::keyword("false").map_with(|_, extra| {
             ExpressionNode::Literal(LiteralNode {
                 value: LiteralValue::Boolean(false),
                 location: Some(span_to_loc(extra.span())),
@@ -688,22 +855,22 @@ fn time_only_parser<'a>()
         })
 }
 
-/// Parser for backtick-delimited identifiers (`identifier`)
+/// Parser for backtick-delimited identifiers (`identifier`), which take the same escapes as
+/// string literals.
 pub fn backtick_identifier_parser<'a>()
 -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     just('`')
-        .ignore_then(
-            none_of(['`', '\n', '\r'])
-                .repeated()
-                .at_least(1)
-                .collect::<String>(),
-        )
+        .ignore_then(delimited_body('`', &['\n', '\r']))
         .then_ignore(just('`'))
-        .map_with(|name: String, extra| {
-            ExpressionNode::Identifier(IdentifierNode {
+        .try_map_with(|raw: String, extra| {
+            let name = unescape_fhirpath(&raw).map_err(|msg| Rich::custom(extra.span(), msg))?;
+            if name.is_empty() {
+                return Err(Rich::custom(extra.span(), "Empty delimited identifier"));
+            }
+            Ok(ExpressionNode::Identifier(IdentifierNode {
                 name,
                 location: Some(span_to_loc(extra.span())),
-            })
+            }))
         })
 }
 
@@ -882,6 +1049,64 @@ pub fn error_recovery_parser<'a>()
 mod tests {
     use super::*;
 
+    fn string_value(expression: &str) -> String {
+        match crate::parser::pratt::parse(expression).unwrap() {
+            ExpressionNode::Literal(LiteralNode {
+                value: LiteralValue::String(s),
+                ..
+            }) => s,
+            other => panic!("expected a string literal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn string_escapes_follow_the_spec_table() {
+        assert_eq!(string_value(r"'\p'"), "p");
+        assert_eq!(string_value(r"'\\p'"), "\\p");
+        assert_eq!(string_value(r"'\3'"), "3");
+        assert_eq!(string_value(r"'a\'b'"), "a'b");
+        assert_eq!(string_value(r"'\uD83D\uDE00'"), "\u{1F600}");
+        assert_eq!(string_value(r"'P\u0065ter'"), "Peter");
+        assert!(crate::parser::pratt::parse(r"'\u+041'").is_err());
+        assert!(crate::parser::pratt::parse(r"'\uD83D'").is_err());
+    }
+
+    #[test]
+    fn whitespace_inside_literals_is_kept() {
+        assert_eq!(string_value("'a     b'"), "a     b");
+        assert_eq!(string_value("'a\n\t b'"), "a\n\t b");
+        assert_eq!(
+            string_value("  'x // not a comment'  "),
+            "x // not a comment"
+        );
+    }
+
+    #[test]
+    fn server_operations_resolve_to_their_registered_names() {
+        let method = |expression: &str| match crate::parser::pratt::parse(expression).unwrap() {
+            ExpressionNode::MethodCall(call) => call.method,
+            other => panic!("expected a method call, got {other:?}"),
+        };
+        assert_eq!(method("%server.create(%resource)"), "serverCreate");
+        assert_eq!(
+            method("%server.at('http://x').search(true, {})"),
+            "serverSearch"
+        );
+        assert_eq!(method("%factory.create('Patient')"), "create");
+        assert_eq!(method("Patient.name.validate()"), "validate");
+        let argument = |expression: &str| match crate::parser::pratt::parse(expression).unwrap() {
+            ExpressionNode::MethodCall(call) => call.arguments[0].clone(),
+            other => panic!("expected a method call, got {other:?}"),
+        };
+        for expression in ["%factory.create(Patient)", "%factory.create(FHIR.Patient)"] {
+            assert!(matches!(
+                argument(expression),
+                ExpressionNode::Literal(LiteralNode { value: LiteralValue::String(ref s), .. })
+                    if s == "Patient"
+            ));
+        }
+    }
+
     #[test]
     fn test_string_literal_single_quotes() {
         let parser = string_literal_parser_single();
@@ -900,7 +1125,7 @@ mod tests {
     #[test]
     fn test_string_literal_escaped_quotes() {
         let parser = string_literal_parser_single();
-        let result = parser.parse("'can''t'").into_result();
+        let result = parser.parse(r"'can\'t'").into_result();
 
         assert!(result.is_ok());
         if let Ok(ExpressionNode::Literal(lit)) = result {

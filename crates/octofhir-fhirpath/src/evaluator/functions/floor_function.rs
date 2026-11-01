@@ -98,10 +98,26 @@ impl PureFunctionEvaluator for FloorFunctionEvaluator {
                     ));
                 }
             }
+            // A Quantity keeps its unit (FHIRPath §1.5.8)
+            FhirPathValue::Quantity { .. } => {
+                let mut quantity = input[0].clone();
+                if let FhirPathValue::Quantity {
+                    value,
+                    type_info,
+                    primitive_element,
+                    ..
+                } = &mut quantity
+                {
+                    *value = value.floor();
+                    *type_info = crate::core::types::quantity_type_info();
+                    *primitive_element = None;
+                }
+                quantity
+            }
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
-                    "floor function can only be called on numeric values (Integer or Decimal)"
+                    "floor function can only be called on Integer, Decimal or Quantity values"
                         .to_string(),
                 ));
             }

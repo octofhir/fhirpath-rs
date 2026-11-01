@@ -21,6 +21,7 @@ pub mod converts_to_integer_function;
 pub mod converts_to_quantity_function;
 pub mod converts_to_string_function;
 pub mod converts_to_time_function;
+pub mod to_long_function;
 
 // Re-export conversion function evaluators explicitly
 pub use converts_to_boolean_function::ConvertsToBooleanFunctionEvaluator;
@@ -36,6 +37,7 @@ pub use to_date_function::ToDateFunctionEvaluator;
 pub use to_datetime_function::ToDateTimeFunctionEvaluator;
 pub use to_decimal_function::ToDecimalFunctionEvaluator;
 pub use to_integer_function::ToIntegerFunctionEvaluator;
+pub use to_long_function::{ConvertsToLongFunctionEvaluator, ToLongFunctionEvaluator};
 pub use to_quantity_function::ToQuantityFunctionEvaluator;
 pub use to_string_function::ToStringFunctionEvaluator;
 pub use to_time_function::ToTimeFunctionEvaluator;

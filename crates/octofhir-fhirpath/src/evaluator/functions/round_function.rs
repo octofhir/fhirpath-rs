@@ -1,6 +1,7 @@
 //! Round function implementation
 //!
-//! The round function rounds the input to the nearest integer.
+//! The round function rounds a Decimal or Quantity (Integer and Long are converted
+//! to Decimal) to the nearest whole number, halves away from zero.
 //! Syntax: number.round() or number.round(precision)
 
 use rust_decimal::prelude::*;
@@ -28,7 +29,7 @@ impl RoundFunctionEvaluator {
                     "Rounds the input to the nearest integer or to the specified precision"
                         .to_string(),
                 signature: FunctionSignature {
-                    input_type: "Number".to_string(),
+                    input_type: "Decimal | Quantity".to_string(),
                     parameters: vec![FunctionParameter {
                         name: "precision".to_string(),
                         parameter_type: vec!["Integer".to_string()],
@@ -87,14 +88,15 @@ impl PureFunctionEvaluator for RoundFunctionEvaluator {
             ));
         }
 
-        // Get the input value as decimal
+        // Integer and Long are converted to Decimal; a Quantity keeps its unit.
         let input_decimal = match &input[0] {
             FhirPathValue::Integer(i, _, _) => Decimal::from(*i),
             FhirPathValue::Decimal(d, _, _) => *d,
+            FhirPathValue::Quantity { value, .. } => *value,
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
-                    "round function can only be called on numeric values (Integer or Decimal)"
+                    "round function can only be called on Integer, Decimal or Quantity values"
                         .to_string(),
                 ));
             }
@@ -136,18 +138,19 @@ impl PureFunctionEvaluator for RoundFunctionEvaluator {
             }
         };
 
-        // Round to specified precision
-        let result_decimal = input_decimal.round_dp(precision);
+        // Traditional rounding: halves go away from zero (2.5 -> 3, -0.5 -> -1).
+        let rounded =
+            input_decimal.round_dp_with_strategy(precision, RoundingStrategy::MidpointAwayFromZero);
 
-        // For precision 0, return as integer if possible
-        let result = if precision == 0 && result_decimal.fract() == Decimal::ZERO {
-            if let Some(int_value) = result_decimal.to_i64() {
-                FhirPathValue::integer(int_value)
-            } else {
-                FhirPathValue::decimal(result_decimal)
+        let result = match &input[0] {
+            FhirPathValue::Quantity { .. } => {
+                let mut quantity = input[0].clone();
+                if let FhirPathValue::Quantity { value, .. } = &mut quantity {
+                    *value = rounded;
+                }
+                quantity
             }
-        } else {
-            FhirPathValue::decimal(result_decimal)
+            _ => FhirPathValue::decimal(rounded),
         };
 
         Ok(EvaluationResult {

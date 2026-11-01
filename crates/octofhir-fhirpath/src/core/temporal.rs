@@ -520,6 +520,21 @@ impl PrecisionDateTime {
 
     /// Parse from ISO 8601 datetime string with timezone
     pub fn parse(s: &str) -> Option<Self> {
+        // An hour-only time (`2015-02-04T10`, `2015-02-04T10Z`, `...T10+02:00`) has no minutes,
+        // which chrono cannot parse: read it with `:00` minutes and keep hour precision.
+        if let Some(t) = s.find('T') {
+            let time = &s[t + 1..];
+            let hour_only = time.len() >= 2
+                && time.as_bytes()[..2].iter().all(u8::is_ascii_digit)
+                && matches!(time.as_bytes().get(2), None | Some(b'Z' | b'+' | b'-'));
+            if hour_only {
+                let with_minutes = format!("{}:00{}", &s[..t + 3], &time[2..]);
+                let mut parsed = Self::parse(&with_minutes)?;
+                parsed.precision = TemporalPrecision::Hour;
+                return Some(parsed);
+            }
+        }
+
         // Detect if original string has explicit timezone information
         let has_tz =
             s.ends_with('Z') || s.contains('+') || s.rfind('-').is_some_and(|pos| pos > 10);

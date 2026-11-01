@@ -1,7 +1,7 @@
 //! Join function implementation
 //!
 //! The join function joins a collection of strings into a single string with a separator.
-//! Syntax: collection.join(separator)
+//! Syntax: collection.join([separator])
 
 use std::sync::Arc;
 
@@ -30,14 +30,14 @@ impl JoinFunctionEvaluator {
                     parameters: vec![FunctionParameter {
                         name: "separator".to_string(),
                         parameter_type: vec!["String".to_string()],
-                        optional: false,
+                        optional: true,
                         is_expression: false,
-                        description: "String separator to join with".to_string(),
+                        description: "String separator to join with (default: none)".to_string(),
                         default_value: None,
                     }],
                     return_type: "String".to_string(),
                     polymorphic: false,
-                    min_params: 1,
+                    min_params: 0,
                     max_params: Some(1),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
@@ -63,29 +63,31 @@ impl PureFunctionEvaluator for JoinFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
-        if args.len() != 1 {
+        if args.len() > 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                "join function requires exactly one argument (separator)".to_string(),
+                "join function takes at most one argument (separator)".to_string(),
             ));
         }
 
-        // Get the pre-evaluated separator argument
-        if args[0].len() != 1 {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "join function separator argument must be a single value".to_string(),
-            ));
-        }
-
-        let separator_str = match &args[0][0] {
-            FhirPathValue::String(s, _, _) => s.clone(),
-            _ => {
+        // The separator is optional: without it the strings are concatenated.
+        let separator_str = match args.first() {
+            None => String::new(),
+            Some(arg) if arg.len() != 1 => {
                 return Err(FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0057,
-                    "join function separator argument must be a string".to_string(),
+                    crate::core::error_code::FP0056,
+                    "join function separator argument must be a single value".to_string(),
                 ));
             }
+            Some(arg) => match &arg[0] {
+                FhirPathValue::String(s, _, _) => s.clone(),
+                _ => {
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0057,
+                        "join function separator argument must be a string".to_string(),
+                    ));
+                }
+            },
         };
 
         // Convert all input values to strings

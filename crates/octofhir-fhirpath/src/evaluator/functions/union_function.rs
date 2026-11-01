@@ -41,7 +41,7 @@ impl UnionFunctionEvaluator {
                     max_params: Some(1),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
-                null_propagation: NullPropagationStrategy::Focus,
+                null_propagation: NullPropagationStrategy::None,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Combining,

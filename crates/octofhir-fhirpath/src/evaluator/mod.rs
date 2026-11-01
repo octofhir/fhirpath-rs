@@ -15,6 +15,7 @@ pub mod evaluator;
 pub mod factory_variable;
 pub mod function_registry;
 pub mod functions;
+mod instance_selector;
 pub mod lambda_hoisting;
 pub mod metadata_collector;
 mod model_prepared;

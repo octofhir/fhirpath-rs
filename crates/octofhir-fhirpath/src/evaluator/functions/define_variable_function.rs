@@ -134,6 +134,8 @@ impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
                 | "%context"
                 | "resource"
                 | "%resource"
+                | "rootResource"
+                | "%rootResource"
                 | "terminologies"
                 | "sct"
                 | "loinc"

@@ -2,7 +2,7 @@
 //!
 //! The matches function tests whether a string contains a substring that matches a regular expression pattern.
 //! Unlike matchesFull() which requires the entire string to match, matches() does partial matching.
-//! Syntax: string.matches(pattern)
+//! Syntax: string.matches(pattern [, flags])
 
 use std::sync::Arc;
 
@@ -16,7 +16,7 @@ use crate::evaluator::function_registry::{
 /// Matches function evaluator
 #[derive(Clone)]
 pub struct MatchesFunctionEvaluator {
-    compiled: Option<Arc<regex::Regex>>,
+    compiled: Option<Arc<super::regex_cache::PreparedRegex>>,
     metadata: FunctionMetadata,
 }
 
@@ -38,12 +38,20 @@ impl MatchesFunctionEvaluator {
                             is_expression: true,
                             description: "Regular expression pattern to search for within the string".to_string(),
                             default_value: None,
+                        },
+                        FunctionParameter {
+                            name: "flags".to_string(),
+                            parameter_type: vec!["String".to_string()],
+                            optional: true,
+                            is_expression: false,
+                            description: "Regex flags: 'i' case-insensitive, 'm' multi-line".to_string(),
+                            default_value: None,
                         }
                     ],
                     return_type: "Boolean".to_string(),
                     polymorphic: false,
                     min_params: 1,
-                    max_params: Some(1),
+                    max_params: Some(2),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
                 null_propagation: NullPropagationStrategy::Focus,
@@ -65,18 +73,14 @@ impl PureFunctionEvaluator for MatchesFunctionEvaluator {
 
     fn prepare(&self, args: &[Collection]) -> Option<Arc<dyn PureFunctionEvaluator>> {
         let pattern = args.first()?.first()?.as_string()?;
+        let flags = super::regex_cache::flags_arg(args, 1, "matches").ok()?;
+        let effective = super::regex_cache::effective_pattern(pattern, &flags).ok()?;
         // Keep compiled-plan retention bounded even for adversarial regexes.
         // Oversized/expensive patterns keep the normal runtime compilation path.
-        if pattern.len() > 4096 {
-            return None;
-        }
-
-        let compiled = regex::RegexBuilder::new(pattern)
-            .size_limit(256 * 1024)
-            .build()
-            .ok()?;
         let mut evaluator = self.clone();
-        evaluator.compiled = Some(Arc::new(compiled));
+        evaluator.compiled = Some(super::regex_cache::PreparedRegex::new(
+            pattern, &flags, &effective,
+        )?);
         Some(Arc::new(evaluator))
     }
 
@@ -93,12 +97,13 @@ impl PureFunctionEvaluator for MatchesFunctionEvaluator {
         input: Collection,
         args: &[Collection],
     ) -> Result<EvaluationResult> {
-        if args.len() != 1 {
+        if args.is_empty() || args.len() > 2 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                "matches function requires exactly one argument (pattern)".to_string(),
+                "matches function takes a pattern and optional flags".to_string(),
             ));
         }
+        let flags = super::regex_cache::flags_arg(args, 1, "matches")?;
 
         // Handle empty input - return empty per FHIRPath specification
         if input.is_empty() {
@@ -153,22 +158,10 @@ impl PureFunctionEvaluator for MatchesFunctionEvaluator {
         };
 
         // Compile the regex pattern (no anchoring for partial matching)
-        let cached_regex;
-        let regex = if let Some(regex) = self
-            .compiled
-            .as_deref()
-            .filter(|regex| regex.as_str() == pattern_str)
-        {
-            regex
-        } else {
-            cached_regex = super::regex_cache::compile(pattern_str).map_err(|e| {
-                FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0058,
-                    format!("Invalid regular expression pattern '{pattern_str}': {e}"),
-                )
+        let regex =
+            super::regex_cache::regex_for(self.compiled.as_ref(), pattern_str, &flags, || {
+                super::regex_cache::effective_pattern(pattern_str, &flags)
             })?;
-            cached_regex.as_ref()
-        };
 
         // Test if the string contains a match for the pattern
         let matches = regex.is_match(input_str);

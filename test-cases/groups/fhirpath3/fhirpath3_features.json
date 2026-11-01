@@ -1,0 +1,688 @@
+{
+  "name": "fhirpath3_features",
+  "description": "FHIRPath 3.x behaviour: instance selectors, sort directions, pathname(), Long, regex flags, Quantity unit arithmetic, %factory",
+  "source": "custom",
+  "category": "fhirpath3",
+  "tests": [
+    {
+      "name": "joinNoSeparator",
+      "expression": "('A' | 'B' | 'C').join()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "ABC"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "roundHalfAwayFromZero",
+      "expression": "2.5.round()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        3.0
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "roundNegativeHalf",
+      "expression": "(-0.5).round()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        -1.0
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "roundQuantity",
+      "expression": "(2.567 'mg').round(1) = 2.6 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "modMixedDecimal",
+      "expression": "-5.5 mod 2 = -1.5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "stringUnknownEscape",
+      "expression": "'\\p'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "p"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "stringEquivalenceKeepsWhitespaceRuns",
+      "expression": "'a     b' ~ 'a b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "stringEquivalenceWhitespaceKinds",
+      "expression": "'a b' ~ 'A\\tB'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "stringLiteralKeepsSpaces",
+      "expression": "'a     b'.length()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        7
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "isFhirQuantity",
+      "expression": "Observation.value.is(FHIR.Quantity)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "isResourceHierarchy",
+      "expression": "Patient.is(DomainResource) and Patient.is(Resource)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "regexSingleLineMode",
+      "expression": "'A\\nB'.matches('A.B')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "regexMultilineFlag",
+      "expression": "'first line\\nsecond line'.matches('^second', 'm')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "regexCaseInsensitiveFlag",
+      "expression": "'first line\\nsecond line'.matches('^SECOND', 'im')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "regexMatchesFullAlternation",
+      "expression": "'ab'.matchesFull('a|b')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "replaceMatchesFlag",
+      "expression": "'aXa'.replaceMatches('x', '-', 'i')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "a-a"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "longLiteralType",
+      "expression": "1L.is(System.Long)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "longArithmeticType",
+      "expression": "(1L + 1).type().name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Long"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "toLong",
+      "expression": "'123'.toLong().is(Long)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "convertsToLong",
+      "expression": "'abc'.convertsToLong()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "dateOf",
+      "expression": "@2012-01-01T12:30:00.000-07:00.dateOf() = @2012-01-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "timeOf",
+      "expression": "@2012-01-01T12:30:00.000-07:00.timeOf() = @T12:30:00.000",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "millisecondOf",
+      "expression": "@2012-01-01T12:30:00.002-07:00.millisecondOf()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        2
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "encodeAscii",
+      "expression": "'aé'.encode('ascii')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "a?"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "rootResource",
+      "expression": "%rootResource.id",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "example"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "sortDesc",
+      "expression": "(3 | 1 | 2).sort($this desc)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        3,
+        2,
+        1
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "sortAsc",
+      "expression": "(3 | 1 | 2).sort($this asc)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        1,
+        2,
+        3
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "sortMultiKey",
+      "expression": "Patient.name.sort(family desc, given.first()).given.first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Jim"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "pathname",
+      "expression": "Patient.name.given.pathname()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient.name[0].given[0]",
+        "Patient.name[0].given[1]",
+        "Patient.name[1].given[0]",
+        "Patient.name[2].given[0]",
+        "Patient.name[2].given[1]"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "pathnameShort",
+      "expression": "Patient.birthDate.pathname(true)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient.birthDate"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "pathnameComputed",
+      "expression": "Patient.name.given.first().upper().pathname()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "instanceSelectorCoding",
+      "expression": "Coding { system: 'http://example.org', code: 'c1' }.code",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "c1"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "instanceSelectorRepeatingElement",
+      "expression": "Identifier { type: { coding: { code: 'MR' } } }.type.coding.code",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "MR"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "instanceSelectorEmptyObject",
+      "expression": "Period { : }.exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "instanceSelectorAnonymous",
+      "expression": "{ foo: 'bar', mol: 42 }.mol",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        42
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "instanceSelectorPrimitive",
+      "expression": "code { value: 'final' }.is(FHIR.code)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "instanceSelectorChoice",
+      "expression": "Observation { status: 'final', value: 5 'mg' }.value > 4 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "instanceSelectorFromFocus",
+      "expression": "Patient.select(Coding { code: gender }).code",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "male"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "instanceSelectorUnknownElement",
+      "expression": "Coding { bogus: 1 }",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ],
+      "expectError": true
+    },
+    {
+      "name": "quantityAddFinerUnit",
+      "expression": "3 'm' + 3 'cm' = 303 'cm'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "quantitySubtractFinerUnit",
+      "expression": "3 'cm' - 3 'm' = -297 'cm'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "quantityMultiplyUnits",
+      "expression": "(12 'cm' * 3 'cm') = 36 'cm2'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "quantityDivideUnits",
+      "expression": "(120 'm' / 60 's') = 2 'm/s'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "quantityDivideSameUnit",
+      "expression": "1.0 'm' / 1.0 'm' = 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "quantityCeiling",
+      "expression": "2.5 'mg'.ceiling() = 3 'mg'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "quantityCalendarEqualsDefinite",
+      "expression": "7 days = 1 'wk'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "dateAddUcumDay",
+      "expression": "@1973-12-25 + 1 'd' = @1973-12-26",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "factoryCreateTypeSpecifier",
+      "expression": "%factory.create(Patient).resourceType",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "factoryPrimitive",
+      "expression": "%factory.code('final').is(FHIR.code)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "factoryOptionalArguments",
+      "expression": "%factory.Coding({}, 'c').code",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "c"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "factoryWithPropertyRepeating",
+      "expression": "%factory.withProperty(%factory.create(Patient), 'name', %factory.HumanName('A')).name.family",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "A"
+      ],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ]
+    },
+    {
+      "name": "factoryWithPropertyUnknown",
+      "expression": "%factory.withProperty(%factory.create(Patient), 'bogus', 1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "custom",
+        "fhirpath3"
+      ],
+      "expectError": true
+    }
+  ]
+}

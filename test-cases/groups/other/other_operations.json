@@ -4193,6 +4193,7 @@
     },
     {
       "name": "testExpressions",
+      "ordered": false,
       "expression": "Patient.name.select(given | family).distinct()",
       "input": null,
       "inputfile": "patient-example.json",

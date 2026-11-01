@@ -160,7 +160,7 @@ impl PureFunctionEvaluator for ReplaceFunctionEvaluator {
                 results.push(FhirPathValue::String(
                     replaced,
                     type_info.clone(),
-                    primitive.clone(),
+                    crate::core::types::computed_element(primitive),
                 ));
             } else {
                 return Err(FhirPathError::evaluation_error(

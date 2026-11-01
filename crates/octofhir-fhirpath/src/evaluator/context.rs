@@ -77,6 +77,9 @@ struct SharedContextState {
     schema_lookup_failed: AtomicBool,
     server_registry: Arc<LockFreeHashMap<String, Arc<dyn ServerProvider>>>,
     base_env_variables: Arc<LockFreeHashMap<String, FhirPathValue>>,
+    /// Record where navigated values sit (for `pathname()`); off until an expression
+    /// that calls `pathname` runs, as it costs an allocation per navigated value.
+    track_paths: AtomicBool,
 }
 
 /// Key for [`SharedContextState::descendants_cache`]: node allocation address plus
@@ -335,6 +338,7 @@ impl EvaluationContext {
             schema_lookup_failed: AtomicBool::new(false),
             server_registry,
             base_env_variables: BASE_ENV_VARIABLES.clone(),
+            track_paths: AtomicBool::new(false),
         });
 
         Self {
@@ -345,6 +349,20 @@ impl EvaluationContext {
             root_resource,
             hoist_scope: None,
         }
+    }
+
+    /// Start recording where navigated values sit in the root resource (for `pathname()`).
+    pub fn enable_path_tracking(&self) {
+        self.shared
+            .track_paths
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Whether navigated values record where they sit in the root resource.
+    pub fn tracks_paths(&self) -> bool {
+        self.shared
+            .track_paths
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Get root resource if available
@@ -382,8 +400,20 @@ impl EvaluationContext {
         }
 
         // Walk parent chain to resolve variable
-        if let Some(parent) = &self.parent_context {
-            return parent.get_variable(name);
+        if let Some(parent) = &self.parent_context
+            && let Some(value) = parent.get_variable(name)
+        {
+            return Some(value);
+        }
+
+        // %rootResource (FHIR) is the top-level resource. A host that evaluates on part of a
+        // resource (a validator running an element's invariant) sets it as a variable, found
+        // above; otherwise it is the evaluation's root resource, like %resource.
+        if matches!(name, "rootResource" | "%rootResource")
+            && let Some(root) = &self.root_resource
+            && matches!(root.as_ref(), FhirPathValue::Resource(_, _, _))
+        {
+            return Some(root.as_ref().clone());
         }
 
         None

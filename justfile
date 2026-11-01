@@ -67,15 +67,26 @@ test:
 
 test-coverage:
     @echo "🔍 Running comprehensive test coverage analysis (FHIR R5)..."
-    cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176
+    cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1228
  
-# Convert official R5 XML test suite to grouped JSON files (in same directory as XML)
+# Official fhir-test-cases suites (report only, not part of the test-coverage gate)
+test-official-r5:
+    cargo run --package fhirpath-dev-tools --bin test-coverage -- --official r5
+
+test-official-r6:
+    cargo run --package fhirpath-dev-tools --bin test-coverage -- --official r6
+
+# Re-sync test-cases/official from a local fhir-test-cases checkout
+sync-official-tests FTC:
+    test-cases/official/sync.sh {{FTC}}
+
+# Convert an official XML test suite to grouped JSON files (in same directory as XML)
 convert-r5-xml FILE="test-cases/tests-fhir-r5.xml":
     cargo run --package fhirpath-dev-tools --bin convert-r5-xml-to-json -- {{FILE}}
 
-# Convert a single FHIR XML resource to JSON
-convert-fhir-xml IN OUT:
-    cargo run --package fhirpath-dev-tools --bin convert-fhir-xml -- {{IN}} {{OUT}}
+# Convert a single FHIR XML resource to JSON (schema-driven; FHIR_VERSION r4|r4b|r5|r6)
+convert-fhir-xml IN OUT FHIR_VERSION="r5":
+    cargo run --package fhirpath-dev-tools --bin convert-fhir-xml -- --fhir-version {{FHIR_VERSION}} {{IN}} {{OUT}}
 
  
 

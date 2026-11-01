@@ -74,7 +74,7 @@ impl PureFunctionEvaluator for UpperFunctionEvaluator {
                 results.push(FhirPathValue::String(
                     upper_string,
                     type_info.clone(),
-                    primitive.clone(),
+                    crate::core::types::computed_element(primitive),
                 ));
             } else {
                 return Err(FhirPathError::evaluation_error(

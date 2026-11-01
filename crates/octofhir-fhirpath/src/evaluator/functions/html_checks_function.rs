@@ -133,15 +133,15 @@ impl HtmlChecksFunctionEvaluator {
 
 /// Basic XHTML validation against FHIR narrative rules.
 /// Checks for allowed tags and attributes using simple string scanning.
-fn validate_xhtml(xhtml: &str) -> bool {
+fn validate_xhtml(xhtml: &str, require_root_div: bool) -> bool {
     let input = xhtml.trim();
     if input.is_empty() {
         return true;
     }
 
-    // Must start with <div xmlns="http://www.w3.org/1999/xhtml"> (or just <div)
-    // The FHIR spec requires a root div element
-    if !input.starts_with("<div") {
+    // A narrative (`xhtml` element) must start with <div xmlns="http://www.w3.org/1999/xhtml">
+    // (or just <div); a plain string is checked as an HTML fragment.
+    if require_root_div && !input.starts_with("<div") {
         return false;
     }
 
@@ -297,28 +297,32 @@ impl PureFunctionEvaluator for HtmlChecksFunctionEvaluator {
 
         for item in &input {
             let xhtml_owned;
-            let xhtml = match item {
-                FhirPathValue::String(s, _, _) => s.as_str(),
+            let (xhtml, is_narrative) = match item {
+                FhirPathValue::String(s, type_info, _) => (
+                    s.as_str(),
+                    type_info.name.as_deref() == Some("xhtml") || type_info.type_name == "xhtml",
+                ),
                 // When constraints are evaluated on primitive elements (like xhtml div),
                 // the value may be wrapped as Resource(JsonValue::String(...))
                 FhirPathValue::Resource(json, _, _) => {
                     if let Some(s) = json.as_str() {
                         xhtml_owned = s.to_string();
-                        xhtml_owned.as_str()
+                        (xhtml_owned.as_str(), true)
                     } else {
                         return Ok(EvaluationResult {
                             value: crate::core::Collection::single(FhirPathValue::boolean(false)),
                         });
                     }
                 }
+                // Not a string: there is no HTML to check.
                 _ => {
                     return Ok(EvaluationResult {
-                        value: crate::core::Collection::single(FhirPathValue::boolean(false)),
+                        value: crate::core::Collection::empty(),
                     });
                 }
             };
 
-            if !validate_xhtml(xhtml) {
+            if !validate_xhtml(xhtml, is_narrative) {
                 return Ok(EvaluationResult {
                     value: crate::core::Collection::single(FhirPathValue::boolean(false)),
                 });

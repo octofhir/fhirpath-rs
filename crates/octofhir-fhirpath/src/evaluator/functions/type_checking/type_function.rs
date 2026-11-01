@@ -57,6 +57,8 @@ impl TypeFunctionEvaluator {
             FhirPathValue::Integer(_, type_info, _) => {
                 if type_info.namespace.as_deref() == Some("FHIR") {
                     ("FHIR".to_string(), "integer".to_string())
+                } else if type_info.type_name == "Long" {
+                    ("System".to_string(), "Long".to_string())
                 } else {
                     ("System".to_string(), "Integer".to_string())
                 }
@@ -97,6 +99,19 @@ impl TypeFunctionEvaluator {
                 } else {
                     ("System".to_string(), "Time".to_string())
                 }
+            }
+            // A Quantity read from a FHIR element is a FHIR.Quantity (or a profile of it, such
+            // as Age); a literal or computed one is a System.Quantity.
+            FhirPathValue::Quantity { type_info, .. }
+                if type_info.namespace.as_deref() == Some("FHIR") =>
+            {
+                let name = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+                let name = if name.is_empty() || name == "Unknown" {
+                    "Quantity"
+                } else {
+                    name
+                };
+                ("FHIR".to_string(), name.to_string())
             }
             FhirPathValue::Quantity { .. } => ("System".to_string(), "Quantity".to_string()),
             FhirPathValue::Resource(_, type_info, _) => {

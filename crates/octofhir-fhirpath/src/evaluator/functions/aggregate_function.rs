@@ -55,7 +55,7 @@ impl AggregateFunctionEvaluator {
                     max_params: Some(2),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
-                null_propagation: NullPropagationStrategy::Focus,
+                null_propagation: NullPropagationStrategy::None,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Aggregate,
@@ -103,26 +103,24 @@ impl LazyFunctionEvaluator for AggregateFunctionEvaluator {
         let aggregator_expr = &args[0];
         let init_expr = args.get(1); // optional init value
 
-        // If input is empty, return empty regardless of init
+        // `$total` starts as `init`, or empty when no init is supplied, and
+        // every item is aggregated (FHIRPath §1.7.1); an empty input returns
+        // that starting total.
+        let mut total: Vec<FhirPathValue> = match init_expr {
+            Some(init_expr) => evaluator
+                .evaluate(init_expr, context)
+                .await?
+                .value
+                .iter()
+                .cloned()
+                .collect(),
+            None => Vec::new(),
+        };
+        let start_index = 0;
         if input.is_empty() {
             return Ok(EvaluationResult {
-                value: Collection::empty(),
+                value: Collection::from(total),
             });
-        }
-
-        // Handle initialization
-        let mut total;
-        let start_index;
-
-        if let Some(init_expr) = init_expr {
-            // Init value provided - evaluate it and start from index 0
-            let init_result = evaluator.evaluate(init_expr, context).await?;
-            total = init_result.value.iter().cloned().collect();
-            start_index = 0;
-        } else {
-            // No init value - use first element as init and start from index 1
-            total = vec![input[0].clone()];
-            start_index = 1;
         }
 
         let context = crate::evaluator::lambda_hoisting::hoist_into(

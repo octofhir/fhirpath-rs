@@ -111,27 +111,23 @@ impl PureFunctionEvaluator for SubstringFunctionEvaluator {
             let length_values = &args[1];
 
             if length_values.is_empty() {
-                // If length parameter is empty, return empty collection
-                return Ok(EvaluationResult {
-                    value: crate::core::Collection::empty(),
-                });
-            }
-
-            if length_values.len() != 1 {
+                // An empty length behaves as if no length was given (FHIRPath §1.5.6.3)
+                None
+            } else if length_values.len() != 1 {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0054,
                     "substring function length parameter must evaluate to a single value"
                         .to_string(),
                 ));
-            }
-
-            match &length_values[0] {
-                FhirPathValue::Integer(i, _, _) => Some(*i),
-                _ => {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0055,
-                        "substring function length parameter must be an integer".to_string(),
-                    ));
+            } else {
+                match &length_values[0] {
+                    FhirPathValue::Integer(i, _, _) => Some(*i),
+                    _ => {
+                        return Err(FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0055,
+                            "substring function length parameter must be an integer".to_string(),
+                        ));
+                    }
                 }
             }
         } else {

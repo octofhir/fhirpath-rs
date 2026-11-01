@@ -66,6 +66,10 @@ pub enum ExpressionNode {
 
     /// Type information (e.g., "System.Integer", "FHIR.Patient")
     TypeInfo(TypeInfoNode),
+
+    /// Instance selector creating an object (e.g., "Coding { system: 'x', code: 'y' }",
+    /// "{ : }")
+    InstanceSelector(InstanceSelectorNode),
 }
 
 /// Literal value with source location
@@ -176,6 +180,20 @@ pub struct CollectionNode {
     pub location: Option<SourceLocation>,
 }
 
+/// Instance selector: `[type] { element: value, ... }` creates a new object (FHIRPath
+/// §1.5.2.3, STU).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InstanceSelectorNode {
+    /// Type to create, optionally namespace-qualified (`Coding`, `FHIR.Identifier`); `None`
+    /// takes the type from the context (the element it is assigned to) or creates an
+    /// anonymous object
+    pub type_name: Option<String>,
+    /// Elements to set, in order: name and value expression
+    pub elements: Vec<(String, ExpressionNode)>,
+    /// Source location
+    pub location: Option<SourceLocation>,
+}
+
 /// Type cast expression
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeCastNode {
@@ -265,6 +283,7 @@ impl ExpressionNode {
             Self::UnaryOperation(n) => n.location.as_ref(),
             Self::Lambda(n) => n.location.as_ref(),
             Self::Collection(n) => n.location.as_ref(),
+            Self::InstanceSelector(n) => n.location.as_ref(),
             Self::TypeCast(n) => n.location.as_ref(),
             Self::Filter(n) => n.location.as_ref(),
             Self::Union(n) => n.location.as_ref(),
@@ -289,6 +308,7 @@ impl ExpressionNode {
             Self::UnaryOperation(n) => n.location = Some(location),
             Self::Lambda(n) => n.location = Some(location),
             Self::Collection(n) => n.location = Some(location),
+            Self::InstanceSelector(n) => n.location = Some(location),
             Self::TypeCast(n) => n.location = Some(location),
             Self::Filter(n) => n.location = Some(location),
             Self::Union(n) => n.location = Some(location),
@@ -314,6 +334,7 @@ impl ExpressionNode {
             Self::UnaryOperation(_) => "unary operation",
             Self::Lambda(_) => "lambda",
             Self::Collection(_) => "collection",
+            Self::InstanceSelector(_) => "instance selector",
             Self::Parenthesized(_) => "parenthesized expression",
             Self::TypeCast(_) => "type cast",
             Self::Filter(_) => "filter",
@@ -396,6 +417,11 @@ impl ExpressionNode {
             Self::Collection(coll) => {
                 for element in &coll.elements {
                     element.validate()?;
+                }
+            }
+            Self::InstanceSelector(selector) => {
+                for (_, value) in &selector.elements {
+                    value.validate()?;
                 }
             }
             Self::IndexAccess(idx) => {
@@ -490,6 +516,7 @@ impl ExpressionNode {
             Self::UnaryOperation(n) => n.operand.node_count(),
             Self::Lambda(n) => n.body.node_count(),
             Self::Collection(n) => n.elements.iter().map(|e| e.node_count()).sum(),
+            Self::InstanceSelector(n) => n.elements.iter().map(|(_, v)| v.node_count()).sum(),
             Self::FunctionCall(n) => n.arguments.iter().map(|a| a.node_count()).sum(),
             Self::MethodCall(n) => {
                 n.object.node_count() + n.arguments.iter().map(|a| a.node_count()).sum::<usize>()
@@ -552,6 +579,22 @@ impl fmt::Display for ExpressionNode {
                     write!(f, "{element}")?;
                 }
                 write!(f, "}}")
+            }
+            Self::InstanceSelector(n) => {
+                if let Some(type_name) = &n.type_name {
+                    write!(f, "{type_name} ")?;
+                }
+                if n.elements.is_empty() {
+                    return write!(f, "{{ : }}");
+                }
+                write!(f, "{{ ")?;
+                for (i, (name, value)) in n.elements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{name}: {value}")?;
+                }
+                write!(f, " }}")
             }
             Self::Filter(n) => write!(f, "{}.where({})", n.base, n.condition),
             Self::Union(n) => write!(f, "{} | {}", n.left, n.right),

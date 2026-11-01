@@ -21,7 +21,6 @@ use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
-use crate::evaluator::quantity_utils::convert_quantity;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Addition operator evaluator
@@ -52,9 +51,9 @@ impl AddOperatorEvaluator {
     fn add_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<FhirPathValue> {
         match (left, right) {
             // Integer addition
-            (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
-                Some(FhirPathValue::integer(l + r))
-            }
+            (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => l
+                .checked_add(*r)
+                .map(|v| FhirPathValue::integer_result(v, left, right)),
 
             // Decimal addition
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
@@ -78,7 +77,6 @@ impl AddOperatorEvaluator {
                     unit: lu,
                     code: lc,
                     system: ls,
-                    ucum_unit: lu_ucum,
                     ..
                 },
                 FhirPathValue::Quantity {
@@ -86,7 +84,6 @@ impl AddOperatorEvaluator {
                     unit: ru,
                     code: rc,
                     system: rs,
-                    ucum_unit: ru_ucum,
                     ..
                 },
             ) => {
@@ -98,20 +95,9 @@ impl AddOperatorEvaluator {
                         lc.clone().or_else(|| rc.clone()),
                         ls.clone().or_else(|| rs.clone()),
                     ))
-                } else if lu_ucum.is_some() && ru_ucum.is_some() {
-                    // Different units but both have UCUM - attempt conversion
-                    self.add_quantities_with_ucum(
-                        *lv,
-                        lu.clone(),
-                        lc.clone(),
-                        ls.clone(),
-                        *rv,
-                        ru.clone(),
-                        rc.clone(),
-                    )
                 } else {
-                    // Different units without UCUM or mixed UCUM/non-UCUM - incompatible
-                    None
+                    // Different units: combine in the finer unit when commensurable
+                    crate::evaluator::quantity_utils::add_quantities(left, right, false)
                 }
             }
 
@@ -195,47 +181,6 @@ impl AddOperatorEvaluator {
             // Invalid combinations
             _ => None,
         }
-    }
-
-    /// Add two quantities with UCUM unit conversion
-    ///
-    /// Attempts to convert the right quantity to the left quantity's unit and perform addition.
-    /// Returns None if the units are not convertible (different dimensions).
-    fn add_quantities_with_ucum(
-        &self,
-        left_value: Decimal,
-        left_unit_str: Option<String>,
-        left_code: Option<String>,
-        left_system: Option<String>,
-        right_value: Decimal,
-        right_unit_str: Option<String>,
-        right_code: Option<String>,
-    ) -> Option<FhirPathValue> {
-        // Get the target unit (left operand) - prefer code, fallback to unit string
-        let target_unit = left_code.as_deref().or(left_unit_str.as_deref())?;
-
-        // Get the source unit (right operand) - prefer code, fallback to unit string
-        let source_unit_for_ref = right_code.as_ref().or(right_unit_str.as_ref())?;
-
-        // Try to convert right quantity to left unit using existing conversion infrastructure
-        let converted = convert_quantity(
-            right_value,
-            &Some(source_unit_for_ref.clone()),
-            &None, // calendar_unit - we know both are UCUM units
-            target_unit,
-        )
-        .ok()?;
-
-        // Perform addition in left unit
-        let result_value = left_value + converted.value;
-
-        // Return result in left operand's unit
-        Some(FhirPathValue::quantity_with_components(
-            result_value,
-            left_unit_str,
-            left_code,
-            left_system,
-        ))
     }
 
     /// Add a time-valued quantity to a temporal value with type information
@@ -531,6 +476,19 @@ impl OperationEvaluator for AddOperatorEvaluator {
         // For arithmetic, we use the first elements (singleton evaluation)
         let left_value = left.first().unwrap();
         let right_value = right.first().unwrap();
+        // Date/time arithmetic takes UCUM definite durations ('d', 'h', ...) as calendar ones.
+        let right_owned;
+        let right_value = if matches!(
+            left_value,
+            FhirPathValue::Date(..) | FhirPathValue::DateTime(..) | FhirPathValue::Time(..)
+        ) {
+            right_owned =
+                crate::evaluator::quantity_utils::definite_duration_as_calendar(right_value)
+                    .into_owned();
+            &right_owned
+        } else {
+            right_value
+        };
 
         match self.add_values(left_value, right_value) {
             Some(result) => Ok(EvaluationResult {
@@ -821,7 +779,7 @@ mod tests {
         );
 
         // Left: 2 g, Right: 1000 mg
-        // Expected: 3 g (result in left operand's unit)
+        // Expected: 3000 mg (the result is in the finer unit, FHIR-56190)
         let left = vec![FhirPathValue::quantity(
             Decimal::new(2, 0),
             Some("g".to_string()),
@@ -838,9 +796,9 @@ mod tests {
 
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {
-            // Result should be 3 g (2 g + 1 g from converted 1000 mg)
-            assert_eq!(*value, Decimal::new(3, 0));
-            assert_eq!(unit.as_deref(), Some("g"));
+            // 2 g is 2000 mg, plus 1000 mg
+            assert_eq!(*value, Decimal::new(3000, 0));
+            assert_eq!(unit.as_deref(), Some("mg"));
         } else {
             panic!("Expected quantity result");
         }

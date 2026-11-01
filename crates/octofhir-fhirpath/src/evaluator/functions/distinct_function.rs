@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathError, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -66,7 +66,11 @@ impl PureFunctionEvaluator for DistinctFunctionEvaluator {
             ));
         }
 
-        let unique_items = crate::evaluator::value_set::distinct(input);
+        // Of each repeated value the last occurrence is kept, in input order
+        // (fhir-test-cases testDistinct30-35; the spec leaves the order open).
+        let items: Vec<FhirPathValue> = input.into_iter().collect();
+        let mut unique_items = crate::evaluator::value_set::distinct(items.into_iter().rev());
+        unique_items.reverse();
 
         Ok(EvaluationResult {
             value: crate::core::Collection::from(unique_items),

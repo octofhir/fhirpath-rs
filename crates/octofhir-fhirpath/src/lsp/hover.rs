@@ -247,6 +247,7 @@ impl HoverProvider {
     fn constant_hover(token: &str, lsp_context: &LspContext) -> Option<Hover> {
         let (type_name, description) = match token {
             "%resource" => ("Resource", "The root resource being evaluated"),
+            "%rootResource" => ("Resource", "The top-level resource being evaluated"),
             "%context" => ("Element", "The evaluation context element"),
             "%ucum" => ("string", "UCUM unit system URL (http://unitsofmeasure.org)"),
             "%sct" => ("string", "SNOMED CT system URL (http://snomed.info/sct)"),

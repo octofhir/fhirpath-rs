@@ -73,11 +73,11 @@ impl PureFunctionEvaluator for SkipFunctionEvaluator {
 
         let num_values = &args[0];
 
+        // An empty count skips everything: the result is empty.
         if num_values.is_empty() {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                "skip argument cannot be empty".to_string(),
-            ));
+            return Ok(EvaluationResult {
+                value: Collection::empty(),
+            });
         }
 
         if num_values.len() != 1 {

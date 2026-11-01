@@ -36,7 +36,7 @@ impl LengthFunctionEvaluator {
                 null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
-                category: FunctionCategory::Utility,
+                category: FunctionCategory::StringManipulation,
                 requires_terminology: false,
                 requires_model: false,
             },

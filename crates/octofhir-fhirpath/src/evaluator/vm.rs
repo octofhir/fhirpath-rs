@@ -3,9 +3,7 @@
 //! Built-in/custom async functions keep their public callback interface. Child
 //! expressions are scheduled as independent stack tasks, not recursively polled
 //! evaluator futures. The scheduler also supports join/select and cancellation.
-use super::function_registry::{
-    FunctionEvaluatorWrapper, NullPropagationStrategy, PureFunctionEvaluator,
-};
+use super::function_registry::{FunctionEvaluatorWrapper, PureFunctionEvaluator};
 use super::{
     AsyncNodeEvaluator, EvaluationContext, EvaluationResult, Evaluator, OperationEvaluator,
 };
@@ -36,6 +34,24 @@ pub(super) struct Program {
     ast: Arc<ExpressionNode>,
     nodes: Box<[Node]>,
     addresses: HashMap<usize, Id>,
+    /// The expression calls `pathname()`, so navigation must record value origins
+    uses_pathname: bool,
+}
+
+/// Whether `node` calls `pathname()` anywhere (iterative: ASTs can be very deep).
+fn calls_pathname(node: &ExpressionNode) -> bool {
+    let mut stack = vec![node];
+    while let Some(node) = stack.pop() {
+        match node {
+            ExpressionNode::FunctionCall(call) if call.name == "pathname" => return true,
+            ExpressionNode::MethodCall(call) if call.method == "pathname" => return true,
+            ExpressionNode::InstanceSelector(selector) => {
+                stack.extend(selector.elements.iter().map(|(_, value)| value));
+            }
+            _ => stack.extend(children(node)),
+        }
+    }
+    false
 }
 
 struct Node {
@@ -82,6 +98,8 @@ enum Op {
         check: bool,
     },
     ReferenceDescendants(Id),
+    /// Evaluated by the tree-walking evaluator (it needs the AST of its element values)
+    InstanceSelector(Arc<crate::ast::InstanceSelectorNode>),
     Unsupported(String),
 }
 
@@ -285,6 +303,7 @@ impl Program {
                         }
                     }
                 }
+                E::InstanceSelector(n) => Op::InstanceSelector(Arc::new(n.clone())),
                 _ => Op::Unsupported(format!("Expression type not yet implemented: {node:?}")),
             };
             nodes.push(Node {
@@ -299,6 +318,7 @@ impl Program {
             let safe = |id: Id| nodes[id].callback_free;
             let callback_free = match &nodes[index].op {
                 Op::Value(_) | Op::Variable(_) | Op::Unsupported(_) => true,
+                Op::InstanceSelector(_) => false,
                 Op::Path { receiver, .. } => receiver.is_none_or(safe),
                 Op::Forward(id) | Op::ReferenceDescendants(id) => safe(*id),
                 Op::Binary { left, right, .. } => safe(*left) && safe(*right),
@@ -312,10 +332,12 @@ impl Program {
             };
             nodes[index].callback_free = callback_free;
         }
+        let uses_pathname = calls_pathname(&ast);
         Arc::new(Self {
             ast,
             nodes: nodes.into_boxed_slice(),
             addresses,
+            uses_pathname,
         })
     }
 
@@ -633,12 +655,7 @@ impl<'a> StackState<'a> {
         };
         if let Some((function, args)) = prepared {
             self.value = Some(
-                if input.is_empty()
-                    && matches!(
-                        function.metadata().null_propagation,
-                        NullPropagationStrategy::Focus
-                    )
-                {
+                if super::function_registry::focus_is_null(function.metadata(), &input) {
                     Collection::empty()
                 } else {
                     function.evaluate_sync_borrowed(input, args)?.value
@@ -789,6 +806,14 @@ impl<'a> StackState<'a> {
                             Op::ReferenceDescendants(receiver) => {
                                 self.frames.push(Frame::ReferenceDescendants);
                                 self.frames.push(Frame::Eval(*receiver, context));
+                            }
+                            Op::InstanceSelector(selector) => {
+                                let selector = selector.clone();
+                                self.frames.push(Frame::Future(Box::pin(async move {
+                                    evaluator
+                                        .evaluate_instance_selector(&selector, None, &context)
+                                        .await
+                                })));
                             }
                             Op::Unsupported(message) => return Err(error(message.clone())),
                         }
@@ -954,6 +979,9 @@ pub(super) async fn run_at(
     evaluator: &Evaluator,
     context: &EvaluationContext,
 ) -> Result<EvaluationResult> {
+    if program.uses_pathname {
+        context.enable_path_tracking();
+    }
     let bridge = Bridge::default();
     let root_wake = TaskWake::new(0, bridge.ready.clone());
     let mut tasks = vec![Task::new(

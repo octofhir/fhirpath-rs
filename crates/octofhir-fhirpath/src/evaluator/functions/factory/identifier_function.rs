@@ -30,7 +30,7 @@ impl FactoryIdentifierFunctionEvaluator {
                         FunctionParameter {
                             name: "system".to_string(),
                             parameter_type: vec!["String".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: false,
                             description: "Identifier system URI".to_string(),
                             default_value: None,
@@ -38,7 +38,7 @@ impl FactoryIdentifierFunctionEvaluator {
                         FunctionParameter {
                             name: "value".to_string(),
                             parameter_type: vec!["String".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: false,
                             description: "Identifier value".to_string(),
                             default_value: None,
@@ -64,7 +64,7 @@ impl FactoryIdentifierFunctionEvaluator {
                     ],
                     return_type: "Identifier".to_string(),
                     polymorphic: false,
-                    min_params: 2,
+                    min_params: 0,
                     max_params: Some(4),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
@@ -106,23 +106,13 @@ impl PureFunctionEvaluator for FactoryIdentifierFunctionEvaluator {
             ));
         }
 
-        let system = extract_string(&args, 0).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "Identifier function requires a string system argument".to_string(),
-            )
-        })?;
-
-        let value = extract_string(&args, 1).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "Identifier function requires a string value argument".to_string(),
-            )
-        })?;
-
         let mut identifier = serde_json::Map::new();
-        identifier.insert("system".to_string(), serde_json::Value::String(system));
-        identifier.insert("value".to_string(), serde_json::Value::String(value));
+        if let Some(system) = extract_string(&args, 0) {
+            identifier.insert("system".to_string(), serde_json::Value::String(system));
+        }
+        if let Some(value) = extract_string(&args, 1) {
+            identifier.insert("value".to_string(), serde_json::Value::String(value));
+        }
 
         if let Some(use_val) = extract_string(&args, 2) {
             identifier.insert("use".to_string(), serde_json::Value::String(use_val));

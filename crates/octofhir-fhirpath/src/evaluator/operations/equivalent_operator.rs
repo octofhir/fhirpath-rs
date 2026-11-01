@@ -106,10 +106,20 @@ impl EquivalentOperatorEvaluator {
 
             // String equivalence (case-insensitive and whitespace-normalized per FHIRPath spec)
             (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => {
-                // Normalize strings: trim and convert to lowercase
-                let l_normalized = l.trim().to_lowercase();
-                let r_normalized = r.trim().to_lowercase();
-                Some(l_normalized == r_normalized)
+                // Case-insensitive; every Unicode White_Space character counts as the same
+                // character, but runs of whitespace are not collapsed (FHIRPath §1.6.1.2.3).
+                let normalize = |s: &str| -> String {
+                    s.chars()
+                        .flat_map(|c| {
+                            if c.is_whitespace() {
+                                ' '.to_lowercase()
+                            } else {
+                                c.to_lowercase()
+                            }
+                        })
+                        .collect()
+                };
+                Some(normalize(l) == normalize(r))
             }
 
             // Integer equivalence
@@ -464,16 +474,29 @@ mod tests {
             None,
         );
 
-        let left = vec![FhirPathValue::string("  hello  ".to_string())];
-        let right = vec![FhirPathValue::string("hello".to_string())];
-
-        let result = evaluator
-            .evaluate(Collection::empty(), &context, left.into(), right.into())
-            .await
-            .unwrap();
-
-        assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
+        // Every whitespace character is equivalent to every other, but runs are not
+        // collapsed and the ends are not trimmed (FHIRPath §1.6.1.2.3).
+        for (left, right, expected) in [
+            ("a b", "A\tB", true),
+            ("a\nb", "a b", true),
+            ("a     b", "a b", false),
+            ("  hello  ", "hello", false),
+        ] {
+            let result = evaluator
+                .evaluate(
+                    Collection::empty(),
+                    &context,
+                    vec![FhirPathValue::string(left.to_string())].into(),
+                    vec![FhirPathValue::string(right.to_string())].into(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                result.value.first().unwrap().as_boolean(),
+                Some(expected),
+                "{left:?} ~ {right:?}"
+            );
+        }
     }
 
     #[tokio::test]

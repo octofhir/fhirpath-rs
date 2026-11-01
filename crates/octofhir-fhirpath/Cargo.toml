@@ -88,6 +88,7 @@ rust_decimal_macros = "1.40"
 default = []
 mock-provider = [] # Include MockModelProvider for testing and development
 analysis = []      # Include static analysis features
+sql-on-fhir = []   # SQL on FHIR functions: getResourceKey(), getReferenceKey([type])
 lsp = ["dep:async-lsp", "dep:lsp-types", "dep:tower", "dep:tokio-util", "dep:axum", "dep:tower-http"] # Language Server Protocol support
 
 [[bench]]

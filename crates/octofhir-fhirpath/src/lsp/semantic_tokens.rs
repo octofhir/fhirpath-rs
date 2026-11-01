@@ -233,6 +233,11 @@ impl SemanticTokensProvider {
                     Self::collect_tokens(elem, source, tokens);
                 }
             }
+            ExpressionNode::InstanceSelector(selector) => {
+                for (_, value) in &selector.elements {
+                    Self::collect_tokens(value, source, tokens);
+                }
+            }
             ExpressionNode::Filter(filter) => {
                 Self::collect_tokens(&filter.base, source, tokens);
                 Self::collect_tokens(&filter.condition, source, tokens);
@@ -350,6 +355,7 @@ impl SemanticTokensProvider {
             ExpressionNode::TypeCheck(n) => n.location.as_ref(),
             ExpressionNode::IndexAccess(n) => n.location.as_ref(),
             ExpressionNode::Collection(n) => n.location.as_ref(),
+            ExpressionNode::InstanceSelector(n) => n.location.as_ref(),
             ExpressionNode::Union(n) => n.location.as_ref(),
             ExpressionNode::Parenthesized(_)
             | ExpressionNode::Lambda(_)

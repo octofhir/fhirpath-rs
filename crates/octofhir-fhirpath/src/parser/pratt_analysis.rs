@@ -76,11 +76,13 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                 }),
             )),
             // Variable references using shared combinator
+            // Instance selectors: `Coding { code: 'x' }`, `{ : }` (before identifiers and `{}`)
+            super::combinators::instance_selector(expr.clone()),
             variable_parser(),
             // Function calls and identifiers using shared combinators
             identifier_parser()
                 .then(
-                    expr.clone()
+                    super::combinators::call_argument(expr.clone())
                         .separated_by(just(',').padded())
                         .collect::<Vec<_>>()
                         .delimited_by(just('(').padded(), just(')').padded())
@@ -395,7 +397,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             postfix(
                 13,
                 just('.').padded().ignore_then(identifier_parser()).then(
-                    expr.clone()
+                    super::combinators::call_argument(expr.clone())
                         .separated_by(just(',').padded())
                         .collect::<Vec<_>>()
                         .delimited_by(just('(').padded(), just(')').padded())
@@ -414,9 +416,12 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     };
                     if let Some(arguments) = args {
                         // Method call
+                        let method = super::combinators::resolve_method_name(&expr, name);
+                        let arguments =
+                            super::combinators::resolve_method_arguments(&expr, &method, arguments);
                         ExpressionNode::MethodCall(MethodCallNode {
+                            method,
                             object: Box::new(expr),
-                            method: name.to_string(),
                             arguments,
                             location: member_loc,
                         })
@@ -455,20 +460,22 @@ fn preprocess_input(input: &str) -> String {
 
     while let Some(ch) = chars.next() {
         match ch {
-            '\'' | '"' if !in_string => {
+            '\'' | '"' | '`' if !in_string => {
                 in_string = true;
                 string_char = ch;
                 result.push(ch);
             }
-            c if in_string && c == string_char => {
-                // Check for escaped quotes
-                if chars.peek() == Some(&string_char) {
-                    result.push(ch);
-                    result.push(chars.next().unwrap());
-                } else {
-                    in_string = false;
-                    result.push(ch);
+            // A `\`-escape inside a literal or delimited identifier: keep both characters, so an
+            // escaped delimiter does not end the literal.
+            '\\' if in_string => {
+                result.push(ch);
+                if let Some(next) = chars.next() {
+                    result.push(next);
                 }
+            }
+            c if in_string && c == string_char => {
+                in_string = false;
+                result.push(ch);
             }
             '/' if !in_string => {
                 match chars.peek() {
@@ -505,13 +512,13 @@ fn preprocess_input(input: &str) -> String {
                 }
             }
             // Normalize newlines and tabs to spaces outside of strings
-            '\n' | '\t' => result.push(' '),
+            '\n' | '\r' | '\t' if !in_string => result.push(' '),
             _ => result.push(ch),
         }
     }
 
-    // Trim and collapse multiple whitespaces
-    result.split_whitespace().collect::<Vec<_>>().join(" ")
+    // Trim and collapse runs of whitespace outside literals
+    super::pratt::collapse_whitespace_outside_literals(&result)
 }
 
 /// Parse expression for analysis with comprehensive error recovery

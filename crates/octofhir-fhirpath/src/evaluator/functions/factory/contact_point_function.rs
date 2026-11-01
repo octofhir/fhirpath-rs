@@ -30,7 +30,7 @@ impl FactoryContactPointFunctionEvaluator {
                         FunctionParameter {
                             name: "system".to_string(),
                             parameter_type: vec!["String".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: false,
                             description: "ContactPoint system (phone | fax | email | pager | url | sms | other)".to_string(),
                             default_value: None,
@@ -38,7 +38,7 @@ impl FactoryContactPointFunctionEvaluator {
                         FunctionParameter {
                             name: "value".to_string(),
                             parameter_type: vec!["String".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: false,
                             description: "Contact value".to_string(),
                             default_value: None,
@@ -54,7 +54,7 @@ impl FactoryContactPointFunctionEvaluator {
                     ],
                     return_type: "ContactPoint".to_string(),
                     polymorphic: false,
-                    min_params: 2,
+                    min_params: 0,
                     max_params: Some(3),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
@@ -96,23 +96,13 @@ impl PureFunctionEvaluator for FactoryContactPointFunctionEvaluator {
             ));
         }
 
-        let system = extract_string(&args, 0).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "ContactPoint function requires a string system argument".to_string(),
-            )
-        })?;
-
-        let value = extract_string(&args, 1).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "ContactPoint function requires a string value argument".to_string(),
-            )
-        })?;
-
         let mut cp = serde_json::Map::new();
-        cp.insert("system".to_string(), serde_json::Value::String(system));
-        cp.insert("value".to_string(), serde_json::Value::String(value));
+        if let Some(system) = extract_string(&args, 0) {
+            cp.insert("system".to_string(), serde_json::Value::String(system));
+        }
+        if let Some(value) = extract_string(&args, 1) {
+            cp.insert("value".to_string(), serde_json::Value::String(value));
+        }
 
         if let Some(use_val) = extract_string(&args, 2) {
             cp.insert("use".to_string(), serde_json::Value::String(use_val));

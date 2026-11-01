@@ -16,7 +16,7 @@ pub use temporal::*;
 pub use trace::*;
 pub use types::{
     CalendarUnit, Collection, CollectionWithMetadata, FhirPathValue, ResultWithMetadata,
-    ValueSourceLocation, ValueTypeInfo, WrappedExtension, WrappedPrimitiveElement,
+    ValueOrigin, ValueSourceLocation, ValueTypeInfo, WrappedExtension, WrappedPrimitiveElement,
 };
 
 // Re-export specific items from model_provider (avoiding utils conflict)

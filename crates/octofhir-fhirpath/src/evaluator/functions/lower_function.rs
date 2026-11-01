@@ -74,7 +74,7 @@ impl PureFunctionEvaluator for LowerFunctionEvaluator {
                 results.push(FhirPathValue::String(
                     lower_string,
                     type_info.clone(),
-                    primitive.clone(),
+                    crate::core::types::computed_element(primitive),
                 ));
             } else {
                 return Err(FhirPathError::evaluation_error(

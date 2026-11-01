@@ -30,7 +30,7 @@ impl FactoryCodingFunctionEvaluator {
                         FunctionParameter {
                             name: "system".to_string(),
                             parameter_type: vec!["String".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: false,
                             description: "Coding system URI".to_string(),
                             default_value: None,
@@ -38,7 +38,7 @@ impl FactoryCodingFunctionEvaluator {
                         FunctionParameter {
                             name: "code".to_string(),
                             parameter_type: vec!["String".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: false,
                             description: "Code value".to_string(),
                             default_value: None,
@@ -62,7 +62,7 @@ impl FactoryCodingFunctionEvaluator {
                     ],
                     return_type: "Coding".to_string(),
                     polymorphic: false,
-                    min_params: 2,
+                    min_params: 0,
                     max_params: Some(4),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
@@ -104,23 +104,13 @@ impl PureFunctionEvaluator for FactoryCodingFunctionEvaluator {
             ));
         }
 
-        let system = extract_string(&args, 0).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "Coding function requires a string system argument".to_string(),
-            )
-        })?;
-
-        let code = extract_string(&args, 1).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "Coding function requires a string code argument".to_string(),
-            )
-        })?;
-
         let mut coding = serde_json::Map::new();
-        coding.insert("system".to_string(), serde_json::Value::String(system));
-        coding.insert("code".to_string(), serde_json::Value::String(code));
+        if let Some(system) = extract_string(&args, 0) {
+            coding.insert("system".to_string(), serde_json::Value::String(system));
+        }
+        if let Some(code) = extract_string(&args, 1) {
+            coding.insert("code".to_string(), serde_json::Value::String(code));
+        }
 
         if let Some(display) = extract_string(&args, 2) {
             coding.insert("display".to_string(), serde_json::Value::String(display));

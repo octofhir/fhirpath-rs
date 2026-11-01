@@ -44,7 +44,7 @@ impl AllFunctionEvaluator {
                     max_params: Some(1),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
-                null_propagation: NullPropagationStrategy::Focus,
+                null_propagation: NullPropagationStrategy::None,
                 empty_propagation: EmptyPropagation::NoPropagation, // Returns true for empty collections
                 deterministic: true,
                 category: FunctionCategory::Existence,

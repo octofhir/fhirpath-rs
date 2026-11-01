@@ -140,22 +140,25 @@ Run `just qa` to verify all quality checks pass.
 
 ## Spec Compliance
 
-As of September 2025, this implementation passes 100% of the official FHIRPath test suite (114 suites, 1118 tests). See TEST_COVERAGE.md for the full report.
+The engine tracks FHIRPath 3.x (STU3, with the 3.1 CI build in [`spec/`](spec/)).
 
-✅ **Fully Supported (100%)**
-- Path navigation and filtering
-- Collection operations (`where`, `select`, `first`, `last`, `count`, etc.)
-- Mathematical operations and arithmetic
-- String manipulation functions
-- Boolean logic and comparisons
-- Date/time operations
-- Type operations (`is`, `as`, `ofType`)
-- FHIR-specific functions (`resolve`, `extension`, `children`)
-- Advanced filtering with environment variables
-- Lambda expressions and complex iterations
-- Aggregate functions and advanced collections
+- **Curated gate**: `just test-coverage` runs 1228 tests (the R5 suite plus FHIRPath 3
+  features) and every one must pass. See [TEST_COVERAGE.md](TEST_COVERAGE.md).
+- **Official suites**: the current [fhir-test-cases](https://github.com/FHIR/fhir-test-cases)
+  R5 and R6 suites live in [`test-cases/official`](test-cases/official/) and run with
+  `just test-official-r5` / `just test-official-r6` (report only). Of the tests that run,
+  96.5% (R5) and 96.9% (R6) pass; the Java RI `documentFunctions` group is skipped.
 
-See **[TEST_COVERAGE.md](TEST_COVERAGE.md)** for detailed compliance status.
+FHIRPath 3.x features include instance selectors (`Coding { system: 'x', code: 'y' }`,
+`{ : }`), `sort()` with `asc`/`desc`, `pathname()`, the Long type with `toLong()`,
+`dateOf()`/`timeOf()`/`millisecondOf()`, regex flags, UCUM unit arithmetic on quantities
+(`3 'm' + 3 'cm'` is `303 'cm'`, `12 'cm' * 3 'cm'` is `36 'cm2'`), and `%rootResource`.
+The `%factory` API follows the FHIR API Incubator, and the SQL on FHIR functions
+`getResourceKey()` / `getReferenceKey()` are available behind the `sql-on-fhir` feature.
+
+Known gaps: compile-time `is`-guard checks (`isSemanticChecks`), the precision of decimals
+written with an exponent in `lowBoundary`/`highBoundary`, and a few cases where the
+official tests and the specification text disagree.
 
 ## Resources & Support
 
