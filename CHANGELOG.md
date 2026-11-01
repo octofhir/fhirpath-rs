@@ -1,3 +1,27 @@
+# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.57...v0.5.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **deps:** octofhir-ucum 0.8, quick-xml 0.42, reedline 0.52; patch webpki advisories ([9635ac3](https://github.com/octofhir/fhirpath-rs/commit/9635ac3f8d6193c0e5ab92d0b4883f55e43421c6))
+* **evaluator:** a Quantity's code and system elements ([06081d5](https://github.com/octofhir/fhirpath-rs/commit/06081d51c91bafcbe85bda3c46e9c66f892f97fb))
+* **evaluator:** read JSON decimals from their text, not through f64 ([014e556](https://github.com/octofhir/fhirpath-rs/commit/014e5564ba40542bc34f8cce873ee87b2f3233cc))
+* FHIRPath 3.1 conformance gaps found in the specification examples ([8bca644](https://github.com/octofhir/fhirpath-rs/commit/8bca644f52762c16a4d888a66a9d699869635469))
+* navigate the value element of FHIR primitives ([c9db1a7](https://github.com/octofhir/fhirpath-rs/commit/c9db1a7109c79115ac1a6f196b1ec47493781e65))
+* **operations:** a Date equals a DateTime of the same precision ([7d29b0a](https://github.com/octofhir/fhirpath-rs/commit/7d29b0a781e5ce979e726a4ddfbaa9490aba8413))
+* **parser:** make implies left-associative ([1777e28](https://github.com/octofhir/fhirpath-rs/commit/1777e280b821d6f93768a2da8f03d3b5fa2f920c))
+* **parser:** put xor at the same precedence as or ([691ac0e](https://github.com/octofhir/fhirpath-rs/commit/691ac0e4df56898c0a2e1d271602fbe6b5416409)), closes [#12](https://github.com/octofhir/fhirpath-rs/issues/12)
+* **terminology:** memberOf asks the provider about the value set, not the code ([700de02](https://github.com/octofhir/fhirpath-rs/commit/700de029eb50854790c4bcde7ffbb24c2cf7adec))
+
+
+### Features
+
+* **cli:** --server-url for %server, sql-on-fhir functions enabled ([5c27c63](https://github.com/octofhir/fhirpath-rs/commit/5c27c63be5b776b75d1c6d8044a781cc5dbff6a0))
+* compile-time type guards, as() on FHIR primitives, supported versions ([28a094d](https://github.com/octofhir/fhirpath-rs/commit/28a094dd518e8e2e6ca0b759d60eb630b2543446))
+* FHIRPath 3.x features and spec conformance fixes ([e8b891b](https://github.com/octofhir/fhirpath-rs/commit/e8b891ba25b06dbe6f377c50e17955ff765b9072))
+
+
+
 ## [0.4.57](https://github.com/octofhir/fhirpath-rs/compare/v0.4.56...v0.4.57) (2026-10-19)
 
 
