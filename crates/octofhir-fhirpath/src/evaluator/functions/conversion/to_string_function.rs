@@ -11,7 +11,6 @@ use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use octofhir_ucum::find_unit;
 
 /// ToString function evaluator
 pub struct ToStringFunctionEvaluator {
@@ -104,7 +103,8 @@ impl PureFunctionEvaluator for ToStringFunctionEvaluator {
                         if u == "1" {
                             value.to_string()
                         } else {
-                            let is_ucum = find_unit(u).is_some() || ucum_unit.is_some();
+                            let is_ucum = crate::core::types::ucum_unit_record(u).is_some()
+                                || ucum_unit.is_some();
                             if is_ucum {
                                 format!("{value} '{u}'")
                             } else if calendar_unit.is_some() {

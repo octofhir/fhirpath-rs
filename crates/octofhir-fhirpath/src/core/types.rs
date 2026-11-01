@@ -1,6 +1,6 @@
 //! Core FHIRPath type definitions with comprehensive value system
 
-use octofhir_ucum::{UnitRecord, find_unit};
+use octofhir_ucum::{Case, UnitRecord, lookup_unit};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,13 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::sync::{Arc, LazyLock};
+
+/// The UCUM unit record of a simple unit code, with or without a prefix (`g`,
+/// `mg`, `[in_i]`): the atom the code names. Compound expressions (`mg/dL`)
+/// have no single record.
+pub(crate) fn ucum_unit_record(code: &str) -> Option<&'static UnitRecord> {
+    lookup_unit(code, Case::Sensitive).map(|(_, unit)| unit)
+}
 
 use super::error::{FhirPathError, Result};
 use super::error_code::FP0051;
@@ -1279,7 +1286,7 @@ impl FhirPathValue {
             if let Some(cal_unit) = CalendarUnit::from_str(normalized.as_ref()) {
                 (None, Some(cal_unit))
             } else {
-                match find_unit(normalized.as_ref()) {
+                match ucum_unit_record(normalized.as_ref()) {
                     Some(ucum) => {
                         if resolved_system.is_none() {
                             resolved_system = Some("http://unitsofmeasure.org".to_string());
@@ -1294,7 +1301,7 @@ impl FhirPathValue {
             if let Some(cal_unit) = CalendarUnit::from_str(normalized.as_ref()) {
                 (None, Some(cal_unit))
             } else {
-                match find_unit(normalized.as_ref()) {
+                match ucum_unit_record(normalized.as_ref()) {
                     Some(ucum) => {
                         if resolved_system.is_none() {
                             resolved_system = Some("http://unitsofmeasure.org".to_string());

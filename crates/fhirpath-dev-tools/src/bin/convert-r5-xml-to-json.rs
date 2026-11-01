@@ -139,14 +139,15 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
-                let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let tag = e.name().as_ref().to_string();
                 match tag.as_str() {
                     "group" => {
                         // Processing a group
                         current_group_name.clear();
                         _current_group_desc = None;
                         for a in e.attributes().flatten() {
-                            if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
+                            {
+                                let k: &str = a.key.as_ref();
                                 let v = a
                                     .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                                     .unwrap_or_default()
@@ -181,7 +182,8 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         current_invalid_kind = None;
                         current_expr_mode = None;
                         for a in e.attributes().flatten() {
-                            if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
+                            {
+                                let k: &str = a.key.as_ref();
                                 let v = a
                                     .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                                     .unwrap_or_default()
@@ -201,18 +203,14 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                     "expression" => {
                         // Capture expression attributes
                         for a in e.attributes().flatten() {
-                            if let Ok(k) = std::str::from_utf8(a.key.as_ref())
-                                && k == "invalid"
-                            {
+                            if a.key.as_ref() == "invalid" {
                                 current_expect_error = true;
                                 current_invalid_kind = Some(
                                     a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
                                         .unwrap_or_default()
                                         .to_string(),
                                 );
-                            } else if let Ok(k) = std::str::from_utf8(a.key.as_ref())
-                                && k == "mode"
-                            {
+                            } else if a.key.as_ref() == "mode" {
                                 current_expr_mode = Some(
                                     a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
                                         .unwrap_or_default()
@@ -222,12 +220,11 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         }
 
                         // Read expression text content (unescaped and trimmed).
-                        // quick-xml >= 0.41 returns `BytesText`, so unescape it
-                        // into an owned string.
+                        // quick-xml >= 0.42 returns a `BytesText` over `str`.
                         let expr_text = reader
-                            .read_text(QName(b"expression"))
+                            .read_text(QName("expression"))
                             .ok()
-                            .map(|t| t.decode().unwrap_or_default().into_owned())
+                            .map(|t| t.into_inner().into_owned())
                             .unwrap_or_default();
                         current_expression = unescape_html_entities(expr_text.trim());
                     }
@@ -235,9 +232,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         // Capture output type
                         _current_output_type = None;
                         for a in e.attributes().flatten() {
-                            if let Ok(k) = std::str::from_utf8(a.key.as_ref())
-                                && k == "type"
-                            {
+                            if a.key.as_ref() == "type" {
                                 _current_output_type = Some(
                                     a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
                                         .unwrap_or_default()
@@ -248,9 +243,9 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
 
                         // Read output text in one shot and convert.
                         let out_text = reader
-                            .read_text(QName(b"output"))
+                            .read_text(QName("output"))
                             .ok()
-                            .map(|t| t.decode().unwrap_or_default().into_owned())
+                            .map(|t| t.into_inner().into_owned())
                             .unwrap_or_default();
                         let ty = _current_output_type.as_deref().unwrap_or("string");
                         current_expected.push(xml_text_to_value(ty, &out_text));
@@ -261,7 +256,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                 }
             }
             Ok(Event::End(e)) => {
-                let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let tag = e.name().as_ref().to_string();
                 match tag.as_str() {
                     "test" => {
                         if in_test {

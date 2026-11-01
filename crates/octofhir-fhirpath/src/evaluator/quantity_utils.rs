@@ -4,8 +4,9 @@
 //! including unit conversions using the UCUM library.
 
 use crate::core::{FhirPathValue, types::CalendarUnit};
-use octofhir_ucum::{evaluate_owned, parse_expression, precision::to_f64};
+use octofhir_ucum::{EvalResult, evaluate, parse_expression};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use std::borrow::Cow;
 use std::sync::Arc;
 
@@ -520,6 +521,67 @@ fn convert_calendar_units(
     Ok(value * from_days / to_days)
 }
 
+/// Parse and evaluate a UCUM unit (after FHIRPath display-unit normalization).
+fn evaluate_unit(unit: &str) -> Result<EvalResult, QuantityError> {
+    let normalized = normalize_ucum_unit(unit);
+    let expr = parse_expression(normalized.as_ref())
+        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{unit}': {e}")))?;
+    evaluate(&expr)
+        .map_err(|e| QuantityError::EvaluationError(format!("Failed to evaluate '{unit}': {e}")))
+}
+
+/// Linear units (no special function, UCUM §21-23) are commensurable when they
+/// have the same base-unit dimension and the same arbitrary atoms (§24-25:
+/// `[IU]` is commensurable with no other unit).
+fn linear_commensurable(left: &EvalResult, right: &EvalResult) -> bool {
+    left.dim == right.dim && left.arbitrary == right.arbitrary
+}
+
+fn decimal_to_f64(value: Decimal) -> Result<f64, QuantityError> {
+    value.to_f64().ok_or_else(|| {
+        QuantityError::EvaluationError(format!("Quantity value {value} is out of range"))
+    })
+}
+
+/// Both quantities expressed on one scale, for comparison: the magnitudes in
+/// base units for linear units, or the right value converted into the left
+/// unit when either is a special unit (`Cel`, `[degF]`, `[pH]`, ...), whose
+/// function is not a factor. `None` when the units are not commensurable.
+fn ucum_comparable_values(
+    left_value: Decimal,
+    left_unit: &str,
+    right_value: Decimal,
+    right_unit: &str,
+) -> Result<Option<(f64, f64)>, QuantityError> {
+    let left_eval = evaluate_unit(left_unit)?;
+    let right_eval = evaluate_unit(right_unit)?;
+
+    if left_eval.special.is_none() && right_eval.special.is_none() {
+        if !linear_commensurable(&left_eval, &right_eval) {
+            return Ok(None);
+        }
+        let left = decimal_to_f64(left_value)? * left_eval.factor.to_f64();
+        let right = decimal_to_f64(right_value)? * right_eval.factor.to_f64();
+        return Ok(Some((left, right)));
+    }
+
+    let left_normalized = normalize_ucum_unit(left_unit);
+    let right_normalized = normalize_ucum_unit(right_unit);
+    let comparable =
+        octofhir_ucum::is_comparable(left_normalized.as_ref(), right_normalized.as_ref())
+            .map_err(|e| QuantityError::EvaluationError(e.to_string()))?;
+    if !comparable {
+        return Ok(None);
+    }
+    let right_in_left = octofhir_ucum::convert(
+        decimal_to_f64(right_value)?,
+        right_normalized.as_ref(),
+        left_normalized.as_ref(),
+    )
+    .map_err(|e| QuantityError::EvaluationError(e.to_string()))?;
+    Ok(Some((decimal_to_f64(left_value)?, right_in_left)))
+}
+
 /// Convert and compare two UCUM quantities for ordering
 fn convert_and_compare_ucum_ordering(
     left_value: Decimal,
@@ -527,41 +589,14 @@ fn convert_and_compare_ucum_ordering(
     right_value: Decimal,
     right_unit: &str,
 ) -> Result<Option<std::cmp::Ordering>, QuantityError> {
-    let left_unit_normalized = normalize_ucum_unit(left_unit);
-    let right_unit_normalized = normalize_ucum_unit(right_unit);
-
-    // Parse both units
-    let left_expr = parse_expression(left_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
-
-    let right_expr = parse_expression(right_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
-
-    // Evaluate both units
-    let left_eval = evaluate_owned(&left_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{left_unit}': {e}"))
-    })?;
-
-    let right_eval = evaluate_owned(&right_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{right_unit}': {e}"))
-    })?;
-
-    // Check if dimensions are compatible
-    if left_eval.dim != right_eval.dim {
-        return Ok(None);
-    }
-
-    // Convert both to canonical units and compare
-    let left_canonical =
-        to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
-    let right_canonical =
-        to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
-
-    Ok(Some(
-        left_canonical
-            .partial_cmp(&right_canonical)
-            .unwrap_or(std::cmp::Ordering::Equal),
-    ))
+    Ok(
+        ucum_comparable_values(left_value, left_unit, right_value, right_unit)?.map(
+            |(left, right)| {
+                left.partial_cmp(&right)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            },
+        ),
+    )
 }
 
 /// Convert and compare two UCUM quantities for equivalence (with tolerance)
@@ -571,43 +606,16 @@ fn convert_and_compare_ucum_equivalence(
     right_value: Decimal,
     right_unit: &str,
 ) -> Result<bool, QuantityError> {
-    let left_unit_normalized = normalize_ucum_unit(left_unit);
-    let right_unit_normalized = normalize_ucum_unit(right_unit);
-
-    // Parse both units
-    let left_expr = parse_expression(left_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
-
-    let right_expr = parse_expression(right_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
-
-    // Evaluate both units
-    let left_eval = evaluate_owned(&left_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{left_unit}': {e}"))
-    })?;
-
-    let right_eval = evaluate_owned(&right_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{right_unit}': {e}"))
-    })?;
-
-    // Check if dimensions are compatible
-    if left_eval.dim != right_eval.dim {
+    let Some((left, right)) =
+        ucum_comparable_values(left_value, left_unit, right_value, right_unit)?
+    else {
         return Ok(false);
-    }
-
-    // Convert both to canonical units and compare
-    let left_canonical =
-        to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
-    let right_canonical =
-        to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
-
+    };
     // Use a more lenient tolerance for equivalence to account for measurement precision
     // This allows for small differences that might occur in real-world measurements
-    let tolerance = (left_canonical.abs().max(right_canonical.abs())) * 0.01; // 1% tolerance
+    let tolerance = (left.abs().max(right.abs())) * 0.01; // 1% tolerance
     let min_tolerance = 1e-10; // Minimum absolute tolerance
-    let effective_tolerance = tolerance.max(min_tolerance);
-
-    Ok((left_canonical - right_canonical).abs() < effective_tolerance)
+    Ok((left - right).abs() < tolerance.max(min_tolerance))
 }
 
 /// Convert and compare two UCUM quantities
@@ -617,67 +625,25 @@ fn convert_and_compare_ucum(
     right_value: Decimal,
     right_unit: &str,
 ) -> Result<bool, QuantityError> {
-    let left_unit_normalized = normalize_ucum_unit(left_unit);
-    let right_unit_normalized = normalize_ucum_unit(right_unit);
-
-    // Parse both units
-    let left_expr = parse_expression(left_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
-
-    let right_expr = parse_expression(right_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
-
-    // Evaluate both units
-    let left_eval = evaluate_owned(&left_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{left_unit}': {e}"))
-    })?;
-
-    let right_eval = evaluate_owned(&right_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{right_unit}': {e}"))
-    })?;
-
-    // Check if dimensions are compatible
-    if left_eval.dim != right_eval.dim {
-        return Ok(false);
-    }
-
-    // Convert both to canonical units and compare
-    let left_canonical =
-        to_f64(left_value * Decimal::try_from(to_f64(left_eval.factor)).unwrap_or_default());
-    let right_canonical =
-        to_f64(right_value * Decimal::try_from(to_f64(right_eval.factor)).unwrap_or_default());
-
-    Ok((left_canonical - right_canonical).abs() < 1e-10)
+    Ok(
+        ucum_comparable_values(left_value, left_unit, right_value, right_unit)?
+            .is_some_and(|(left, right)| (left - right).abs() < 1e-10),
+    )
 }
 
-/// Check if two UCUM units are comparable (same dimension)
+/// Check if two UCUM units are comparable (commensurable)
 pub fn are_ucum_units_comparable(left_unit: &str, right_unit: &str) -> Result<bool, QuantityError> {
     // If units are identical, they're comparable
     if left_unit == right_unit {
         return Ok(true);
     }
-
-    let left_unit_normalized = normalize_ucum_unit(left_unit);
-    let right_unit_normalized = normalize_ucum_unit(right_unit);
-
-    // Parse both units
-    let left_expr = parse_expression(left_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{left_unit}': {e}")))?;
-
-    let right_expr = parse_expression(right_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{right_unit}': {e}")))?;
-
-    // Evaluate both units
-    let left_eval = evaluate_owned(&left_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{left_unit}': {e}"))
-    })?;
-
-    let right_eval = evaluate_owned(&right_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{right_unit}': {e}"))
-    })?;
-
-    // Units are comparable if they have the same dimension
-    Ok(left_eval.dim == right_eval.dim)
+    let left_normalized = normalize_ucum_unit(left_unit);
+    let right_normalized = normalize_ucum_unit(right_unit);
+    // Parse first so a malformed unit is a parse error, not "not comparable".
+    evaluate_unit(left_unit)?;
+    evaluate_unit(right_unit)?;
+    octofhir_ucum::is_comparable(left_normalized.as_ref(), right_normalized.as_ref())
+        .map_err(|e| QuantityError::EvaluationError(e.to_string()))
 }
 
 /// Convert a UCUM quantity to a target unit
@@ -686,41 +652,43 @@ fn convert_ucum_quantity(
     from_unit: &str,
     to_unit: &str,
 ) -> Result<ConversionResult, QuantityError> {
-    let from_unit_normalized = normalize_ucum_unit(from_unit);
+    let from_eval = evaluate_unit(from_unit)?;
+    let to_eval = evaluate_unit(to_unit)?;
     let to_unit_normalized = normalize_ucum_unit(to_unit);
-
-    // Parse both units
-    let from_expr = parse_expression(from_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{from_unit}': {e}")))?;
-
-    let to_expr = parse_expression(to_unit_normalized.as_ref())
-        .map_err(|e| QuantityError::ParseError(format!("Failed to parse '{to_unit}': {e}")))?;
-
-    // Evaluate both units
-    let from_eval = evaluate_owned(&from_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{from_unit}': {e}"))
-    })?;
-
-    let to_eval = evaluate_owned(&to_expr).map_err(|e| {
-        QuantityError::EvaluationError(format!("Failed to evaluate '{to_unit}': {e}"))
-    })?;
-
-    // Check if dimensions are compatible
-    if from_eval.dim != to_eval.dim {
-        return Err(QuantityError::IncompatibleUnits(
-            from_unit.to_string(),
-            to_unit.to_string(),
-        ));
-    }
-
-    // Calculate conversion factor
-    let factor = to_f64(from_eval.factor) / to_f64(to_eval.factor);
-    let converted_value = value * Decimal::try_from(factor).unwrap_or_default();
-
     let to_unit_value = to_unit_normalized.as_ref();
 
+    let incompatible =
+        || QuantityError::IncompatibleUnits(from_unit.to_string(), to_unit.to_string());
+
+    let converted_value = if from_eval.special.is_none() && to_eval.special.is_none() {
+        if !linear_commensurable(&from_eval, &to_eval) {
+            return Err(incompatible());
+        }
+        // Linear: scale by the ratio of the magnitudes, kept in Decimal so an
+        // exact conversion (1 'km' -> 1000 'm') stays exact.
+        let ratio = from_eval
+            .factor
+            .checked_div(to_eval.factor)
+            .ok_or_else(incompatible)?
+            .to_f64();
+        value * Decimal::try_from(ratio).unwrap_or_default()
+    } else {
+        // Special units convert through their function, not a factor.
+        let from_normalized = normalize_ucum_unit(from_unit);
+        let converted = octofhir_ucum::convert(
+            decimal_to_f64(value)?,
+            from_normalized.as_ref(),
+            to_unit_value,
+        )
+        .map_err(|_| incompatible())?;
+        Decimal::try_from(converted).map_err(|_| {
+            QuantityError::EvaluationError(format!("Converted value {converted} is out of range"))
+        })?
+    };
+
     // Try to find the target unit record
-    let ucum_unit = octofhir_ucum::find_unit(to_unit_value).map(|u| Arc::new(u.clone()));
+    let ucum_unit =
+        crate::core::types::ucum_unit_record(to_unit_value).map(|u| Arc::new(u.clone()));
 
     Ok(ConversionResult {
         value: converted_value,
@@ -806,6 +774,29 @@ pub fn divide_quantities(
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn ucum_linear_conversion_scales_by_the_magnitude_ratio() {
+        let mg_to_g = convert_ucum_quantity(Decimal::new(1000, 0), "mg", "g");
+        assert_eq!(mg_to_g.expect("mg -> g").value, Decimal::new(1, 0));
+        let km_to_m = convert_ucum_quantity(Decimal::new(15, 1), "km", "m");
+        assert_eq!(km_to_m.expect("km -> m").value, Decimal::new(1500, 0));
+    }
+
+    #[test]
+    fn ucum_special_units_convert_through_their_function() {
+        // UCUM §21-23: a temperature is not a factor of kelvin.
+        let c_to_f = convert_ucum_quantity(Decimal::new(100, 0), "Cel", "[degF]");
+        assert_eq!(c_to_f.expect("Cel -> [degF]").value, Decimal::new(212, 0));
+    }
+
+    #[test]
+    fn ucum_arbitrary_units_are_not_commensurable() {
+        // UCUM §24-25: [IU] converts to no other unit.
+        assert!(convert_ucum_quantity(Decimal::new(1, 0), "[IU]", "1").is_err());
+        assert!(!are_ucum_units_comparable("[IU]", "[arb'U]").unwrap());
+    }
+
     use super::*;
 
     #[test]
