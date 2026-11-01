@@ -55,6 +55,7 @@ pub async fn handle_evaluate(
     // Create FHIRPath engine
     let mut engine = match EngineBuilder::new()
         .with_model_provider(model_provider.clone())
+        .with_server_url(context.server_url.clone())
         .build()
         .await
     {

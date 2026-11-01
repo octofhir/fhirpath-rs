@@ -31,6 +31,7 @@ pub async fn handle_pipe_mode(
     // Create FHIRPath engine once (reuse for all inputs)
     let engine = EngineBuilder::new()
         .with_model_provider(model_provider.clone())
+        .with_server_url(context.server_url.clone())
         .build()
         .await?;
 

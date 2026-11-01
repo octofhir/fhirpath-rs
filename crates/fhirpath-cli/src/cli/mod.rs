@@ -61,6 +61,12 @@ pub struct Cli {
     #[arg(long, short)]
     pub verbose: bool,
 
+    /// FHIR server base URL for %server (e.g. http://localhost:8888/fhir; credentials may be
+    /// given as http://user:password@host/...). Falls back to $FHIR_SERVER_URL; without
+    /// either, %server is not available.
+    #[arg(long, value_name = "URL", global = true)]
+    pub server_url: Option<String>,
+
     #[command(subcommand)]
     pub command: Commands,
 }

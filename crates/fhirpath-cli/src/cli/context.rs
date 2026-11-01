@@ -36,6 +36,8 @@ pub struct CliContext {
     pub profile: bool,
     /// Template string for custom output formatting
     pub template: Option<String>,
+    /// FHIR server base URL for %server; `None` leaves %server unconfigured
+    pub server_url: Option<String>,
 }
 
 impl CliContext {
@@ -58,12 +60,13 @@ impl CliContext {
             packages,
             profile,
             template: None,
+            server_url: None,
         }
     }
 
     /// Create context from CLI struct
     pub fn from_cli(cli: &crate::cli::Cli) -> Self {
-        Self::new(
+        let mut context = Self::new(
             cli.output_format.clone(),
             cli.no_color,
             cli.quiet,
@@ -71,7 +74,13 @@ impl CliContext {
             cli.fhir_version.clone(),
             cli.packages.clone(),
             false, // profile flag is command-specific
-        )
+        );
+        context.server_url = cli
+            .server_url
+            .clone()
+            .or_else(|| std::env::var("FHIR_SERVER_URL").ok())
+            .filter(|url| !url.is_empty());
+        context
     }
 
     /// Merge subcommand options with global context
@@ -91,6 +100,7 @@ impl CliContext {
             packages: self.packages.clone(),
             profile: self.profile,
             template: self.template.clone(),
+            server_url: self.server_url.clone(),
         }
     }
 
@@ -168,8 +178,8 @@ impl EngineBuilder {
         self
     }
 
-    pub fn with_server_url(mut self, url: String) -> Self {
-        self.server_url = Some(url);
+    pub fn with_server_url(mut self, url: Option<String>) -> Self {
+        self.server_url = url;
         self
     }
 
@@ -222,29 +232,18 @@ impl EngineBuilder {
             }
         }
 
-        // Add server provider
-        if self.enable_server {
-            let server_base_url = if let Some(url) = self.server_url {
-                url
-            } else if let Ok(url) = std::env::var("FHIR_SERVER_URL") {
-                url
-            } else {
-                let version_path = match provider.get_fhir_version().await {
-                    Ok(octofhir_fhir_model::provider::FhirVersion::R4) => "baseR4",
-                    Ok(octofhir_fhir_model::provider::FhirVersion::R4B) => "baseR4",
-                    Ok(octofhir_fhir_model::provider::FhirVersion::R5) => "baseR5",
-                    Ok(octofhir_fhir_model::provider::FhirVersion::R6) => "baseR5",
-                    _ => "baseR4",
-                };
-                format!("https://hapi.fhir.org/{version_path}")
-            };
-
-            if let Ok(server_provider) =
-                octofhir_fhir_model::HttpServerProvider::new(server_base_url)
-            {
-                let server_arc: Arc<dyn octofhir_fhir_model::ServerProvider> =
-                    Arc::new(server_provider);
-                engine = engine.with_server_provider(server_arc);
+        // Add a server provider only for an explicitly configured server: %server can
+        // create, update and delete resources, so it never defaults to a public server.
+        if self.enable_server
+            && let Some(server_base_url) = self.server_url
+        {
+            match octofhir_fhir_model::HttpServerProvider::new(server_base_url) {
+                Ok(server_provider) => {
+                    let server_arc: Arc<dyn octofhir_fhir_model::ServerProvider> =
+                        Arc::new(server_provider);
+                    engine = engine.with_server_provider(server_arc);
+                }
+                Err(e) => anyhow::bail!("Invalid FHIR server URL: {e}"),
             }
         }
 
