@@ -232,7 +232,7 @@ impl LazyFunctionEvaluator for ValidateVSFunctionEvaluator {
                 .unwrap_or(false)
             {
                 validation_result_opt = terminology_provider
-                    .validate_code_vs(&code, system.as_deref(), &value_set_url, None)
+                    .validate_code_vs(&value_set_url, system.as_deref(), &code, None)
                     .await
                     .ok();
 
@@ -245,9 +245,9 @@ impl LazyFunctionEvaluator for ValidateVSFunctionEvaluator {
                     let inferred_system = format!("http://hl7.org/fhir/{tail}");
                     if let Ok(r2) = terminology_provider
                         .validate_code_vs(
-                            &code,
-                            Some(inferred_system.as_str()),
                             &value_set_url,
+                            Some(inferred_system.as_str()),
+                            &code,
                             None,
                         )
                         .await

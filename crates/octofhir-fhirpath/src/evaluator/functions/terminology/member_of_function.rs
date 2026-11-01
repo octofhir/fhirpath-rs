@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
+use crate::core::node::FhirNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
@@ -54,86 +55,50 @@ impl MemberOfFunctionEvaluator {
         })
     }
 
-    /// Extract coding information from input (supports Coding, CodeableConcept, and code strings)
+    /// The (system, code) pairs to test, per FHIRPath `memberOf()`: a code or
+    /// string is one code with no system, a Coding is its own pair, and a
+    /// CodeableConcept contributes each of its codings. A coding without a
+    /// `code` is a member of nothing and is skipped.
     fn extract_codings(input: &[FhirPathValue]) -> Result<Vec<(Option<String>, String)>> {
         let mut codings = Vec::new();
 
         for value in input {
             match value {
                 FhirPathValue::Resource(resource, _, _) => {
-                    // Check if it's a Coding resource
-                    if resource.get("code").is_some() && resource.get("system").is_some() {
-                        let system = resource
-                            .get("system")
-                            .and_then(|s| s.as_str())
-                            .map(|s| s.to_string());
-
-                        let code =
-                            resource
-                                .get("code")
-                                .and_then(|c| c.as_str())
-                                .ok_or_else(|| {
-                                    FhirPathError::evaluation_error(
-                                        crate::core::error_code::FP0058,
-                                        "Coding resource must have a code field".to_string(),
-                                    )
-                                })?;
-
-                        codings.push((system, code.to_string()));
-                    }
-                    // Check if it's a CodeableConcept resource
-                    else if let Some(coding_array) = resource.get("coding") {
-                        if let Some(coding_list) = coding_array.as_array() {
-                            for coding_value in coding_list.iter() {
-                                if coding_value.is_object() {
-                                    let system = coding_value
-                                        .get("system")
-                                        .and_then(|s| s.as_str())
-                                        .map(|s| s.to_string());
-
-                                    let code = coding_value
-                                        .get("code")
-                                        .and_then(|c| c.as_str())
-                                        .ok_or_else(|| {
-                                            FhirPathError::evaluation_error(
-                                                crate::core::error_code::FP0058,
-                                                "Coding in CodeableConcept must have a code field"
-                                                    .to_string(),
-                                            )
-                                        })?;
-
-                                    codings.push((system, code.to_string()));
-                                }
-                            }
-                        }
+                    if let Some(coding_list) = resource.get("coding").and_then(|c| c.as_array()) {
+                        codings.extend(coding_list.iter().filter_map(Self::coding_pair));
+                    } else if resource.get("code").is_some() {
+                        codings.extend(Self::coding_pair(resource));
                     } else {
                         return Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0055,
-                            "memberOf function requires Coding, CodeableConcept, or code string input".to_string(),
+                            "memberOf function requires Coding, CodeableConcept, or code input"
+                                .to_string(),
                         ));
                     }
                 }
-                FhirPathValue::String(code, _, _) => {
-                    // Simple code string without system
-                    codings.push((None, code.clone()));
-                }
+                FhirPathValue::String(code, _, _) => codings.push((None, code.clone())),
                 _ => {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0055,
-                        "memberOf function can only be called on Coding, CodeableConcept, or code string".to_string(),
+                        "memberOf function can only be called on Coding, CodeableConcept, or code"
+                            .to_string(),
                     ));
                 }
             }
         }
 
-        if codings.is_empty() {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0054,
-                "memberOf function requires at least one coding input".to_string(),
-            ));
-        }
-
         Ok(codings)
+    }
+
+    /// The (system, code) of a Coding-shaped JSON object, if it has a code.
+    fn coding_pair(coding: &FhirNode) -> Option<(Option<String>, String)> {
+        let code = coding.get("code")?.as_str()?;
+        let system = coding
+            .get("system")
+            .and_then(|s| s.as_str())
+            .map(str::to_string);
+        Some((system, code.to_string()))
     }
 
     /// Extract value set URL from parameter
@@ -211,35 +176,37 @@ impl LazyFunctionEvaluator for MemberOfFunctionEvaluator {
             )
         })?;
 
-        // Extract coding information from input
-        let codings = Self::extract_codings(input.values())?;
+        // FHIRPath functions propagate an empty input.
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
 
-        // Get value set URL
+        let codings = Self::extract_codings(input.values())?;
         let value_set_url = Self::get_value_set_url(&args[0], context, evaluator).await?;
 
-        let mut results = Vec::new();
-
-        // Test membership for each coding
+        // A concept is a member when any of its codes is (FHIRPath memberOf):
+        // the result is one boolean, not one per coding.
+        let mut member = false;
         for (system, code) in codings {
-            match terminology_provider
-                .validate_code_vs(&code, system.as_deref(), &value_set_url, None)
+            let validation = terminology_provider
+                .validate_code_vs(&value_set_url, system.as_deref(), &code, None)
                 .await
-            {
-                Ok(validation_result) => {
-                    // memberOf returns boolean true if the code is valid in the value set
-                    results.push(FhirPathValue::boolean(validation_result.result));
-                }
-                Err(e) => {
-                    return Err(FhirPathError::evaluation_error(
+                .map_err(|e| {
+                    FhirPathError::evaluation_error(
                         crate::core::error_code::FP0059,
                         format!("Value set membership test failed: {e}"),
-                    ));
-                }
+                    )
+                })?;
+            if validation.result {
+                member = true;
+                break;
             }
         }
 
         Ok(EvaluationResult {
-            value: crate::core::Collection::from(results),
+            value: crate::core::Collection::single(FhirPathValue::boolean(member)),
         })
     }
 
