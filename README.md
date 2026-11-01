@@ -1,6 +1,13 @@
-# FHIRPath for Rust
+<p align="center"><img src=".github/banner.png" alt="octo/fhirpath — FHIRPath for Rust, held to the spec text" width="100%"></p>
 
-A focused, spec-first FHIRPath implementation in Rust. No fluff. The goal is correctness, clarity, and predictable behavior when evaluating FHIRPath over JSON FHIR resources.
+<p align="center"><b>A spec-first FHIRPath engine for Rust: correct, predictable evaluation over JSON FHIR resources.</b></p>
+
+<p align="center">
+  <a href="https://github.com/octofhir/fhirpath-rs/actions/workflows/ci.yml"><img src="https://github.com/octofhir/fhirpath-rs/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://crates.io/crates/octofhir-fhirpath"><img src="https://img.shields.io/crates/v/octofhir-fhirpath.svg" alt="crates.io"></a>
+  <a href="https://docs.rs/octofhir-fhirpath"><img src="https://docs.rs/octofhir-fhirpath/badge.svg" alt="docs.rs"></a>
+  <a href="#license"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg" alt="License: MIT OR Apache-2.0"></a>
+</p>
 
 ## Supported Versions
 
@@ -23,7 +30,7 @@ A focused, spec-first FHIRPath implementation in Rust. No fluff. The goal is cor
 
 **Production-ready CLI**: Our CLI already integrates all ecosystem providers and can be used on a daily basis for FHIRPath evaluation, REPL sessions, and server mode.
 
-**Docs**: [API Documentation](https://docs.rs/octofhir-fhirpath) | **Spec coverage**: [TEST_COVERAGE.md](TEST_COVERAGE.md) | **Benchmarks**: [benchmark.md](benchmark.md) | **CLI**: [CLI.md](CLI.md) | **License**: MIT OR Apache-2.0
+**Docs**: [API Documentation](https://docs.rs/octofhir-fhirpath) | **Spec coverage**: [TEST_COVERAGE.md](TEST_COVERAGE.md) | **Benchmarks**: [benchmark.md](benchmark.md) | **CLI**: [crates/fhirpath-cli/README.md](crates/fhirpath-cli/README.md) | **License**: MIT OR Apache-2.0
 
 ## Core Principles
 
@@ -42,70 +49,55 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-octofhir-fhirpath = "0.4"
+octofhir-fhirpath = "0.5"
 ```
 
 ### CLI
 
 ```bash
-cargo install --git https://github.com/octofhir/fhirpath-rs --bin octofhir-fhirpath
+cargo install --git https://github.com/octofhir/fhirpath-rs fhirpath-cli
 ```
 
 ## Quick Start
 
-### Minimal evaluation (convenience API)
+The engine takes an explicit function registry and model provider; the evaluation
+context wraps the input collection. `EmptyModelProvider` evaluates without FHIR type
+information:
 
 ```rust
-use octofhir_fhirpath::evaluate;
-use octofhir_fhirpath::core::value::utils::json_to_fhirpath_value;
-use serde_json::json;
-
-#[tokio::main]
-async fn main() -> octofhir_fhirpath::Result<()> {
-    let patient = json!({
-        "resourceType": "Patient",
-        "name": [{"family": "Smith", "given": ["Alice", "A."]}],
-        "active": true
-    });
-
-    // Convert JSON to FHIRPath value and evaluate
-    let ctx = json_to_fhirpath_value(patient);
-    let out = evaluate("Patient.name.given", &ctx).await?;
-    println!("{:?}", out);
-    Ok(())
-}
-```
-
-### Full control (engine + context)
-
-```rust
-use octofhir_fhirpath::{FhirPathEngine, create_standard_registry};
-use octofhir_fhirpath::evaluator::EvaluationContext;
-use octofhir_fhirpath::core::value::utils::json_to_fhirpath_value;
-use octofhir_fhir_model::EmptyModelProvider;
-use serde_json::json;
 use std::sync::Arc;
 
+use octofhir_fhirpath::{
+    Collection, EmptyModelProvider, EvaluationContext, FhirPathEngine, FhirPathValue,
+    create_function_registry,
+};
+use serde_json::json;
+
 #[tokio::main]
 async fn main() -> octofhir_fhirpath::Result<()> {
-    // Engine is explicit about function registry and model provider
-    let registry = Arc::new(create_standard_registry().await);
-    let provider = Arc::new(EmptyModelProvider);
-    let mut engine = FhirPathEngine::new(registry, provider).await?;
+    let model = Arc::new(EmptyModelProvider);
+    let engine = FhirPathEngine::new(Arc::new(create_function_registry()), model.clone()).await?;
 
-    // Context can be any FHIR JSON; engine auto-detects root resourceType
-    let ctx_val = json_to_fhirpath_value(json!({
+    let patient = FhirPathValue::resource(json!({
         "resourceType": "Patient",
-        "name": [{"given": ["Alice"], "family": "Smith"}]
+        "name": [{ "use": "official", "family": "Smith", "given": ["Alice", "A."] }],
+        "active": true
     }));
-    let ctx = EvaluationContext::from_value(ctx_val);
+    let context = EvaluationContext::new(Collection::single(patient), model, None, None, None);
 
-    // "name.given" is automatically treated as "Patient.name.given"
-    let result = engine.evaluate("name.given", &ctx).await?;
+    // "name.given" is evaluated against the root resource, like "Patient.name.given"
+    let result = engine
+        .evaluate("name.where(use = 'official').given", &context)
+        .await?;
     println!("{:?}", result.value);
     Ok(())
 }
 ```
+
+When expressions need FHIR type information, pass a schema-backed provider instead, such as `octofhir_fhirschema::EmbeddedSchemaProvider::r4()` from
+[octofhir-fhirschema](https://crates.io/crates/octofhir-fhirschema). The remaining
+`EvaluationContext::new` arguments are the optional terminology, validation and trace
+providers.
 
 ## CLI Usage
 
@@ -115,7 +107,7 @@ octofhir-fhirpath repl --input patient.json
 octofhir-fhirpath server --port 8080
 ```
 
-See [CLI.md](CLI.md) for full options and output formats.
+See [crates/fhirpath-cli/README.md](crates/fhirpath-cli/README.md) for full options and output formats.
 
 ## Architecture
 
@@ -137,16 +129,12 @@ See [CLI.md](CLI.md) for full options and output formats.
 
 ## Code Quality
 
-This codebase maintains the highest standards of Rust code quality:
+- **No unsafe code**: the library crate is compiled with `#![deny(unsafe_code)]`
+- **Clippy clean**: lints are part of the quality gate
+- **Tested**: unit and integration tests in `crates/octofhir-fhirpath/tests`, plus the
+  spec suites described below
 
-- **Zero clippy warnings**: All 15 clippy warning categories addressed and resolved
-- **100% test coverage**: 359+ passing tests across all components
-- **Clean architecture**: No dead code, unused imports, or unnecessary complexity
-- **Performance optimized**: Manual optimizations replaced with idiomatic Rust patterns
-- **Memory safe**: No unsafe code blocks anywhere in the codebase
-- **Modern Rust**: Leverages latest Rust idioms and best practices
-
-Run `just qa` to verify all quality checks pass.
+Run `just qa` (format, clippy, tests) to verify all quality checks pass.
 
 ## Spec Compliance
 
@@ -187,8 +175,10 @@ is applied per item, because FHIR's own invariants rely on it.
 - 🌟 **[FHIRPath Spec](http://hl7.org/fhirpath/)** - Official specification
 - 💝 **[Sponsor](https://boosty.to/octoshikari)** - Support development
 
-Licensed under **MIT OR Apache-2.0**
+## License
+
+Licensed under either of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 
 ---
 
-**Built with ❤️ by the OctoFHIR team** 🦀
+**Built by the OctoFHIR team**
