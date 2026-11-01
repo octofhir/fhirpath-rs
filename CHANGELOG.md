@@ -6,6 +6,7 @@
 * **deps:** octofhir-ucum 0.8, quick-xml 0.42, reedline 0.52; patch webpki advisories ([9635ac3](https://github.com/octofhir/fhirpath-rs/commit/9635ac3f8d6193c0e5ab92d0b4883f55e43421c6))
 * **evaluator:** a Quantity's code and system elements ([06081d5](https://github.com/octofhir/fhirpath-rs/commit/06081d51c91bafcbe85bda3c46e9c66f892f97fb))
 * **evaluator:** read JSON decimals from their text, not through f64 ([014e556](https://github.com/octofhir/fhirpath-rs/commit/014e5564ba40542bc34f8cce873ee87b2f3233cc))
+* **factory:** every %factory.Quantity argument is optional ([020348e](https://github.com/octofhir/fhirpath-rs/commit/020348eef467c3b18b81d63c355577fc2adaac9a))
 * FHIRPath 3.1 conformance gaps found in the specification examples ([8bca644](https://github.com/octofhir/fhirpath-rs/commit/8bca644f52762c16a4d888a66a9d699869635469))
 * navigate the value element of FHIR primitives ([c9db1a7](https://github.com/octofhir/fhirpath-rs/commit/c9db1a7109c79115ac1a6f196b1ec47493781e65))
 * **operations:** a Date equals a DateTime of the same precision ([7d29b0a](https://github.com/octofhir/fhirpath-rs/commit/7d29b0a781e5ce979e726a4ddfbaa9490aba8413))
