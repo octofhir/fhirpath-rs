@@ -118,12 +118,8 @@ impl PureFunctionEvaluator for ToStringFunctionEvaluator {
                         value.to_string()
                     }
                 }
-                _ => {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0055,
-                        format!("Cannot convert {} to string", value.type_name()),
-                    ));
-                }
+                // Not a type with a string form (e.g. a Period): empty (FHIRPath §1.5.5.8.1).
+                _ => continue,
             };
 
             results.push(FhirPathValue::string(string_result));

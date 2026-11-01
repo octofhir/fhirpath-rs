@@ -13,14 +13,14 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 108 | 100% |
 | **Total Individual Tests** | 1347 | 100% |
-| **Passing Tests** | 1195 | 88.7% |
-| **Failing Tests** | 29 | 2.2% |
-| **Error Tests** | 8 | 0.6% |
+| **Passing Tests** | 1217 | 90.3% |
+| **Failing Tests** | 15 | 1.1% |
+| **Error Tests** | 0 | 0.0% |
 | **Skipped Tests** | 115 | 8.5% |
 
 ## Test Results by Suite
 
-### 🟡 OFFICIAL-R6 (88.7% - 1195/1347 tests)
+### 🟡 OFFICIAL-R6 (90.3% - 1217/1347 tests)
 
 - **Comparable.json** - 100.0% (3/3 tests) (Complete)
 - **HTMLChecks.json** - 100.0% (4/4 tests) (Complete)
@@ -31,6 +31,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **defineVariable.json** - 100.0% (21/21 tests) (Complete)
 - **from-Zulip.json** - 100.0% (2/2 tests) (Complete)
 - **index-part.json** - 100.0% (1/1 tests) (Complete)
+- **isSemanticChecks.json** - 100.0% (38/38 tests) (Complete)
 - **miscEngineTests.json** - 100.0% (4/4 tests) (Complete)
 - **period.json** - 100.0% (2/2 tests) (Complete)
 - **polymorphics.json** - 100.0% (4/4 tests) (Complete)
@@ -128,7 +129,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testDistinct.json** - 94.4% (34/36 tests) (Partial)
 - **LowBoundary.json** - 89.2% (33/37 tests) (Partial)
 - **HighBoundary.json** - 84.8% (28/33 tests) (Partial)
-- **isSemanticChecks.json** - 42.1% (16/38 tests) (⚠️ 8 errors)
 - **documentFunctions.json** - 0.0% (0/115 tests) (Not implemented)
 
 ## Results by Pass Rate
@@ -144,6 +144,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **defineVariable.json** - 21/21 tests (official-r6)
 - **from-Zulip.json** - 2/2 tests (official-r6)
 - **index-part.json** - 1/1 tests (official-r6)
+- **isSemanticChecks.json** - 38/38 tests (official-r6)
 - **miscEngineTests.json** - 4/4 tests (official-r6)
 - **period.json** - 2/2 tests (official-r6)
 - **polymorphics.json** - 4/4 tests (official-r6)
@@ -247,7 +248,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ### 🟠 Partially Implemented (30-70%)
 
-- **isSemanticChecks.json** - 42.1% (16/38 tests) (official-r6)
+None currently.
 
 ### 🔴 Major Issues (0-30%)
 
@@ -255,14 +256,14 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **88.7% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **90.3% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 108
 - **Total Tests**: 1347
-- **Pass Rate**: 88.7%
+- **Pass Rate**: 90.3%
 
 ---
 
-*Report generated on: 2026-11-01 17:15:09*
+*Report generated on: 2026-11-01 17:33:53*
 *Command: `just test-official-r6` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --official r6`*

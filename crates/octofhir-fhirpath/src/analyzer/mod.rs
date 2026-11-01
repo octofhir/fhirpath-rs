@@ -23,6 +23,7 @@ pub mod hierarchy_analyzer;
 pub mod property_analyzer;
 pub mod static_analyzer;
 pub mod type_analyzer;
+pub mod type_guard;
 pub mod union_analyzer;
 
 // Re-export with module prefixes to avoid conflicts

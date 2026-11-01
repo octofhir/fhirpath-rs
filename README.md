@@ -2,6 +2,16 @@
 
 A focused, spec-first FHIRPath implementation in Rust. No fluff. The goal is correctness, clarity, and predictable behavior when evaluating FHIRPath over JSON FHIR resources.
 
+## Supported Versions
+
+| | Version |
+| - | - |
+| **FHIRPath** | [3.0.0 (STU3, Release 3)](https://hl7.org/fhirpath/STU3/), normative and STU parts, plus the additions in the [3.1 continuous build](https://build.fhir.org/ig/HL7/FHIRPath/) (snapshot of 2026-10-25 in [`spec/`](spec/)); checked against the official fhir-test-cases R5 and R6 FHIRPath suites |
+| **FHIR models** | R4, R4B and R5 via [octofhir-fhirschema](https://crates.io/crates/octofhir-fhirschema) |
+| **FHIR extensions** | FHIR-specific functions (`resolve()`, `extension()`, `memberOf()`, `conformsTo()`, ...), `%terminologies`, `%factory` and `%server` per the FHIR API Incubator |
+| **SQL on FHIR** | `getResourceKey()` / `getReferenceKey()` behind the `sql-on-fhir` feature |
+| **Rust** | edition 2024 (Rust 1.88 or newer) |
+
 ## 🔌 Pluggable Architecture
 
 **This library is highly pluggable.** In production, you can use our ModelProvider and other ecosystem components, or create your own custom implementations. The architecture supports:
@@ -17,7 +27,7 @@ A focused, spec-first FHIRPath implementation in Rust. No fluff. The goal is cor
 
 ## Core Principles
 
-- **Spec-first**: FHIRPath 3.0.0 spec faithfully implemented
+- **Spec-first**: FHIRPath 3.0.0 (with 3.1 CI additions) implemented against the spec text and the official tests
 - **Deterministic**: pure, predictable evaluation with no hidden state
 - **Safe & Fast**: no unsafe code, thread-safe, async-ready
 - **Pluggable**: decoupled engine, model provider, and terminology
@@ -142,12 +152,12 @@ Run `just qa` to verify all quality checks pass.
 
 The engine tracks FHIRPath 3.x (STU3, with the 3.1 CI build in [`spec/`](spec/)).
 
-- **Curated gate**: `just test-coverage` runs 1286 tests (the R5 suite plus FHIRPath 3
+- **Curated gate**: `just test-coverage` runs 1289 tests (the R5 suite plus FHIRPath 3
   features) and every one must pass. See [TEST_COVERAGE.md](TEST_COVERAGE.md).
 - **Official suites**: the current [fhir-test-cases](https://github.com/FHIR/fhir-test-cases)
   R5 and R6 suites live in [`test-cases/official`](test-cases/official/) and run with
   `just test-official-r5` / `just test-official-r6` (report only). Of the tests that run,
-  96.6% (R5) and 97.0% (R6) pass; the Java RI `documentFunctions` group is skipped.
+  98.7% (R5) and 98.8% (R6) pass; the Java RI `documentFunctions` group is skipped.
 
 FHIRPath 3.x features include instance selectors (`Coding { system: 'x', code: 'y' }`,
 `{ : }`), `sort()` with `asc`/`desc`, `pathname()`, the Long type with `toLong()`,
@@ -159,9 +169,15 @@ calendar/UCUM time units in equality and equivalence (`1 year = 12 months`), and
 The `%factory` API follows the FHIR API Incubator, and the SQL on FHIR functions
 `getResourceKey()` / `getReferenceKey()` are available behind the `sql-on-fhir` feature.
 
-Known gaps: compile-time `is`-guard checks (`isSemanticChecks`), the precision of decimals
-written with an exponent in `lowBoundary`/`highBoundary`, and a few cases where the
-official tests and the specification text disagree.
+Compile-time `is`-guard checks (§1.11.1) are available through
+`parse_with_type_guard_analysis`.
+
+Known gaps: the precision of decimals written with an exponent in JSON input (`9.5e2`) for
+`lowBoundary`/`highBoundary`. Where the official tests and the specification text disagree,
+the engine follows the specification: `distinct()` of incomparable dates,
+calendar-duration comparisons (`1 year > 2 months` is `true`, since 1 year = 12 months),
+and the result type of `@2014.highBoundary(6)` (a Date). `as()` on a multi-item collection
+is applied per item, because FHIR's own invariants rely on it.
 
 ## Resources & Support
 

@@ -123,6 +123,15 @@ impl AsFunctionEvaluator {
                 }
             }
             _ => {
+                // A value `is` reports as the target type casts to it (e.g. a FHIR
+                // dateTime holding only a date: `effective as dateTime`).
+                if super::is_function::IsFunctionEvaluator::value_is_type(
+                    value,
+                    target_type,
+                    _context.model_provider().as_ref(),
+                ) {
+                    return Some(value.clone());
+                }
                 // For complex/resource types: allow exact match or inheritance per ModelProvider
                 let type_info = value.type_info();
                 let actual_type = type_info.name.as_deref().unwrap_or(&type_info.type_name);

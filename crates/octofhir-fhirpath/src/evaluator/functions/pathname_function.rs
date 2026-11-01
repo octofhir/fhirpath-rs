@@ -1,4 +1,4 @@
-//! pathname([short]) (FHIRPath §1.5.10.2, STU)
+//! `pathname([short])` (FHIRPath §1.5.10.2, STU)
 //!
 //! The path of each input item within the root resource, using only element names and
 //! indexers (`Patient.name[0].given[1]`), such that evaluating it on the root resource gives

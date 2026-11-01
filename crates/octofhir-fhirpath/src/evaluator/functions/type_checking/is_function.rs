@@ -21,7 +21,22 @@ pub struct IsFunctionEvaluator {
 impl IsFunctionEvaluator {
     /// Create a new is function evaluator
     pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
-        Arc::new(Self {
+        Arc::new(Self::build())
+    }
+
+    /// Whether `value` is of `target_type` (or derives from it), as `is` decides it.
+    pub(crate) fn value_is_type(
+        value: &FhirPathValue,
+        target_type: &str,
+        model_provider: &dyn crate::core::ModelProvider,
+    ) -> bool {
+        static IS: std::sync::LazyLock<IsFunctionEvaluator> =
+            std::sync::LazyLock::new(IsFunctionEvaluator::build);
+        IS.is_type_compatible(value, target_type, model_provider)
+    }
+
+    fn build() -> Self {
+        Self {
             metadata: FunctionMetadata {
                 name: "is".to_string(),
                 description: "Tests if the input is of a specified type".to_string(),
@@ -48,7 +63,7 @@ impl IsFunctionEvaluator {
                 requires_terminology: false,
                 requires_model: false,
             },
-        })
+        }
     }
 
     /// Check if a value type inherits from or is compatible with the target type

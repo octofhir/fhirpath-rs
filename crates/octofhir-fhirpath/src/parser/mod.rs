@@ -306,6 +306,33 @@ pub async fn parse_with_semantic_analysis(
     }
 }
 
+/// [`parse_with_semantic_analysis`] for a focus that can be any of `context_types`
+/// (`Period | Timing`), adding the compile-time type-guard checks (FHIRPath §1.11.1): an
+/// operation on `$this` that no guarded type supports is an error.
+pub async fn parse_with_type_guard_analysis(
+    input: &str,
+    model_provider: std::sync::Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>,
+    context_types: &[String],
+) -> AnalyzedParseResult {
+    let context_type = match context_types.first() {
+        Some(first) => model_provider.get_type(first).await.ok().flatten(),
+        None => None,
+    };
+    let mut result =
+        parse_with_semantic_analysis(input, model_provider.clone(), context_type).await;
+    if let Some(ast) = &result.ast {
+        for diagnostic in crate::analyzer::type_guard::check_type_guards(
+            ast,
+            context_types,
+            model_provider.as_ref(),
+        ) {
+            result.analysis.add_diagnostic(diagnostic);
+        }
+        result.success = result.success && result.analysis.success;
+    }
+    result
+}
+
 /// Parse FHIRPath expression and return AST directly (Result wrapper)
 ///
 /// This function provides a traditional Result<AST, Error> interface for

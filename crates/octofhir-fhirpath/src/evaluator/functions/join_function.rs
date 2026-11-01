@@ -1,7 +1,7 @@
 //! Join function implementation
 //!
 //! The join function joins a collection of strings into a single string with a separator.
-//! Syntax: collection.join([separator])
+//! Syntax: `collection.join([separator])`
 
 use std::sync::Arc;
 

@@ -434,14 +434,28 @@ mod integration_test_runner {
                 && let Some(ref invalid_kind) = test.invalid_kind
                 && invalid_kind == "semantic"
             {
-                let context_type = self.static_context_type(test, &input_data).await;
-
-                let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
-                    &test.expression,
-                    self.model_provider.clone(),
-                    context_type,
-                )
-                .await;
+                // A declared `contextType` union also drives the type-guard checks.
+                let semantic_result = match test.context_type.as_deref() {
+                    Some(declared) => {
+                        let types: Vec<String> =
+                            declared.split('|').map(|t| t.trim().to_string()).collect();
+                        octofhir_fhirpath::parser::parse_with_type_guard_analysis(
+                            &test.expression,
+                            self.model_provider.clone(),
+                            &types,
+                        )
+                        .await
+                    }
+                    None => {
+                        let context_type = self.static_context_type(test, &input_data).await;
+                        octofhir_fhirpath::parser::parse_with_semantic_analysis(
+                            &test.expression,
+                            self.model_provider.clone(),
+                            context_type,
+                        )
+                        .await
+                    }
+                };
 
                 if !semantic_result.analysis.success {
                     // Found semantic error as expected
@@ -481,7 +495,14 @@ mod integration_test_runner {
             // A test `context` selects the focus; %resource stays the input resource.
             let context = match &test.context {
                 Some(context_expr) => match self.engine.evaluate(context_expr, &context).await {
-                    Ok(focus) => context.create_child_context(focus.value),
+                    Ok(focus) => {
+                        let single = (focus.value.len() == 1).then(|| focus.value[0].clone());
+                        let child = context.create_child_context(focus.value);
+                        if let Some(item) = single {
+                            child.set_this(item);
+                        }
+                        child
+                    }
                     Err(e) => {
                         return TestResult::Error {
                             error: format!("Evaluating context '{context_expr}' failed: {e}"),
