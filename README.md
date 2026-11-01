@@ -10,7 +10,7 @@ A focused, spec-first FHIRPath implementation in Rust. No fluff. The goal is cor
 | **FHIR models** | R4, R4B and R5 via [octofhir-fhirschema](https://crates.io/crates/octofhir-fhirschema) |
 | **FHIR extensions** | FHIR-specific functions (`resolve()`, `extension()`, `memberOf()`, `conformsTo()`, ...), `%terminologies`, `%factory` and `%server` per the FHIR API Incubator |
 | **SQL on FHIR** | `getResourceKey()` / `getReferenceKey()` behind the `sql-on-fhir` feature |
-| **Rust** | edition 2024 (Rust 1.88 or newer) |
+| **Rust** | 1.98 or newer (MSRV, `rust-version` in `Cargo.toml`), edition 2024 |
 
 ## 🔌 Pluggable Architecture
 

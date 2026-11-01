@@ -140,6 +140,21 @@ jobs:
         timeout-minutes: 15
         run: cargo bench --package octofhir-fhirpath --bench evaluation_hot_paths -- warm_evaluation --sample-count 40 --sample-size 5
 
+  msrv:
+    name: MSRV (Rust 1.98)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98"
+
+      - name: Check the workspace builds on the minimum supported Rust
+        run: cargo check --workspace --all-features --locked
+
   cli-features:
     name: CLI Feature Combinations
     runs-on: ubuntu-latest
