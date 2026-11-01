@@ -255,7 +255,7 @@ impl Program {
                                 && n.arguments.len() == 1
                                 && Evaluator::is_reference_type_check(&n.arguments[0]) =>
                         {
-                            Evaluator::descendants_receiver(&n.object).map(&id)
+                            Evaluator::descendants_receiver(&n.object).map(id)
                         }
                         _ => None,
                     };
