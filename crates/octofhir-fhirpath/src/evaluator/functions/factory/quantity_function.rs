@@ -104,23 +104,14 @@ impl PureFunctionEvaluator for FactoryQuantityFunctionEvaluator {
             ));
         }
 
-        let system = extract_string(&args, 0).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "Quantity function requires a string system argument".to_string(),
-            )
-        })?;
-
-        let code = extract_string(&args, 1).ok_or_else(|| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0056,
-                "Quantity function requires a string code argument".to_string(),
-            )
-        })?;
-
+        // Every argument is optional: `{}` (or nothing) leaves the element out.
         let mut qty = serde_json::Map::new();
-        qty.insert("system".to_string(), serde_json::Value::String(system));
-        qty.insert("code".to_string(), serde_json::Value::String(code));
+        if let Some(system) = extract_string(&args, 0) {
+            qty.insert("system".to_string(), serde_json::Value::String(system));
+        }
+        if let Some(code) = extract_string(&args, 1) {
+            qty.insert("code".to_string(), serde_json::Value::String(code));
+        }
 
         // value argument (can be decimal, integer, or string)
         if let Some(value_arg) = args.get(2).and_then(|a| a.first()) {

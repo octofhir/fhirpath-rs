@@ -12,8 +12,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Test Suites** | 16 | 100% |
-| **Total Individual Tests** | 1289 | 100% |
-| **Passing Tests** | 1289 | 100.0% |
+| **Total Individual Tests** | 1291 | 100% |
+| **Passing Tests** | 1291 | 100.0% |
 | **Failing Tests** | 0 | 0.0% |
 | **Error Tests** | 0 | 0.0% |
 | **Skipped Tests** | 0 | 0.0% |
@@ -46,9 +46,9 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 - **date_time_operations.json** - 100.0% (85/85 tests) (Complete)
 
-### ✅ FHIRPATH3 (100.0% - 113/113 tests)
+### ✅ FHIRPATH3 (100.0% - 115/115 tests)
 
-- **fhirpath3_features.json** - 100.0% (113/113 tests) (Complete)
+- **fhirpath3_features.json** - 100.0% (115/115 tests) (Complete)
 
 ### ✅ MATH (100.0% - 147/147 tests)
 
@@ -78,7 +78,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **conversion_operations.json** - 27/27 tests (conversion)
 - **type_operations.json** - 3/3 tests (conversion)
 - **date_time_operations.json** - 85/85 tests (dates)
-- **fhirpath3_features.json** - 113/113 tests (fhirpath3)
+- **fhirpath3_features.json** - 115/115 tests (fhirpath3)
 - **math_operations.json** - 147/147 tests (math)
 - **advanced_features.json** - 2/2 tests (other)
 - **factory_functions.json** - 16/16 tests (other)
@@ -105,10 +105,10 @@ The fhirpath-rs implementation currently passes approximately **100.0% of all FH
 
 ### Key Statistics
 - **Test Suites**: 16
-- **Total Tests**: 1289
+- **Total Tests**: 1291
 - **Pass Rate**: 100.0%
 
 ---
 
-*Report generated on: 2026-11-01 17:33:48*
+*Report generated on: 2026-11-01 18:24:56*
 *Command: `just test-coverage` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176`*

@@ -4,7 +4,7 @@ This file contains comprehensive guidance for AI agents when working with the fh
 
 ## Project Overview
 
-This is **fhirpath-rs** (octofhir-fhirpath), a FHIRPath implementation in Rust for healthcare data processing. It provides an implementation of the FHIRPath expression language for FHIR resources tracking FHIRPath 3.x: the curated gate (`just test-coverage`, 1289 tests) passes 100%, and the official fhir-test-cases R5/R6 suites (`just test-official-r5|r6`, report only) pass about 98.8% of the tests that run.
+This is **fhirpath-rs** (octofhir-fhirpath), a FHIRPath implementation in Rust for healthcare data processing. It provides an implementation of the FHIRPath expression language for FHIR resources tracking FHIRPath 3.x: the curated gate (`just test-coverage`, 1291 tests) passes 100%, and the official fhir-test-cases R5/R6 suites (`just test-official-r5|r6`, report only) pass about 98.8% of the tests that run.
 
 ## Common Commands
 
@@ -176,7 +176,7 @@ fhirpath> :quit
 ### Testing Strategy
 - **Unit Tests**: Each crate has comprehensive unit tests
 - **Integration Tests**: Cross-crate functionality testing
-- **Specification Compliance**: curated gate of 1289 tests (100% required); official R5/R6 suites in `test-cases/official` are report-only
+- **Specification Compliance**: curated gate of 1291 tests (100% required); official R5/R6 suites in `test-cases/official` are report-only
 - **Performance Tests**: Automated benchmarking and regression detection
 - Always run `just test-coverage` to update compliance report
 
@@ -217,7 +217,7 @@ The main CLI binary is now in `crates/fhirpath-cli/src/main.rs`. All CLI functio
 - `cargo test --package crate-name` - Tests for specific crate
 
 ### Test Coverage
-Current status: curated gate **100.0%** (1289/1289); official R5 98.7%, R6 98.8% of executed tests
+Current status: curated gate **100.0%** (1291/1291); official R5 98.7%, R6 98.8% of executed tests
 - Run `just test-coverage` to update TEST_COVERAGE.md
 - Focus on improving coverage in areas marked 🟠 or 🔴 in test report
 - All new functionality must include tests

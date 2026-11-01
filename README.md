@@ -152,7 +152,7 @@ Run `just qa` to verify all quality checks pass.
 
 The engine tracks FHIRPath 3.x (STU3, with the 3.1 CI build in [`spec/`](spec/)).
 
-- **Curated gate**: `just test-coverage` runs 1289 tests (the R5 suite plus FHIRPath 3
+- **Curated gate**: `just test-coverage` runs 1291 tests (the R5 suite plus FHIRPath 3
   features) and every one must pass. See [TEST_COVERAGE.md](TEST_COVERAGE.md).
 - **Official suites**: the current [fhir-test-cases](https://github.com/FHIR/fhir-test-cases)
   R5 and R6 suites live in [`test-cases/official`](test-cases/official/) and run with

@@ -67,7 +67,7 @@ test:
 
 test-coverage:
     @echo "🔍 Running comprehensive test coverage analysis (FHIR R5)..."
-    cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1289
+    cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1291
  
 # Official fhir-test-cases suites (report only, not part of the test-coverage gate)
 test-official-r5:

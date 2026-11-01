@@ -116,6 +116,8 @@
     {"name": "toDecimalLongText", "expression": "'42L'.toDecimal() = 42", "input": null, "inputfile": "patient-example.json", "expected": [true], "tags": ["custom", "fhirpath3"]},
     {"name": "asPrimitiveWithDatePrecision", "expression": "Observation.effective.select(($this as dateTime).toString())", "input": null, "inputfile": "observation-example.json", "expected": ["2016-03-28"], "tags": ["custom", "fhirpath3"]},
     {"name": "toStringComplexTypeEmpty", "expression": "Observation.code.toString().empty()", "input": null, "inputfile": "observation-example.json", "expected": [true], "tags": ["custom", "fhirpath3"]},
-    {"name": "timezoneOffsetOfWhole", "expression": "@2012-01-01T12:30:00.000-07:00.timezoneOffsetOf()", "input": null, "inputfile": "patient-example.json", "expected": [-7.0], "tags": ["custom", "fhirpath3"]}
+    {"name": "timezoneOffsetOfWhole", "expression": "@2012-01-01T12:30:00.000-07:00.timezoneOffsetOf()", "input": null, "inputfile": "patient-example.json", "expected": [-7.0], "tags": ["custom", "fhirpath3"]},
+    {"name": "factoryQuantityOptionalArgs", "expression": "%factory.Quantity({}, 'mg', 5).code", "input": null, "inputfile": "patient-example.json", "expected": ["mg"], "tags": ["custom", "fhirpath3"]},
+    {"name": "factoryQuantityOptionalSystemEmpty", "expression": "%factory.Quantity({}, 'mg', 5).system.empty()", "input": null, "inputfile": "patient-example.json", "expected": [true], "tags": ["custom", "fhirpath3"]}
   ]
 }
