@@ -1247,6 +1247,38 @@ impl Evaluator {
                         result_values.push(FhirPathValue::string(text.clone()));
                     }
                 }
+                // FHIR defines each primitive type with a `value` element of the
+                // matching System type (`string.value` is a System.String), so
+                // `Patient.birthDate.value` is the primitive's value. System
+                // values themselves (`'abc'`) have no elements.
+                FhirPathValue::Boolean(..)
+                | FhirPathValue::Integer(..)
+                | FhirPathValue::Decimal(..)
+                | FhirPathValue::String(..)
+                | FhirPathValue::Date(..)
+                | FhirPathValue::DateTime(..)
+                | FhirPathValue::Time(..)
+                    if identifier == "value"
+                        && item.type_info().namespace.as_deref() == Some("FHIR") =>
+                {
+                    let system_type = match item {
+                        FhirPathValue::Boolean(..) => "Boolean",
+                        FhirPathValue::Integer(..) => "Integer",
+                        FhirPathValue::Decimal(..) => "Decimal",
+                        FhirPathValue::String(..) => "String",
+                        FhirPathValue::Date(..) => "Date",
+                        FhirPathValue::DateTime(..) => "DateTime",
+                        _ => "Time",
+                    };
+                    result_values.push(FhirPathValue::wrap_value(
+                        item.clone(),
+                        std::sync::Arc::new(crate::core::model_provider::TypeInfo::system_type(
+                            system_type.to_string(),
+                            true,
+                        )),
+                        None,
+                    ));
+                }
                 _ => {
                     // Other types don't have standard navigable properties
                     // But support extension(...) on primitives via wrapped primitive element
