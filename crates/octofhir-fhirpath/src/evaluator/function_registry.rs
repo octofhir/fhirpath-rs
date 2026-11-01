@@ -46,7 +46,6 @@ use crate::evaluator::functions::{
     ConvertsToTimeFunctionEvaluator,
     CountFunctionEvaluator,
     // Date/Time functions
-    DayOfFunctionEvaluator,
     DecodeFunctionEvaluator,
     DefineVariableFunctionEvaluator,
     DescendantsFunctionEvaluator,
@@ -84,7 +83,6 @@ use crate::evaluator::functions::{
     HasTemplateIdOfFunctionEvaluator,
     HasValueFunctionEvaluator,
     HighBoundaryFunctionEvaluator,
-    HourOfFunctionEvaluator,
     HtmlChecksFunctionEvaluator,
     IifFunctionEvaluator,
     IndexOfFunctionEvaluator,
@@ -106,8 +104,6 @@ use crate::evaluator::functions::{
     MemberOfFunctionEvaluator,
     MillisecondFunctionEvaluator,
     MinFunctionEvaluator,
-    MinuteOfFunctionEvaluator,
-    MonthOfFunctionEvaluator,
     NotFunctionEvaluator,
     NowFunctionEvaluator,
     OfTypeFunctionEvaluator,
@@ -119,7 +115,6 @@ use crate::evaluator::functions::{
     ReplaceMatchesFunctionEvaluator,
     ResolveFunctionEvaluator,
     RoundFunctionEvaluator,
-    SecondOfFunctionEvaluator,
     SelectFunctionEvaluator,
     // Server functions
     ServerApplyFunctionEvaluator,
@@ -151,7 +146,6 @@ use crate::evaluator::functions::{
     TailFunctionEvaluator,
     TakeFunctionEvaluator,
     TimeOfDayFunctionEvaluator,
-    TimezoneOffsetOfFunctionEvaluator,
     ToBooleanFunctionEvaluator,
     ToCharsFunctionEvaluator,
     ToDateFunctionEvaluator,
@@ -174,7 +168,6 @@ use crate::evaluator::functions::{
     ValidateVSFunctionEvaluator,
     WeightFunctionEvaluator,
     WhereFunctionEvaluator,
-    YearOfFunctionEvaluator,
     combine_function,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
@@ -1004,22 +997,26 @@ impl FunctionRegistryBuilder {
             .register_lazy_function(TraceFunctionEvaluator::create());
 
         // Register temporal extraction functions
-        self.registry
-            .register_pure_function(DayOfFunctionEvaluator::create());
-        self.registry
-            .register_pure_function(MonthOfFunctionEvaluator::create());
-        self.registry
-            .register_pure_function(YearOfFunctionEvaluator::create());
-        self.registry
-            .register_pure_function(HourOfFunctionEvaluator::create());
-        self.registry
-            .register_pure_function(MinuteOfFunctionEvaluator::create());
-        self.registry
-            .register_pure_function(SecondOfFunctionEvaluator::create());
+        {
+            use crate::evaluator::functions::date_component_function::{
+                DateComponent, DateComponentFunctionEvaluator,
+            };
+            for component in [
+                DateComponent::Year,
+                DateComponent::Month,
+                DateComponent::Day,
+                DateComponent::Hour,
+                DateComponent::Minute,
+                DateComponent::Second,
+                DateComponent::Millisecond,
+                DateComponent::TimezoneOffset,
+            ] {
+                self.registry
+                    .register_pure_function(DateComponentFunctionEvaluator::create(component));
+            }
+        }
         self.registry
             .register_pure_function(MillisecondFunctionEvaluator::create());
-        self.registry
-            .register_pure_function(MillisecondFunctionEvaluator::create_named("millisecondOf"));
         self.registry.register_pure_function(
             crate::evaluator::functions::pathname_function::PathnameFunctionEvaluator::create(),
         );
@@ -1029,8 +1026,6 @@ impl FunctionRegistryBuilder {
         self.registry.register_pure_function(
             crate::evaluator::functions::date_time_of_function::TimeOfFunctionEvaluator::create(),
         );
-        self.registry
-            .register_pure_function(TimezoneOffsetOfFunctionEvaluator::create());
         self.registry
             .register_pure_function(DurationFunctionEvaluator::create());
         self.registry

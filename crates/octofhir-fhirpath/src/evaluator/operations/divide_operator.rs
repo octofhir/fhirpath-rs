@@ -42,6 +42,11 @@ impl DivideOperatorEvaluator {
         left: &FhirPathValue,
         right: &FhirPathValue,
     ) -> Result<Option<FhirPathValue>> {
+        if crate::evaluator::quantity_utils::has_special_unit(left)
+            || crate::evaluator::quantity_utils::has_special_unit(right)
+        {
+            return Ok(None);
+        }
         match (left, right) {
             // Integer division - always results in Decimal per FHIRPath spec
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {

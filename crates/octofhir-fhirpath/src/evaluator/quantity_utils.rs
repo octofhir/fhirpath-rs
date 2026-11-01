@@ -319,6 +319,51 @@ pub fn definite_duration_as_calendar(value: &FhirPathValue) -> std::borrow::Cow<
     std::borrow::Cow::Borrowed(value)
 }
 
+/// The time-valued quantity to add to (or subtract from) `target` (FHIRPath §1.6.7): UCUM
+/// definite durations as calendar durations, and a unit finer than a partial value's
+/// precision converted to that precision and truncated (`@2016 + 365 days` adds 1 year,
+/// `@2026-02 + 4 weeks` adds 0 months).
+pub fn duration_for_temporal<'a>(
+    target: &FhirPathValue,
+    quantity: &'a FhirPathValue,
+) -> Cow<'a, FhirPathValue> {
+    use crate::core::temporal::TemporalPrecision;
+    let quantity = definite_duration_as_calendar(quantity);
+    let precision = match target {
+        FhirPathValue::Date(date, _, _) => date.precision,
+        FhirPathValue::DateTime(dt, _, _) => dt.precision,
+        FhirPathValue::Time(time, _, _) => time.precision,
+        _ => return quantity,
+    };
+    let FhirPathValue::Quantity {
+        value,
+        calendar_unit: Some(unit),
+        ..
+    } = quantity.as_ref()
+    else {
+        return quantity;
+    };
+    let target_unit = match precision {
+        TemporalPrecision::Year => CalendarUnit::Year,
+        TemporalPrecision::Month => CalendarUnit::Month,
+        TemporalPrecision::Day => CalendarUnit::Day,
+        TemporalPrecision::Hour => CalendarUnit::Hour,
+        TemporalPrecision::Minute => CalendarUnit::Minute,
+        TemporalPrecision::Second => CalendarUnit::Second,
+        TemporalPrecision::Millisecond => return quantity,
+    };
+    if calendar_milliseconds(*unit) >= calendar_milliseconds(target_unit) {
+        return quantity;
+    }
+    match convert_calendar_value(*value, *unit, target_unit) {
+        Some(converted) => Cow::Owned(FhirPathValue::calendar_quantity(
+            converted.trunc(),
+            target_unit,
+        )),
+        None => quantity,
+    }
+}
+
 /// The unit a quantity's arithmetic works in: its UCUM code, a calendar unit's UCUM
 /// equivalent, or `'1'` without a unit. `None` for calendar years and months, which only
 /// combine with the same unit.
@@ -344,6 +389,40 @@ fn arithmetic_unit(quantity: &FhirPathValue) -> Option<(String, bool)> {
     }
 }
 
+/// A number as a quantity with the UCUM default unit `'1'` (FHIRPath implicit conversion);
+/// any other value unchanged.
+pub fn number_as_quantity(value: &FhirPathValue) -> Cow<'_, FhirPathValue> {
+    let amount = match value {
+        FhirPathValue::Integer(i, _, _) => Decimal::from(*i),
+        FhirPathValue::Decimal(d, _, _) => *d,
+        _ => return Cow::Borrowed(value),
+    };
+    Cow::Owned(FhirPathValue::quantity_with_components(
+        amount,
+        Some("1".to_string()),
+        None,
+        None,
+    ))
+}
+
+/// Whether a quantity has a UCUM "special" unit on a non-ratio scale (`Cel`, `[degF]`,
+/// `[pH]`, ...): arithmetic on those is empty (FHIRPath §1.6.6).
+pub fn has_special_unit(quantity: &FhirPathValue) -> bool {
+    let FhirPathValue::Quantity {
+        unit,
+        code,
+        calendar_unit: None,
+        ..
+    } = quantity
+    else {
+        return false;
+    };
+    code.as_deref()
+        .or(unit.as_deref())
+        .and_then(|unit| evaluate_unit(unit).ok())
+        .is_some_and(|eval| eval.special.is_some())
+}
+
 /// `left + right` (or `left - right`) for two quantities (FHIRPath §1.6.6.3, FHIR-56190):
 /// units must be commensurable, and the result is in the more granular of the two units
 /// (`3 'm' + 3 'cm'` is `303 'cm'`). Calendar years and months only combine with the same
@@ -358,6 +437,9 @@ pub fn add_quantities(
     else {
         return None;
     };
+    if has_special_unit(left) || has_special_unit(right) {
+        return None;
+    }
     let combine = |a: Decimal, b: Decimal| {
         if subtract {
             a.checked_sub(b)
@@ -405,6 +487,26 @@ pub fn add_quantities(
     else {
         return None;
     };
+    // Operands from different time-valued unit systems give a calendar duration
+    // (`60 's' + 2 minutes` is `180 seconds`).
+    let is_calendar = |q: &FhirPathValue| {
+        matches!(
+            q,
+            FhirPathValue::Quantity {
+                calendar_unit: Some(_),
+                ..
+            }
+        )
+    };
+    if is_calendar(left) != is_calendar(right)
+        && calendar_unit.is_none()
+        && let Some(calendar) = code
+            .as_deref()
+            .or(unit.as_deref())
+            .and_then(ucum_to_calendar_unit)
+    {
+        return Some(FhirPathValue::calendar_quantity(value, calendar));
+    }
     Some(FhirPathValue::Quantity {
         value,
         unit: unit.clone(),
@@ -417,27 +519,166 @@ pub fn add_quantities(
     })
 }
 
-/// Calendar units for comparing a calendar duration with a UCUM definite duration: `'wk'`,
-/// `'d'`, `'h'`, `'min'`, `'s'` and `'ms'` equal their calendar counterparts
-/// (`7 days = 1 'wk'`), while `'a'` and `'mo'` do not (`1 year = 1 'a'` is empty).
-fn align_definite_durations(
-    left_unit: Option<&str>,
-    left_calendar: &Option<CalendarUnit>,
-    right_unit: Option<&str>,
-    right_calendar: &Option<CalendarUnit>,
-) -> (Option<CalendarUnit>, Option<CalendarUnit>) {
-    let definite = |unit: Option<&str>| {
-        unit.and_then(ucum_to_calendar_unit)
-            .filter(|c| !matches!(c, CalendarUnit::Year | CalendarUnit::Month))
-    };
-    match (left_calendar, right_calendar) {
-        (Some(l), None) => (Some(*l), definite(right_unit)),
-        (None, Some(r)) => (definite(left_unit), Some(*r)),
-        (l, r) => (*l, *r),
+/// What two quantities are compared for. Equality and ordering keep calendar years and
+/// months apart from UCUM `'a'` and `'mo'` (`1 year = 1 'a'` is empty); equivalence treats
+/// them as the same (`1 year ~ 1 'a'`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuantityComparison {
+    Equality,
+    Equivalence,
+    Ordering,
+}
+
+/// A calendar duration in milliseconds with the FHIRPath conversion factors (§1.5.5.7.2.1):
+/// a month is 30 days and a year 365 days.
+fn calendar_milliseconds(unit: CalendarUnit) -> Decimal {
+    Decimal::from(match unit {
+        CalendarUnit::Millisecond => 1_i64,
+        CalendarUnit::Second => 1_000,
+        CalendarUnit::Minute => 60_000,
+        CalendarUnit::Hour => 3_600_000,
+        CalendarUnit::Day => 86_400_000,
+        CalendarUnit::Week => 604_800_000,
+        CalendarUnit::Month => 30 * 86_400_000,
+        CalendarUnit::Year => 365 * 86_400_000,
+    })
+}
+
+/// `value` calendar `from` units as `to` units, along the shortest chain: a year is 12
+/// months or 365 days, a month 30 days (FHIRPath §1.5.5.7.2.1).
+pub fn convert_calendar_value(
+    value: Decimal,
+    from: CalendarUnit,
+    to: CalendarUnit,
+) -> Option<Decimal> {
+    match (from, to) {
+        _ if from == to => Some(value),
+        (CalendarUnit::Year, CalendarUnit::Month) => value.checked_mul(Decimal::from(12)),
+        (CalendarUnit::Month, CalendarUnit::Year) => value.checked_div(Decimal::from(12)),
+        _ => value
+            .checked_mul(calendar_milliseconds(from))?
+            .checked_div(calendar_milliseconds(to))
+            .map(|v| v.normalize()),
     }
 }
 
-/// Compare two quantities and return an Ordering (for <, >, <= comparisons)
+/// A UCUM time quantity as a calendar duration: `'a'`, `'mo'`, `'wk'`, `'d'`, `'h'`,
+/// `'min'`, `'s'`, `'ms'` by name, any other time unit through seconds.
+fn ucum_as_calendar(value: Decimal, unit: &str) -> Option<(Decimal, CalendarUnit)> {
+    if let Some(calendar) = ucum_to_calendar_unit(unit) {
+        return Some((value, calendar));
+    }
+    let seconds = convert_ucum_quantity(value, unit, "s").ok()?.value;
+    Some((seconds, CalendarUnit::Second))
+}
+
+/// A converted value with the binary floating-point noise of a UCUM factor removed.
+fn tidy(value: Decimal) -> Decimal {
+    value.round_sf(15).unwrap_or(value).normalize()
+}
+
+/// Two calendar durations in the less granular unit (FHIRPath §1.6.1.1.1: "convert to the
+/// least granular unit"): `7 days` and `1 week` are `1` and `1`.
+fn align_calendar(
+    left: Decimal,
+    left_unit: CalendarUnit,
+    right: Decimal,
+    right_unit: CalendarUnit,
+) -> Option<(Decimal, Decimal)> {
+    if left_unit == right_unit {
+        return Some((left, right));
+    }
+    if calendar_milliseconds(left_unit) >= calendar_milliseconds(right_unit) {
+        Some((left, convert_calendar_value(right, right_unit, left_unit)?))
+    } else {
+        Some((convert_calendar_value(left, left_unit, right_unit)?, right))
+    }
+}
+
+/// Two UCUM quantities in one unit: the less granular for equivalence (its rounding depends
+/// on the unit, §1.6.1.2.1), the more granular otherwise (any commensurable unit gives the
+/// same answer, and scaling up keeps the decimals exact). Special units (`Cel`, `[degF]`)
+/// convert the right value into the left unit. `None` when not commensurable.
+fn align_ucum(
+    left: Decimal,
+    left_unit: &str,
+    right: Decimal,
+    right_unit: &str,
+    purpose: QuantityComparison,
+) -> Option<(Decimal, Decimal)> {
+    if left_unit == right_unit || units_are_equivalent(left_unit, right_unit) {
+        return Some((left, right));
+    }
+    let left_eval = evaluate_unit(left_unit).ok()?;
+    let right_eval = evaluate_unit(right_unit).ok()?;
+    if left_eval.special.is_some() || right_eval.special.is_some() {
+        let converted = convert_ucum_quantity(right, right_unit, left_unit).ok()?;
+        return Some((left, tidy(converted.value)));
+    }
+    if !linear_commensurable(&left_eval, &right_eval) {
+        return None;
+    }
+    // One left unit in right units: at least 1 means the left unit is the coarser.
+    let factor = convert_ucum_quantity(Decimal::ONE, left_unit, right_unit)
+        .ok()?
+        .value;
+    let left_is_coarser = factor >= Decimal::ONE;
+    if left_is_coarser == (purpose == QuantityComparison::Equivalence) {
+        let converted = convert_ucum_quantity(right, right_unit, left_unit).ok()?;
+        Some((left, tidy(converted.value)))
+    } else {
+        let converted = convert_ucum_quantity(left, left_unit, right_unit).ok()?;
+        Some((tidy(converted.value), right))
+    }
+}
+
+/// Both quantities' values in one unit, ready to compare (FHIRPath §1.6.1.1.1, §1.6.1.2.1,
+/// §1.6.2). A unit is the UCUM code (`'1'` when absent) or a calendar duration; a UCUM time
+/// unit meets a calendar duration as its calendar counterpart (`1 hour = 3600 's'`), except
+/// that UCUM years and months only match calendar ones for equivalence. `None` when the
+/// units are not commensurable.
+#[allow(clippy::too_many_arguments)]
+pub fn align_quantities(
+    left_value: Decimal,
+    left_unit: Option<&str>,
+    left_calendar: Option<CalendarUnit>,
+    right_value: Decimal,
+    right_unit: Option<&str>,
+    right_calendar: Option<CalendarUnit>,
+    purpose: QuantityComparison,
+) -> Option<(Decimal, Decimal)> {
+    let year_or_month =
+        |unit: CalendarUnit| matches!(unit, CalendarUnit::Year | CalendarUnit::Month);
+    match (left_calendar, right_calendar) {
+        (Some(l), Some(r)) => align_calendar(left_value, l, right_value, r),
+        (None, None) => align_ucum(
+            left_value,
+            left_unit.unwrap_or("1"),
+            right_value,
+            right_unit.unwrap_or("1"),
+            purpose,
+        ),
+        (Some(l), None) => {
+            let (value, r) = ucum_as_calendar(right_value, right_unit?)?;
+            if purpose != QuantityComparison::Equivalence && (year_or_month(l) || year_or_month(r))
+            {
+                return None;
+            }
+            align_calendar(left_value, l, value, r)
+        }
+        (None, Some(r)) => {
+            let (value, l) = ucum_as_calendar(left_value, left_unit?)?;
+            if purpose != QuantityComparison::Equivalence && (year_or_month(l) || year_or_month(r))
+            {
+                return None;
+            }
+            align_calendar(value, l, right_value, r)
+        }
+    }
+}
+
+/// Compare two quantities and return an Ordering (for <, >, <= comparisons); `None` when
+/// they are not comparable.
 pub fn compare_quantities(
     left_value: Decimal,
     left_unit: &Option<String>,
@@ -446,58 +687,20 @@ pub fn compare_quantities(
     right_unit: &Option<String>,
     right_calendar_unit: &Option<CalendarUnit>,
 ) -> Result<Option<std::cmp::Ordering>, QuantityError> {
-    let (left_calendar_unit, right_calendar_unit) = &align_definite_durations(
+    Ok(align_quantities(
+        left_value,
         left_unit.as_deref(),
-        left_calendar_unit,
+        *left_calendar_unit,
+        right_value,
         right_unit.as_deref(),
-        right_calendar_unit,
-    );
-    // Handle simple cases first
-    match (left_unit, right_unit) {
-        // Both have no units - compare values directly
-        (None, None) => Ok(Some(left_value.cmp(&right_value))),
-
-        // One has unit, other doesn't - not comparable
-        (Some(_), None) | (None, Some(_)) => Ok(None),
-
-        // Both have same unit - compare values directly
-        (Some(lu), Some(ru)) if lu == ru => Ok(Some(left_value.cmp(&right_value))),
-
-        // Handle common unit equivalences that might not match exactly
-        (Some(lu), Some(ru)) if units_are_equivalent(lu, ru) => {
-            Ok(Some(left_value.cmp(&right_value)))
-        }
-
-        // Different units - need conversion
-        (Some(lu), Some(ru)) => {
-            // First check if they are calendar units
-            if let (Some(left_cal), Some(right_cal)) = (left_calendar_unit, right_calendar_unit) {
-                return compare_calendar_quantities_ordering(
-                    left_value,
-                    *left_cal,
-                    right_value,
-                    *right_cal,
-                );
-            }
-
-            // Try UCUM conversion
-            match convert_and_compare_ucum_ordering(left_value, lu, right_value, ru) {
-                Ok(result) => Ok(result),
-                Err(_) => {
-                    // UCUM conversion failed, but if units are exactly the same string,
-                    // we can still compare them directly as a fallback
-                    if lu == ru {
-                        return Ok(Some(left_value.cmp(&right_value)));
-                    }
-                    // If units are different and UCUM failed, return not comparable
-                    Ok(None)
-                }
-            }
-        }
-    }
+        *right_calendar_unit,
+        QuantityComparison::Ordering,
+    )
+    .map(|(l, r)| l.cmp(&r)))
 }
 
-/// Check if two quantities are equivalent (same dimension and value after conversion with tolerance)
+/// Check if two quantities are equivalent (FHIRPath §1.6.1.2.1): converted to the less
+/// granular unit, rounded to the precision of the less precise value, then equal.
 pub fn are_quantities_equivalent(
     left_value: Decimal,
     left_unit: &Option<String>,
@@ -509,18 +712,18 @@ pub fn are_quantities_equivalent(
     are_quantities_equivalent_with_codes(
         left_value,
         left_unit,
-        None, // No code available in legacy signature
+        None,
         left_calendar_unit,
         right_value,
         right_unit,
-        None, // No code available in legacy signature
+        None,
         right_calendar_unit,
     )
 }
 
-/// Check if two quantities are equivalent, with optional UCUM code fields
-/// This extended version allows passing the FHIR `code` field which contains
-/// the canonical UCUM code (e.g., "a" for year) separate from the display `unit` (e.g., "year")
+/// [`are_quantities_equivalent`] with the FHIR `code` (the UCUM code) preferred over the
+/// display `unit`.
+#[allow(clippy::too_many_arguments)]
 pub fn are_quantities_equivalent_with_codes(
     left_value: Decimal,
     left_unit: &Option<String>,
@@ -531,93 +734,29 @@ pub fn are_quantities_equivalent_with_codes(
     right_code: Option<&str>,
     right_calendar_unit: &Option<CalendarUnit>,
 ) -> Result<bool, QuantityError> {
-    // Use code if available, otherwise fall back to unit
-    let effective_left_unit = left_code
-        .map(|s| s.to_string())
-        .or_else(|| left_unit.clone());
-    let effective_right_unit = right_code
-        .map(|s| s.to_string())
-        .or_else(|| right_unit.clone());
-
-    let (left_calendar_unit, right_calendar_unit) = &align_definite_durations(
-        effective_left_unit.as_deref(),
-        left_calendar_unit,
-        effective_right_unit.as_deref(),
-        right_calendar_unit,
-    );
-    // Handle simple cases first
-    match (&effective_left_unit, &effective_right_unit) {
-        // Both have no units - compare values directly
-        (None, None) => Ok((left_value - right_value).abs() < Decimal::new(1, 10)),
-
-        // One has unit, other doesn't - not equivalent
-        (Some(_), None) | (None, Some(_)) => Ok(false),
-
-        // Both have same unit - compare values directly
-        (Some(lu), Some(ru)) if lu == ru => {
-            Ok((left_value - right_value).abs() < Decimal::new(1, 10))
-        }
-
-        // Handle common unit equivalences that might not match exactly
-        (Some(lu), Some(ru)) if units_are_equivalent(lu, ru) => {
-            Ok((left_value - right_value).abs() < Decimal::new(1, 10))
-        }
-
-        // Different units - need conversion
-        (Some(lu), Some(ru)) => {
-            // First check if they are both calendar units
-            if let (Some(left_cal), Some(right_cal)) = (left_calendar_unit, right_calendar_unit) {
-                return compare_calendar_quantities(left_value, *left_cal, right_value, *right_cal);
-            }
-
-            // Handle cross-type comparison: UCUM time unit vs calendar unit
-            // Per FHIRPath spec: `1 year` is equivalent to `1 'a'`, etc.
-            match (left_calendar_unit, right_calendar_unit) {
-                // Left is calendar, right might be UCUM time unit
-                (Some(left_cal), None) => {
-                    if let Some(right_cal) = ucum_to_calendar_unit(ru) {
-                        return compare_calendar_quantities(
-                            left_value,
-                            *left_cal,
-                            right_value,
-                            right_cal,
-                        );
-                    }
-                }
-                // Right is calendar, left might be UCUM time unit
-                (None, Some(right_cal)) => {
-                    if let Some(left_cal) = ucum_to_calendar_unit(lu) {
-                        return compare_calendar_quantities(
-                            left_value,
-                            left_cal,
-                            right_value,
-                            *right_cal,
-                        );
-                    }
-                }
-                // Neither is calendar, but both might be UCUM time units that map to calendar
-                (None, None) => {
-                    if let (Some(left_cal), Some(right_cal)) =
-                        (ucum_to_calendar_unit(lu), ucum_to_calendar_unit(ru))
-                    {
-                        return compare_calendar_quantities(
-                            left_value,
-                            left_cal,
-                            right_value,
-                            right_cal,
-                        );
-                    }
-                }
-                _ => {}
-            }
-
-            // Try UCUM conversion for equivalence
-            convert_and_compare_ucum_equivalence(left_value, lu, right_value, ru)
-        }
-    }
+    let Some((left, right)) = align_quantities(
+        left_value,
+        left_code.or(left_unit.as_deref()),
+        *left_calendar_unit,
+        right_value,
+        right_code.or(right_unit.as_deref()),
+        *right_calendar_unit,
+        QuantityComparison::Equivalence,
+    ) else {
+        return Ok(false);
+    };
+    let precision = left_value.scale().min(right_value.scale());
+    let round = |value: Decimal| {
+        value.round_dp_with_strategy(
+            precision,
+            rust_decimal::RoundingStrategy::MidpointAwayFromZero,
+        )
+    };
+    Ok(round(left) == round(right))
 }
 
-/// Check if two quantities are equal (same dimension and exact value after conversion)
+/// Check if two quantities are equal (FHIRPath §1.6.1.1.1); `None` (empty) when the units
+/// are not commensurable.
 pub fn are_quantities_equal(
     left_value: Decimal,
     left_unit: &Option<String>,
@@ -625,7 +764,7 @@ pub fn are_quantities_equal(
     right_value: Decimal,
     right_unit: &Option<String>,
     right_calendar_unit: &Option<CalendarUnit>,
-) -> Result<bool, QuantityError> {
+) -> Option<bool> {
     are_quantities_equal_with_codes(
         left_value,
         left_unit,
@@ -638,9 +777,9 @@ pub fn are_quantities_equal(
     )
 }
 
-/// Check if two quantities are equal, with optional UCUM code fields
-/// This extended version allows passing the FHIR `code` field which contains
-/// the canonical UCUM code (e.g., "a" for year) separate from the display `unit` (e.g., "year")
+/// [`are_quantities_equal`] with the FHIR `code` (the UCUM code) preferred over the display
+/// `unit`.
+#[allow(clippy::too_many_arguments)]
 pub fn are_quantities_equal_with_codes(
     left_value: Decimal,
     left_unit: &Option<String>,
@@ -650,48 +789,73 @@ pub fn are_quantities_equal_with_codes(
     right_unit: &Option<String>,
     right_code: Option<&str>,
     right_calendar_unit: &Option<CalendarUnit>,
-) -> Result<bool, QuantityError> {
-    // Use code if available, otherwise fall back to unit
-    let effective_left_unit = left_code
-        .map(|s| s.to_string())
-        .or_else(|| left_unit.clone());
-    let effective_right_unit = right_code
-        .map(|s| s.to_string())
-        .or_else(|| right_unit.clone());
+) -> Option<bool> {
+    align_quantities(
+        left_value,
+        left_code.or(left_unit.as_deref()),
+        *left_calendar_unit,
+        right_value,
+        right_code.or(right_unit.as_deref()),
+        *right_calendar_unit,
+        QuantityComparison::Equality,
+    )
+    .map(|(left, right)| left == right)
+}
 
-    let (left_calendar_unit, right_calendar_unit) = &align_definite_durations(
-        effective_left_unit.as_deref(),
-        left_calendar_unit,
-        effective_right_unit.as_deref(),
-        right_calendar_unit,
-    );
-    // Handle simple cases first
-    match (&effective_left_unit, &effective_right_unit) {
-        // Both have no units - compare values directly
-        (None, None) => Ok((left_value - right_value).abs() < Decimal::new(1, 10)),
-
-        // One has unit, other doesn't - not equal
-        (Some(_), None) | (None, Some(_)) => Ok(false),
-
-        // Both have same unit - compare values directly
-        (Some(lu), Some(ru)) if lu == ru => {
-            Ok((left_value - right_value).abs() < Decimal::new(1, 10))
+/// `quantity` in `target`: a UCUM code or a calendar duration keyword (FHIRPath
+/// §1.5.5.7.1). Between a calendar duration and a UCUM time unit the conversion happens in
+/// the source's system and the unit is then renamed (`7 days.toQuantity('wk')` is
+/// `1 'wk'`). `None` when the units are not commensurable.
+pub fn quantity_to_unit(quantity: &FhirPathValue, target: &str) -> Option<FhirPathValue> {
+    let FhirPathValue::Quantity {
+        value,
+        unit,
+        code,
+        calendar_unit,
+        ..
+    } = quantity
+    else {
+        return None;
+    };
+    let source_unit = code.as_deref().or(unit.as_deref()).unwrap_or("1");
+    match (calendar_unit, CalendarUnit::from_keyword(target)) {
+        (Some(from), Some(to)) => Some(FhirPathValue::calendar_quantity(
+            convert_calendar_value(*value, *from, to)?,
+            to,
+        )),
+        (Some(from), None) => {
+            let to = ucum_to_calendar_unit(target)?;
+            let converted = convert_calendar_value(*value, *from, to)?;
+            Some(FhirPathValue::quoted_quantity(
+                converted,
+                Some(target.to_string()),
+            ))
         }
-
-        // Handle common unit equivalences that might not match exactly
-        (Some(lu), Some(ru)) if units_are_equivalent(lu, ru) => {
-            Ok((left_value - right_value).abs() < Decimal::new(1, 10))
+        (None, Some(to)) => {
+            let ucum = calendar_to_ucum_unit(to);
+            let converted = if source_unit == ucum {
+                *value
+            } else {
+                tidy(convert_ucum_quantity(*value, source_unit, ucum).ok()?.value)
+            };
+            Some(FhirPathValue::calendar_quantity(converted, to))
         }
-
-        // Different units - need conversion
-        (Some(lu), Some(ru)) => {
-            // First check if they are calendar units
-            if let (Some(left_cal), Some(right_cal)) = (left_calendar_unit, right_calendar_unit) {
-                return compare_calendar_quantities(left_value, *left_cal, right_value, *right_cal);
-            }
-
-            // Try UCUM conversion for equality (exact)
-            convert_and_compare_ucum(left_value, lu, right_value, ru)
+        (None, None) => {
+            let converted = if source_unit == target {
+                *value
+            } else {
+                // Validate the target as UCUM before converting.
+                evaluate_unit(target).ok()?;
+                tidy(
+                    convert_ucum_quantity(*value, source_unit, target)
+                        .ok()?
+                        .value,
+                )
+            };
+            Some(FhirPathValue::quoted_quantity(
+                converted,
+                Some(target.to_string()),
+            ))
         }
     }
 }
@@ -707,7 +871,10 @@ pub fn convert_quantity(
     if let Some(from_cal) = from_calendar_unit
         && let Some(to_cal) = CalendarUnit::from_str(to_unit)
     {
-        let converted_value = convert_calendar_units(value, *from_cal, to_cal)?;
+        let converted_value =
+            convert_calendar_value(value, *from_cal, to_cal).ok_or_else(|| {
+                QuantityError::EvaluationError("Calendar conversion overflow".to_string())
+            })?;
         return Ok(ConversionResult {
             value: converted_value,
             unit: Some(to_unit.to_string()),
@@ -724,65 +891,6 @@ pub fn convert_quantity(
     Err(QuantityError::InvalidQuantity(
         "Cannot convert unitless quantity to a specific unit".to_string(),
     ))
-}
-
-/// Compare two calendar quantities and return an Ordering
-fn compare_calendar_quantities_ordering(
-    left_value: Decimal,
-    left_unit: CalendarUnit,
-    right_value: Decimal,
-    right_unit: CalendarUnit,
-) -> Result<Option<std::cmp::Ordering>, QuantityError> {
-    if left_unit == right_unit {
-        Ok(Some(left_value.cmp(&right_value)))
-    } else if left_unit.is_compatible_with(&right_unit) {
-        // Convert right to left unit and compare
-        let converted_right = convert_calendar_units(right_value, right_unit, left_unit)?;
-        Ok(Some(left_value.cmp(&converted_right)))
-    } else {
-        Ok(None)
-    }
-}
-
-/// Compare two calendar quantities for equivalence
-fn compare_calendar_quantities(
-    left_value: Decimal,
-    left_unit: CalendarUnit,
-    right_value: Decimal,
-    right_unit: CalendarUnit,
-) -> Result<bool, QuantityError> {
-    if left_unit == right_unit {
-        Ok((left_value - right_value).abs() < Decimal::new(1, 10))
-    } else if left_unit.is_compatible_with(&right_unit) {
-        // Convert right to left unit and compare
-        let converted_right = convert_calendar_units(right_value, right_unit, left_unit)?;
-        Ok((left_value - converted_right).abs() < Decimal::new(1, 10))
-    } else {
-        Ok(false)
-    }
-}
-
-/// Convert between calendar units
-fn convert_calendar_units(
-    value: Decimal,
-    from_unit: CalendarUnit,
-    to_unit: CalendarUnit,
-) -> Result<Decimal, QuantityError> {
-    if from_unit == to_unit {
-        return Ok(value);
-    }
-
-    // Get conversion factors in days using approximate_days
-    let from_days = Decimal::try_from(from_unit.approximate_days()).map_err(|_| {
-        QuantityError::EvaluationError("Failed to convert calendar unit to decimal".to_string())
-    })?;
-
-    let to_days = Decimal::try_from(to_unit.approximate_days()).map_err(|_| {
-        QuantityError::EvaluationError("Failed to convert calendar unit to decimal".to_string())
-    })?;
-
-    // Convert: value * from_days / to_days
-    Ok(value * from_days / to_days)
 }
 
 /// Parse and evaluate a UCUM unit (after FHIRPath display-unit normalization).
@@ -805,94 +913,6 @@ fn decimal_to_f64(value: Decimal) -> Result<f64, QuantityError> {
     value.to_f64().ok_or_else(|| {
         QuantityError::EvaluationError(format!("Quantity value {value} is out of range"))
     })
-}
-
-/// Both quantities expressed on one scale, for comparison: the magnitudes in
-/// base units for linear units, or the right value converted into the left
-/// unit when either is a special unit (`Cel`, `[degF]`, `[pH]`, ...), whose
-/// function is not a factor. `None` when the units are not commensurable.
-fn ucum_comparable_values(
-    left_value: Decimal,
-    left_unit: &str,
-    right_value: Decimal,
-    right_unit: &str,
-) -> Result<Option<(f64, f64)>, QuantityError> {
-    let left_eval = evaluate_unit(left_unit)?;
-    let right_eval = evaluate_unit(right_unit)?;
-
-    if left_eval.special.is_none() && right_eval.special.is_none() {
-        if !linear_commensurable(&left_eval, &right_eval) {
-            return Ok(None);
-        }
-        let left = decimal_to_f64(left_value)? * left_eval.factor.to_f64();
-        let right = decimal_to_f64(right_value)? * right_eval.factor.to_f64();
-        return Ok(Some((left, right)));
-    }
-
-    let left_normalized = normalize_ucum_unit(left_unit);
-    let right_normalized = normalize_ucum_unit(right_unit);
-    let comparable =
-        octofhir_ucum::is_comparable(left_normalized.as_ref(), right_normalized.as_ref())
-            .map_err(|e| QuantityError::EvaluationError(e.to_string()))?;
-    if !comparable {
-        return Ok(None);
-    }
-    let right_in_left = octofhir_ucum::convert(
-        decimal_to_f64(right_value)?,
-        right_normalized.as_ref(),
-        left_normalized.as_ref(),
-    )
-    .map_err(|e| QuantityError::EvaluationError(e.to_string()))?;
-    Ok(Some((decimal_to_f64(left_value)?, right_in_left)))
-}
-
-/// Convert and compare two UCUM quantities for ordering
-fn convert_and_compare_ucum_ordering(
-    left_value: Decimal,
-    left_unit: &str,
-    right_value: Decimal,
-    right_unit: &str,
-) -> Result<Option<std::cmp::Ordering>, QuantityError> {
-    Ok(
-        ucum_comparable_values(left_value, left_unit, right_value, right_unit)?.map(
-            |(left, right)| {
-                left.partial_cmp(&right)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            },
-        ),
-    )
-}
-
-/// Convert and compare two UCUM quantities for equivalence (with tolerance)
-fn convert_and_compare_ucum_equivalence(
-    left_value: Decimal,
-    left_unit: &str,
-    right_value: Decimal,
-    right_unit: &str,
-) -> Result<bool, QuantityError> {
-    let Some((left, right)) =
-        ucum_comparable_values(left_value, left_unit, right_value, right_unit)?
-    else {
-        return Ok(false);
-    };
-    // Use a more lenient tolerance for equivalence to account for measurement precision
-    // This allows for small differences that might occur in real-world measurements
-    let tolerance = (left.abs().max(right.abs())) * 0.01; // 1% tolerance
-    let min_tolerance = 1e-10; // Minimum absolute tolerance
-    Ok((left - right).abs() < tolerance.max(min_tolerance))
-}
-
-/// Convert and compare two UCUM quantities
-fn convert_and_compare_ucum(
-    left_value: Decimal,
-    left_unit: &str,
-    right_value: Decimal,
-    right_unit: &str,
-) -> Result<bool, QuantityError> {
-    Ok(
-        ucum_comparable_values(left_value, left_unit, right_value, right_unit)?
-            .is_some_and(|(left, right)| (left - right).abs() < 1e-10),
-    )
 }
 
 /// Check if two UCUM units are comparable (commensurable)

@@ -822,21 +822,21 @@ impl PrecisionDateTime {
 
 impl fmt::Display for PrecisionDateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.precision {
-            TemporalPrecision::Year => write!(f, "{}", self.datetime.format("%Y")),
-            TemporalPrecision::Month => write!(f, "{}", self.datetime.format("%Y-%m")),
-            TemporalPrecision::Day => write!(f, "{}", self.datetime.format("%Y-%m-%d")),
-            TemporalPrecision::Hour => write!(f, "{}", self.datetime.format("%Y-%m-%dT%H%:z")),
-            TemporalPrecision::Minute => {
-                write!(f, "{}", self.datetime.format("%Y-%m-%dT%H:%M%:z"))
-            }
-            TemporalPrecision::Second => {
-                write!(f, "{}", self.datetime.format("%Y-%m-%dT%H:%M:%S%:z"))
-            }
-            TemporalPrecision::Millisecond => {
-                write!(f, "{}", self.datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z"))
-            }
+        let base = match self.precision {
+            TemporalPrecision::Year => return write!(f, "{}", self.datetime.format("%Y")),
+            TemporalPrecision::Month => return write!(f, "{}", self.datetime.format("%Y-%m")),
+            TemporalPrecision::Day => return write!(f, "{}", self.datetime.format("%Y-%m-%d")),
+            TemporalPrecision::Hour => "%Y-%m-%dT%H",
+            TemporalPrecision::Minute => "%Y-%m-%dT%H:%M",
+            TemporalPrecision::Second => "%Y-%m-%dT%H:%M:%S",
+            TemporalPrecision::Millisecond => "%Y-%m-%dT%H:%M:%S%.3f",
+        };
+        write!(f, "{}", self.datetime.format(base))?;
+        // A value written without a timezone is shown without one.
+        if self.tz_specified {
+            write!(f, "{}", self.datetime.format("%:z"))?;
         }
+        Ok(())
     }
 }
 

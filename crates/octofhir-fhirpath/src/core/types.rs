@@ -923,11 +923,13 @@ impl FhirPathValue {
 
     /// The result of integer arithmetic on `left` and `right`: a Long when either operand
     /// is a Long (FHIRPath implicitly converts Integer to Long), otherwise an Integer.
-    pub fn integer_result(value: i64, left: &Self, right: &Self) -> Self {
+    /// `None` when an Integer result leaves the 32-bit Integer range: overflow is empty
+    /// (FHIRPath §1.4.1.3).
+    pub fn integer_result(value: i64, left: &Self, right: &Self) -> Option<Self> {
         if left.is_long() || right.is_long() {
-            Self::long(value)
+            Some(Self::long(value))
         } else {
-            Self::integer(value)
+            i32::try_from(value).ok().map(|_| Self::integer(value))
         }
     }
 
@@ -1491,9 +1493,15 @@ impl FhirPathValue {
 
     /// Create a quantity value with explicit calendar unit
     pub fn calendar_quantity(value: Decimal, calendar_unit: CalendarUnit) -> Self {
+        // The keyword reads as written: `1 day`, `180 seconds`.
+        let unit = if value.abs() == Decimal::ONE {
+            calendar_unit.to_string()
+        } else {
+            format!("{calendar_unit}s")
+        };
         Self::Quantity {
             value,
-            unit: Some(calendar_unit.to_string()),
+            unit: Some(unit),
             code: Some(calendar_unit.to_string()),
             system: None,
             ucum_unit: None,

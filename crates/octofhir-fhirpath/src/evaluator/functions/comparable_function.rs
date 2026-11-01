@@ -51,24 +51,6 @@ impl ComparableFunctionEvaluator {
         })
     }
 
-    /// Check if two units are comparable (same dimension) using UCUM library
-    fn are_units_comparable(
-        &self,
-        left_unit: &Option<String>,
-        right_unit: &Option<String>,
-    ) -> bool {
-        match (left_unit, right_unit) {
-            (Some(left), Some(right)) => {
-                // Use the UCUM library to check if units are comparable
-                quantity_utils::are_ucum_units_comparable(left, right).unwrap_or(false) // If there's an error (e.g., invalid unit), consider them not comparable
-            }
-            // If both units are None, they are comparable (both dimensionless)
-            (None, None) => true,
-            // If only one unit is missing, consider them not comparable
-            _ => false,
-        }
-    }
-
     /// Check if two FhirPath values are comparable
     fn are_comparable(&self, left: &FhirPathValue, right: &FhirPathValue) -> bool {
         match (left, right) {
@@ -85,15 +67,40 @@ impl ComparableFunctionEvaluator {
             (FhirPathValue::Integer(_, _, _), FhirPathValue::Decimal(_, _, _)) => true,
             (FhirPathValue::Decimal(_, _, _), FhirPathValue::Integer(_, _, _)) => true,
 
-            // Quantities are comparable if they have compatible units
-            (
-                FhirPathValue::Quantity {
-                    unit: left_unit, ..
-                },
-                FhirPathValue::Quantity {
-                    unit: right_unit, ..
-                },
-            ) => self.are_units_comparable(left_unit, right_unit),
+            // Quantities are comparable when their units are commensurable; a number is a
+            // quantity with the unit '1' (`2 '1'.comparable(3)`).
+            (FhirPathValue::Quantity { .. }, _) | (_, FhirPathValue::Quantity { .. }) => {
+                let left = quantity_utils::number_as_quantity(left);
+                let right = quantity_utils::number_as_quantity(right);
+                match (left.as_ref(), right.as_ref()) {
+                    (
+                        FhirPathValue::Quantity {
+                            value: lv,
+                            unit: lu,
+                            code: lc,
+                            calendar_unit: lcal,
+                            ..
+                        },
+                        FhirPathValue::Quantity {
+                            value: rv,
+                            unit: ru,
+                            code: rc,
+                            calendar_unit: rcal,
+                            ..
+                        },
+                    ) => quantity_utils::align_quantities(
+                        *lv,
+                        lc.as_deref().or(lu.as_deref()),
+                        *lcal,
+                        *rv,
+                        rc.as_deref().or(ru.as_deref()),
+                        *rcal,
+                        quantity_utils::QuantityComparison::Ordering,
+                    )
+                    .is_some(),
+                    _ => false,
+                }
+            }
 
             // Different types are generally not comparable
             _ => false,

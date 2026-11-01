@@ -56,7 +56,14 @@ impl LastIndexOfFunctionEvaluator {
     /// Find last substring index in string
     fn find_last_substring_index(haystack: &str, needle: &str) -> i64 {
         match haystack.rfind(needle) {
-            Some(index) => index as i64,
+            Some(index) => {
+                if haystack.is_ascii() {
+                    index as i64
+                } else {
+                    // Convert byte offset to Unicode scalar value offset
+                    haystack[..index].chars().count() as i64
+                }
+            }
             None => -1,
         }
     }

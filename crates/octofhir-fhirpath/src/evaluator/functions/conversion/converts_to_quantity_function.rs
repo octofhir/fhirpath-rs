@@ -6,7 +6,7 @@ use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
 use std::sync::Arc;
 
@@ -24,11 +24,20 @@ impl ConvertsToQuantityFunctionEvaluator {
                 description: "Tests if the input can be converted to a Quantity".to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
-                    parameters: vec![],
+                    parameters: vec![FunctionParameter {
+                        name: "unit".to_string(),
+                        parameter_type: vec!["String".to_string()],
+                        optional: true,
+                        is_expression: false,
+                        description:
+                            "UCUM code or calendar duration keyword the value must convert to"
+                                .to_string(),
+                        default_value: None,
+                    }],
                     return_type: "Boolean".to_string(),
                     polymorphic: false,
                     min_params: 0,
-                    max_params: Some(0),
+                    max_params: Some(1),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
                 null_propagation: NullPropagationStrategy::Focus,
@@ -53,33 +62,23 @@ impl PureFunctionEvaluator for ConvertsToQuantityFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
-        if !args.is_empty() {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                "convertsToQuantity function takes no arguments".to_string(),
-            ));
-        }
-
-        let mut results = Vec::new();
-
-        for value in input {
-            let can_convert = match &value {
-                FhirPathValue::String(s, _, _) => {
-                    // Use strict FHIRPath-aware string→Quantity parser
-                    crate::evaluator::quantity_utils::parse_string_to_quantity_value(s).is_some()
-                }
-                FhirPathValue::Integer(_, _, _) => true, // Numbers can be converted to quantities
-                FhirPathValue::Decimal(_, _, _) => true, // Decimals can be converted to quantities
-                FhirPathValue::Quantity { .. } => true,  // Already a Quantity
-                FhirPathValue::Boolean(_, _, _) => true, // Booleans are considered convertible per spec
-                _ => false, // Other types cannot be converted to Quantity
-            };
-
-            results.push(FhirPathValue::boolean(can_convert));
-        }
-
+        let unit = super::to_quantity_function::unit_argument(&args, "convertsToQuantity")?;
+        let value = match input.len() {
+            0 => None,
+            1 => Some(FhirPathValue::boolean(
+                super::to_quantity_function::to_quantity(&input[0], unit.as_deref()).is_some(),
+            )),
+            _ => {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0053,
+                    "convertsToQuantity requires a single input item".to_string(),
+                ));
+            }
+        };
         Ok(EvaluationResult {
-            value: crate::core::Collection::from(results),
+            value: value
+                .map(Collection::single)
+                .unwrap_or_else(Collection::empty),
         })
     }
 

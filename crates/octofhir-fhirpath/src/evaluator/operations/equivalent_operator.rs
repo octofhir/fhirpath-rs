@@ -187,6 +187,19 @@ impl EquivalentOperatorEvaluator {
             // Time equivalence
             (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => Some(l == r),
 
+            // A number meets a quantity as a quantity with the unit '1' (`23 ~ 23 '1'`).
+            (
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+                FhirPathValue::Quantity { .. },
+            )
+            | (
+                FhirPathValue::Quantity { .. },
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+            ) => self.compare_values(
+                &quantity_utils::number_as_quantity(left),
+                &quantity_utils::number_as_quantity(right),
+            ),
+
             // Quantity equivalence (with unit normalization)
             (
                 FhirPathValue::Quantity {

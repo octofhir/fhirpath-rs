@@ -13,14 +13,14 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 108 | 100% |
 | **Total Individual Tests** | 1347 | 100% |
-| **Passing Tests** | 1189 | 88.3% |
-| **Failing Tests** | 35 | 2.6% |
+| **Passing Tests** | 1190 | 88.3% |
+| **Failing Tests** | 34 | 2.5% |
 | **Error Tests** | 8 | 0.6% |
 | **Skipped Tests** | 115 | 8.5% |
 
 ## Test Results by Suite
 
-### 🟡 OFFICIAL-R5 (88.3% - 1189/1347 tests)
+### 🟡 OFFICIAL-R5 (88.3% - 1190/1347 tests)
 
 - **Comparable.json** - 100.0% (3/3 tests) (Complete)
 - **HTMLChecks.json** - 100.0% (4/4 tests) (Complete)
@@ -75,7 +75,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testIntersect.json** - 100.0% (4/4 tests) (Complete)
 - **testJoin.json** - 100.0% (2/2 tests) (Complete)
 - **testLength.json** - 100.0% (6/6 tests) (Complete)
-- **testLessOrEqual.json** - 100.0% (33/33 tests) (Complete)
 - **testLiterals.json** - 100.0% (83/83 tests) (Complete)
 - **testLn.json** - 100.0% (3/3 tests) (Complete)
 - **testLog.json** - 100.0% (5/5 tests) (Complete)
@@ -92,6 +91,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testPower.json** - 100.0% (6/6 tests) (Complete)
 - **testPrecedence.json** - 100.0% (6/6 tests) (Complete)
 - **testQuantity.json** - 100.0% (11/11 tests) (Complete)
+- **testQuantityUnitComparison.json** - 100.0% (8/8 tests) (Complete)
 - **testRepeat.json** - 100.0% (5/5 tests) (Complete)
 - **testReplace.json** - 100.0% (6/6 tests) (Complete)
 - **testReplaceMatches.json** - 100.0% (7/7 tests) (Complete)
@@ -123,11 +123,11 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testWhere.json** - 100.0% (4/4 tests) (Complete)
 - **testLessThan.json** - 97.2% (35/36 tests) (Partial)
 - **testGreaterThan.json** - 97.0% (32/33 tests) (Partial)
+- **testLessOrEqual.json** - 97.0% (32/33 tests) (Partial)
 - **testInheritance.json** - 95.8% (23/24 tests) (Partial)
 - **testDistinct.json** - 94.4% (34/36 tests) (Partial)
 - **LowBoundary.json** - 89.2% (33/37 tests) (Partial)
 - **HighBoundary.json** - 84.8% (28/33 tests) (Partial)
-- **testQuantityUnitComparison.json** - 75.0% (6/8 tests) (Partial)
 - **isSemanticChecks.json** - 28.9% (11/38 tests) (⚠️ 8 errors)
 - **documentFunctions.json** - 0.0% (0/115 tests) (Not implemented)
 
@@ -188,7 +188,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testIntersect.json** - 4/4 tests (official-r5)
 - **testJoin.json** - 2/2 tests (official-r5)
 - **testLength.json** - 6/6 tests (official-r5)
-- **testLessOrEqual.json** - 33/33 tests (official-r5)
 - **testLiterals.json** - 83/83 tests (official-r5)
 - **testLn.json** - 3/3 tests (official-r5)
 - **testLog.json** - 5/5 tests (official-r5)
@@ -205,6 +204,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testPower.json** - 6/6 tests (official-r5)
 - **testPrecedence.json** - 6/6 tests (official-r5)
 - **testQuantity.json** - 11/11 tests (official-r5)
+- **testQuantityUnitComparison.json** - 8/8 tests (official-r5)
 - **testRepeat.json** - 5/5 tests (official-r5)
 - **testReplace.json** - 6/6 tests (official-r5)
 - **testReplaceMatches.json** - 7/7 tests (official-r5)
@@ -239,11 +239,11 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 - **testLessThan.json** - 97.2% (35/36 tests) (official-r5)
 - **testGreaterThan.json** - 97.0% (32/33 tests) (official-r5)
+- **testLessOrEqual.json** - 97.0% (32/33 tests) (official-r5)
 - **testInheritance.json** - 95.8% (23/24 tests) (official-r5)
 - **testDistinct.json** - 94.4% (34/36 tests) (official-r5)
 - **LowBoundary.json** - 89.2% (33/37 tests) (official-r5)
 - **HighBoundary.json** - 84.8% (28/33 tests) (official-r5)
-- **testQuantityUnitComparison.json** - 75.0% (6/8 tests) (official-r5)
 
 ### 🟠 Partially Implemented (30-70%)
 
@@ -265,5 +265,5 @@ The fhirpath-rs implementation currently passes approximately **88.3% of all FHI
 
 ---
 
-*Report generated on: 2026-11-01 14:02:35*
+*Report generated on: 2026-11-01 17:15:06*
 *Command: `just test-official-r5` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --official r5`*

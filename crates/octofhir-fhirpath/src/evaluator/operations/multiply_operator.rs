@@ -42,11 +42,16 @@ impl MultiplyOperatorEvaluator {
         left: &FhirPathValue,
         right: &FhirPathValue,
     ) -> Option<FhirPathValue> {
+        if crate::evaluator::quantity_utils::has_special_unit(left)
+            || crate::evaluator::quantity_utils::has_special_unit(right)
+        {
+            return None;
+        }
         match (left, right) {
             // Integer multiplication
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => l
                 .checked_mul(*r)
-                .map(|v| FhirPathValue::integer_result(v, left, right)),
+                .and_then(|v| FhirPathValue::integer_result(v, left, right)),
 
             // Decimal multiplication
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {

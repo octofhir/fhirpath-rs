@@ -138,7 +138,9 @@ impl PureFunctionEvaluator for PrecisionFunctionEvaluator {
                 };
                 FhirPathValue::integer(count)
             }
-            FhirPathValue::Decimal(decimal, _, _) => {
+            // A quantity's precision is its value's, trailing zeroes included.
+            FhirPathValue::Decimal(decimal, _, _)
+            | FhirPathValue::Quantity { value: decimal, .. } => {
                 // For decimals, return number of decimal places as integer
                 let decimal_str = decimal.to_string();
                 let decimal_places = if let Some(dot_pos) = decimal_str.find('.') {

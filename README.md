@@ -142,17 +142,20 @@ Run `just qa` to verify all quality checks pass.
 
 The engine tracks FHIRPath 3.x (STU3, with the 3.1 CI build in [`spec/`](spec/)).
 
-- **Curated gate**: `just test-coverage` runs 1228 tests (the R5 suite plus FHIRPath 3
+- **Curated gate**: `just test-coverage` runs 1286 tests (the R5 suite plus FHIRPath 3
   features) and every one must pass. See [TEST_COVERAGE.md](TEST_COVERAGE.md).
 - **Official suites**: the current [fhir-test-cases](https://github.com/FHIR/fhir-test-cases)
   R5 and R6 suites live in [`test-cases/official`](test-cases/official/) and run with
   `just test-official-r5` / `just test-official-r6` (report only). Of the tests that run,
-  96.5% (R5) and 96.9% (R6) pass; the Java RI `documentFunctions` group is skipped.
+  96.6% (R5) and 97.0% (R6) pass; the Java RI `documentFunctions` group is skipped.
 
 FHIRPath 3.x features include instance selectors (`Coding { system: 'x', code: 'y' }`,
 `{ : }`), `sort()` with `asc`/`desc`, `pathname()`, the Long type with `toLong()`,
-`dateOf()`/`timeOf()`/`millisecondOf()`, regex flags, UCUM unit arithmetic on quantities
-(`3 'm' + 3 'cm'` is `303 'cm'`, `12 'cm' * 3 'cm'` is `36 'cm2'`), and `%rootResource`.
+the date/time component functions, `duration()`/`difference()`, `toDate()`/`toDateTime()`
+with format codes, regex flags, and quantities per the 3.1 unit rules: UCUM arithmetic
+(`3 'm' + 3 'cm'` is `303 'cm'`, `12 'cm' * 3 'cm'` is `36 'cm2'`), `toQuantity(unit)`,
+calendar/UCUM time units in equality and equivalence (`1 year = 12 months`), and
+`%rootResource`.
 The `%factory` API follows the FHIR API Incubator, and the SQL on FHIR functions
 `getResourceKey()` / `getReferenceKey()` are available behind the `sql-on-fhir` feature.
 

@@ -5,11 +5,11 @@
 
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
 
 /// ConvertsToDate function evaluator
@@ -26,11 +26,18 @@ impl ConvertsToDateFunctionEvaluator {
                 description: "Tests whether a value can be converted to a date".to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
-                    parameters: vec![],
+                    parameters: vec![FunctionParameter {
+                        name: "format".to_string(),
+                        parameter_type: vec!["String".to_string()],
+                        optional: true,
+                        is_expression: false,
+                        description: "Optional date/time format string".to_string(),
+                        default_value: None,
+                    }],
                     return_type: "Boolean".to_string(),
                     polymorphic: false,
                     min_params: 0,
-                    max_params: Some(0),
+                    max_params: Some(1),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
                 null_propagation: NullPropagationStrategy::Focus,
@@ -55,12 +62,7 @@ impl PureFunctionEvaluator for ConvertsToDateFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
-        if !args.is_empty() {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                "convertsToDate function takes no arguments".to_string(),
-            ));
-        }
+        let format = super::date_format::format_arg(&args, "convertsToDate")?;
 
         let mut results = Vec::new();
 
@@ -68,6 +70,13 @@ impl PureFunctionEvaluator for ConvertsToDateFunctionEvaluator {
             let can_convert = match &value {
                 FhirPathValue::Date(_, _, _) => true,
                 FhirPathValue::DateTime(_, _, _) => true,
+                FhirPathValue::String(str_val, _, _) if format.is_some() => {
+                    super::date_format::parse_date_with_format(
+                        str_val,
+                        format.as_deref().unwrap_or(""),
+                    )
+                    .is_some()
+                }
                 FhirPathValue::String(str_val, _, _) => {
                     // Try to parse the string as a date using the temporal module
                     use crate::core::temporal::PrecisionDate;

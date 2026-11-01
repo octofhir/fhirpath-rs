@@ -131,12 +131,15 @@ impl PureFunctionEvaluator for DecodeFunctionEvaluator {
                             format!("Invalid base64 string: {e}"),
                         )
                     })?;
-                String::from_utf8(bytes).map_err(|e| {
-                    FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0060,
-                        format!("Base64 decoded bytes are not valid UTF-8: {e}"),
-                    )
-                })?
+                match String::from_utf8(bytes) {
+                    Ok(s) => s,
+                    // Not valid UTF-8: result is empty
+                    Err(_) => {
+                        return Ok(EvaluationResult {
+                            value: crate::core::Collection::empty(),
+                        });
+                    }
+                }
             }
             "urlbase64" => {
                 let bytes = base64::engine::general_purpose::URL_SAFE
@@ -147,12 +150,15 @@ impl PureFunctionEvaluator for DecodeFunctionEvaluator {
                             format!("Invalid URL-safe base64 string: {e}"),
                         )
                     })?;
-                String::from_utf8(bytes).map_err(|e| {
-                    FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0060,
-                        format!("URL-safe base64 decoded bytes are not valid UTF-8: {e}"),
-                    )
-                })?
+                match String::from_utf8(bytes) {
+                    Ok(s) => s,
+                    // Not valid UTF-8: result is empty
+                    Err(_) => {
+                        return Ok(EvaluationResult {
+                            value: crate::core::Collection::empty(),
+                        });
+                    }
+                }
             }
             "hex" => {
                 let bytes = hex::decode(&input_str).map_err(|e| {
@@ -161,12 +167,15 @@ impl PureFunctionEvaluator for DecodeFunctionEvaluator {
                         format!("Invalid hex string: {e}"),
                     )
                 })?;
-                String::from_utf8(bytes).map_err(|e| {
-                    FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0060,
-                        format!("Hex decoded bytes are not valid UTF-8: {e}"),
-                    )
-                })?
+                match String::from_utf8(bytes) {
+                    Ok(s) => s,
+                    // Not valid UTF-8: result is empty
+                    Err(_) => {
+                        return Ok(EvaluationResult {
+                            value: crate::core::Collection::empty(),
+                        });
+                    }
+                }
             }
             "url" => urlencoding::decode(&input_str)
                 .map_err(|e| {

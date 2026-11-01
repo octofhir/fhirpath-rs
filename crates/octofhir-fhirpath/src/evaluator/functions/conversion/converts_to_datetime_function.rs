@@ -2,11 +2,11 @@
 //!
 //! This function tests if a value can be converted to a DateTime.
 
-use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
 use std::sync::Arc;
 
@@ -24,11 +24,18 @@ impl ConvertsToDateTimeFunctionEvaluator {
                 description: "Tests if the input can be converted to a DateTime".to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
-                    parameters: vec![],
+                    parameters: vec![FunctionParameter {
+                        name: "format".to_string(),
+                        parameter_type: vec!["String".to_string()],
+                        optional: true,
+                        is_expression: false,
+                        description: "Optional date/time format string".to_string(),
+                        default_value: None,
+                    }],
                     return_type: "Boolean".to_string(),
                     polymorphic: false,
                     min_params: 0,
-                    max_params: Some(0),
+                    max_params: Some(1),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
                 null_propagation: NullPropagationStrategy::Focus,
@@ -53,17 +60,19 @@ impl PureFunctionEvaluator for ConvertsToDateTimeFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
-        if !args.is_empty() {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                "convertsToDateTime function takes no arguments".to_string(),
-            ));
-        }
+        let format = super::date_format::format_arg(&args, "convertsToDateTime")?;
 
         let mut results = Vec::new();
 
         for value in input {
             let can_convert = match &value {
+                FhirPathValue::String(s, _, _) if format.is_some() => {
+                    super::date_format::parse_datetime_with_format(
+                        s,
+                        format.as_deref().unwrap_or(""),
+                    )
+                    .is_some()
+                }
                 FhirPathValue::String(s, _, _) => {
                     // Test if string can be parsed as DateTime, Date, or partial datetime (which can be converted to DateTime)
                     use crate::core::temporal::{PrecisionDate, PrecisionDateTime};

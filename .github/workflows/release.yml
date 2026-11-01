@@ -167,7 +167,7 @@ jobs:
         run: |
           cargo test --package fhirpath-dev-tools --bin test-coverage
           # A failed gate blocks build-binaries and its release/publish dependents.
-          cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1228
+          cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1286
 
       - name: Build fhirpath-cli binary with all features
         run: |

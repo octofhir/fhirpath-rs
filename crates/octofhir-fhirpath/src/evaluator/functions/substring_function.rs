@@ -139,26 +139,32 @@ impl PureFunctionEvaluator for SubstringFunctionEvaluator {
         for value in input {
             match &value {
                 FhirPathValue::String(s, _, _) => {
-                    let chars: Vec<char> = s.chars().collect();
-                    let str_len = chars.len() as i64;
-
-                    // According to FHIRPath spec, negative start or start >= string length should return empty
-                    if start < 0 || start >= str_len {
-                        // Return empty collection - don't add anything to results
-                        continue;
-                    }
-
-                    let start_idx = start as usize;
-
-                    let substring = if let Some(len) = length {
-                        if len <= 0 {
-                            String::new()
-                        } else {
-                            let end_idx = (start_idx + len as usize).min(chars.len());
-                            chars[start_idx..end_idx].iter().collect()
+                    let substring = if s.is_ascii() {
+                        // Fast path: byte offsets equal character offsets
+                        let str_len = s.len() as i64;
+                        if start < 0 || start >= str_len {
+                            continue;
+                        }
+                        let start_idx = start as usize;
+                        match length {
+                            Some(len) if len <= 0 => String::new(),
+                            Some(len) => {
+                                let end_idx = start_idx.saturating_add(len as usize).min(s.len());
+                                s[start_idx..end_idx].to_string()
+                            }
+                            None => s[start_idx..].to_string(),
                         }
                     } else {
-                        chars[start_idx..].iter().collect()
+                        let str_len = s.chars().count() as i64;
+                        if start < 0 || start >= str_len {
+                            continue;
+                        }
+                        let it = s.chars().skip(start as usize);
+                        match length {
+                            Some(len) if len <= 0 => String::new(),
+                            Some(len) => it.take(len as usize).collect(),
+                            None => it.collect(),
+                        }
                     };
 
                     results.push(FhirPathValue::string(substring));

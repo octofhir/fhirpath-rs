@@ -798,7 +798,7 @@
       ],
       "inputfile": "patient-example.json",
       "expected": [
-        0
+        0.0
       ],
       "subcategory": "extraction"
     },
@@ -813,7 +813,7 @@
       ],
       "inputfile": "patient-example.json",
       "expected": [
-        300
+        5.0
       ],
       "subcategory": "extraction"
     },
@@ -828,7 +828,7 @@
       ],
       "inputfile": "patient-example.json",
       "expected": [
-        -300
+        -5.0
       ],
       "subcategory": "extraction"
     },
@@ -843,7 +843,7 @@
       ],
       "inputfile": "patient-example.json",
       "expected": [
-        330
+        5.5
       ],
       "subcategory": "extraction"
     },

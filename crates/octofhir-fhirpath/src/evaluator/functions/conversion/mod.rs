@@ -3,6 +3,7 @@
 //! This module contains conversion functions that convert values between different types.
 
 // Conversion functions
+pub mod date_format;
 pub mod to_boolean_function;
 pub mod to_date_function;
 pub mod to_datetime_function;

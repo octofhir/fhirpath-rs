@@ -5,11 +5,11 @@
 
 use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
-    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
 
 /// ToDateTime function evaluator
@@ -26,11 +26,18 @@ impl ToDateTimeFunctionEvaluator {
                 description: "Converts a value to a datetime".to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
-                    parameters: vec![],
+                    parameters: vec![FunctionParameter {
+                        name: "format".to_string(),
+                        parameter_type: vec!["String".to_string()],
+                        optional: true,
+                        is_expression: false,
+                        description: "Optional date/time format string".to_string(),
+                        default_value: None,
+                    }],
                     return_type: "DateTime".to_string(),
                     polymorphic: false,
                     min_params: 0,
-                    max_params: Some(0),
+                    max_params: Some(1),
                 },
                 argument_evaluation: ArgumentEvaluationStrategy::Current,
                 null_propagation: NullPropagationStrategy::Focus,
@@ -55,12 +62,7 @@ impl PureFunctionEvaluator for ToDateTimeFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
-        if !args.is_empty() {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                "toDateTime function takes no arguments".to_string(),
-            ));
-        }
+        let format = super::date_format::format_arg(&args, "toDateTime")?;
 
         if input.len() != 1 {
             return Ok(EvaluationResult {
@@ -90,6 +92,10 @@ impl PureFunctionEvaluator for ToDateTimeFunctionEvaluator {
                 let precision_datetime =
                     PrecisionDateTime::new_with_tz(datetime, precision_date.precision, false);
                 Some(FhirPathValue::datetime(precision_datetime))
+            }
+            FhirPathValue::String(s, _, _) if format.is_some() => {
+                super::date_format::parse_datetime_with_format(s, format.as_deref().unwrap_or(""))
+                    .map(FhirPathValue::datetime)
             }
             FhirPathValue::String(s, _, _) => {
                 // Try to parse string as datetime or date

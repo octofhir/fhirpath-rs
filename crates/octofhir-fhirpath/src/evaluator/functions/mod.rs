@@ -78,23 +78,17 @@ pub mod truncate_function;
 pub mod define_variable_function;
 
 // Temporal functions
+pub mod date_component_function;
 pub mod date_time_of_function;
-pub mod day_of_function;
 pub mod difference_function;
 pub mod duration_function;
-pub mod hour_of_function;
 pub mod millisecond_function;
-pub mod minute_of_function;
-pub mod month_of_function;
 pub mod now_function;
 pub mod pathname_function;
-pub mod second_of_function;
 #[cfg(feature = "sql-on-fhir")]
 pub mod sql_on_fhir;
 pub mod time_of_day_function;
-pub mod timezone_offset_of_function;
 pub mod today_function;
-pub mod year_of_function;
 
 // Validation functions
 pub mod has_value_function;
@@ -230,19 +224,12 @@ pub use truncate_function::TruncateFunctionEvaluator;
 pub use define_variable_function::DefineVariableFunctionEvaluator;
 
 // Temporal functions
-pub use day_of_function::DayOfFunctionEvaluator;
 pub use difference_function::DifferenceFunctionEvaluator;
 pub use duration_function::DurationFunctionEvaluator;
-pub use hour_of_function::HourOfFunctionEvaluator;
 pub use millisecond_function::MillisecondFunctionEvaluator;
-pub use minute_of_function::MinuteOfFunctionEvaluator;
-pub use month_of_function::MonthOfFunctionEvaluator;
 pub use now_function::NowFunctionEvaluator;
-pub use second_of_function::SecondOfFunctionEvaluator;
 pub use time_of_day_function::TimeOfDayFunctionEvaluator;
-pub use timezone_offset_of_function::TimezoneOffsetOfFunctionEvaluator;
 pub use today_function::TodayFunctionEvaluator;
-pub use year_of_function::YearOfFunctionEvaluator;
 
 // Validation functions
 pub use has_value_function::HasValueFunctionEvaluator;

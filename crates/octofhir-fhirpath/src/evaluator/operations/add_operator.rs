@@ -53,7 +53,7 @@ impl AddOperatorEvaluator {
             // Integer addition
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => l
                 .checked_add(*r)
-                .map(|v| FhirPathValue::integer_result(v, left, right)),
+                .and_then(|v| FhirPathValue::integer_result(v, left, right)),
 
             // Decimal addition
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
@@ -70,36 +70,24 @@ impl AddOperatorEvaluator {
                 Some(FhirPathValue::decimal(*l + right_decimal))
             }
 
-            // Quantity addition - requires same units or compatible units via UCUM
-            (
-                FhirPathValue::Quantity {
-                    value: lv,
-                    unit: lu,
-                    code: lc,
-                    system: ls,
-                    ..
-                },
-                FhirPathValue::Quantity {
-                    value: rv,
-                    unit: ru,
-                    code: rc,
-                    system: rs,
-                    ..
-                },
-            ) => {
-                if lu == ru {
-                    // Same units - simple addition
-                    Some(FhirPathValue::quantity_with_components(
-                        *lv + *rv,
-                        lu.clone(),
-                        lc.clone().or_else(|| rc.clone()),
-                        ls.clone().or_else(|| rs.clone()),
-                    ))
-                } else {
-                    // Different units: combine in the finer unit when commensurable
-                    crate::evaluator::quantity_utils::add_quantities(left, right, false)
-                }
+            // Quantity addition: commensurable units, in the finer unit
+            (FhirPathValue::Quantity { .. }, FhirPathValue::Quantity { .. }) => {
+                crate::evaluator::quantity_utils::add_quantities(left, right, false)
             }
+
+            // A number meets a quantity as a quantity with the unit '1' (`2 + 2 '1'`).
+            (
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+                FhirPathValue::Quantity { .. },
+            )
+            | (
+                FhirPathValue::Quantity { .. },
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+            ) => crate::evaluator::quantity_utils::add_quantities(
+                &crate::evaluator::quantity_utils::number_as_quantity(left),
+                &crate::evaluator::quantity_utils::number_as_quantity(right),
+                false,
+            ),
 
             // Date + Quantity (time-valued) = Date
             (
@@ -483,7 +471,7 @@ impl OperationEvaluator for AddOperatorEvaluator {
             FhirPathValue::Date(..) | FhirPathValue::DateTime(..) | FhirPathValue::Time(..)
         ) {
             right_owned =
-                crate::evaluator::quantity_utils::definite_duration_as_calendar(right_value)
+                crate::evaluator::quantity_utils::duration_for_temporal(left_value, right_value)
                     .into_owned();
             &right_owned
         } else {

@@ -53,7 +53,9 @@ impl ConvertsToDecimalFunctionEvaluator {
             // String can be converted if it represents a valid decimal
             FhirPathValue::String(s, _, _) => {
                 use rust_decimal::Decimal;
-                s.parse::<Decimal>().is_ok()
+                super::to_decimal_function::long_literal_text(s.trim())
+                    .parse::<Decimal>()
+                    .is_ok()
             }
             // Boolean can be converted to decimal (false=0.0, true=1.0)
             FhirPathValue::Boolean(_, _, _) => true,

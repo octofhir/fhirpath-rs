@@ -58,7 +58,7 @@ impl ModuloOperatorEvaluator {
                     return Ok(None);
                 }
                 Ok(l.checked_rem(*r)
-                    .map(|v| FhirPathValue::integer_result(v, left, right)))
+                    .and_then(|v| FhirPathValue::integer_result(v, left, right)))
             }
             // Decimal modulo, with an Integer operand implicitly converted to Decimal.
             // The remainder of a truncated division keeps the dividend's sign.

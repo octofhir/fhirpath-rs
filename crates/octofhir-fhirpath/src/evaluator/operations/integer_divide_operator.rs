@@ -50,7 +50,7 @@ impl IntegerDivideOperatorEvaluator {
                     return Ok(None);
                 }
                 Ok(l.checked_div(*r)
-                    .map(|v| FhirPathValue::integer_result(v, left, right)))
+                    .and_then(|v| FhirPathValue::integer_result(v, left, right)))
             }
 
             // Decimal integer division (truncate to integer)

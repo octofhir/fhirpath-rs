@@ -79,7 +79,7 @@ impl PureFunctionEvaluator for ToDecimalFunctionEvaluator {
                 }
                 FhirPathValue::String(s, _, _) => {
                     // Try to parse string as decimal, return empty if parsing fails
-                    if let Ok(decimal_value) = s.trim().parse::<Decimal>() {
+                    if let Ok(decimal_value) = long_literal_text(s.trim()).parse::<Decimal>() {
                         results.push(FhirPathValue::decimal(decimal_value));
                     }
                     // If parsing fails, don't add anything to results (effectively returns empty)
@@ -97,5 +97,24 @@ impl PureFunctionEvaluator for ToDecimalFunctionEvaluator {
 
     fn metadata(&self) -> &FunctionMetadata {
         &self.metadata
+    }
+}
+
+/// A string's Long literal (`'42L'`) as its digits, which convert to a decimal like an
+/// integer string (FHIRPath §1.5.5.6.1); any other text unchanged.
+pub(crate) fn long_literal_text(s: &str) -> &str {
+    match s.strip_suffix('L') {
+        Some(digits)
+            if !digits.is_empty()
+                && digits
+                    .strip_prefix(['+', '-'])
+                    .unwrap_or(digits)
+                    .bytes()
+                    .all(|b| b.is_ascii_digit())
+                && digits.len() > usize::from(digits.starts_with(['+', '-'])) =>
+        {
+            digits
+        }
+        _ => s,
     }
 }

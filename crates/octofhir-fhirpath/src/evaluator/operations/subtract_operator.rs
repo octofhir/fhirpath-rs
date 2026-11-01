@@ -49,7 +49,7 @@ impl SubtractOperatorEvaluator {
             // Integer subtraction
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => Ok(l
                 .checked_sub(*r)
-                .map(|v| FhirPathValue::integer_result(v, left, right))),
+                .and_then(|v| FhirPathValue::integer_result(v, left, right))),
 
             // Decimal subtraction
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
@@ -66,38 +66,24 @@ impl SubtractOperatorEvaluator {
                 Ok(Some(FhirPathValue::decimal(*l - right_decimal)))
             }
 
-            // Quantity subtraction - requires same units or compatible units via UCUM
+            // Quantity subtraction: commensurable units, in the finer unit
+            (FhirPathValue::Quantity { .. }, FhirPathValue::Quantity { .. }) => Ok(
+                crate::evaluator::quantity_utils::add_quantities(left, right, true),
+            ),
+
+            // A number meets a quantity as a quantity with the unit '1' (`2 + 2 '1'`).
             (
-                FhirPathValue::Quantity {
-                    value: lv,
-                    unit: lu,
-                    code: lc,
-                    system: ls,
-                    ..
-                },
-                FhirPathValue::Quantity {
-                    value: rv,
-                    unit: ru,
-                    code: rc,
-                    system: rs,
-                    ..
-                },
-            ) => {
-                if lu == ru {
-                    // Same units - simple subtraction
-                    Ok(Some(FhirPathValue::quantity_with_components(
-                        *lv - *rv,
-                        lu.clone(),
-                        lc.clone().or_else(|| rc.clone()),
-                        ls.clone().or_else(|| rs.clone()),
-                    )))
-                } else {
-                    // Different units: combine in the finer unit when commensurable
-                    Ok(crate::evaluator::quantity_utils::add_quantities(
-                        left, right, true,
-                    ))
-                }
-            }
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+                FhirPathValue::Quantity { .. },
+            )
+            | (
+                FhirPathValue::Quantity { .. },
+                FhirPathValue::Integer(..) | FhirPathValue::Decimal(..),
+            ) => Ok(crate::evaluator::quantity_utils::add_quantities(
+                &crate::evaluator::quantity_utils::number_as_quantity(left),
+                &crate::evaluator::quantity_utils::number_as_quantity(right),
+                true,
+            )),
 
             // Date - Quantity (time-valued) = Date
             (
@@ -401,7 +387,7 @@ impl OperationEvaluator for SubtractOperatorEvaluator {
             FhirPathValue::Date(..) | FhirPathValue::DateTime(..) | FhirPathValue::Time(..)
         ) {
             right_owned =
-                crate::evaluator::quantity_utils::definite_duration_as_calendar(right_value)
+                crate::evaluator::quantity_utils::duration_for_temporal(left_value, right_value)
                     .into_owned();
             &right_owned
         } else {

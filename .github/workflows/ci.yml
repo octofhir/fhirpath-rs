@@ -125,7 +125,7 @@ jobs:
         run: |
           cargo test --package fhirpath-dev-tools --bin test-coverage
           # Same strict gate as just test-coverage; no percentage rounding.
-          cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1228
+          cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1286
 
       - name: Run tests (release mode - Windows no doctests)
         if: matrix.os == 'windows-latest'

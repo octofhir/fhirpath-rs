@@ -179,7 +179,11 @@ impl EqualsOperatorEvaluator {
             }
 
             // Date equality
-            (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => Some(l == r),
+            // Dates of different precision are equal-or-empty up to the common precision
+            // (`@2012-01 = @2012` is empty, `@2012-01 = @2013` false).
+            (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => {
+                l.partial_cmp(r).map(|ordering| ordering.is_eq())
+            }
 
             // DateTime equality
             (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
@@ -231,44 +235,9 @@ impl EqualsOperatorEvaluator {
                     ..
                 },
             ) => {
-                // Handle bridging between calendar units and UCUM codes for specific units
-                let left_has_cal = lc.is_some();
-                let right_has_cal = rc.is_some();
-                if left_has_cal ^ right_has_cal {
-                    // One side is calendar unit, other side might be UCUM
-                    // Use code if available, otherwise fall back to unit
-                    let (cal_value, cal_unit, other_value, other_unit_opt, other_code_opt) =
-                        if left_has_cal {
-                            (*lv, lc.unwrap(), *rv, ru, rcode)
-                        } else {
-                            (*rv, rc.unwrap(), *lv, lu, lcode)
-                        };
-
-                    // Prefer code over unit for UCUM comparison
-                    let effective_other_unit =
-                        other_code_opt.as_deref().or(other_unit_opt.as_deref());
-
-                    if let Some(other_unit) = effective_other_unit {
-                        match (cal_unit, other_unit) {
-                            (crate::core::CalendarUnit::Day, "d") => {
-                                return Some((cal_value - other_value).abs() < Decimal::new(1, 10));
-                            }
-                            (crate::core::CalendarUnit::Week, "wk") => {
-                                return Some((cal_value - other_value).abs() < Decimal::new(1, 10));
-                            }
-                            // Calendar Month vs UCUM 'mo' and Calendar Year vs UCUM 'a' are not directly comparable → empty
-                            (crate::core::CalendarUnit::Month, "mo")
-                            | (crate::core::CalendarUnit::Year, "a") => {
-                                return None;
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-
-                // Use the quantity utilities for exact equality comparison
-                // Pass the code fields for UCUM-aware comparison
-                match quantity_utils::are_quantities_equal_with_codes(
+                // Unit alignment (calendar/UCUM bridging, commensurability) lives in
+                // quantity_utils; incommensurable units compare as empty.
+                quantity_utils::are_quantities_equal_with_codes(
                     *lv,
                     lu,
                     lcode.as_deref(),
@@ -277,10 +246,7 @@ impl EqualsOperatorEvaluator {
                     ru,
                     rcode.as_deref(),
                     rc,
-                ) {
-                    Ok(result) => Some(result),
-                    Err(_) => Some(false), // Conversion failed, not equal
-                }
+                )
             }
             // FHIR.Quantity (Resource) vs Quantity comparison
             (

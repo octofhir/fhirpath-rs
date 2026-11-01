@@ -13,14 +13,14 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 108 | 100% |
 | **Total Individual Tests** | 1347 | 100% |
-| **Passing Tests** | 1194 | 88.6% |
-| **Failing Tests** | 30 | 2.2% |
+| **Passing Tests** | 1195 | 88.7% |
+| **Failing Tests** | 29 | 2.2% |
 | **Error Tests** | 8 | 0.6% |
 | **Skipped Tests** | 115 | 8.5% |
 
 ## Test Results by Suite
 
-### 🟡 OFFICIAL-R6 (88.6% - 1194/1347 tests)
+### 🟡 OFFICIAL-R6 (88.7% - 1195/1347 tests)
 
 - **Comparable.json** - 100.0% (3/3 tests) (Complete)
 - **HTMLChecks.json** - 100.0% (4/4 tests) (Complete)
@@ -75,7 +75,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testIntersect.json** - 100.0% (4/4 tests) (Complete)
 - **testJoin.json** - 100.0% (2/2 tests) (Complete)
 - **testLength.json** - 100.0% (6/6 tests) (Complete)
-- **testLessOrEqual.json** - 100.0% (33/33 tests) (Complete)
 - **testLiterals.json** - 100.0% (83/83 tests) (Complete)
 - **testLn.json** - 100.0% (3/3 tests) (Complete)
 - **testLog.json** - 100.0% (5/5 tests) (Complete)
@@ -92,6 +91,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testPower.json** - 100.0% (6/6 tests) (Complete)
 - **testPrecedence.json** - 100.0% (6/6 tests) (Complete)
 - **testQuantity.json** - 100.0% (11/11 tests) (Complete)
+- **testQuantityUnitComparison.json** - 100.0% (8/8 tests) (Complete)
 - **testRepeat.json** - 100.0% (5/5 tests) (Complete)
 - **testReplace.json** - 100.0% (6/6 tests) (Complete)
 - **testReplaceMatches.json** - 100.0% (7/7 tests) (Complete)
@@ -123,11 +123,11 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testWhere.json** - 100.0% (4/4 tests) (Complete)
 - **testLessThan.json** - 97.2% (35/36 tests) (Partial)
 - **testGreaterThan.json** - 97.0% (32/33 tests) (Partial)
+- **testLessOrEqual.json** - 97.0% (32/33 tests) (Partial)
 - **testInheritance.json** - 95.8% (23/24 tests) (Partial)
 - **testDistinct.json** - 94.4% (34/36 tests) (Partial)
 - **LowBoundary.json** - 89.2% (33/37 tests) (Partial)
 - **HighBoundary.json** - 84.8% (28/33 tests) (Partial)
-- **testQuantityUnitComparison.json** - 75.0% (6/8 tests) (Partial)
 - **isSemanticChecks.json** - 42.1% (16/38 tests) (⚠️ 8 errors)
 - **documentFunctions.json** - 0.0% (0/115 tests) (Not implemented)
 
@@ -188,7 +188,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testIntersect.json** - 4/4 tests (official-r6)
 - **testJoin.json** - 2/2 tests (official-r6)
 - **testLength.json** - 6/6 tests (official-r6)
-- **testLessOrEqual.json** - 33/33 tests (official-r6)
 - **testLiterals.json** - 83/83 tests (official-r6)
 - **testLn.json** - 3/3 tests (official-r6)
 - **testLog.json** - 5/5 tests (official-r6)
@@ -205,6 +204,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testPower.json** - 6/6 tests (official-r6)
 - **testPrecedence.json** - 6/6 tests (official-r6)
 - **testQuantity.json** - 11/11 tests (official-r6)
+- **testQuantityUnitComparison.json** - 8/8 tests (official-r6)
 - **testRepeat.json** - 5/5 tests (official-r6)
 - **testReplace.json** - 6/6 tests (official-r6)
 - **testReplaceMatches.json** - 7/7 tests (official-r6)
@@ -239,11 +239,11 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 - **testLessThan.json** - 97.2% (35/36 tests) (official-r6)
 - **testGreaterThan.json** - 97.0% (32/33 tests) (official-r6)
+- **testLessOrEqual.json** - 97.0% (32/33 tests) (official-r6)
 - **testInheritance.json** - 95.8% (23/24 tests) (official-r6)
 - **testDistinct.json** - 94.4% (34/36 tests) (official-r6)
 - **LowBoundary.json** - 89.2% (33/37 tests) (official-r6)
 - **HighBoundary.json** - 84.8% (28/33 tests) (official-r6)
-- **testQuantityUnitComparison.json** - 75.0% (6/8 tests) (official-r6)
 
 ### 🟠 Partially Implemented (30-70%)
 
@@ -255,14 +255,14 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **88.6% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **88.7% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 108
 - **Total Tests**: 1347
-- **Pass Rate**: 88.6%
+- **Pass Rate**: 88.7%
 
 ---
 
-*Report generated on: 2026-11-01 14:02:37*
+*Report generated on: 2026-11-01 17:15:09*
 *Command: `just test-official-r6` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --official r6`*
