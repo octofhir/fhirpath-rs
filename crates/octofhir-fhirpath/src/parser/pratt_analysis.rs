@@ -175,9 +175,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Collection membership operators - precedence 5 (matching fast parser ordering)
+            // Membership binds below equality (FHIRPath precedence #10 and #09).
             infix(
-                left(5),
+                left(4),
                 text::keyword("in").padded(),
                 |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -189,7 +189,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                 },
             ),
             infix(
-                left(5),
+                left(4),
                 text::keyword("contains").padded(),
                 |left, _, right, extra| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -200,9 +200,9 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                     })
                 },
             ),
-            // Equality and equivalence - precedence 4
+            // Equality and equivalence - precedence 5
             infix(
-                left(4),
+                left(5),
                 choice((
                     just("!~"),
                     just("~"),

@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2026-11-01
+Generated on: 2026-11-03
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -110,5 +110,5 @@ The fhirpath-rs implementation currently passes approximately **100.0% of all FH
 
 ---
 
-*Report generated on: 2026-11-01 18:24:56*
+*Report generated on: 2026-11-03 13:23:31*
 *Command: `just test-coverage` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --min-tests 1176`*
