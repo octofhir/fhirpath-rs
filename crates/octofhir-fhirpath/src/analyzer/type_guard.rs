@@ -11,6 +11,7 @@
 use octofhir_fhir_model::ModelProvider;
 
 use crate::ast::{BinaryOperator, ExpressionNode};
+use crate::core::SourceLocation;
 use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
 
 /// Diagnostics for operations a guarded `$this` cannot reach a valid type for.
@@ -145,7 +146,12 @@ impl Checker<'_> {
         }
     }
 
-    fn report(&self, types: &Option<Vec<String>>, diagnostics: &mut Vec<Diagnostic>) {
+    fn report(
+        &self,
+        types: &Option<Vec<String>>,
+        location: Option<SourceLocation>,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) {
         let Some(types) = types else { return };
         if types.is_empty() || types.iter().any(|t| self.has_string_form(t)) {
             return;
@@ -160,7 +166,7 @@ impl Checker<'_> {
                 "toString() is not defined for $this of type {}",
                 types.join(" | ")
             ),
-            location: None,
+            location,
             related: vec![],
         });
     }
@@ -187,7 +193,7 @@ impl Checker<'_> {
             }
             ExpressionNode::MethodCall(call) => {
                 if call.method == "toString" && call.arguments.is_empty() && is_this(&call.object) {
-                    self.report(&types, diagnostics);
+                    self.report(&types, call.location.clone(), diagnostics);
                 }
                 self.visit(&call.object, types, diagnostics);
                 // Arguments iterate over the method's input: `$this` is another value there.
@@ -197,7 +203,7 @@ impl Checker<'_> {
             }
             ExpressionNode::FunctionCall(call) => {
                 if call.name == "toString" && call.arguments.is_empty() {
-                    self.report(&types, diagnostics);
+                    self.report(&types, call.location.clone(), diagnostics);
                 } else if call.name == "iif" && (2..=3).contains(&call.arguments.len()) {
                     let condition = &call.arguments[0];
                     let narrowed =
