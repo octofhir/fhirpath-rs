@@ -43,7 +43,7 @@ octofhir-fhir-model = { workspace = true, features = ["http-client"] }
 # Dev tools dependencies
 serde_json = { workspace = true }
 serde = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 anyhow = { workspace = true }
 log = { workspace = true }
 env_logger = "0.11"

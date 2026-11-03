@@ -69,6 +69,14 @@ impl PureFunctionEvaluator for StartsWithFunctionEvaluator {
             ));
         }
 
+        // An empty input or an empty argument gives an empty result (the HL7 engines agree);
+        // only an argument that is not a string is an error.
+        if input.is_empty() || args[0].is_empty() {
+            return Ok(EvaluationResult {
+                value: Collection::empty(),
+            });
+        }
+
         // Get the prefix argument from pre-evaluated args
         let prefix_values = &args[0];
         let prefix = prefix_values

@@ -63,7 +63,7 @@ stacker = "0.1"
 async-trait = { workspace = true }
 async-recursion = "1.1"
 futures = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 
 # Optional diagnostic dependencies
 colored = { workspace = true }
@@ -79,18 +79,34 @@ tokio-util = { version = "0.7", features = ["compat"], optional = true }
 axum = { version = "0.8", features = ["ws"], optional = true }
 tower-http = { version = "0.7", features = ["cors"], optional = true }
 
+# Browsers have no OS entropy source; uuid draws from `crypto.getRandomValues`.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+uuid = { workspace = true, features = ["js"] }
+
 [dev-dependencies]
 divan = "0.1"
 pretty_assertions = "1.4.1"
 rstest = "0.28"
 rust_decimal_macros = "1.40"
+tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = []
 mock-provider = [] # Include MockModelProvider for testing and development
 analysis = []      # Include static analysis features
 sql-on-fhir = []   # SQL on FHIR functions: getResourceKey(), getReferenceKey([type])
-lsp = ["dep:async-lsp", "dep:lsp-types", "dep:tower", "dep:tokio-util", "dep:axum", "dep:tower-http"] # Language Server Protocol support
+lsp = [
+    "dep:async-lsp",
+    "dep:lsp-types",
+    "dep:tower",
+    "dep:tokio-util",
+    "dep:axum",
+    "dep:tower-http",
+    "tokio/rt-multi-thread",
+    "tokio/macros",
+    "tokio/net",
+    "tokio/io-std",
+] # Language Server Protocol support
 
 [[bench]]
 name = "evaluation_hot_paths"

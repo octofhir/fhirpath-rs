@@ -69,10 +69,11 @@ impl PureFunctionEvaluator for ContainsFunctionEvaluator {
             ));
         }
 
-        // If input is empty, return empty collection
-        if input.is_empty() {
+        // An empty input or an empty argument gives an empty result (the HL7 engines agree);
+        // only an argument that is not a string is an error.
+        if input.is_empty() || args[0].is_empty() {
             return Ok(EvaluationResult {
-                value: crate::core::Collection::empty(),
+                value: Collection::empty(),
             });
         }
 

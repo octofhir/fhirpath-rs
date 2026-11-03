@@ -58,7 +58,7 @@ clap_complete = "4.6"    # Shell completion generation
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 anyhow = { workspace = true }
 colored = { workspace = true }
 reedline = { version = "0.52", optional = true }

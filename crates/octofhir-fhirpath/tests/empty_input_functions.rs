@@ -69,3 +69,20 @@ async fn functions_without_a_defined_empty_result_still_propagate_it() {
         assert!(evaluate(expression).await.is_empty(), "{expression}");
     }
 }
+
+/// `startsWith`, `endsWith` and `contains` with an empty argument give an empty result, as the
+/// HL7 engines do, instead of an error: StructureDefinition sdf-8a passes `%resource.type`, which
+/// can be empty.
+#[tokio::test]
+async fn string_functions_with_an_empty_argument_are_empty() {
+    for expression in [
+        "'abc'.startsWith({})",
+        "'abc'.endsWith({})",
+        "'abc'.contains({})",
+        "'abc'.startsWith(id.where(false))",
+    ] {
+        assert!(evaluate(expression).await.is_empty(), "{expression}");
+    }
+    assert_eq!(evaluate("'abc'.startsWith('')").await, vec!["true"]);
+    assert_eq!(evaluate("'abc'.endsWith('bc')").await, vec!["true"]);
+}
