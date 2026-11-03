@@ -276,13 +276,29 @@ pub async fn parse_with_semantic_analysis(
     model_provider: std::sync::Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>,
     context_type: Option<octofhir_fhir_model::TypeInfo>,
 ) -> AnalyzedParseResult {
-    // First, parse the expression
+    parse_with_focus_analysis(input, model_provider, context_type, None).await
+}
+
+async fn parse_with_focus_analysis(
+    input: &str,
+    model_provider: std::sync::Arc<dyn octofhir_fhir_model::ModelProvider + Send + Sync>,
+    context_type: Option<octofhir_fhir_model::TypeInfo>,
+    focus_types: Option<&[String]>,
+) -> AnalyzedParseResult {
     let parse_result = parse_analysis(input);
 
     if let Some(ast) = parse_result.ast {
         // Then perform semantic analysis
         let mut analyzer = SemanticAnalyzer::new(model_provider);
-        match analyzer.analyze_expression(&ast, context_type).await {
+        let analysis = match focus_types {
+            Some(types) => {
+                analyzer
+                    .analyze_with_focus_types(&ast, context_type, types)
+                    .await
+            }
+            None => analyzer.analyze_expression(&ast, context_type).await,
+        };
+        match analysis {
             Ok(analysis) => AnalyzedParseResult::success(ast, analysis),
             Err(err) => {
                 let mut analysis = crate::ast::ExpressionAnalysis::failure(vec![]);
@@ -318,19 +334,7 @@ pub async fn parse_with_type_guard_analysis(
         Some(first) => model_provider.get_type(first).await.ok().flatten(),
         None => None,
     };
-    let mut result =
-        parse_with_semantic_analysis(input, model_provider.clone(), context_type).await;
-    if let Some(ast) = &result.ast {
-        for diagnostic in crate::analyzer::type_guard::check_type_guards(
-            ast,
-            context_types,
-            model_provider.as_ref(),
-        ) {
-            result.analysis.add_diagnostic(diagnostic);
-        }
-        result.success = result.success && result.analysis.success;
-    }
-    result
+    parse_with_focus_analysis(input, model_provider, context_type, Some(context_types)).await
 }
 
 /// Parse FHIRPath expression and return AST directly (Result wrapper)

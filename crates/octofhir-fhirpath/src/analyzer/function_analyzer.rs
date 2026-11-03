@@ -102,6 +102,20 @@ impl FunctionAnalyzer {
     ) -> Vec<AriadneDiagnostic> {
         let mut diagnostics = Vec::new();
 
+        if crate::evaluator::functions::document::DOCUMENT_FUNCTIONS.contains(&function_name)
+            && !crate::evaluator::functions::document::valid_arity(function_name, arguments.len())
+        {
+            return vec![AriadneDiagnostic {
+                severity: DiagnosticSeverity::Error,
+                error_code: FP0053,
+                message: format!("Invalid argument count for {function_name}()"),
+                span,
+                help: None,
+                note: None,
+                related: vec![],
+            }];
+        }
+
         // Get function signature
         let signature = match self.get_function_signature(function_name) {
             Some(sig) => sig,

@@ -26,8 +26,17 @@ just test-official-r6    # report: TEST_COVERAGE_OFFICIAL_R6.md
 ```
 
 These runs are report-only. `just test-coverage` (the CI gate) does not include them.
-Groups with `mode="custom"` (Java RI extension functions such as `documentFunctions`)
-are skipped.
+The seven supported Java RI document extensions are run, including all 115 cases
+per version; other unsupported custom extensions are skipped. Official runs enable
+strict casts. Remaining differences are still failures and are explained in
+`failure-causes.json`; add `--require-classifications` to the runner to reject new
+unexplained failures. The original cases and expectations are never patched.
+
+The document group also has a deterministic offline integration test:
+
+```bash
+cargo test -p fhirpath-dev-tools --test document_functions
+```
 
 ## Updating
 

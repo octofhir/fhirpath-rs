@@ -40,15 +40,17 @@ pub async fn handle_evaluate(
     let resource_data = load_resource_input(input, context);
 
     // Handle empty input case
-    let resource: JsonValue = if resource_data.trim().is_empty() {
-        parse_json("{}").unwrap_or_default()
-    } else {
-        match parse_json(&resource_data) {
-            Ok(json) => json,
-            Err(e) => {
-                report_json_parse_error(&resource_data, e, expression, context);
-                process::exit(1);
-            }
+    let resource = match octofhir_fhirpath::core::node::FhirNode::parse_json(
+        if resource_data.trim().is_empty() {
+            "{}"
+        } else {
+            &resource_data
+        },
+    ) {
+        Ok(resource) => resource,
+        Err(e) => {
+            report_json_parse_error(&resource_data, e, expression, context);
+            process::exit(1);
         }
     };
 
@@ -76,7 +78,7 @@ pub async fn handle_evaluate(
     let model_provider_arc =
         model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
 
-    let context_collection = match octofhir_fhirpath::Collection::from_json_resource(
+    let context_collection = match octofhir_fhirpath::Collection::from_json_node(
         resource.clone(),
         Some(model_provider_arc.clone()),
     )
@@ -87,9 +89,9 @@ pub async fn handle_evaluate(
             if !context.quiet {
                 eprintln!("⚠️ Warning: Failed to properly type resource, using fallback: {e}");
             }
-            octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(
-                resource,
-            ))
+            octofhir_fhirpath::Collection::single(
+                octofhir_fhirpath::FhirPathValue::resource_from_node(resource),
+            )
         }
     };
 

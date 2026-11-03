@@ -75,7 +75,21 @@ impl SemanticAnalyzer {
         expr: &ExpressionNode,
         context_type: Option<TypeInfo>,
     ) -> Result<ExpressionAnalysis, FhirPathError> {
-        // Initialize context if provided
+        let focus_types: Vec<_> = context_type
+            .as_ref()
+            .and_then(crate::analyzer::type_guard::declared_focus_type)
+            .into_iter()
+            .collect();
+        self.analyze_with_focus_types(expr, context_type, &focus_types)
+            .await
+    }
+
+    pub(crate) async fn analyze_with_focus_types(
+        &mut self,
+        expr: &ExpressionNode,
+        context_type: Option<TypeInfo>,
+        focus_types: &[String],
+    ) -> Result<ExpressionAnalysis, FhirPathError> {
         self.input_type = context_type;
         self.is_chain_head = true;
         // Reset variable scopes for a new analysis
@@ -99,6 +113,20 @@ impl SemanticAnalyzer {
             });
         }
 
+        for diagnostic in crate::analyzer::type_guard::check_type_guards(
+            expr,
+            focus_types,
+            self.model_provider.as_ref(),
+        ) {
+            if diagnostic.severity == DiagnosticSeverity::Error {
+                analysis.success = false;
+            }
+            analysis.add_diagnostic(diagnostic);
+        }
+        analysis.success &= !analysis
+            .diagnostics
+            .iter()
+            .any(|d| d.severity == DiagnosticSeverity::Error);
         Ok(analysis)
     }
 
@@ -284,6 +312,33 @@ impl SemanticAnalyzer {
         })
     }
 
+    /// Resolve direct and polymorphic properties from the model, not a FHIR catalogue.
+    async fn model_property_type(&self, parent: &TypeInfo, name: &str) -> Option<TypeInfo> {
+        if let Ok(Some(info)) = self.model_provider.get_element_type(parent, name).await {
+            return Some(info);
+        }
+        if self
+            .model_provider
+            .get_element_names(parent)
+            .iter()
+            .any(|declared| declared == name || declared.strip_suffix("[x]") == Some(name))
+        {
+            return Some(TypeInfo::system_type("Any".into(), false));
+        }
+        let parent_name = parent.name.as_deref().unwrap_or(&parent.type_name);
+        if self
+            .model_provider
+            .get_choice_types(parent_name, name)
+            .await
+            .ok()
+            .flatten()
+            .is_some_and(|choices| !choices.is_empty())
+        {
+            return Some(TypeInfo::system_type("Any".into(), false));
+        }
+        None
+    }
+
     /// Analyze identifier node
     async fn analyze_identifier(
         &mut self,
@@ -325,13 +380,48 @@ impl SemanticAnalyzer {
             }
 
             // First try to navigate from input type (property access)
-            if let Ok(Some(element_type)) =
-                self.model_provider.get_element_type(input_type, name).await
-            {
+            if let Some(element_type) = self.model_property_type(input_type, name).await {
                 metadata.type_info = Some(element_type);
                 self.input_type = metadata.type_info.clone();
                 self.is_chain_head = false;
                 return Ok(metadata);
+            }
+
+            if matches!(
+                input_type.name.as_deref().unwrap_or(&input_type.type_name),
+                "Any" | "Unknown"
+            ) {
+                metadata.type_info = Some(input_type.clone());
+                self.is_chain_head = false;
+                return Ok(metadata);
+            }
+            if input_type.name.as_deref() == Some("Resource") {
+                let mut candidate = None;
+                for resource in self
+                    .model_provider
+                    .get_resource_types()
+                    .await
+                    .unwrap_or_default()
+                {
+                    if let Ok(Some(resource)) = self.model_provider.get_type(&resource).await
+                        && let Some(property) = self.model_property_type(&resource, name).await
+                    {
+                        if candidate.as_ref().is_some_and(|previous: &TypeInfo| {
+                            previous.name != property.name
+                                || previous.type_name != property.type_name
+                        }) {
+                            candidate = Some(TypeInfo::system_type("Any".into(), false));
+                            break;
+                        }
+                        candidate = Some(property);
+                    }
+                }
+                if let Some(property) = candidate {
+                    metadata.type_info = Some(property.clone());
+                    self.input_type = Some(property);
+                    self.is_chain_head = false;
+                    return Ok(metadata);
+                }
             }
 
             // If property not found and we have a concrete type, this is a semantic error
@@ -823,6 +913,44 @@ impl SemanticAnalyzer {
         // Analyze the object first - this provides the context for the method
         let prev_chain_head = self.is_chain_head;
         let _object_metadata = self.analyze_node(&method_call.object, analysis).await?;
+        let object_type = self.input_type.clone();
+        if method_call.method == "hasCoding"
+            && !matches!(&*method_call.object, ExpressionNode::MethodCall(call) if matches!(call.method.as_str(), "children" | "descendants"))
+            && let Some(info) = &object_type
+            && !matches!(
+                info.name.as_deref().unwrap_or(&info.type_name),
+                "Coding" | "CodeableConcept" | "Any" | "Resource"
+            )
+        {
+            analysis.add_diagnostic(Diagnostic {
+                severity: DiagnosticSeverity::Error,
+                code: DiagnosticCode {
+                    code: "TYPE_MISMATCH".into(),
+                    namespace: Some("fhirpath".into()),
+                },
+                message: "hasCoding() requires Coding or CodeableConcept input".into(),
+                location: method_call.location.clone(),
+                related: vec![],
+            });
+        }
+        if crate::evaluator::functions::document::DOCUMENT_FUNCTIONS
+            .contains(&method_call.method.as_str())
+            && !crate::evaluator::functions::document::valid_arity(
+                &method_call.method,
+                method_call.arguments.len(),
+            )
+        {
+            analysis.add_diagnostic(Diagnostic {
+                severity: DiagnosticSeverity::Error,
+                code: DiagnosticCode {
+                    code: "FUNCTION_ARITY".into(),
+                    namespace: Some("fhirpath".into()),
+                },
+                message: format!("Invalid argument count for {}()", method_call.method),
+                location: method_call.location.clone(),
+                related: vec![],
+            });
+        }
 
         // The method call is not at the chain head since it has an object
         self.is_chain_head = false;
@@ -894,7 +1022,9 @@ impl SemanticAnalyzer {
         for arg in &method_call.arguments {
             self.is_chain_head = true; // Arguments start their own chains
             let snapshot = self.var_scopes.clone();
+            self.input_type = object_type.clone();
             let _arg_metadata = self.analyze_node(arg, analysis).await?;
+            self.input_type = object_type.clone();
             self.var_scopes = snapshot; // Restore to prevent leakage out of argument bodies
         }
 
@@ -967,6 +1097,61 @@ impl SemanticAnalyzer {
             }
         }
 
+        self.input_type = match method_call.method.as_str() {
+            "ofType" | "as" => {
+                let target = method_call.arguments.first().map(ToString::to_string);
+                match target {
+                    Some(target) => self
+                        .model_provider
+                        .get_type(crate::core::model_provider::utils::base_type_name(&target))
+                        .await
+                        .ok()
+                        .flatten(),
+                    None => object_type,
+                }
+            }
+            "resources" | "resourcesIn" | "entry" | "entryIn" => {
+                let type_index = if method_call.method == "resourcesIn" {
+                    1
+                } else {
+                    2
+                };
+                let filter = if method_call.method.starts_with("resources") {
+                    method_call.arguments.get(type_index).and_then(|a| match a {
+                        ExpressionNode::Literal(l) => match &l.value {
+                            LiteralValue::String(t) => Some(t.as_str()),
+                            _ => None,
+                        },
+                        _ => None,
+                    })
+                } else {
+                    None
+                };
+                self.model_provider
+                    .get_type(filter.unwrap_or("Resource"))
+                    .await
+                    .ok()
+                    .flatten()
+            }
+            "section" => match self
+                .model_provider
+                .get_type("Composition")
+                .await
+                .ok()
+                .flatten()
+            {
+                Some(comp) => self
+                    .model_provider
+                    .get_element_type(&comp, "section")
+                    .await
+                    .ok()
+                    .flatten(),
+                None => None,
+            },
+            "children" | "descendants" => Some(TypeInfo::system_type("Any".into(), false)),
+            "hasCoding" | "sameSubject" => Some(TypeInfo::system_type("Boolean".into(), true)),
+            _ => object_type,
+        };
         self.is_chain_head = prev_chain_head;
         Ok(AnalysisMetadata::new())
     }
@@ -1023,23 +1208,8 @@ impl SemanticAnalyzer {
     async fn resolve_node_type(&self, expr: &ExpressionNode) -> Option<TypeInfo> {
         match expr {
             ExpressionNode::Identifier(id) => {
-                // Check if it's a resource type
-                let common_resources = [
-                    "Patient",
-                    "Observation",
-                    "Encounter",
-                    "Practitioner",
-                    "Organization",
-                    "Appointment",
-                ];
-                if common_resources.contains(&id.name.as_str()) {
-                    Some(TypeInfo {
-                        type_name: id.name.clone(),
-                        singleton: Some(true),
-                        is_empty: Some(false),
-                        namespace: Some("FHIR".to_string()),
-                        name: Some(id.name.clone()),
-                    })
+                if let Ok(Some(info)) = self.model_provider.get_type(&id.name).await {
+                    Some(info)
                 } else if let Some(ref input_type) = self.input_type {
                     // Try to get element type from model provider
                     self.model_provider

@@ -36,7 +36,7 @@ impl JsonFormatter {
 struct JsonEvaluationResult {
     success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    result: Option<serde_json::Value>,
+    result: Option<Box<serde_json::value::RawValue>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     type_metadata: Option<Vec<JsonTypeMetadata>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -159,7 +159,16 @@ impl OutputFormatter for JsonFormatter {
         let (result_value, type_metadata) =
             if let Some(ref collection_with_metadata) = output.result_with_metadata {
                 // Use rich metadata when available
-                let result_value = Some(collection_with_metadata.to_json_parts());
+                let values: Vec<_> = collection_with_metadata
+                    .results()
+                    .iter()
+                    .map(|r| &r.value)
+                    .collect();
+                let result_value = Some(match values.as_slice() {
+                    [] => serde_json::value::to_raw_value(&())?,
+                    [value] => serde_json::value::to_raw_value(value)?,
+                    _ => serde_json::value::to_raw_value(&values)?,
+                });
                 let type_metadata = Some(
                     collection_with_metadata
                         .results()
@@ -177,7 +186,7 @@ impl OutputFormatter for JsonFormatter {
                 (result_value, type_metadata)
             } else if let Some(ref value) = output.result {
                 // Fall back to basic result without rich type info
-                (Some(serde_json::to_value(value)?), None)
+                (Some(serde_json::value::to_raw_value(value)?), None)
             } else {
                 (None, None)
             };
@@ -307,5 +316,41 @@ impl OutputFormatter for JsonFormatter {
         };
 
         Ok(serde_json::to_string_pretty(&result)?)
+    }
+}
+
+#[cfg(test)]
+mod precision_tests {
+    use super::*;
+    use octofhir_fhirpath::core::{CollectionWithMetadata, ResultWithMetadata};
+    use octofhir_fhirpath::{Collection, FhirPathValue};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn json_results_keep_decimal_tokens_with_and_without_metadata() {
+        let values = Collection::from_json_str("[1.50,0.10000000000000000001]", None)
+            .await
+            .unwrap();
+        let mut output = EvaluationOutput::from_fhir_path_value(
+            FhirPathValue::Collection(values.clone()),
+            "value".into(),
+            Duration::ZERO,
+        );
+        let plain = JsonFormatter::new().format_evaluation(&output).unwrap();
+        assert!(plain.contains("1.50"));
+        assert!(plain.contains("0.10000000000000000001"));
+        let results = values
+            .iter()
+            .map(|v| {
+                ResultWithMetadata::new(
+                    v.clone(),
+                    octofhir_fhirpath::core::ValueTypeInfo::from_value(v),
+                )
+            })
+            .collect();
+        output.result_with_metadata = Some(CollectionWithMetadata::from_results(results));
+        let rich = JsonFormatter::new().format_evaluation(&output).unwrap();
+        assert!(rich.contains("1.50"));
+        assert!(rich.contains("0.10000000000000000001"));
     }
 }

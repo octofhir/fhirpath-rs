@@ -1,0 +1,53 @@
+---
+title: Conformance differences
+---
+
+The engine targets FHIRPath 3.x. Official R5/R6 snapshots are run unchanged, including
+the document extensions. `just test-coverage` remains a separate curated gate.
+
+## Remaining snapshot differences
+
+Seven cases in each official snapshot disagree with the checked-in FHIRPath 3.x
+specification. They remain reported as failures, not rewritten or counted as passes.
+
+| Cases | Engine behavior and specification |
+|---|---|
+| `HighBoundaryDateMonth`, `LowBoundaryDateMonth` | A Date boundary remains Date; the snapshot labels the result dateTime. See [boundaries](https://build.fhir.org/ig/HL7/FHIRPath/#lowboundaryprecision-integer-decimal-quantity-date-datetime-time). |
+| `testDistinct29`, `testDistinct36` | False **or empty** equality means distinct, including dates of different precisions. See [distinct](https://build.fhir.org/ig/HL7/FHIRPath/#distinct--collection). |
+| `testGreaterThan29`, `testLessOrEqual28`, `testLessThan29` | Calendar-to-calendar quantities use the specified conversion factors. See [comparison](https://build.fhir.org/ig/HL7/FHIRPath/#comparison). |
+
+`test-cases/official/failure-causes.json` records each case's cause, explanation and
+specification link. Reports and `FHIRPATH_FAILURES` JSONL include that classification.
+`test-coverage --official r5 --require-classifications` rejects any new unexplained
+difference, including suite-loading errors. It does not turn known failures green.
+HTTP terminology failures are real run errors, not automatically classified as
+snapshot differences; rerun with an available terminology service.
+
+## Cast compatibility
+
+For compatibility with existing FHIR invariants, method-form `as()` defaults to
+per-item filtering on collections. Call `EvaluationContext::enable_strict_type_casts()`
+before evaluation to reject multi-item input as FHIRPath requires; use `ofType()`
+for collection filtering. Child contexts inherit this option. Official report runs
+use strict casts, while the curated gate retains legacy invariant compatibility.
+
+## Downstream feedback
+
+[The fhir-pipes report](https://github.com/ohs-foundation/fhir-pipes-rs/issues/94)
+described an older engine. Against this working tree based on 0.5.1:
+
+- Fast/Analysis precedence is covered by shared regression cases.
+- Declared contexts and reachable type guards are checked through semantic and
+  CLI/LSP static analysis entry points.
+- FHIR primitive metadata, date-only dateTime and primitive casts have regression
+  coverage with embedded schemas for explicit FHIR versions.
+- The current Quantity/UCUM suites pass except the three calendar expectations
+  listed above; the UCUM dependency already generates its registry from UCUM XML.
+- Exact source decimals have a lossless input API without global serde features.
+- `octofhir-fhirschema` 0.3.34 can be consumed without default features: no
+  canonical-manager or HTTP client is required by that standalone library consumer.
+  CLI/dev-tools intentionally enable HTTP terminology. FHIR versions stay explicit;
+  conflicting schemas are not silently merged.
+
+This does not claim that fhir-pipes itself has been upgraded or its private runner
+executed here. Its integration still needs to adopt the new dependency and input API.

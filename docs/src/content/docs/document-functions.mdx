@@ -1,0 +1,67 @@
+---
+title: Document functions
+---
+
+These seven functions are **HL7 Java reference-implementation extensions**, not
+standard FHIRPath. They are included in the default FHIR function registry and
+implemented using this engine's shared nodes, ModelProvider and TerminologyProvider.
+
+## Signatures
+
+| Function | Input | Result |
+|---|---|---|
+| `section(system, code [, min, max])` | Bundle or Composition | Composition.section |
+| `entry(system, code [, min, max])` | Composition.section | Resource |
+| `entryIn(valueSet [, min, max])` | Composition.section | Resource |
+| `resources(system, code [, type])` | Bundle or resources inside a Bundle | Resource |
+| `resourcesIn(valueSet [, type])` | Bundle or resources inside a Bundle | Resource |
+| `sameSubject([other])` | singleton Resource | Boolean |
+| `hasCoding(system, code [, version])` | Coding or CodeableConcept | Boolean |
+
+Arguments are evaluated in the caller's scope. Empty system/code/version arguments
+are wildcards. Multi-item arguments return empty. Optional `min` and `max` must be
+supplied together; bounds accept non-negative integers and `'*'` for an unbounded
+maximum. `section()` defaults to exactly one match; entry functions default to
+zero or more. A group outside its bounds contributes no results.
+
+```fhirpath
+Bundle.section('http://loinc.org', '11450-4', 0, '*')
+  .entry('http://snomed.info/sct', '38341003')
+Bundle.resources({}, {}, 'Observation')
+Observation.code.hasCoding('http://loinc.org', '29463-7')
+```
+
+## Navigation and references
+
+`section()` includes nested sections in pre-order. `entry()` follows the selected
+section's references. Shared node identity determines the owning Composition, so
+equal-looking sections in different Compositions do not share contained resources.
+
+Inside a Bundle, absolute references match `entry.fullUrl`. Relative references use
+the owning Composition's REST base; they do not match an unrelated server's
+`Type/id`. Versioned references match `meta.versionId`. Ambiguous full URLs do not
+resolve. `#id` searches only the owning Composition's contained resources. A
+standalone Composition can also use the supplied ServerProvider for `Type/id` reads.
+
+Resource matching considers the extension's code fields: `code`, `vaccineCode`,
+`medicationCodeableConcept`, and CodeableReference concepts. It does not follow
+medication references. An optional resource type filter must exist in the model.
+
+`sameSubject()` compares singleton subject/patient references, or their identifier
+system and value. Without `other`, it uses the Composition in the root document
+Bundle. Missing subjects or non-singleton inputs return empty.
+
+## Terminology
+
+`entryIn()` and `resourcesIn()` require a canonical ValueSet URL and use the supplied
+TerminologyProvider's `validate_code_vs`. Provider errors propagate; an unavailable
+or unknown ValueSet must not be reported by a provider as a definitive non-member.
+No network client or terminology catalogue is built into these functions.
+
+## Verification
+
+The unmodified R5 and R6 `documentFunctions` corpora contain 115 cases each. Both are
+also replayed with a deterministic local terminology provider, separately from the
+standard conformance gate. The official reports include these extensions explicitly.
+
+Behavioral reference: [HL7 Java DocumentFunctions](https://github.com/hapifhir/org.hl7.fhir.core/blob/master/org.hl7.fhir.r5/src/main/java/org/hl7/fhir/r5/fhirpath/DocumentFunctions.java).

@@ -77,3 +77,46 @@ async fn iteration_focus_is_not_mistaken_for_the_root_focus() {
         .await;
     assert!(result.success, "{:?}", result.diagnostics);
 }
+
+#[tokio::test]
+async fn semantic_entry_points_share_guards_without_duplicating_union_diagnostics() {
+    use octofhir_fhirpath::parser::{parse_with_semantic_analysis, parse_with_type_guard_analysis};
+    let model = Arc::new(EmptyModelProvider);
+    let focus = TypeInfo {
+        type_name: "Any".into(),
+        name: Some("Period".into()),
+        namespace: Some("FHIR".into()),
+        singleton: Some(true),
+        is_empty: Some(false),
+    };
+    let single = parse_with_semantic_analysis("$this.toString()", model.clone(), Some(focus)).await;
+    assert!(!single.analysis.success);
+    assert_eq!(
+        single
+            .analysis
+            .diagnostics
+            .iter()
+            .filter(|d| d.code.code == "TYPE_GUARD")
+            .count(),
+        1
+    );
+    let union = ["Period".to_string(), "dateTime".to_string()];
+    let valid = parse_with_type_guard_analysis("$this.toString()", model.clone(), &union).await;
+    assert!(valid.analysis.success, "{:?}", valid.analysis.diagnostics);
+    let invalid = parse_with_type_guard_analysis(
+        "$this is Period implies $this.toString() = 'x'",
+        model,
+        &union,
+    )
+    .await;
+    assert!(!invalid.analysis.success);
+    assert_eq!(
+        invalid
+            .analysis
+            .diagnostics
+            .iter()
+            .filter(|d| d.code.code == "TYPE_GUARD")
+            .count(),
+        1
+    );
+}

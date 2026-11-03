@@ -5,6 +5,7 @@
 
 // Core collection functions
 pub mod count_function;
+pub mod document;
 pub mod empty_function;
 pub mod exclude_function;
 pub mod extension_function;

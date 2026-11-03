@@ -246,6 +246,12 @@ impl LazyFunctionEvaluator for AsFunctionEvaluator {
         // multi-item collections like `descendants().as(canonical)`. Apply
         // the cast per-item, equivalent to `ofType()` on a collection: items
         // that cast successfully are kept, others are dropped.
+        if context.strict_type_casts() && input.len() > 1 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0053,
+                "as() requires a singleton input; use ofType() to filter collections",
+            ));
+        }
         let mut casted_items = Vec::with_capacity(input.len());
         for item in input {
             if let Some(casted_value) = self.strict_type_cast(&item, &type_name, context) {

@@ -70,6 +70,7 @@ struct SharedContextState {
     server_provider: Option<Arc<dyn ServerProvider>>,
     trace_provider: Option<SharedTraceProvider>,
     resolution_cache: Arc<LockFreeHashMap<String, Arc<serde_json::Value>>>,
+    resolved_nodes: Arc<LockFreeHashMap<String, crate::core::node::FhirNode>>,
     type_info_cache: Arc<LockFreeHashMap<String, Arc<TypeInfo>>>,
     descendants_cache: Arc<LockFreeHashMap<DescendantsKey, DescendantsEntry>>,
     element_type_cache: Arc<ElementTypeCache>,
@@ -80,6 +81,7 @@ struct SharedContextState {
     /// Record where navigated values sit (for `pathname()`); off until an expression
     /// that calls `pathname` runs, as it costs an allocation per navigated value.
     track_paths: AtomicBool,
+    strict_type_casts: AtomicBool,
 }
 
 /// Key for [`SharedContextState::descendants_cache`]: node allocation address plus
@@ -331,6 +333,7 @@ impl EvaluationContext {
             server_provider,
             trace_provider,
             resolution_cache: Arc::new(LockFreeHashMap::new()),
+            resolved_nodes: Arc::new(LockFreeHashMap::new()),
             type_info_cache: Arc::new(LockFreeHashMap::new()),
             descendants_cache: Arc::new(LockFreeHashMap::new()),
             element_type_cache,
@@ -339,6 +342,7 @@ impl EvaluationContext {
             server_registry,
             base_env_variables: BASE_ENV_VARIABLES.clone(),
             track_paths: AtomicBool::new(false),
+            strict_type_casts: AtomicBool::new(false),
         });
 
         Self {
@@ -363,6 +367,17 @@ impl EvaluationContext {
         self.shared
             .track_paths
             .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Require `as()` to operate on at most one item, as specified by FHIRPath.
+    /// Disabled by default for compatibility with FHIR invariants such as dom-3
+    /// that use collection casts. Call before evaluating; child scopes inherit it.
+    pub fn enable_strict_type_casts(&self) {
+        self.shared.strict_type_casts.store(true, Ordering::Relaxed);
+    }
+
+    pub(crate) fn strict_type_casts(&self) -> bool {
+        self.shared.strict_type_casts.load(Ordering::Relaxed)
     }
 
     /// Get root resource if available
@@ -584,6 +599,12 @@ impl EvaluationContext {
     /// Get the shared resolution cache used by resolve() and other reference operations
     pub fn resolution_cache(&self) -> &Arc<LockFreeHashMap<String, Arc<serde_json::Value>>> {
         &self.shared.resolution_cache
+    }
+
+    pub(crate) fn resolved_nodes(
+        &self,
+    ) -> &Arc<LockFreeHashMap<String, crate::core::node::FhirNode>> {
+        &self.shared.resolved_nodes
     }
 
     /// Get or fetch TypeInfo from cache, falling back to model provider on cache miss

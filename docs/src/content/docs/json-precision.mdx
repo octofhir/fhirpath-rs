@@ -1,0 +1,31 @@
+---
+title: JSON decimal precision
+---
+
+Use `Collection::from_json_str(json, model_provider).await` when source digits or
+scale matter. It parses decimal tokens directly into Decimal and preserves their
+original spelling, including trailing zeroes and scientific notation. Navigation,
+contained/Bundle resolution, `precision()` and numeric boundaries retain that
+information. `FhirNode::parse_json` and `Collection::from_json_node` expose the same
+path for hosts that manage their own input boundary. CLI evaluation uses this path.
+
+```rust
+let input = Collection::from_json_str(r#"{"valueDecimal":1.50}"#, None).await?;
+// Evaluate valueDecimal.precision(): 2
+// Serialize the result with serde_json::to_string to retain 1.50.
+```
+
+Serialize `Collection` or `FhirPathValue` directly with `serde_json::to_string` or
+`to_writer` for lossless JSON output. The CLI JSON formatter does this too.
+`to_json_value()`, `FhirNode::to_json()` and metadata `to_json_parts()` return ordinary
+`serde_json::Value`: its number representation cannot preserve arbitrary source
+digits or scale. They remain compatibility APIs, not lossless output APIs.
+
+`Collection::from_json(Value, ...)` still works, but digits already lost while
+parsing that Value cannot be recovered. Converting a Number through text only
+avoids an additional float conversion. The engine does **not** globally enable
+`serde_json/arbitrary_precision`, which can interfere with consumers' untagged and
+flattened deserialization.
+
+Numbers outside the supported Decimal range are rejected rather than silently
+rounded. Computed values use their computed precision, not the input token's scale.

@@ -16,8 +16,8 @@ use crate::evaluator::function_registry::{
 };
 use crate::evaluator::functions::boundary_utils::{
     BoundaryKind, NumericBoundaryError, compute_date_boundary, compute_datetime_boundary,
-    compute_numeric_boundaries, compute_time_boundary, resolve_date_precision,
-    resolve_datetime_precision, resolve_time_precision,
+    compute_numeric_boundaries, compute_source_numeric_boundaries, compute_time_boundary,
+    resolve_date_precision, resolve_datetime_precision, resolve_time_precision,
 };
 
 pub struct HighBoundaryFunctionEvaluator {
@@ -125,7 +125,11 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
 
         let result = match &input[0] {
             FhirPathValue::Decimal(value, type_info, primitive) => {
-                match compute_numeric_boundaries(*value, precision_value) {
+                match compute_source_numeric_boundaries(
+                    *value,
+                    precision_value,
+                    primitive.as_ref().and_then(|e| e.numeric_source.as_deref()),
+                ) {
                     Ok(boundary) => {
                         let high = apply_requested_scale(boundary.high, boundary.requested_scale);
                         FhirPathValue::Decimal(
@@ -163,7 +167,13 @@ impl PureFunctionEvaluator for HighBoundaryFunctionEvaluator {
                 calendar_unit,
                 type_info,
                 primitive_element,
-            } => match compute_numeric_boundaries(*value, precision_value) {
+            } => match compute_source_numeric_boundaries(
+                *value,
+                precision_value,
+                primitive_element
+                    .as_ref()
+                    .and_then(|e| e.numeric_source.as_deref()),
+            ) {
                 Ok(boundary) => {
                     let adjusted = apply_requested_scale(boundary.high, boundary.requested_scale);
 

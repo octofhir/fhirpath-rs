@@ -13,14 +13,14 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 108 | 100% |
 | **Total Individual Tests** | 1347 | 100% |
-| **Passing Tests** | 1217 | 90.3% |
-| **Failing Tests** | 15 | 1.1% |
+| **Passing Tests** | 1340 | 99.5% |
+| **Failing Tests** | 7 | 0.5% |
 | **Error Tests** | 0 | 0.0% |
-| **Skipped Tests** | 115 | 8.5% |
+| **Skipped Tests** | 0 | 0.0% |
 
 ## Test Results by Suite
 
-### 🟡 OFFICIAL-R6 (90.3% - 1217/1347 tests)
+### 🟡 OFFICIAL-R6 (99.5% - 1340/1347 tests)
 
 - **Comparable.json** - 100.0% (3/3 tests) (Complete)
 - **HTMLChecks.json** - 100.0% (4/4 tests) (Complete)
@@ -29,6 +29,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **cdaTests.json** - 100.0% (3/3 tests) (Complete)
 - **comments.json** - 100.0% (9/9 tests) (Complete)
 - **defineVariable.json** - 100.0% (21/21 tests) (Complete)
+- **documentFunctions.json** - 100.0% (115/115 tests) (Complete)
 - **from-Zulip.json** - 100.0% (2/2 tests) (Complete)
 - **index-part.json** - 100.0% (1/1 tests) (Complete)
 - **isSemanticChecks.json** - 100.0% (38/38 tests) (Complete)
@@ -73,6 +74,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testIn.json** - 100.0% (8/8 tests) (Complete)
 - **testIndexOf.json** - 100.0% (6/6 tests) (Complete)
 - **testIndexer.json** - 100.0% (3/3 tests) (Complete)
+- **testInheritance.json** - 100.0% (24/24 tests) (Complete)
 - **testIntersect.json** - 100.0% (4/4 tests) (Complete)
 - **testJoin.json** - 100.0% (2/2 tests) (Complete)
 - **testLength.json** - 100.0% (6/6 tests) (Complete)
@@ -122,14 +124,12 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testUnion.json** - 100.0% (13/13 tests) (Complete)
 - **testVariables.json** - 100.0% (4/4 tests) (Complete)
 - **testWhere.json** - 100.0% (4/4 tests) (Complete)
+- **LowBoundary.json** - 97.3% (36/37 tests) (Partial)
 - **testLessThan.json** - 97.2% (35/36 tests) (Partial)
+- **HighBoundary.json** - 97.0% (32/33 tests) (Partial)
 - **testGreaterThan.json** - 97.0% (32/33 tests) (Partial)
 - **testLessOrEqual.json** - 97.0% (32/33 tests) (Partial)
-- **testInheritance.json** - 95.8% (23/24 tests) (Partial)
 - **testDistinct.json** - 94.4% (34/36 tests) (Partial)
-- **LowBoundary.json** - 89.2% (33/37 tests) (Partial)
-- **HighBoundary.json** - 84.8% (28/33 tests) (Partial)
-- **documentFunctions.json** - 0.0% (0/115 tests) (Not implemented)
 
 ## Results by Pass Rate
 
@@ -142,6 +142,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **cdaTests.json** - 3/3 tests (official-r6)
 - **comments.json** - 9/9 tests (official-r6)
 - **defineVariable.json** - 21/21 tests (official-r6)
+- **documentFunctions.json** - 115/115 tests (official-r6)
 - **from-Zulip.json** - 2/2 tests (official-r6)
 - **index-part.json** - 1/1 tests (official-r6)
 - **isSemanticChecks.json** - 38/38 tests (official-r6)
@@ -186,6 +187,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testIn.json** - 8/8 tests (official-r6)
 - **testIndexOf.json** - 6/6 tests (official-r6)
 - **testIndexer.json** - 3/3 tests (official-r6)
+- **testInheritance.json** - 24/24 tests (official-r6)
 - **testIntersect.json** - 4/4 tests (official-r6)
 - **testJoin.json** - 2/2 tests (official-r6)
 - **testLength.json** - 6/6 tests (official-r6)
@@ -238,13 +240,12 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ### 🟡 Well Implemented (70%+)
 
+- **LowBoundary.json** - 97.3% (36/37 tests) (official-r6)
 - **testLessThan.json** - 97.2% (35/36 tests) (official-r6)
+- **HighBoundary.json** - 97.0% (32/33 tests) (official-r6)
 - **testGreaterThan.json** - 97.0% (32/33 tests) (official-r6)
 - **testLessOrEqual.json** - 97.0% (32/33 tests) (official-r6)
-- **testInheritance.json** - 95.8% (23/24 tests) (official-r6)
 - **testDistinct.json** - 94.4% (34/36 tests) (official-r6)
-- **LowBoundary.json** - 89.2% (33/37 tests) (official-r6)
-- **HighBoundary.json** - 84.8% (28/33 tests) (official-r6)
 
 ### 🟠 Partially Implemented (30-70%)
 
@@ -252,18 +253,32 @@ None currently.
 
 ### 🔴 Major Issues (0-30%)
 
-- **documentFunctions.json** - 0.0% (0/115 tests) - Missing (official-r6)
+None currently.
+
+## Remaining differences
+
+Actual failures stay counted above; classifications do not turn them into passes.
+
+| Case | Cause | Explanation | Reference |
+|---|---|---|---|
+| HighBoundary/HighBoundaryDateMonth | test | The input is Date and FHIRPath 3.x boundaries preserve the input type. The snapshot expects dateTime for a year-month Date. | [source](https://build.fhir.org/ig/HL7/FHIRPath/#lowboundaryprecision-integer-decimal-quantity-date-datetime-time) |
+| LowBoundary/LowBoundaryDateMonth | test | The input is Date and FHIRPath 3.x boundaries preserve the input type. The snapshot expects dateTime for a year-month Date. | [source](https://build.fhir.org/ig/HL7/FHIRPath/#lowboundaryprecision-integer-decimal-quantity-date-datetime-time) |
+| testDistinct/testDistinct29 | test | FHIRPath 3.x says false and empty equality both mean distinct items. These tests expect empty for dates of different precisions. | [source](https://build.fhir.org/ig/HL7/FHIRPath/#distinct--collection) |
+| testDistinct/testDistinct36 | test | FHIRPath 3.x says false and empty equality both mean distinct items. These tests expect empty for dates of different precisions. | [source](https://build.fhir.org/ig/HL7/FHIRPath/#distinct--collection) |
+| testGreaterThan/testGreaterThan29 | test | FHIRPath 3.x defines calendar-to-calendar conversion factors. The snapshot expects empty for these comparisons between calendar units. | [source](https://build.fhir.org/ig/HL7/FHIRPath/#comparison) |
+| testLessOrEqual/testLessOrEqual28 | test | FHIRPath 3.x defines calendar-to-calendar conversion factors. The snapshot expects empty for these comparisons between calendar units. | [source](https://build.fhir.org/ig/HL7/FHIRPath/#comparison) |
+| testLessThan/testLessThan29 | test | FHIRPath 3.x defines calendar-to-calendar conversion factors. The snapshot expects empty for these comparisons between calendar units. | [source](https://build.fhir.org/ig/HL7/FHIRPath/#comparison) |
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **90.3% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **99.5% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 108
 - **Total Tests**: 1347
-- **Pass Rate**: 90.3%
+- **Pass Rate**: 99.5%
 
 ---
 
-*Report generated on: 2026-11-03 13:52:19*
+*Report generated on: 2026-11-03 14:50:05*
 *Command: `just test-official-r6` or `cargo run --package fhirpath-dev-tools --bin test-coverage -- --official r6`*

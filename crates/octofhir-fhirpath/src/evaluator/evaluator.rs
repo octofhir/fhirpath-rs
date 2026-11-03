@@ -1226,6 +1226,7 @@ impl Evaluator {
                     unit,
                     code,
                     system,
+                    primitive_element,
                     ..
                 } => {
                     // A Quantity's elements. A Quantity read from a resource
@@ -1233,7 +1234,18 @@ impl Evaluator {
                     // and extensions are not kept, so they are empty here.
                     let text = match identifier {
                         "value" => {
-                            result_values.push(FhirPathValue::decimal(*value));
+                            let mut decimal = FhirPathValue::decimal(*value);
+                            if let FhirPathValue::Decimal(_, _, element) = &mut decimal {
+                                *element = primitive_element.as_ref().and_then(|source| {
+                                    source.numeric_source.as_ref().map(|token| {
+                                        let mut metadata =
+                                            crate::core::types::WrappedPrimitiveElement::new();
+                                        metadata.numeric_source = Some(token.clone());
+                                        metadata
+                                    })
+                                });
+                            }
+                            result_values.push(decimal);
                             None
                         }
                         "unit" => unit.as_ref(),
@@ -1913,9 +1925,7 @@ impl Evaluator {
                                 self.convert_temporal_value(element, &element_type_info)?
                             } else {
                                 FhirPathValue::wrap_value(
-                                    crate::core::value::utils::json_to_fhirpath_value(
-                                        element.to_json(),
-                                    ),
+                                    crate::core::value::utils::node_to_fhirpath_value(element),
                                     element_type_info.clone(),
                                     None,
                                 )
@@ -1982,9 +1992,8 @@ impl Evaluator {
                         results.push(temporal_value);
                     } else {
                         // Use json conversion but wrap with correct type info
-                        let base_value = crate::core::value::utils::json_to_fhirpath_value(
-                            property_value.to_json(),
-                        );
+                        let base_value =
+                            crate::core::value::utils::node_to_fhirpath_value(property_value);
                         results.push(FhirPathValue::wrap_value(
                             base_value,
                             element_type_info.clone(),
@@ -2106,7 +2115,7 @@ impl Evaluator {
             }
         }
 
-        Some(FhirPathValue::quantity_with_components(
+        let mut quantity = FhirPathValue::quantity_with_components(
             value,
             display_unit,
             canonical_code,
@@ -2115,7 +2124,17 @@ impl Evaluator {
             } else {
                 Some(system.to_string())
             },
-        ))
+        );
+        if let Some(crate::core::node::FhirNode::Decimal(_, source)) = json.get("value")
+            && let FhirPathValue::Quantity {
+                primitive_element, ..
+            } = &mut quantity
+        {
+            let mut element = crate::core::WrappedPrimitiveElement::new();
+            element.numeric_source = Some(source.clone());
+            *primitive_element = Some(element);
+        }
+        Some(quantity)
     }
 
     /// Check if a unit string looks like a UCUM unit
@@ -2174,7 +2193,7 @@ impl Evaluator {
         let base_value = if self.is_temporal_type(&type_info.type_name) {
             self.convert_temporal_value(value, type_info)?
         } else {
-            crate::core::value::utils::json_to_fhirpath_value(value.to_json())
+            crate::core::value::utils::node_to_fhirpath_value(value)
         };
 
         // Build wrapped primitive element with extensions if present

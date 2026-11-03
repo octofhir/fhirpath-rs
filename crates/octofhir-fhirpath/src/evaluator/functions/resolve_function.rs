@@ -6,13 +6,13 @@
 
 use std::sync::Arc;
 
+use crate::core::node::FhirNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
 };
 use crate::evaluator::{EvaluationContext, EvaluationResult};
-use serde_json::Value as JsonValue;
 
 /// Resolve function evaluator
 pub struct ResolveFunctionEvaluator {
@@ -63,9 +63,9 @@ impl ResolveFunctionEvaluator {
         }
     }
 
-    fn ensure_bundle_index(&self, resource_json: &serde_json::Value, context: &EvaluationContext) {
+    fn ensure_bundle_index(&self, resource_json: &FhirNode, context: &EvaluationContext) {
         const BUNDLE_INDEX_MARKER: &str = "bundle-index-ready";
-        let cache = context.resolution_cache();
+        let cache = context.resolved_nodes();
         let cache_guard = cache.pin();
         if cache_guard.get(BUNDLE_INDEX_MARKER).is_some() {
             return;
@@ -85,19 +85,19 @@ impl ResolveFunctionEvaluator {
                     && let Some(id) = entry_resource.get("id").and_then(|id_val| id_val.as_str())
                 {
                     let key = format!("bundle:{resource_type}/{id}");
-                    cache_guard.insert(key, Arc::new(entry_resource.clone()));
+                    cache_guard.insert(key, entry_resource.clone());
                 }
             }
         }
 
-        cache_guard.insert(BUNDLE_INDEX_MARKER.to_string(), Arc::new(JsonValue::Null));
+        cache_guard.insert(BUNDLE_INDEX_MARKER.to_string(), FhirNode::Null);
     }
 
     fn resolve_contained_reference_from_json(
         &self,
-        resource_json: &serde_json::Value,
+        resource_json: &FhirNode,
         id: &str,
-    ) -> Option<std::sync::Arc<serde_json::Value>> {
+    ) -> Option<FhirNode> {
         if let Some(contained_array) = resource_json.get("contained")
             && let Some(contained_list) = contained_array.as_array()
         {
@@ -106,7 +106,7 @@ impl ResolveFunctionEvaluator {
                     && let Some(id_str) = item_id.as_str()
                     && id_str == id
                 {
-                    return Some(Arc::new(contained_resource.clone()));
+                    return Some(contained_resource.clone());
                 }
             }
         }
@@ -118,7 +118,7 @@ impl ResolveFunctionEvaluator {
         &self,
         reference: &str,
         context: &EvaluationContext,
-    ) -> Option<std::sync::Arc<serde_json::Value>> {
+    ) -> Option<FhirNode> {
         // Build cache key based on reference form
         let cache_key = if let Some(stripped) = reference.strip_prefix('#') {
             format!("contained:{}", stripped)
@@ -131,8 +131,12 @@ impl ResolveFunctionEvaluator {
         };
 
         // Fast path: check shared resolution cache
-        if let Some(cached) = context.resolution_cache().pin().get(&cache_key) {
+        if let Some(cached) = context.resolved_nodes().pin().get(&cache_key) {
             return Some(cached.clone());
+        }
+
+        if let Some(json) = context.resolution_cache().pin().get(&cache_key) {
+            return Some(FhirNode::from_json(json));
         }
 
         // Determine the appropriate root for resolution.
@@ -154,17 +158,14 @@ impl ResolveFunctionEvaluator {
         let result = if let Some(FhirPathValue::Resource(resource_node, _type_info, _primitive)) =
             root_resource_opt.as_ref()
         {
-            // Materialize the root resource once for interop with the serde-based
-            // resolution helpers and the owned-Arc resolution cache.
-            let resource_json: std::sync::Arc<serde_json::Value> =
-                std::sync::Arc::new(resource_node.to_json());
+            let resource_json = resource_node;
             if reference.contains('/') {
                 if let Some(rt) = resource_json.get("resourceType")
                     && let Some(rt_str) = rt.as_str()
                 {
                     if rt_str == "Bundle" {
-                        self.ensure_bundle_index(resource_json.as_ref(), context);
-                        return context.resolution_cache().pin().get(&cache_key).cloned();
+                        self.ensure_bundle_index(resource_json, context);
+                        return context.resolved_nodes().pin().get(&cache_key).cloned();
                     }
 
                     if let Some((resource_type, id)) = reference.split_once('/') {
@@ -187,10 +188,10 @@ impl ResolveFunctionEvaluator {
             // Handle different reference types
             if let Some(stripped) = reference.strip_prefix('#') {
                 // Internal contained resource reference
-                self.resolve_contained_reference_from_json(resource_json.as_ref(), stripped)
+                self.resolve_contained_reference_from_json(resource_json, stripped)
             } else {
                 // Simple id reference - check contained resources
-                self.resolve_contained_reference_from_json(resource_json.as_ref(), reference)
+                self.resolve_contained_reference_from_json(resource_json, reference)
             }
         } else {
             None
@@ -199,7 +200,7 @@ impl ResolveFunctionEvaluator {
         // Populate cache on hit
         if let Some(ref arc_json) = result {
             context
-                .resolution_cache()
+                .resolved_nodes()
                 .pin()
                 .insert(cache_key, arc_json.clone());
         }
@@ -215,7 +216,7 @@ impl ResolveFunctionEvaluator {
         &self,
         reference: &str,
         context: &EvaluationContext,
-    ) -> Option<std::sync::Arc<serde_json::Value>> {
+    ) -> Option<FhirNode> {
         // Only resolve Type/id references on server
         if reference.starts_with('#') || !reference.contains('/') {
             return None;
@@ -230,11 +231,11 @@ impl ResolveFunctionEvaluator {
         // Attempt server read
         match server_provider.read(resource_type, id).await {
             Ok(Some(json)) => {
-                let arc_json = Arc::new(json);
+                let arc_json = FhirNode::from_json(&json);
                 // Cache for future lookups
                 let cache_key = format!("bundle:{reference}");
                 context
-                    .resolution_cache()
+                    .resolved_nodes()
                     .pin()
                     .insert(cache_key, arc_json.clone());
                 Some(arc_json)
@@ -304,7 +305,7 @@ impl ProviderPureFunctionEvaluator for ResolveFunctionEvaluator {
 
                     // Wrap the resolved JSON as a Resource with correct type info
                     resolved_resources.push(FhirPathValue::Resource(
-                        crate::core::node::FhirNode::from_json(&resolved_json),
+                        resolved_json,
                         type_info,
                         None,
                     ));

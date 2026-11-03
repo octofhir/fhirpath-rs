@@ -83,6 +83,27 @@ pub mod utils {
             .or_else(|| Decimal::from_scientific(text).ok())
     }
 
+    /// Convert a shared node while preserving source decimals and object identity.
+    pub fn node_to_fhirpath_value(node: &crate::core::node::FhirNode) -> FhirPathValue {
+        use crate::core::node::FhirNode;
+        match node {
+            FhirNode::Decimal(value, source) => {
+                let mut element = crate::core::WrappedPrimitiveElement::new();
+                element.numeric_source = Some(source.clone());
+                FhirPathValue::Decimal(
+                    *value,
+                    octofhir_fhir_model::type_constants::DECIMAL_TYPE.clone(),
+                    Some(element),
+                )
+            }
+            FhirNode::Object(_) => FhirPathValue::resource_from_node(node.clone()),
+            FhirNode::Array(values) => {
+                FhirPathValue::collection(values.iter().map(node_to_fhirpath_value).collect())
+            }
+            _ => json_to_fhirpath_value(node.to_json()),
+        }
+    }
+
     /// Infer FHIR type from JSON object structure
     fn infer_fhir_type_from_json(obj: &serde_json::Map<String, JsonValue>) -> Option<String> {
         // Look for Quantity pattern

@@ -386,7 +386,7 @@ impl CompletionEngine {
         match value {
             FhirNode::Null => "null",
             FhirNode::Bool(_) => "boolean",
-            FhirNode::Number(_) => "number",
+            FhirNode::Number(_) | FhirNode::Decimal(..) => "number",
             FhirNode::Str(_) => "string",
             FhirNode::Array(_) => "array",
             FhirNode::Object(_) => {

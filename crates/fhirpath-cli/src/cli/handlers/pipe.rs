@@ -16,8 +16,8 @@
 
 use crate::EmbeddedModelProvider;
 use crate::cli::context::{CliContext, EngineBuilder};
+use octofhir_fhirpath::core::node::FhirNode;
 use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode};
-use serde_json::Value as JsonValue;
 use std::io::{self, BufRead, Write};
 use std::sync::Arc;
 
@@ -81,7 +81,7 @@ pub async fn handle_pipe_mode(
         }
 
         // Parse JSON
-        let resource: JsonValue = match serde_json::from_str(&line) {
+        let resource = match FhirNode::parse_json(&line) {
             Ok(json) => json,
             Err(e) => {
                 eprintln!("Error parsing JSON on line {}: {}", line_number, e);
@@ -94,7 +94,7 @@ pub async fn handle_pipe_mode(
         let model_provider_arc =
             model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
 
-        let context_collection = match octofhir_fhirpath::Collection::from_json_resource(
+        let context_collection = match octofhir_fhirpath::Collection::from_json_node(
             resource.clone(),
             Some(model_provider_arc.clone()),
         )
@@ -103,9 +103,9 @@ pub async fn handle_pipe_mode(
             Ok(collection) => collection,
             Err(_) => {
                 // Fallback to untyped resource
-                octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(
-                    resource,
-                ))
+                octofhir_fhirpath::Collection::single(
+                    octofhir_fhirpath::FhirPathValue::resource_from_node(resource),
+                )
             }
         };
 
@@ -132,8 +132,12 @@ pub async fn handle_pipe_mode(
         };
 
         // Convert result to JSON and output
-        let result_json = result.to_json_value();
-        match serde_json::to_string(&result_json) {
+        let serialized = match result.len() {
+            0 => serde_json::to_string(&()),
+            1 => serde_json::to_string(&result[0]),
+            _ => serde_json::to_string(&result),
+        };
+        match serialized {
             Ok(json_str) => {
                 if let Err(e) = writeln!(stdout_lock, "{}", json_str) {
                     eprintln!("Error writing output for line {}: {}", line_number, e);

@@ -100,6 +100,7 @@ fn push_typed(node: &FhirNode, child_type: Option<&Arc<TypeInfo>>, out: &mut Vec
             let base = match node {
                 FhirNode::Str(s) => FhirPathValue::string(s.to_string()),
                 FhirNode::Bool(b) => FhirPathValue::boolean(*b),
+                FhirNode::Decimal(..) => crate::core::value::utils::node_to_fhirpath_value(node),
                 FhirNode::Number(n) => {
                     if let Some(i) = n.as_i64() {
                         FhirPathValue::integer(i)

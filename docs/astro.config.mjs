@@ -44,6 +44,9 @@ export default defineConfig({
           label: 'Getting Started',
           items: [
             { label: 'Introduction', slug: 'index' },
+            { label: 'Document functions', slug: 'document-functions' },
+            { label: 'JSON decimal precision', slug: 'json-precision' },
+            { label: 'Conformance differences', slug: 'conformance-differences' },
           ],
         },
         {

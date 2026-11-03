@@ -22,6 +22,47 @@ pub enum NumericBoundaryError {
     PrecisionOutOfRange,
 }
 
+/// Decimal places implied by a source token, including a scientific exponent.
+pub fn source_decimal_scale(source: &str) -> Option<i32> {
+    let mut parts = source.split(['e', 'E']);
+    let mantissa = Decimal::from_str_exact(parts.next()?).ok()?;
+    let exponent = parts
+        .next()
+        .map(str::parse::<i32>)
+        .transpose()
+        .ok()?
+        .unwrap_or(0);
+    (mantissa.scale() as i32).checked_sub(exponent)
+}
+
+/// Numeric boundaries with source precision that Decimal's non-negative scale
+/// cannot encode (for example `9.5e2` means 950 +/- 5, not 950 +/- 0.5).
+pub fn compute_source_numeric_boundaries(
+    value: Decimal,
+    precision: Option<i32>,
+    source: Option<&str>,
+) -> Result<NumericBoundaries, NumericBoundaryError> {
+    let Some(scale) = source.and_then(source_decimal_scale).filter(|s| *s < 0) else {
+        return compute_numeric_boundaries(value, precision);
+    };
+    if precision.is_some_and(|p| !(0..=MAX_DECIMAL_PRECISION).contains(&p)) {
+        return Err(NumericBoundaryError::PrecisionOutOfRange);
+    }
+    let unit = (0..-scale)
+        .try_fold(Decimal::ONE, |n, _| n.checked_mul(Decimal::from(10)))
+        .ok_or(NumericBoundaryError::PrecisionOutOfRange)?;
+    let half = unit / Decimal::from(2);
+    Ok(NumericBoundaries {
+        low: value
+            .checked_sub(half)
+            .ok_or(NumericBoundaryError::PrecisionOutOfRange)?,
+        high: value
+            .checked_add(half)
+            .ok_or(NumericBoundaryError::PrecisionOutOfRange)?,
+        requested_scale: precision.map(|p| p as u32),
+    })
+}
+
 /// Determine the lower and upper bounds for a decimal value given an optional precision override.
 ///
 /// When `precision` is `None`, the intrinsic scale of `value` is used to compute the half-step

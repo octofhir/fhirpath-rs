@@ -133,15 +133,15 @@ pub fn compare_results_unordered(expected: &Value, actual: &Collection) -> bool 
     if wanted.len() != remaining.len() {
         return false;
     }
-    wanted
-        .iter()
-        .all(|w| match remaining.iter().position(|a| a == w) {
+    wanted.iter().all(
+        |w| match remaining.iter().position(|a| json_values_equal(a, w)) {
             Some(i) => {
                 remaining.swap_remove(i);
                 true
             }
             None => false,
-        })
+        },
+    )
 }
 
 /// Item types of a result, order-insensitive check against the expected types.
@@ -164,13 +164,36 @@ pub fn verify_output_types_unordered(
     }
 }
 
+/// Compare JSON values numerically, independently of integer/float encoding.
+/// FHIRPath output types are checked separately by `verify_output_types`.
+pub fn json_values_equal(a: &Value, b: &Value) -> bool {
+    match (a, b) {
+        (Value::Number(a), Value::Number(b)) => {
+            let decimal = octofhir_fhirpath::core::value::utils::decimal_from_json_number;
+            match (decimal(a), decimal(b)) {
+                (Some(a), Some(b)) => a == b,
+                _ => a == b,
+            }
+        }
+        (Value::Array(a), Value::Array(b)) => {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| json_values_equal(a, b))
+        }
+        (Value::Object(a), Value::Object(b)) => {
+            a.len() == b.len()
+                && a.iter()
+                    .all(|(k, a)| b.get(k).is_some_and(|b| json_values_equal(a, b)))
+        }
+        _ => a == b,
+    }
+}
+
 pub fn compare_results(expected: &Value, actual: &Collection) -> bool {
     let actual_json = match serde_json::to_value(actual) {
         Ok(json) => json,
         Err(_) => return false,
     };
 
-    if expected == &actual_json {
+    if json_values_equal(expected, &actual_json) {
         return true;
     }
 
@@ -178,7 +201,7 @@ pub fn compare_results(expected: &Value, actual: &Collection) -> bool {
         (expected_single, actual_json) if actual_json.is_array() => {
             if let Some(actual_arr) = actual_json.as_array() {
                 if actual_arr.len() == 1 {
-                    expected_single == &actual_arr[0]
+                    json_values_equal(expected_single, &actual_arr[0])
                 } else {
                     false
                 }
@@ -189,9 +212,9 @@ pub fn compare_results(expected: &Value, actual: &Collection) -> bool {
         (expected, actual_single) if expected.is_array() => {
             if let Some(expected_arr) = expected.as_array() {
                 if expected_arr.len() == 1 {
-                    &expected_arr[0] == actual_single
+                    json_values_equal(&expected_arr[0], actual_single)
                 } else {
-                    expected == actual_single
+                    json_values_equal(expected, actual_single)
                 }
             } else {
                 false
@@ -208,7 +231,7 @@ pub fn compare_results(expected: &Value, actual: &Collection) -> bool {
         (expected, actual_single) if expected.is_array() => {
             if let Some(expected_arr) = expected.as_array() {
                 if expected_arr.len() == 1 {
-                    &expected_arr[0] == actual_single
+                    json_values_equal(&expected_arr[0], actual_single)
                 } else {
                     false
                 }

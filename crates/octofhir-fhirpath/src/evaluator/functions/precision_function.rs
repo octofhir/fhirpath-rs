@@ -138,6 +138,17 @@ impl PureFunctionEvaluator for PrecisionFunctionEvaluator {
                 };
                 FhirPathValue::integer(count)
             }
+            FhirPathValue::Decimal(_, _, Some(element))
+            | FhirPathValue::Quantity {
+                primitive_element: Some(element),
+                ..
+            } if element.numeric_source.is_some() => {
+                let scale = crate::evaluator::functions::boundary_utils::source_decimal_scale(
+                    element.numeric_source.as_deref().unwrap(),
+                )
+                .unwrap_or(0);
+                FhirPathValue::integer(i64::from(scale))
+            }
             // A quantity's precision is its value's, trailing zeroes included.
             FhirPathValue::Decimal(decimal, _, _)
             | FhirPathValue::Quantity { value: decimal, .. } => {

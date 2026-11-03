@@ -16,6 +16,7 @@
 | **FHIRPath** | [3.0.0 (STU3, Release 3)](https://hl7.org/fhirpath/STU3/), normative and STU parts, plus the additions in the [3.1 continuous build](https://build.fhir.org/ig/HL7/FHIRPath/) (snapshot of 2026-10-25 in [`spec/`](spec/)); checked against the official fhir-test-cases R5 and R6 FHIRPath suites |
 | **FHIR models** | R4, R4B and R5 via [octofhir-fhirschema](https://crates.io/crates/octofhir-fhirschema) |
 | **FHIR extensions** | FHIR-specific functions (`resolve()`, `extension()`, `memberOf()`, `conformsTo()`, ...), `%terminologies`, `%factory` and `%server` per the FHIR API Incubator |
+| **Document extensions** | HL7 Java `section()`, `entry()`, `entryIn()`, `resources()`, `resourcesIn()`, `sameSubject()`, `hasCoding()`; [contract](docs/src/content/docs/document-functions.mdx) (not standard FHIRPath) |
 | **SQL on FHIR** | `getResourceKey()` / `getReferenceKey()` behind the `sql-on-fhir` feature |
 | **Rust** | 1.98 or newer (MSRV, `rust-version` in `Cargo.toml`), edition 2024 |
 
@@ -31,6 +32,9 @@
 **Production-ready CLI**: Our CLI already integrates all ecosystem providers and can be used on a daily basis for FHIRPath evaluation, REPL sessions, and server mode.
 
 **Docs**: [API Documentation](https://docs.rs/octofhir-fhirpath) | **Spec coverage**: [TEST_COVERAGE.md](TEST_COVERAGE.md) | **Benchmarks**: [benchmark.md](benchmark.md) | **CLI**: [crates/fhirpath-cli/README.md](crates/fhirpath-cli/README.md) | **License**: MIT OR Apache-2.0
+
+For exact source decimals, use [`Collection::from_json_str`](docs/src/content/docs/json-precision.mdx).
+Known official snapshot differences and cast compatibility are [documented separately](docs/src/content/docs/conformance-differences.mdx).
 
 ## Core Principles
 

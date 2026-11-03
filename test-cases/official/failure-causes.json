@@ -1,0 +1,37 @@
+{
+  "HighBoundary/HighBoundaryDateMonth": {
+    "cause": "test",
+    "note": "The input is Date and FHIRPath 3.x boundaries preserve the input type. The snapshot expects dateTime for a year-month Date.",
+    "reference": "https://build.fhir.org/ig/HL7/FHIRPath/#lowboundaryprecision-integer-decimal-quantity-date-datetime-time"
+  },
+  "LowBoundary/LowBoundaryDateMonth": {
+    "cause": "test",
+    "note": "The input is Date and FHIRPath 3.x boundaries preserve the input type. The snapshot expects dateTime for a year-month Date.",
+    "reference": "https://build.fhir.org/ig/HL7/FHIRPath/#lowboundaryprecision-integer-decimal-quantity-date-datetime-time"
+  },
+  "testDistinct/testDistinct29": {
+    "cause": "test",
+    "note": "FHIRPath 3.x says false and empty equality both mean distinct items. These tests expect empty for dates of different precisions.",
+    "reference": "https://build.fhir.org/ig/HL7/FHIRPath/#distinct--collection"
+  },
+  "testDistinct/testDistinct36": {
+    "cause": "test",
+    "note": "FHIRPath 3.x says false and empty equality both mean distinct items. These tests expect empty for dates of different precisions.",
+    "reference": "https://build.fhir.org/ig/HL7/FHIRPath/#distinct--collection"
+  },
+  "testGreaterThan/testGreaterThan29": {
+    "cause": "test",
+    "note": "FHIRPath 3.x defines calendar-to-calendar conversion factors. The snapshot expects empty for these comparisons between calendar units.",
+    "reference": "https://build.fhir.org/ig/HL7/FHIRPath/#comparison"
+  },
+  "testLessThan/testLessThan29": {
+    "cause": "test",
+    "note": "FHIRPath 3.x defines calendar-to-calendar conversion factors. The snapshot expects empty for these comparisons between calendar units.",
+    "reference": "https://build.fhir.org/ig/HL7/FHIRPath/#comparison"
+  },
+  "testLessOrEqual/testLessOrEqual28": {
+    "cause": "test",
+    "note": "FHIRPath 3.x defines calendar-to-calendar conversion factors. The snapshot expects empty for these comparisons between calendar units.",
+    "reference": "https://build.fhir.org/ig/HL7/FHIRPath/#comparison"
+  }
+}

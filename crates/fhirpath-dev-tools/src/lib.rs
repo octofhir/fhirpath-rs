@@ -18,6 +18,7 @@
 //! including test runners, coverage analysis, and benchmarking tools.
 
 pub mod common;
+pub mod conformance;
 pub mod metadata;
 pub mod test_support;
 

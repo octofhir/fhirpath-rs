@@ -75,6 +75,40 @@ impl From<Vec<FhirPathValue>> for CollectionStorage {
 }
 
 impl Collection {
+    /// Read a JSON input without losing a decimal's source precision.
+    /// Existing `serde_json::Value` inputs remain supported by `from_json_resource`.
+    pub async fn from_json_str(
+        input: &str,
+        model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
+    ) -> crate::core::Result<Self> {
+        let node = crate::core::node::FhirNode::parse_json(input).map_err(|e| {
+            FhirPathError::evaluation_error(FP0051, format!("Invalid JSON input: {e}"))
+        })?;
+        Self::from_json_node(node, model_provider).await
+    }
+
+    /// Type an already parsed, structurally shared JSON input without materializing it.
+    pub async fn from_json_node(
+        node: crate::core::node::FhirNode,
+        model_provider: Option<Arc<dyn ModelProvider + Send + Sync>>,
+    ) -> crate::core::Result<Self> {
+        let mut value = crate::core::value::utils::node_to_fhirpath_value(&node);
+        if let Some(model) = model_provider
+            && let Some(kind) = node.get("resourceType").and_then(|v| v.as_str())
+            && let Some(info) = model
+                .get_type(kind)
+                .await
+                .map_err(|e| FhirPathError::evaluation_error(FP0051, e.to_string()))?
+        {
+            value = value.with_type_info(Arc::new(info));
+        }
+        Ok(match value {
+            FhirPathValue::Collection(collection) => collection,
+            FhirPathValue::Empty => Collection::empty(),
+            other => Collection::single(other),
+        })
+    }
+
     /// Create a new empty collection (ordered by default)
     pub fn empty() -> Self {
         Self {
@@ -425,6 +459,8 @@ pub struct WrappedPrimitiveElement {
     pub extensions: Vec<WrappedExtension>,
     /// Where the value was navigated from in the root resource (for `pathname()`)
     pub origin: Option<ValueOrigin>,
+    /// Original JSON decimal token, including its scale and exponent.
+    pub numeric_source: Option<Arc<str>>,
 }
 
 /// Where a value navigated from the root resource sits in it: its element name and
@@ -527,6 +563,7 @@ pub fn computed_element(
 ) -> Option<WrappedPrimitiveElement> {
     let mut element = element.clone()?;
     element.origin = None;
+    element.numeric_source = None;
     (!element.is_empty()).then_some(element)
 }
 
@@ -543,6 +580,7 @@ impl WrappedPrimitiveElement {
             id: None,
             extensions: Vec::new(),
             origin: None,
+            numeric_source: None,
         }
     }
 
@@ -552,6 +590,7 @@ impl WrappedPrimitiveElement {
             id: Some(id),
             extensions: Vec::new(),
             origin: None,
+            numeric_source: None,
         }
     }
 
@@ -563,7 +602,7 @@ impl WrappedPrimitiveElement {
 
     /// Check if has any content
     pub fn is_empty(&self) -> bool {
-        self.id.is_none() && self.extensions.is_empty()
+        self.id.is_none() && self.extensions.is_empty() && self.numeric_source.is_none()
     }
 }
 
@@ -691,13 +730,13 @@ impl serde::Serialize for FhirPathValue {
         match self {
             Self::Boolean(b, _, _) => serializer.serialize_bool(*b),
             Self::Integer(i, _, _) => serializer.serialize_i64(*i),
-            Self::Decimal(d, _, _) => {
-                // Try to serialize as number, fall back to string if precision issues
-                if let Ok(f) = d.to_string().parse::<f64>() {
-                    serializer.serialize_f64(f)
-                } else {
-                    serializer.serialize_str(&d.to_string())
-                }
+            Self::Decimal(d, _, element) => {
+                let source = element.as_ref().and_then(|e| e.numeric_source.as_deref());
+                serde_json::value::RawValue::from_string(
+                    source.map_or_else(|| d.to_string(), str::to_string),
+                )
+                .map_err(serde::ser::Error::custom)?
+                .serialize(serializer)
             }
             Self::String(s, _, _) => serializer.serialize_str(s),
             Self::Date(date, _, _) => serializer.serialize_str(&date.to_string()),
@@ -1022,6 +1061,14 @@ impl FhirPathValue {
         type_info: Arc<TypeInfo>,
         primitive_element: Option<WrappedPrimitiveElement>,
     ) -> Self {
+        let mut primitive_element = primitive_element;
+        if let Self::Decimal(_, _, Some(source)) = &value
+            && source.numeric_source.is_some()
+        {
+            primitive_element
+                .get_or_insert_with(WrappedPrimitiveElement::new)
+                .numeric_source = source.numeric_source.clone();
+        }
         match value {
             Self::Boolean(v, _, _) => Self::Boolean(v, type_info, primitive_element),
             Self::Integer(v, _, _) => Self::Integer(v, type_info, primitive_element),

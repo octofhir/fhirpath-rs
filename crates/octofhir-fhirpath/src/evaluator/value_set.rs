@@ -90,11 +90,24 @@ fn hash_value(value: &FhirPathValue, h: &mut impl Hasher) -> bool {
 }
 
 fn hash_node(node: &FhirNode, h: &mut impl Hasher) {
-    std::mem::discriminant(node).hash(h);
+    if matches!(node, FhirNode::Decimal(..)) {
+        std::mem::discriminant(&FhirNode::Number(0.into())).hash(h);
+    } else {
+        std::mem::discriminant(node).hash(h);
+    }
     match node {
         FhirNode::Null => {}
         FhirNode::Bool(v) => v.hash(h),
-        FhirNode::Number(v) => v.hash(h),
+        FhirNode::Number(v) => {
+            if v.is_f64()
+                && let Some(d) = crate::core::value::utils::decimal_from_json_number(v)
+            {
+                d.normalize().to_string().hash(h);
+            } else {
+                v.hash(h);
+            }
+        }
+        FhirNode::Decimal(v, _) => v.normalize().to_string().hash(h),
         FhirNode::Str(v) => v.hash(h),
         FhirNode::Array(values) => {
             values.len().hash(h);
@@ -104,7 +117,9 @@ fn hash_node(node: &FhirNode, h: &mut impl Hasher) {
         }
         FhirNode::Object(values) => {
             values.len().hash(h);
-            for (key, value) in values.iter() {
+            let mut entries: Vec<_> = values.iter().collect();
+            entries.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+            for (key, value) in entries {
                 key.hash(h);
                 hash_node(value, h);
             }

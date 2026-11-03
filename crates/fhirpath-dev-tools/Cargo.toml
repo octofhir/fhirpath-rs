@@ -53,3 +53,6 @@ quick-xml = { workspace = true }
 roxmltree = "0.21"
 sysinfo = "0.39"
 pprof = { version = "0.15", features = ["flamegraph"] }
+
+[dev-dependencies]
+async-trait = { workspace = true }

@@ -1120,6 +1120,9 @@ impl FunctionRegistryBuilder {
 
     /// Add FHIR-specific functions (getValue, checkModifiers, htmlChecks, weight, elementDefinition, slice)
     pub fn with_fhir_functions(mut self) -> Self {
+        for evaluator in crate::evaluator::functions::document::DocumentFunction::evaluators() {
+            self.registry.register_provider_pure_function(evaluator);
+        }
         self.registry
             .register_pure_function(GetValueFunctionEvaluator::create());
         self.registry

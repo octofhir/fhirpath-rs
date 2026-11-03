@@ -22,8 +22,32 @@ pub fn check_type_guards(
 ) -> Vec<Diagnostic> {
     let checker = Checker { model_provider };
     let mut diagnostics = Vec::new();
-    checker.visit(expression, Some(context_types.to_vec()), &mut diagnostics);
+    let types = context_types
+        .iter()
+        .map(|t| {
+            if t.starts_with("System.") {
+                t.clone()
+            } else {
+                crate::core::model_provider::utils::base_type_name(t).to_string()
+            }
+        })
+        .collect();
+    checker.visit(expression, Some(types), &mut diagnostics);
     diagnostics
+}
+
+/// The declared focus name, retaining System/FHIR distinctions and treating Any as unknown.
+pub(crate) fn declared_focus_type(info: &octofhir_fhir_model::TypeInfo) -> Option<String> {
+    let name = info.name.as_deref().unwrap_or(&info.type_name);
+    let name = crate::core::model_provider::utils::base_type_name(name);
+    if matches!(name, "Any" | "Unknown") {
+        return None;
+    }
+    Some(if info.namespace.as_deref() == Some("System") {
+        format!("System.{name}")
+    } else {
+        name.to_string()
+    })
 }
 
 struct Checker<'a> {
@@ -68,12 +92,16 @@ impl Checker<'_> {
     /// Whether a value of this type has a string form: primitives, System types and
     /// Quantity.
     fn has_string_form(&self, type_name: &str) -> bool {
-        type_name.starts_with(|c: char| c.is_ascii_lowercase())
+        matches!(type_name, "Any" | "Unknown")
+            || type_name.starts_with(|c: char| c.is_ascii_lowercase())
             || type_name.starts_with("System.")
             || type_name == "Quantity"
             || self
                 .model_provider
                 .is_type_derived_from(type_name, "Quantity")
+            || self
+                .model_provider
+                .is_type_derived_from("Quantity", type_name)
     }
 
     /// The possible types of `$this` once `condition` is known to be `truth`.

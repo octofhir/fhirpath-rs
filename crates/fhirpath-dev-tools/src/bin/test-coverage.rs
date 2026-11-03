@@ -63,6 +63,7 @@ mod integration_test_runner {
         pub failed: usize,
         pub errored: usize,
         pub skipped: usize,
+        pub failure_cases: Vec<(String, String)>,
         pub error_details: Vec<String>, // Store first few error messages for debugging
     }
 
@@ -84,8 +85,10 @@ mod integration_test_runner {
         registry: Arc<octofhir_fhirpath::FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider + Send + Sync>,
         input_cache: HashMap<String, Value>,
+        raw_input_cache: HashMap<String, octofhir_fhirpath::core::node::FhirNode>,
         base_path: PathBuf,
         verbose: bool,
+        strict_casts: bool,
     }
 
     impl IntegrationTestRunner {
@@ -141,9 +144,16 @@ mod integration_test_runner {
                 registry,
                 model_provider,
                 input_cache: HashMap::new(),
+                raw_input_cache: HashMap::new(),
                 base_path: PathBuf::from("."),
                 verbose: false,
+                strict_casts: false,
             }
+        }
+
+        pub fn with_strict_casts(mut self, strict: bool) -> Self {
+            self.strict_casts = strict;
+            self
         }
 
         /// Set the base path for resolving test and input files
@@ -215,6 +225,10 @@ mod integration_test_runner {
                 )
             })?;
 
+            self.raw_input_cache.insert(
+                filename.to_string(),
+                octofhir_fhirpath::core::node::FhirNode::parse_json(&content)?,
+            );
             let json_value: Value = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse JSON in {filename}: {e}"))?;
 
@@ -325,7 +339,12 @@ mod integration_test_runner {
             }
             // mode="custom" groups exercise Java RI extensions that are neither FHIRPath
             // nor FHIR (e.g. the documentFunctions group).
-            if test.mode.as_deref() == Some("custom") {
+            if test.mode.as_deref() == Some("custom")
+                && !test.testing.as_deref().is_some_and(|name| {
+                    octofhir_fhirpath::evaluator::functions::document::DOCUMENT_FUNCTIONS
+                        .contains(&name)
+                })
+            {
                 return TestResult::Skipped {
                     reason: "mode=custom (non-standard extension functions)".into(),
                 };
@@ -476,7 +495,14 @@ mod integration_test_runner {
             }
 
             // Convert input_data to FhirPathValue and create context - same as test-runner
-            let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
+            let input_value = match test
+                .inputfile
+                .as_ref()
+                .and_then(|name| self.raw_input_cache.get(name))
+            {
+                Some(node) => octofhir_fhirpath::FhirPathValue::resource_from_node(node.clone()),
+                None => octofhir_fhirpath::FhirPathValue::resource(input_data),
+            };
             let input_collection = octofhir_fhirpath::Collection::single(input_value);
             let context = octofhir_fhirpath::EvaluationContext::new(
                 input_collection,
@@ -485,6 +511,10 @@ mod integration_test_runner {
                 self.engine.get_validation_provider(),
                 self.engine.get_trace_provider(),
             );
+
+            if self.strict_casts {
+                context.enable_strict_type_casts();
+            }
 
             // Use single root evaluation method (parse + evaluate in one call) - same as test-runner
             let timeout_ms: u64 = std::env::var("FHIRPATH_TEST_TIMEOUT_MS")
@@ -629,7 +659,7 @@ mod integration_test_runner {
             }
 
             // A whole group marked mode="custom" is non-standard, whatever its tests say.
-            if suite.mode.as_deref() == Some("custom") {
+            if suite.mode.as_deref() == Some("custom") && suite.name != "documentFunctions" {
                 for test in &suite.tests {
                     results.insert(
                         test.name.clone(),
@@ -706,6 +736,11 @@ mod integration_test_runner {
             });
             for test in &suite.tests {
                 let result = &results[&test.name];
+                if matches!(result, TestResult::Failed { .. } | TestResult::Error { .. }) {
+                    stats
+                        .failure_cases
+                        .push((suite.name.clone(), test.name.clone()));
+                }
                 if let Some(out) = failures_out.as_mut() {
                     let detail = match result {
                         TestResult::Failed { expected, actual } => {
@@ -720,6 +755,7 @@ mod integration_test_runner {
                             "name": test.name,
                             "expression": test.expression,
                             "detail": detail,
+                            "classification": fhirpath_dev_tools::conformance::classify_failure(&suite.name, &test.name),
                         });
                         let _ = writeln!(out, "{line}");
                     }
@@ -779,6 +815,12 @@ async fn main() -> Result<()> {
                 .help("Run the official fhir-test-cases suite for this FHIR version (report only, no compliance gate)"),
         )
         .arg(
+            Arg::new("require-classifications")
+                .long("require-classifications")
+                .action(clap::ArgAction::SetTrue)
+                .help("Fail if an observed difference has no checked-in cause"),
+        )
+        .arg(
             Arg::new("min-tests")
                 .long("min-tests")
                 .value_parser(clap::value_parser!(usize))
@@ -823,6 +865,7 @@ async fn main() -> Result<()> {
     let mut runner = IntegrationTestRunner::new(fhir_version)
         .await
         .with_base_path(&specs_dir)
+        .with_strict_casts(official.is_some())
         .with_verbose(false);
 
     let mut test_results = Vec::new();
@@ -904,6 +947,7 @@ async fn main() -> Result<()> {
                             errored: 1,
                             skipped: 0,
                             error_details: vec![format!("File load error: {}", e)],
+                            failure_cases: Vec::new(),
                         },
                         None,
                     ));
@@ -929,6 +973,7 @@ async fn main() -> Result<()> {
                                 "Suite '{}' timed out after {}ms",
                                 filename, suite_timeout_ms
                             )],
+                            failure_cases: Vec::new(),
                         },
                         None,
                     ));
@@ -963,6 +1008,9 @@ async fn main() -> Result<()> {
     println!("   Total Tests: {total_tests}");
     println!("   Pass Rate: {overall_pass_rate:.1}%");
 
+    if matches.get_flag("require-classifications") {
+        ensure_classifications(&test_results)?;
+    }
     if official.is_some() {
         let skipped: usize = test_results.iter().map(|(_, r, _)| r.skipped).sum();
         let executed = total_tests - skipped;
@@ -977,6 +1025,23 @@ async fn main() -> Result<()> {
         return Ok(());
     }
     ensure_compliance(&test_results, minimum_tests)
+}
+
+/// Classifications explain failures without turning them into passing cases.
+fn ensure_classifications(results: &[(String, TestStats, Option<String>)]) -> Result<()> {
+    for (file, stats, _) in results {
+        anyhow::ensure!(
+            stats.failure_cases.len() == stats.failed + stats.errored,
+            "Unclassified suite failure: {file}"
+        );
+        for (suite, name) in &stats.failure_cases {
+            anyhow::ensure!(
+                fhirpath_dev_tools::conformance::classify_failure(suite, name).is_some(),
+                "Unclassified difference: {suite}/{name}"
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Use exact counts, not rounded percentages, and reject missing/failed suites.
@@ -1029,7 +1094,7 @@ fn get_all_test_files(specs_path: &Path, skip_official: bool) -> Vec<PathBuf> {
                     if path
                         .file_name()
                         .and_then(|n| n.to_str())
-                        .is_some_and(|n| n == "metadata.json")
+                        .is_some_and(|n| matches!(n, "metadata.json" | "failure-causes.json"))
                     {
                         continue;
                     }
@@ -1286,6 +1351,28 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
         report.push('\n');
     }
 
+    let failures: Vec<_> = test_results
+        .iter()
+        .flat_map(|(_, stats, _)| &stats.failure_cases)
+        .collect();
+    if !failures.is_empty() {
+        report.push_str("## Remaining differences\n\nActual failures stay counted above; classifications do not turn them into passes.\n\n| Case | Cause | Explanation | Reference |\n|---|---|---|---|\n");
+        for (suite, name) in failures {
+            match fhirpath_dev_tools::conformance::classify_failure(suite, name) {
+                Some(cause) => report.push_str(&format!(
+                    "| {suite}/{name} | {} | {} | [source]({}) |\n",
+                    cause.cause,
+                    cause.note.replace('|', "\\|"),
+                    cause.reference
+                )),
+                None => report.push_str(&format!(
+                    "| {suite}/{name} | unclassified | Needs investigation | — |\n"
+                )),
+            }
+        }
+        report.push('\n');
+    }
+
     report.push_str(&format!(
         r#"## Summary
 
@@ -1326,6 +1413,22 @@ mod compliance_gate_tests {
             passed: total,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn classifications_explain_failures_without_hiding_new_ones() {
+        let mut stats = TestStats {
+            total: 1,
+            failed: 1,
+            failure_cases: vec![("testDistinct".into(), "testDistinct29".into())],
+            ..Default::default()
+        };
+        assert!(ensure_classifications(&suite(stats.clone())).is_ok());
+        assert!(ensure_compliance(&suite(stats.clone()), 1).is_err());
+        stats.failure_cases[0].1 = "newRegression".into();
+        assert!(ensure_classifications(&suite(stats.clone())).is_err());
+        stats.failure_cases.clear();
+        assert!(ensure_classifications(&suite(stats)).is_err());
     }
 
     #[test]

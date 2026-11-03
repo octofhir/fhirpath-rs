@@ -13,9 +13,7 @@ use crate::analyzer::{
 };
 use crate::ast::ExpressionNode;
 use crate::core::error_code::ErrorCode;
-use crate::core::model_provider::utils::{
-    base_type_name, property_exists, property_suggestions, type_exists,
-};
+use crate::core::model_provider::utils::{property_exists, property_suggestions, type_exists};
 use crate::core::{FhirPathError, SourceLocation};
 use crate::diagnostics::{AriadneDiagnostic, DiagnosticSeverity};
 use crate::parser::SemanticAnalyzer;
@@ -259,14 +257,9 @@ impl StaticAnalyzer {
         // Guards describe the declared focus, not a resource-type selector found
         // elsewhere in the expression. Schema providers may map a complex FHIR
         // type to Any while retaining its actual name in TypeInfo.name.
-        let root_type = &context.root_type;
-        let root_name = root_type.name.as_deref().unwrap_or(&root_type.type_name);
-        if !matches!(base_type_name(root_name), "Any" | "Unknown") {
-            let focus_type = if root_type.namespace.as_deref() == Some("System") {
-                format!("System.{}", base_type_name(root_name))
-            } else {
-                base_type_name(root_name).to_string()
-            };
+        if let Some(focus_type) =
+            crate::analyzer::type_guard::declared_focus_type(&context.root_type)
+        {
             for diagnostic in crate::analyzer::type_guard::check_type_guards(
                 &ast,
                 &[focus_type],

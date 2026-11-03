@@ -25,17 +25,82 @@ use std::sync::Arc;
 pub enum FhirNode {
     Null,
     Bool(bool),
-    /// Numbers keep `serde_json::Number` for exact lossless round-trip.
+    /// Numbers supplied through `serde_json::Value`, and source integer tokens.
     Number(serde_json::Number),
+    /// A source decimal, retaining its exact digits and scale without enabling
+    /// serde_json's globally unified `arbitrary_precision` feature.
+    Decimal(rust_decimal::Decimal, Arc<str>),
     Str(Arc<str>),
     Array(Arc<[FhirNode]>),
-    /// Object entries preserve insertion order (FHIR is order-sensitive for
-    /// serialization). Lookups are linear, which is optimal for the small key
+    /// Object entries preserve insertion order for serialization. Equality is
+    /// independent of property order. Lookups are linear, which is optimal for the small key
     /// counts of real FHIR elements and avoids per-object hashing overhead.
     Object(Arc<[(Arc<str>, FhirNode)]>),
 }
 
 impl FhirNode {
+    /// Parse JSON without passing decimal tokens through a binary float.
+    ///
+    /// Use this at the input boundary: digits already discarded by parsing into
+    /// `serde_json::Value` cannot be reconstructed by [`Self::from_json`].
+    pub fn parse_json(input: &str) -> serde_json::Result<Self> {
+        use serde_json::value::RawValue;
+        fn read(raw: &RawValue, depth: usize) -> serde_json::Result<FhirNode> {
+            use serde::de::Error;
+            if depth > 128 {
+                return Err(serde_json::Error::custom("JSON nesting exceeds 128"));
+            }
+            let text = raw.get();
+            Ok(match text.as_bytes().first() {
+                Some(b'{') => {
+                    let fields: indexmap::IndexMap<String, &RawValue> = serde_json::from_str(text)?;
+                    FhirNode::Object(
+                        fields
+                            .into_iter()
+                            .map(|(k, v)| Ok((Arc::from(k), read(v, depth + 1)?)))
+                            .collect::<serde_json::Result<_>>()?,
+                    )
+                }
+                Some(b'[') => {
+                    let values: Vec<&RawValue> = serde_json::from_str(text)?;
+                    FhirNode::Array(
+                        values
+                            .into_iter()
+                            .map(|v| read(v, depth + 1))
+                            .collect::<serde_json::Result<_>>()?,
+                    )
+                }
+                Some(b'-' | b'0'..=b'9') => {
+                    if !text.contains(['.', 'e', 'E']) {
+                        if let Ok(value) = text.parse::<i64>() {
+                            return Ok(FhirNode::Number(value.into()));
+                        }
+                        if let Ok(value) = text.parse::<u64>() {
+                            return Ok(FhirNode::Number(value.into()));
+                        }
+                    }
+                    let mantissa = text.split(['e', 'E']).next().unwrap_or(text);
+                    let decimal = rust_decimal::Decimal::from_str_exact(mantissa)
+                        .ok()
+                        .and_then(|value| {
+                            if text.contains(['e', 'E']) {
+                                rust_decimal::Decimal::from_scientific(text).ok()
+                            } else {
+                                Some(value)
+                            }
+                        })
+                        .ok_or_else(|| {
+                            serde_json::Error::custom("JSON decimal exceeds supported precision")
+                        })?;
+                    FhirNode::Decimal(decimal, Arc::from(text))
+                }
+                _ => FhirNode::from_json(&serde_json::from_str(text)?),
+            })
+        }
+        let raw: &RawValue = serde_json::from_str(input)?;
+        read(raw, 0)
+    }
+
     /// Navigate a JSON Pointer without materializing subtrees.
     pub fn pointer(&self, pointer: &str) -> Option<&Self> {
         if pointer.is_empty() {
@@ -89,6 +154,9 @@ impl FhirNode {
             FhirNode::Null => JsonValue::Null,
             FhirNode::Bool(b) => JsonValue::Bool(*b),
             FhirNode::Number(n) => JsonValue::Number(n.clone()),
+            FhirNode::Decimal(n, _) => {
+                serde_json::from_str(&n.to_string()).expect("valid decimal JSON")
+            }
             FhirNode::Str(s) => JsonValue::String(s.to_string()),
             FhirNode::Array(arr) => JsonValue::Array(arr.iter().map(FhirNode::to_json).collect()),
             FhirNode::Object(entries) => {
@@ -166,6 +234,7 @@ impl FhirNode {
     pub fn as_f64(&self) -> Option<f64> {
         match self {
             FhirNode::Number(n) => n.as_f64(),
+            FhirNode::Decimal(n, _) => rust_decimal::prelude::ToPrimitive::to_f64(n),
             _ => None,
         }
     }
@@ -175,6 +244,7 @@ impl FhirNode {
     pub fn as_decimal(&self) -> Option<rust_decimal::Decimal> {
         match self {
             FhirNode::Number(n) => crate::core::value::utils::decimal_from_json_number(n),
+            FhirNode::Decimal(n, _) => Some(*n),
             FhirNode::Str(s) => crate::core::value::utils::decimal_from_text(s),
             _ => None,
         }
@@ -276,12 +346,26 @@ impl PartialEq for FhirNode {
             (FhirNode::Null, FhirNode::Null) => true,
             (FhirNode::Bool(a), FhirNode::Bool(b)) => a == b,
             (FhirNode::Number(a), FhirNode::Number(b)) => a == b,
+            (FhirNode::Decimal(a, _), FhirNode::Decimal(b, _)) => a == b,
+            (FhirNode::Number(a), FhirNode::Decimal(b, _))
+            | (FhirNode::Decimal(b, _), FhirNode::Number(a)) => {
+                a.is_f64()
+                    && crate::core::value::utils::decimal_from_json_number(a)
+                        .is_some_and(|a| a == *b)
+            }
             (FhirNode::Str(a), FhirNode::Str(b)) => a == b,
             (FhirNode::Array(a), FhirNode::Array(b)) => {
                 // Fast path: same Arc allocation.
                 Arc::ptr_eq(a, b) || a == b
             }
-            (FhirNode::Object(a), FhirNode::Object(b)) => Arc::ptr_eq(a, b) || a == b,
+            (FhirNode::Object(a), FhirNode::Object(b)) => {
+                Arc::ptr_eq(a, b)
+                    || (a.len() == b.len()
+                        && a.iter().all(|(key, value)| {
+                            b.iter()
+                                .any(|(other_key, other)| key == other_key && value == other)
+                        }))
+            }
             _ => false,
         }
     }
@@ -293,6 +377,11 @@ impl Serialize for FhirNode {
             FhirNode::Null => serializer.serialize_unit(),
             FhirNode::Bool(b) => serializer.serialize_bool(*b),
             FhirNode::Number(n) => n.serialize(serializer),
+            FhirNode::Decimal(_, source) => {
+                serde_json::value::RawValue::from_string(source.to_string())
+                    .map_err(serde::ser::Error::custom)?
+                    .serialize(serializer)
+            }
             FhirNode::Str(s) => serializer.serialize_str(s),
             FhirNode::Array(arr) => {
                 let mut seq = serializer.serialize_seq(Some(arr.len()))?;
