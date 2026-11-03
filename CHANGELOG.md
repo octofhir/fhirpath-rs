@@ -1,4 +1,13 @@
-# [0.6.0](https://github.com/octofhir/fhirpath-rs/compare/v0.5.1...v0.6.0) (2026-11-03)
+## [0.5.3](https://github.com/octofhir/fhirpath-rs/compare/v0.5.2...v0.5.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* empty argument to startsWith, endsWith and contains gives an empty result ([cae7f24](https://github.com/octofhir/fhirpath-rs/commit/cae7f2418af87d6dd2a8c6b7bc248ac6db6ce0fc))
+
+
+
+## [0.5.2](https://github.com/octofhir/fhirpath-rs/compare/v0.5.1...v0.5.2) (2026-11-03)
 
 
 ### Bug Fixes
