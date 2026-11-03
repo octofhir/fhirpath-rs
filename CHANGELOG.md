@@ -1,3 +1,12 @@
+## [0.5.4](https://github.com/octofhir/fhirpath-rs/compare/v0.5.3...v0.5.4) (2026-11-03)
+
+
+### Bug Fixes
+
+* %resource at element-level invariants is the containing resource ([e68815e](https://github.com/octofhir/fhirpath-rs/commit/e68815e6e2f0b8c0aaec517bc81a959cf691540b))
+
+
+
 ## [0.5.3](https://github.com/octofhir/fhirpath-rs/compare/v0.5.2...v0.5.3) (2026-11-03)
 
 
