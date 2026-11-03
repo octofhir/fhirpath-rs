@@ -1,12 +1,19 @@
-# Unreleased
+# [0.6.0](https://github.com/octofhir/fhirpath-rs/compare/v0.5.1...v0.6.0) (2026-11-03)
 
-- Add seven HL7 Java document-navigation extensions, with deterministic R5/R6 tests.
-- Preserve JSON decimal digits and source scale through navigation, resolution and CLI JSON output without enabling serde_json/arbitrary_precision.
-- Align analyzer parser precedence and apply declared-focus type guards across semantic and CLI/LSP APIs.
-- Use lightweight fhirschema 0.3.34; remove the unused canonical-manager dependency.
-- Add opt-in strict collection casts and classify unchanged official snapshot differences.
 
-# [0.5.0](https://github.com/octofhir/fhirpath-rs/compare/v0.4.57...v0.5.0) (2026-11-01)
+### Bug Fixes
+
+* **analyzer:** check focus type guards in static analysis ([1595d5c](https://github.com/octofhir/fhirpath-rs/commit/1595d5c12525c9e202a30f38ee6e98c498134ab9))
+* **parser:** align analysis membership precedence ([#193](https://github.com/octofhir/fhirpath-rs/issues/193)) ([43abf69](https://github.com/octofhir/fhirpath-rs/commit/43abf690abb96c8f56c56964553a7566f906ec01))
+
+
+### Features
+
+* add document extensions and lossless JSON evaluation ([#193](https://github.com/octofhir/fhirpath-rs/issues/193)) ([af6cb84](https://github.com/octofhir/fhirpath-rs/commit/af6cb843853e8d8ed7c65fb3df5715f8dec2fdfb))
+
+
+
+## [0.5.1](https://github.com/octofhir/fhirpath-rs/compare/v0.4.57...v0.5.1) (2026-11-01)
 
 
 ### Bug Fixes
