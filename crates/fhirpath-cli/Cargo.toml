@@ -36,7 +36,7 @@ workspace = true
 
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath", features = ["lsp", "sql-on-fhir"] }
-octofhir-fhirschema = { version = "0.3.31" }
+octofhir-fhirschema = { workspace = true }
 # HttpTerminologyProvider (a terminology server over HTTP).
 octofhir-fhir-model = { workspace = true, features = ["http-client"] }
 
