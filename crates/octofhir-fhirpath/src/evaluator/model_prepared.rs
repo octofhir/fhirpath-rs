@@ -193,6 +193,54 @@ mod tests {
         assert!(actual.into_iter().all(|result| result.unwrap()));
     }
 
+    /// An element-level invariant (StructureDefinition sdf-8a on `differential`) reads the
+    /// resource the element is in through `%resource`, also inside lambdas; the element is
+    /// carried as a `Resource` value but is not one.
+    #[tokio::test]
+    async fn resource_variable_is_the_containing_resource_at_element_level() {
+        let engine = crate::testing::test_engine().await;
+        let source = Arc::new(serde_json::json!({"resourceType":"StructureDefinition",
+            "kind":"logical","type":"http://example.org/Flat",
+            "differential":{"element":[{"path":"Flat"},{"path":"Flat.family"}]}}));
+        let expressions = [
+            "%resource.kind.exists() and %resource.element.exists().not()",
+            "%context.element.count() = 2",
+            "element.tail().all(%resource.kind.exists())",
+            "(%resource.kind = 'logical' or element.first().path.startsWith(%resource.type)) and (element.tail().empty() or element.tail().all(path.startsWith(%resource.differential.element.first().path.replaceMatches('\\\\..*','')&'.')))",
+        ];
+        let mut plans = Vec::new();
+        for expression in expressions {
+            plans.push(Arc::new(engine.compile_handle(expression).await.unwrap()));
+        }
+        // Given by the host, or else the top-level resource.
+        for vars in [
+            JsonVariables::from([
+                ("rootResource".into(), source.clone()),
+                ("resource".into(), source.clone()),
+            ]),
+            JsonVariables::from([("rootResource".into(), source.clone())]),
+        ] {
+            let prepared = engine
+                .prepare_resource(source.clone(), &vars)
+                .await
+                .unwrap()
+                .unwrap();
+            let node = source.pointer("/differential").unwrap();
+            let id = prepared.node_id(node).unwrap();
+            let results = engine
+                .evaluate_prepared_constraints(&prepared, id, node, None, &vars, &plans)
+                .await
+                .unwrap();
+            let failed: Vec<_> = expressions
+                .iter()
+                .zip(results)
+                .filter(|(_, result)| !matches!(result, Ok(true)))
+                .map(|(expression, result)| format!("{expression}: {result:?}"))
+                .collect();
+            assert!(failed.is_empty(), "{failed:#?}");
+        }
+    }
+
     #[tokio::test]
     async fn changed_variables_and_foreign_plans_are_rejected_without_aborting_other_slots() {
         let engine = crate::testing::test_engine().await;

@@ -394,11 +394,17 @@ impl EvaluationContext {
         if let Some(ref root) = self.root_resource {
             match name {
                 "this" => return Some(root.as_ref().clone()),
-                "resource" | "%resource" | "context" | "%context" => {
-                    // Only return if it's actually a Resource type
+                "context" | "%context" => {
                     if matches!(root.as_ref(), FhirPathValue::Resource(_, _, _)) {
                         return Some(root.as_ref().clone());
                     }
+                }
+                // %resource is the resource the focus is in. Backbone elements and untyped
+                // objects are carried as `Resource` values too, so only a root that names its
+                // `resourceType` is one; an element focus (a validator running an element's
+                // invariant) resolves through the host's variables below.
+                "resource" | "%resource" if is_resource_value(root) => {
+                    return Some(root.as_ref().clone());
                 }
                 _ => {}
             }
@@ -429,6 +435,11 @@ impl EvaluationContext {
             && matches!(root.as_ref(), FhirPathValue::Resource(_, _, _))
         {
             return Some(root.as_ref().clone());
+        }
+
+        // Without a host-given %resource, an element focus is in the top-level resource.
+        if matches!(name, "resource" | "%resource") {
+            return self.get_variable("rootResource").filter(is_resource_value);
         }
 
         None
@@ -786,6 +797,12 @@ impl Clone for EvaluationContext {
             hoist_scope: self.hoist_scope.clone(),
         }
     }
+}
+
+/// A resource (it names its `resourceType`), not a backbone element or untyped object, which are
+/// carried as `Resource` values as well.
+fn is_resource_value(value: &FhirPathValue) -> bool {
+    matches!(value, FhirPathValue::Resource(node, _, _) if node.get("resourceType").is_some())
 }
 
 #[cfg(test)]
