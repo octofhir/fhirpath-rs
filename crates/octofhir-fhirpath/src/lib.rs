@@ -74,7 +74,7 @@ pub mod testing;
 pub mod typing;
 
 // LSP module (feature-gated)
-#[cfg(feature = "lsp")]
+#[cfg(feature = "lsp-stdio")]
 pub mod lsp;
 
 // Imports for internal use

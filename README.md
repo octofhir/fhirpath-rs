@@ -186,3 +186,16 @@ Licensed under either of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at 
 ---
 
 **Built by the OctoFHIR team**
+### Minimal evaluation and editor transports
+
+Evaluation retains platform UCUM arithmetic without enabling its regex/fuzzy unit
+search helpers. The normal library uses only the futures helpers needed by the VM.
+
+```toml
+octofhir-fhirpath = "0.5.5"
+# For a stdio editor server, use this declaration instead:
+# octofhir-fhirpath = { version = "0.5.5", features = ["lsp-stdio"] }
+```
+
+Choose one dependency declaration. The existing `lsp` feature continues to include
+both stdio and WebSocket transports and its previous upstream helper features.

@@ -43,9 +43,11 @@ pub use goto_definition::GotoDefinitionProvider;
 pub use handlers::LspHandlers;
 pub use hover::HoverProvider;
 pub use semantic_tokens::{SemanticTokensProvider, build_legend};
+#[cfg(feature = "lsp")]
+pub use server::run_websocket;
 pub use server::{
     ClearContext, FhirPathLspServer, ServerConfig, SetContext, Transport, process_lsp_message,
-    run_stdio, run_websocket,
+    run_stdio,
 };
 pub use signature_help::SignatureHelpProvider;
 

@@ -12,8 +12,8 @@ use async_lsp::panic::CatchUnwindLayer;
 use async_lsp::router::Router;
 use async_lsp::tracing::TracingLayer;
 use lsp_types::notification::{
-    DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Initialized, Notification,
-    PublishDiagnostics,
+    DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Exit, Initialized,
+    Notification, PublishDiagnostics,
 };
 use lsp_types::request::{
     CodeActionRequest, Completion, DocumentSymbolRequest, GotoDefinition, HoverRequest, Initialize,
@@ -109,7 +109,10 @@ impl FhirPathLspServer {
     }
 }
 
-/// Run the LSP server with stdio transport
+/// Run the LSP server with stdio transport.
+///
+/// Call this from a Tokio multi-thread runtime: notification handlers apply
+/// document changes in order while allowing asynchronous model lookups.
 pub async fn run_stdio(
     model_provider: Arc<dyn ModelProvider + Send + Sync>,
 ) -> Result<(), async_lsp::Error> {
@@ -141,6 +144,9 @@ pub async fn run_stdio(
 
         // Shutdown request
         router.request::<Shutdown, _>(|_server, _params: ()| async move { Ok(()) });
+
+        // The exit notification completes the stdio session after shutdown.
+        router.notification::<Exit>(|_server, ()| ControlFlow::Break(Ok(())));
 
         // Completion request
         router.request::<Completion, _>(|server, params: CompletionParams| {
@@ -229,9 +235,11 @@ pub async fn run_stdio(
             let diagnostics = {
                 let handlers = server.handlers.clone();
                 let rt = tokio::runtime::Handle::current();
-                rt.block_on(async {
-                    let mut handlers = handlers.lock().await;
-                    handlers.did_open(params).await
+                tokio::task::block_in_place(|| {
+                    rt.block_on(async {
+                        let mut handlers = handlers.lock().await;
+                        handlers.did_open(params).await
+                    })
                 })
             };
 
@@ -247,9 +255,11 @@ pub async fn run_stdio(
                 let diagnostics = {
                     let handlers = server.handlers.clone();
                     let rt = tokio::runtime::Handle::current();
-                    rt.block_on(async {
-                        let mut handlers = handlers.lock().await;
-                        handlers.did_change(params).await
+                    tokio::task::block_in_place(|| {
+                        rt.block_on(async {
+                            let mut handlers = handlers.lock().await;
+                            handlers.did_change(params).await
+                        })
                     })
                 };
 
@@ -263,9 +273,11 @@ pub async fn run_stdio(
             |server, params: DidCloseTextDocumentParams| {
                 let handlers = server.handlers.clone();
                 let rt = tokio::runtime::Handle::current();
-                rt.block_on(async {
-                    let mut handlers = handlers.lock().await;
-                    handlers.did_close(params);
+                tokio::task::block_in_place(|| {
+                    rt.block_on(async {
+                        let mut handlers = handlers.lock().await;
+                        handlers.did_close(params);
+                    })
                 });
                 ControlFlow::Continue(())
             },
@@ -275,9 +287,11 @@ pub async fn run_stdio(
         router.notification::<SetContext>(|server, params: SetContextParams| {
             let handlers = server.handlers.clone();
             let rt = tokio::runtime::Handle::current();
-            rt.block_on(async {
-                let mut handlers = handlers.lock().await;
-                handlers.set_context(params);
+            tokio::task::block_in_place(|| {
+                rt.block_on(async {
+                    let mut handlers = handlers.lock().await;
+                    handlers.set_context(params);
+                })
             });
             tracing::debug!("FHIRPath context updated");
             ControlFlow::Continue(())
@@ -287,9 +301,11 @@ pub async fn run_stdio(
         router.notification::<ClearContext>(|server, _params: ()| {
             let handlers = server.handlers.clone();
             let rt = tokio::runtime::Handle::current();
-            rt.block_on(async {
-                let mut handlers = handlers.lock().await;
-                handlers.clear_context();
+            tokio::task::block_in_place(|| {
+                rt.block_on(async {
+                    let mut handlers = handlers.lock().await;
+                    handlers.clear_context();
+                })
             });
             tracing::debug!("FHIRPath context cleared");
             ControlFlow::Continue(())
@@ -308,6 +324,7 @@ pub async fn run_stdio(
 }
 
 /// Run the LSP server with WebSocket transport
+#[cfg(feature = "lsp")]
 pub async fn run_websocket(
     model_provider: Arc<dyn ModelProvider + Send + Sync>,
     port: u16,

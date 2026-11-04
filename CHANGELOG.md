@@ -1,3 +1,14 @@
+## [0.5.5] - 2026-11-04
+
+### Changed
+- Add `lsp-stdio` for editor integration without Axum or the WebSocket HTTP host;
+  the existing `lsp` feature preserves both transports and upstream helpers.
+- Use the futures utilities needed by the VM instead of the full facade.
+- Use UCUM platform math without its unused search/FHIR integration features;
+  retain serialization of the public unit types and the same numeric backend.
+- Update model/schema minimums and the private sysinfo dependency.
+- Fix stdio document notification runtime nesting and handle the LSP exit notification.
+
 ## [0.5.4](https://github.com/octofhir/fhirpath-rs/compare/v0.5.3...v0.5.4) (2026-11-03)
 
 

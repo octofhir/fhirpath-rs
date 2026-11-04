@@ -1,0 +1,12 @@
+[package]
+name = "fhirpath-stdio-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+octofhir-fhirpath = { path = "../../crates/octofhir-fhirpath", features = ["lsp-stdio"] }
+octofhir-fhirschema = { version = "0.3.35", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

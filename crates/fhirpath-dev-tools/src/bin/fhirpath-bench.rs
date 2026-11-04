@@ -413,7 +413,7 @@ fn list_expressions() {
 
 fn get_rss_bytes() -> Option<u64> {
     let pid = Pid::from_u32(std::process::id());
-    let mut sys = System::new();
+    let mut sys = System::new().ok()?;
     sys.refresh_memory();
     sys.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
     let process = sys.process(pid)?;

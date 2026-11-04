@@ -296,3 +296,29 @@ jobs:
 
       - name: Run security audit
         run: cargo audit
+
+  stdio-consumer:
+    name: Independent stdio consumer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tests/lsp-stdio-consumer
+      - name: Build editor transport without HTTP
+        run: cargo build --manifest-path tests/lsp-stdio-consumer/Cargo.toml
+      - name: Guard dependency boundary
+        run: |
+          python3 - <<'PY'
+          import re, subprocess
+          graph = subprocess.check_output([
+              "cargo", "tree", "--manifest-path", "tests/lsp-stdio-consumer/Cargo.toml",
+              "--edges", "normal,build", "--prefix", "none", "--format", "{p}",
+          ], text=True)
+          forbidden = re.findall(r"^(?:axum|tower-http|reqwest|hyper|rustls|native-tls|openssl-sys|fuzzy-matcher) v.*", graph, re.M)
+          if forbidden:
+              raise SystemExit("Unexpected stdio dependencies: " + ", ".join(forbidden))
+          PY
+      - name: Exercise actual stdio protocol
+        run: python3 tests/lsp-stdio-consumer/protocol.py tests/lsp-stdio-consumer/target/debug/fhirpath-stdio-consumer stdio-stderr.log

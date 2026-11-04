@@ -62,14 +62,15 @@ stacker = "0.1"
 # Async dependencies
 async-trait = { workspace = true }
 async-recursion = "1.1"
-futures = { workspace = true }
+# VM wakers and optional WebSocket helpers; no executor/channel facade.
+futures = { package = "futures-util", version = "0.3.34", default-features = false, features = ["std", "async-await"] }
 tokio = { workspace = true, features = ["sync"] }
 
 # Optional diagnostic dependencies
 colored = { workspace = true }
 
 # Optional LSP dependencies
-async-lsp = { version = "0.2", features = ["tokio", "tracing"], optional = true }
+async-lsp = { version = "0.2", default-features = false, features = ["tracing"], optional = true }
 # Pinned to 0.95 to match the lsp-types version re-exported by async-lsp 0.2;
 # bumping it puts two incompatible lsp_types copies in the graph.
 lsp-types = { version = "0.95", optional = true }
@@ -95,18 +96,27 @@ default = []
 mock-provider = [] # Include MockModelProvider for testing and development
 analysis = []      # Include static analysis features
 sql-on-fhir = []   # SQL on FHIR functions: getResourceKey(), getReferenceKey([type])
-lsp = [
+# Editor transport without the HTTP/WebSocket host.
+lsp-stdio = [
     "dep:async-lsp",
     "dep:lsp-types",
     "dep:tower",
     "dep:tokio-util",
-    "dep:axum",
-    "dep:tower-http",
     "tokio/rt-multi-thread",
     "tokio/macros",
-    "tokio/net",
     "tokio/io-std",
-] # Language Server Protocol support
+    "tokio/io-util",
+]
+# Preserve the existing full LSP feature, including upstream helpers and WebSockets.
+lsp = [
+    "lsp-stdio",
+    "async-lsp/default",
+    "async-lsp/tokio",
+    "dep:axum",
+    "dep:tower-http",
+    "futures/sink",
+    "tokio/net",
+]
 
 [[bench]]
 name = "evaluation_hot_paths"
