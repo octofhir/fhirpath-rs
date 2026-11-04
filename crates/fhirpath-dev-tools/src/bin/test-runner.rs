@@ -144,7 +144,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create function registry
     println!("📋 Creating function registry...");
     let registry_start = std::time::Instant::now();
-    let registry = std::sync::Arc::new(octofhir_fhirpath::create_function_registry());
+    let registry = std::sync::Arc::new(fhirpath_dev_tools::test_function_registry());
     let registry_time = registry_start.elapsed();
     println!(
         "✅ Function registry created in {}ms",

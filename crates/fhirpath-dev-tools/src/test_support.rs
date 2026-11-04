@@ -242,3 +242,25 @@ pub fn compare_results(expected: &Value, actual: &Collection) -> bool {
         _ => false,
     }
 }
+
+/// The function registry the test runners use: every FHIRPath function, with `hasTemplateIdOf`
+/// knowing the C-CDA profiles the official CDA tests name. The reference runner loads the C-CDA
+/// IG for them; the tests only need the template of the CCD document profile
+/// (hl7.cda.us.ccda 5.0.0, `ContinuityofCareDocumentCCD`).
+pub fn test_function_registry() -> octofhir_fhirpath::FunctionRegistry {
+    use octofhir_fhirpath::evaluator::functions::{HasTemplateIdOfFunctionEvaluator, TemplateId};
+    let mut registry = octofhir_fhirpath::create_function_registry();
+    let mut profiles: std::collections::HashMap<String, Vec<TemplateId>> =
+        std::collections::HashMap::new();
+    profiles.insert(
+        "http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD".to_owned(),
+        vec![(
+            "2.16.840.1.113883.10.20.22.1.2".to_owned(),
+            Some("2024-05-01".to_owned()),
+        )],
+    );
+    registry.register_pure_function(HasTemplateIdOfFunctionEvaluator::with_resolver(
+        std::sync::Arc::new(profiles),
+    ));
+    registry
+}

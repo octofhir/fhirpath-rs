@@ -265,7 +265,9 @@ pub use substring_function::SubstringFunctionEvaluator;
 pub use trace_function::TraceFunctionEvaluator;
 
 // CDA functions
-pub use has_template_id_of_function::HasTemplateIdOfFunctionEvaluator;
+pub use has_template_id_of_function::{
+    HasTemplateIdOfFunctionEvaluator, TemplateId, TemplateIdResolver, parse_template_id,
+};
 
 // FHIR-specific functions
 pub use check_modifiers_function::CheckModifiersFunctionEvaluator;

@@ -15,8 +15,9 @@ official/
   defines is carried over (`mode`, `context`, `contextType`, `ordered`, `testing`,
   `version`, ...), and `outputs` keeps each output's text as written.
 - `input/` holds the resources the tests reference: upstream JSON as is, FHIR XML
-  converted by `convert-fhir-xml` against that version's schemas. `ccda.json` is the
-  hand-maintained CDA form from `test-cases/input`.
+  converted by `convert-fhir-xml` against that version's schemas. `ccda.json` is upstream
+  `r5/ccda.xml` read by `fml xml read` (fml-rs) over the CDA logical model
+  (hl7.cda.uv.core 2.0.3-sd), with `resourceType` added; the same file is in `test-cases/input`.
 
 ## Running
 

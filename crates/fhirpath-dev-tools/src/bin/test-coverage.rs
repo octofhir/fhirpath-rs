@@ -33,7 +33,7 @@ mod integration_test_runner {
     use octofhir_fhirpath::FhirPathValue;
     use octofhir_fhirpath::ModelProvider;
     use octofhir_fhirpath::core::trace::create_cli_provider;
-    use octofhir_fhirpath::{Collection, FhirPathEngine, create_function_registry};
+    use octofhir_fhirpath::{Collection, FhirPathEngine};
     use octofhir_fhirschema::create_validation_provider_from_embedded;
     use serde_json::{Value, json};
     use std::collections::HashMap;
@@ -102,7 +102,7 @@ mod integration_test_runner {
                 std::sync::Arc::new(provider)
             };
 
-            let registry = Arc::new(create_function_registry());
+            let registry = Arc::new(fhirpath_dev_tools::test_function_registry());
             let mut engine = FhirPathEngine::new(registry.clone(), model_provider.clone())
                 .await
                 .expect("cannot create engine");

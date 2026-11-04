@@ -1,10 +1,21 @@
-//! HasTemplateIdOf function implementation for CDA documents
+//! `hasTemplateIdOf(profileUrl)`: the FHIRPath function the CDA core specification adds for CDA
+//! profiles (hl7.cda.uv.core, "FHIRPath Supplements").
 //!
-//! The hasTemplateIdOf function checks if a CDA element has the specified template ID.
-//! Syntax: element.hasTemplateIdOf(templateId)
+//! It is true when the element has a `templateId` corresponding to the identifier of the profile
+//! the URL names: a profile with the identifier `urn:hl7ii:2.16.840.1.113883.10.20.22.4.7:2014-06-09`
+//! matches `<templateId root="2.16.840.1.113883.10.20.22.4.7" extension="2014-06-09"/>`. The
+//! specification gives it as a shorthand for
+//! `templateId.where(root = '…' and extension = '…').exists()`.
+//!
+//! Profiles are known to the host, not to FHIRPath: a [`TemplateIdResolver`] gives the template
+//! ids of a profile URL. Without one, or for a URL it does not know, the argument may itself be a
+//! template identifier (`urn:hl7ii:root:extension`, `urn:oid:root`, or a bare OID). A template
+//! without an extension matches its root whatever the extension.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::core::node::FhirNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
@@ -12,26 +23,70 @@ use crate::evaluator::function_registry::{
     FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
 
-/// HasTemplateIdOf function evaluator for CDA documents
+/// A template identifier: `root` and, when the template is versioned, `extension`.
+pub type TemplateId = (String, Option<String>);
+
+/// Gives the template ids of a profile, by its canonical URL.
+pub trait TemplateIdResolver: Send + Sync {
+    fn template_ids(&self, profile_url: &str) -> Vec<TemplateId>;
+}
+
+impl TemplateIdResolver for HashMap<String, Vec<TemplateId>> {
+    fn template_ids(&self, profile_url: &str) -> Vec<TemplateId> {
+        let url = profile_url.split('|').next().unwrap_or(profile_url);
+        self.get(url).cloned().unwrap_or_default()
+    }
+}
+
+/// Reads a template identifier: `urn:hl7ii:root[:extension]`, `urn:oid:root` or a bare OID.
+pub fn parse_template_id(text: &str) -> Option<TemplateId> {
+    if let Some(rest) = text.strip_prefix("urn:hl7ii:") {
+        let (root, extension) = match rest.split_once(':') {
+            Some((root, extension)) => (root, Some(extension.to_owned())),
+            None => (rest, None),
+        };
+        return (!root.is_empty()).then(|| (root.to_owned(), extension));
+    }
+    let root = text.strip_prefix("urn:oid:").unwrap_or(text);
+    let is_oid = !root.is_empty()
+        && root.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+        && root.contains('.');
+    is_oid.then(|| (root.to_owned(), None))
+}
+
+/// The `hasTemplateIdOf` function.
 pub struct HasTemplateIdOfFunctionEvaluator {
     metadata: FunctionMetadata,
+    resolver: Option<Arc<dyn TemplateIdResolver>>,
 }
 
 impl HasTemplateIdOfFunctionEvaluator {
-    /// Create a new hasTemplateIdOf function evaluator
+    /// Without a resolver: the argument must be a template identifier.
     pub fn create() -> Arc<dyn PureFunctionEvaluator> {
-        Arc::new(Self {
+        Arc::new(Self::new(None))
+    }
+
+    /// With a resolver for profile URLs. Register it in place of the default one:
+    /// `registry.register_pure_function(HasTemplateIdOfFunctionEvaluator::with_resolver(r))`.
+    pub fn with_resolver(resolver: Arc<dyn TemplateIdResolver>) -> Arc<dyn PureFunctionEvaluator> {
+        Arc::new(Self::new(Some(resolver)))
+    }
+
+    fn new(resolver: Option<Arc<dyn TemplateIdResolver>>) -> Self {
+        Self {
             metadata: FunctionMetadata {
                 name: "hasTemplateIdOf".to_string(),
-                description: "Checks if a CDA element has the specified template ID".to_string(),
+                description: "Whether a CDA element has a templateId of the profile the URL names"
+                    .to_string(),
                 signature: FunctionSignature {
                     input_type: "Any".to_string(),
                     parameters: vec![FunctionParameter {
-                        name: "templateId".to_string(),
+                        name: "profileUrl".to_string(),
                         parameter_type: vec!["String".to_string()],
                         optional: false,
                         is_expression: false,
-                        description: "The template ID to check for".to_string(),
+                        description: "The canonical URL of the profile, or a template identifier"
+                            .to_string(),
                         default_value: None,
                     }],
                     return_type: "Boolean".to_string(),
@@ -47,7 +102,18 @@ impl HasTemplateIdOfFunctionEvaluator {
                 requires_terminology: false,
                 requires_model: false,
             },
-        })
+            resolver,
+        }
+    }
+
+    fn templates(&self, argument: &str) -> Vec<TemplateId> {
+        if let Some(resolver) = &self.resolver {
+            let found = resolver.template_ids(argument);
+            if !found.is_empty() {
+                return found;
+            }
+        }
+        parse_template_id(argument).into_iter().collect()
     }
 }
 
@@ -62,56 +128,31 @@ impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
-        if args.len() != 1 {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                format!(
-                    "hasTemplateIdOf function expects 1 argument, got {}",
-                    args.len()
-                ),
-            ));
-        }
-
-        // Get the templateId argument (pre-evaluated)
-        let template_id_values = &args[0];
-
-        if template_id_values.len() != 1 {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0054,
-                "hasTemplateIdOf function requires exactly one template ID argument".to_string(),
-            ));
-        }
-
-        let template_id = match &template_id_values[0] {
-            FhirPathValue::String(s, _, _) => s,
+        let argument = match args.as_slice() {
+            [values] if values.len() == 1 => match &values[0] {
+                FhirPathValue::String(s, _, _) => s.clone(),
+                _ => {
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0054,
+                        "hasTemplateIdOf needs a string: the profile URL".to_string(),
+                    ));
+                }
+            },
             _ => {
                 return Err(FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0054,
-                    "hasTemplateIdOf function requires a string template ID".to_string(),
+                    crate::core::error_code::FP0053,
+                    "hasTemplateIdOf takes one argument: the profile URL".to_string(),
                 ));
             }
         };
-
-        // Handle empty input
-        if input.is_empty() {
-            return Ok(EvaluationResult {
-                value: crate::core::Collection::single(FhirPathValue::boolean(false)),
+        let templates = self.templates(&argument);
+        let found = !templates.is_empty()
+            && input.iter().any(|element| match element {
+                FhirPathValue::Resource(json, _, _) => has_template(json, &templates),
+                _ => false,
             });
-        }
-
-        // Check each element for the template ID
-        for element in &input {
-            if let FhirPathValue::Resource(json, type_info, _) = element
-                && has_template_id(json, &type_info.type_name, template_id)
-            {
-                return Ok(EvaluationResult {
-                    value: crate::core::Collection::single(FhirPathValue::boolean(true)),
-                });
-            }
-        }
-
         Ok(EvaluationResult {
-            value: crate::core::Collection::single(FhirPathValue::boolean(false)),
+            value: Collection::single(FhirPathValue::boolean(found)),
         })
     }
 
@@ -120,102 +161,54 @@ impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
     }
 }
 
-/// Check if a CDA element has the specified template ID
-fn has_template_id(
-    json: &crate::core::node::FhirNode,
-    resource_type: &str,
-    template_id: &str,
-) -> bool {
-    // For CDA documents, check for explicit templateId elements first
-    if let Some(template_ids) = json.get("templateId")
-        && check_template_id_value(template_ids, template_id)
-    {
-        return true;
-    }
-
-    // Special handling for known CDA document types
-    match template_id {
-        "http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD" => {
-            // This is a C-CDA Continuity of Care Document template
-            // Check if this is a ClinicalDocument OR if it has resourceType ClinicalDocument
-            let is_clinical_document = resource_type == "ClinicalDocument"
-                || json.get("resourceType").and_then(|v| v.as_str()) == Some("ClinicalDocument");
-
-            if is_clinical_document {
-                // Check for typical CCD structure
-                let has_component = json.get("component").is_some();
-                let has_record_target = json.get("recordTarget").is_some();
-                let has_title = json.get("title").is_some();
-
-                if has_component && has_record_target && has_title {
-                    // Check if title indicates this is a CCD
-                    if let Some(title) = json.get("title").and_then(|t| t.get("#text"))
-                        && let Some(title_str) = title.as_str()
-                    {
-                        return title_str.contains("Continuity of Care");
-                    }
-                    // Even without explicit title match, a ClinicalDocument with
-                    // component and recordTarget is likely a CCD
-                    return true;
-                }
-            }
-        }
-        _ => {
-            // For other template IDs, only return true if explicitly found
+/// Whether one of the element's `templateId`s is one of `templates`.
+fn has_template(element: &FhirNode, templates: &[TemplateId]) -> bool {
+    let Some(ids) = element.get("templateId") else {
+        return false;
+    };
+    let ids: Vec<&FhirNode> = match ids.as_array() {
+        Some(items) => items.iter().collect(),
+        None => vec![ids],
+    };
+    ids.into_iter().any(|id| {
+        let Some(root) = id.get("root").and_then(FhirNode::as_str) else {
             return false;
-        }
-    }
-
-    false
-}
-
-/// Check if a templateId value (single or array) contains the target template ID
-fn check_template_id_value(
-    template_ids: &crate::core::node::FhirNode,
-    target_template_id: &str,
-) -> bool {
-    match template_ids.as_array() {
-        Some(arr) => {
-            for template_id in arr.iter() {
-                if check_single_template_id(template_id, target_template_id) {
-                    return true;
+        };
+        let extension = id.get("extension").and_then(FhirNode::as_str);
+        templates.iter().any(|(wanted_root, wanted_extension)| {
+            wanted_root == root
+                && match wanted_extension {
+                    Some(wanted) => extension == Some(wanted.as_str()),
+                    None => true,
                 }
-            }
-        }
-        None => {
-            return check_single_template_id(template_ids, target_template_id);
-        }
-    }
-    false
+        })
+    })
 }
 
-/// Check if a single templateId object matches the target template ID
-fn check_single_template_id(
-    template_id: &crate::core::node::FhirNode,
-    target_template_id: &str,
-) -> bool {
-    // Check for @root attribute (common in CDA)
-    if let Some(root) = template_id.get("@root")
-        && let Some(root_str) = root.as_str()
-        && root_str == target_template_id
-    {
-        return true;
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    // Check for root attribute (without @)
-    if let Some(root) = template_id.get("root")
-        && let Some(root_str) = root.as_str()
-        && root_str == target_template_id
-    {
-        return true;
+    #[test]
+    fn reads_template_identifiers() {
+        assert_eq!(
+            parse_template_id("urn:hl7ii:2.16.840.1.113883.10.20.22.4.7:2014-06-09"),
+            Some((
+                "2.16.840.1.113883.10.20.22.4.7".to_owned(),
+                Some("2014-06-09".to_owned())
+            ))
+        );
+        assert_eq!(
+            parse_template_id("urn:oid:2.16.840.1.113883.10.20.22.4.7"),
+            Some(("2.16.840.1.113883.10.20.22.4.7".to_owned(), None))
+        );
+        assert_eq!(
+            parse_template_id("2.16.840.1.113883.10.20.22.4.7"),
+            Some(("2.16.840.1.113883.10.20.22.4.7".to_owned(), None))
+        );
+        assert_eq!(
+            parse_template_id("http://hl7.org/cda/us/ccda/StructureDefinition/X"),
+            None
+        );
     }
-
-    // Check if the template_id itself is a string
-    if let Some(template_str) = template_id.as_str()
-        && template_str == target_template_id
-    {
-        return true;
-    }
-
-    false
 }
