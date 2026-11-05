@@ -1068,6 +1068,13 @@ impl Evaluator {
                                 .await?;
                             result_values.extend(flattened_values);
                         }
+                    } else if let Some(primitive) = json.get(&format!("_{identifier}")) {
+                        // A primitive with only extensions (`_issued` and no `issued`) is
+                        // there: an element without a value.
+                        result_values.extend(Self::extension_only_primitives(
+                            primitive,
+                            &property_type_info,
+                        ));
                     } else {
                         // Use atomic-ehr pattern: detect choice values first
                         let choice_results = self.detect_choice_values(json, identifier).await?;
@@ -1161,6 +1168,11 @@ impl Evaluator {
                                         .await?;
                                     result_values.extend(flattened_values);
                                 }
+                            } else if let Some(primitive) = json.get(&format!("_{identifier}")) {
+                                result_values.extend(Self::extension_only_primitives(
+                                    primitive,
+                                    &property_type_info,
+                                ));
                             } else {
                                 // Apply same fallback logic as above
                                 if identifier.starts_with("value") && identifier.len() > 5 {
@@ -1619,6 +1631,32 @@ impl Evaluator {
                         .is_some_and(|c| c.is_uppercase())
             })
             .collect();
+
+        // A choice whose value is only extensions (`_valueDateTime` and no `valueDateTime`) is
+        // there too: an element without a value, of the type its name says.
+        for (key, node) in json_obj.iter() {
+            let key: &str = key.as_ref();
+            let Some(name) = key.strip_prefix('_') else {
+                continue;
+            };
+            let Some(suffix) = name.strip_prefix(base_property) else {
+                continue;
+            };
+            if !suffix.chars().next().is_some_and(|c| c.is_uppercase()) || json.get(name).is_some()
+            {
+                continue;
+            }
+            let mut type_name = suffix.to_string();
+            type_name[..1].make_ascii_lowercase();
+            let type_info = crate::core::model_provider::TypeInfo {
+                type_name: type_name.clone(),
+                singleton: Some(true),
+                namespace: Some("FHIR".to_string()),
+                name: Some(type_name),
+                is_empty: Some(false),
+            };
+            results.extend(Self::extension_only_primitives(node, &type_info));
+        }
 
         if possible_choices.is_empty() {
             return Ok(results);
@@ -2338,6 +2376,34 @@ impl Evaluator {
                 ))
             }
         }
+    }
+
+    /// The `_name` element of a primitive that has no value: an element node (it exists, has no
+    /// value, and its extensions can be navigated), one per item when it repeats.
+    fn extension_only_primitives(
+        primitive: &crate::core::node::FhirNode,
+        type_info: &crate::core::model_provider::TypeInfo,
+    ) -> Vec<FhirPathValue> {
+        let element_type_info = std::sync::Arc::new(crate::core::model_provider::TypeInfo {
+            type_name: type_info
+                .name
+                .as_deref()
+                .unwrap_or(&type_info.type_name)
+                .to_string(),
+            singleton: Some(true),
+            namespace: type_info.namespace.clone(),
+            name: type_info.name.clone(),
+            is_empty: Some(false),
+        });
+        let items: Vec<&crate::core::node::FhirNode> = match primitive.as_array() {
+            Some(items) => items.iter().collect(),
+            None => vec![primitive],
+        };
+        items
+            .into_iter()
+            .filter(|item| item.is_object())
+            .map(|item| FhirPathValue::Resource(item.clone(), element_type_info.clone(), None))
+            .collect()
     }
 
     /// Get primitive element for a property (for extension support)
