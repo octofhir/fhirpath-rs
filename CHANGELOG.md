@@ -1,4 +1,13 @@
-# [0.6.0](https://github.com/octofhir/fhirpath-rs/compare/v0.5.5...v0.6.0) (2026-11-04)
+## [0.5.7](https://github.com/octofhir/fhirpath-rs/compare/v0.5.6...v0.5.7) (2026-11-05)
+
+
+### Bug Fixes
+
+* a primitive with only extensions is an element that exists ([82d08d7](https://github.com/octofhir/fhirpath-rs/commit/82d08d7a652f78275250b52b4f301635c8036ec6))
+
+
+
+## [0.5.6](https://github.com/octofhir/fhirpath-rs/compare/v0.5.5...v0.5.6) (2026-11-04)
 
 
 ### Features
