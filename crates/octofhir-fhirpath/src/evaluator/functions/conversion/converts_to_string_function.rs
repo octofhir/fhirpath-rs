@@ -55,6 +55,7 @@ impl PureFunctionEvaluator for ConvertsToStringFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        super::require_single("convertsToString", &input)?;
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,

@@ -62,6 +62,7 @@ impl PureFunctionEvaluator for ConvertsToDateFunctionEvaluator {
     }
 
     fn evaluate_sync(&self, input: Collection, args: Vec<Collection>) -> Result<EvaluationResult> {
+        super::require_single("convertsToDate", &input)?;
         let format = super::date_format::format_arg(&args, "convertsToDate")?;
 
         let mut results = Vec::new();

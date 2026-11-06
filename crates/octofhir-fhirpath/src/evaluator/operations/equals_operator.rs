@@ -5,9 +5,10 @@
 //! if either operand is empty.
 
 use async_trait::async_trait;
+use chrono::Timelike;
 use std::sync::Arc;
 
-use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
@@ -198,7 +199,7 @@ impl EqualsOperatorEvaluator {
             }
 
             // Time equality
-            (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => Some(l == r),
+            (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => time_equality(l, r),
 
             // A Date converts to a DateTime (FHIRPath's implicit conversion):
             // `@2012-04-15 = @2012-04-15T` is true. At different precisions,
@@ -375,6 +376,19 @@ fn create_equals_metadata() -> OperatorMetadata {
         precedence: 5, // FHIRPath equality precedence
         associativity: Associativity::Left,
     }
+}
+
+/// Times compare component by component: a difference before the precision of either
+/// runs out is `false`, and reaching that point with no difference is empty.
+fn time_equality(left: &PrecisionTime, right: &PrecisionTime) -> Option<bool> {
+    if let Some(ordering) = left.partial_cmp(right) {
+        return Some(ordering.is_eq());
+    }
+    let hour_only =
+        left.precision == TemporalPrecision::Hour || right.precision == TemporalPrecision::Hour;
+    let same = left.time.hour() == right.time.hour()
+        && (hour_only || left.time.minute() == right.time.minute());
+    if same { None } else { Some(false) }
 }
 
 #[cfg(test)]

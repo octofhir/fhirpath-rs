@@ -419,6 +419,10 @@ impl OperatorRegistryBuilder {
         // Register unary operators
         self.registry
             .register_unary_operator(UnaryOperator::Negate, NegateOperatorEvaluator::create());
+        self.registry.register_unary_operator(
+            UnaryOperator::Positive,
+            NegateOperatorEvaluator::create_positive(),
+        );
         // TODO: Add NotOperatorEvaluator once implemented
 
         self

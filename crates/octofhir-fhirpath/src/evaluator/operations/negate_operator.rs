@@ -14,6 +14,8 @@ use crate::evaluator::{EvaluationContext, EvaluationResult};
 /// Negate unary operator evaluator
 pub struct NegateOperatorEvaluator {
     metadata: OperatorMetadata,
+    /// Unary `+`: the same operand rules, with the value unchanged.
+    positive: bool,
 }
 
 impl NegateOperatorEvaluator {
@@ -21,7 +23,16 @@ impl NegateOperatorEvaluator {
     pub fn new() -> Self {
         Self {
             metadata: create_negate_metadata(),
+            positive: false,
         }
+    }
+
+    /// An Arc-wrapped unary `+` for registry registration
+    pub fn create_positive() -> Arc<dyn OperationEvaluator> {
+        Arc::new(Self {
+            metadata: create_negate_metadata(),
+            positive: true,
+        })
     }
 
     /// Create an Arc-wrapped instance for registry registration
@@ -113,11 +124,18 @@ impl OperationEvaluator for NegateOperatorEvaluator {
             });
         }
 
-        let mut results = Vec::new();
+        if left.len() > 1 {
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0055,
+                "A unary operator takes a single item",
+            ));
+        }
+
+        let mut results = Vec::with_capacity(1);
 
         for value in left {
             let negated = self.negate_value(&value)?;
-            results.push(negated);
+            results.push(if self.positive { value } else { negated });
         }
 
         Ok(EvaluationResult {

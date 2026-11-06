@@ -68,17 +68,6 @@ impl IifFunctionEvaluator {
             },
         })
     }
-
-    /// Convert a FHIRPath value to boolean for condition evaluation
-    fn to_boolean(value: &FhirPathValue) -> bool {
-        match value {
-            FhirPathValue::Boolean(b, _, _) => *b,
-            FhirPathValue::Integer(i, _, _) => *i != 0,
-            FhirPathValue::Decimal(d, _, _) => !d.is_zero(),
-            FhirPathValue::String(s, _, _) => !s.is_empty(),
-            _ => false,
-        }
-    }
 }
 
 #[async_trait::async_trait]
@@ -137,29 +126,17 @@ impl LazyFunctionEvaluator for IifFunctionEvaluator {
             .await?;
         let condition_values: Vec<FhirPathValue> = condition_result.value.iter().cloned().collect();
 
-        // Validate condition type - should be boolean in strict mode
-        if !condition_values.is_empty() && condition_values.len() == 1 {
-            match &condition_values[0] {
-                FhirPathValue::Boolean(_, _, _) => {
-                    // Valid boolean condition, continue
-                }
-                _ => {
-                    // Non-boolean condition - this should be an error in strict mode
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "iif function condition must be boolean",
-                    ));
-                }
+        // Singleton evaluation: a single item of another type counts as true.
+        let is_true = match condition_values.as_slice() {
+            [] => false,
+            [FhirPathValue::Boolean(value, _, _)] => *value,
+            [_] => true,
+            _ => {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0051,
+                    "iif criterion must be a single item",
+                ));
             }
-        }
-
-        // Determine if condition is true
-        let is_true = if condition_values.is_empty() {
-            false // Empty collection is falsy
-        } else if condition_values.len() == 1 {
-            Self::to_boolean(&condition_values[0])
-        } else {
-            true // Non-empty collection with multiple values is truthy
         };
 
         // Return the appropriate result

@@ -293,6 +293,13 @@ fn fhirpath_parser<'a>()
                     location: Some(span_to_loc(extra.span())),
                 })
             }),
+            prefix(11, just('+').padded(), |_, operand, extra| {
+                ExpressionNode::UnaryOperation(UnaryOperationNode {
+                    operator: UnaryOperator::Positive,
+                    operand: Box::new(operand),
+                    location: Some(span_to_loc(extra.span())),
+                })
+            }),
             prefix(
                 11,
                 text::ascii::keyword("not").padded(),

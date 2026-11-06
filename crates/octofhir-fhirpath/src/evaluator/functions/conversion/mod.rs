@@ -42,3 +42,17 @@ pub use to_long_function::{ConvertsToLongFunctionEvaluator, ToLongFunctionEvalua
 pub use to_quantity_function::ToQuantityFunctionEvaluator;
 pub use to_string_function::ToStringFunctionEvaluator;
 pub use to_time_function::ToTimeFunctionEvaluator;
+
+/// Conversions take a single item; several end the evaluation with an error.
+pub(crate) fn require_single(
+    name: &str,
+    input: &crate::core::Collection,
+) -> crate::core::Result<()> {
+    if input.len() > 1 {
+        return Err(crate::core::FhirPathError::evaluation_error(
+            crate::core::error_code::FP0054,
+            format!("{name} can only be called on a single item"),
+        ));
+    }
+    Ok(())
+}
