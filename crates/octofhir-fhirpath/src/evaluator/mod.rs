@@ -5,6 +5,7 @@
 
 // Core evaluator modules
 pub mod context;
+pub mod debug_trace;
 mod element_type_cache;
 #[cfg(test)]
 mod element_type_cache_tests;
@@ -36,6 +37,10 @@ mod terminologies_variable_integration_test;
 
 // Re-export main types
 pub use context::EvaluationContext;
+pub use debug_trace::{
+    DebugEvent, DebugLimits, DebugMessage, DebugPhase, DebugRange, DebugRecorder, DebugStatus,
+    DebugTrace, DebugVariable,
+};
 pub use environment_variables::{EnvironmentVariables, EnvironmentVariablesBuilder};
 pub use evaluator::{AsyncNodeEvaluator, Evaluator};
 pub use function_registry::{

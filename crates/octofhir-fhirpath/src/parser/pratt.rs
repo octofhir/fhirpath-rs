@@ -73,6 +73,11 @@ pub(crate) fn collapse_whitespace_outside_literals(input: &str) -> String {
     out
 }
 
+/// The text the parser reads, which its positions refer to.
+pub(crate) fn normalized_source(input: &str) -> Result<String, FhirPathError> {
+    preprocess_input(input)
+}
+
 /// Strip comments, decode HTML entities, and normalize whitespace from input
 fn preprocess_input(input: &str) -> Result<String, FhirPathError> {
     let original_input = input;

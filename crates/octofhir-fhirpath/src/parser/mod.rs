@@ -45,6 +45,8 @@ use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
 use std::fmt;
 
 // Re-export combinators for advanced usage
+pub(crate) use pratt::normalized_source;
+
 pub use combinators::*;
 
 // Re-export analysis integration

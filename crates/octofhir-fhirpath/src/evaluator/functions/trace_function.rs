@@ -289,9 +289,12 @@ impl LazyFunctionEvaluator for TraceFunctionEvaluator {
                 let selector_str = format_trace_collection(&selector_result.value, 0);
 
                 // Use trace provider if available, otherwise fall back to eprintln
+                if let Some(recorder) = context.debug_recorder() {
+                    recorder.message(&name, selector_str.clone());
+                }
                 if let Some(provider) = trace_provider {
                     provider.trace(&name, index, &selector_str);
-                } else {
+                } else if context.debug_recorder().is_none() {
                     eprintln!("TRACE[{name}][{index}]: {selector_str}");
                 }
             }
@@ -301,9 +304,12 @@ impl LazyFunctionEvaluator for TraceFunctionEvaluator {
                 let item_str = format_trace_value(item, 0);
 
                 // Use trace provider if available, otherwise fall back to eprintln
+                if let Some(recorder) = context.debug_recorder() {
+                    recorder.message(&name, item_str.clone());
+                }
                 if let Some(provider) = trace_provider {
                     provider.trace(&name, index, &item_str);
-                } else {
+                } else if context.debug_recorder().is_none() {
                     eprintln!("TRACE[{name}][{index}]: {item_str}");
                 }
             }

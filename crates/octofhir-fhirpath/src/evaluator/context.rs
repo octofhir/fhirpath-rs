@@ -7,10 +7,11 @@ use papaya::HashMap as LockFreeHashMap;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::{
-    Arc, LazyLock,
+    Arc, LazyLock, OnceLock,
     atomic::{AtomicBool, Ordering},
 };
 
+use super::debug_trace::DebugRecorder;
 use super::element_type_cache::ElementTypeCache;
 
 use crate::core::model_provider::TypeInfo;
@@ -69,6 +70,8 @@ struct SharedContextState {
     validation_provider: Option<Arc<dyn ValidationProvider>>,
     server_provider: Option<Arc<dyn ServerProvider>>,
     trace_provider: Option<SharedTraceProvider>,
+    /// Set for a traced evaluation; see [`super::debug_trace`].
+    debug: OnceLock<Arc<DebugRecorder>>,
     resolution_cache: Arc<LockFreeHashMap<String, Arc<serde_json::Value>>>,
     resolved_nodes: Arc<LockFreeHashMap<String, crate::core::node::FhirNode>>,
     type_info_cache: Arc<LockFreeHashMap<String, Arc<TypeInfo>>>,
@@ -332,6 +335,7 @@ impl EvaluationContext {
             validation_provider,
             server_provider,
             trace_provider,
+            debug: OnceLock::new(),
             resolution_cache: Arc::new(LockFreeHashMap::new()),
             resolved_nodes: Arc::new(LockFreeHashMap::new()),
             type_info_cache: Arc::new(LockFreeHashMap::new()),
@@ -605,6 +609,17 @@ impl EvaluationContext {
     /// Get trace provider
     pub fn trace_provider(&self) -> Option<&SharedTraceProvider> {
         self.shared.trace_provider.as_ref()
+    }
+
+    /// The recorder of a traced evaluation.
+    pub(crate) fn debug_recorder(&self) -> Option<&Arc<DebugRecorder>> {
+        self.shared.debug.get()
+    }
+
+    /// Records every evaluation on this context and the ones derived from it. A context is
+    /// traced once: a later recorder is ignored.
+    pub fn set_debug_recorder(&self, recorder: Arc<DebugRecorder>) {
+        let _ = self.shared.debug.set(recorder);
     }
 
     /// Get the shared resolution cache used by resolve() and other reference operations

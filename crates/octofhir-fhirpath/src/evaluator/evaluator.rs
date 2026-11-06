@@ -111,6 +111,9 @@ impl Evaluator {
         node: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
+        if context.debug_recorder().is_some() {
+            return self.evaluate_node_inner(node, context).await;
+        }
         let program = super::vm::Program::compile(Arc::new(node.clone()), self);
         super::vm::run(program, self, context).await
     }
@@ -218,8 +221,22 @@ impl Evaluator {
     }
 
     /// Inner evaluation method to handle recursion
-    #[async_recursion]
     async fn evaluate_node_inner(
+        &self,
+        node: &ExpressionNode,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResult> {
+        let Some(recorder) = context.debug_recorder() else {
+            return self.evaluate_tree(node, context).await;
+        };
+        recorder.enter(node, context);
+        let result = self.evaluate_tree(node, context).await;
+        recorder.exit(node, &result);
+        result
+    }
+
+    #[async_recursion]
+    async fn evaluate_tree(
         &self,
         node: &ExpressionNode,
         context: &EvaluationContext,

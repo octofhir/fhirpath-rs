@@ -19,6 +19,7 @@ use octofhir_fhir_model::{
 use serde_json::Value as JsonValue;
 
 use super::context::EvaluationContext;
+use super::debug_trace::{DebugLimits, DebugRecorder, DebugTrace};
 use super::element_type_cache::ElementTypeCache;
 use super::evaluator::Evaluator;
 use super::function_registry::{FunctionRegistry, create_function_registry};
@@ -382,6 +383,25 @@ impl FhirPathEngine {
 
         // Evaluate using the cached or freshly parsed AST
         self.evaluate_plan(&plan, context).await
+    }
+
+    /// Evaluate an expression and record what happened, with the context of this call alone:
+    /// a context records one evaluation. The evaluation's outcome comes with the trace, which
+    /// also covers a failure.
+    pub async fn evaluate_debug(
+        &self,
+        expression: &str,
+        context: &EvaluationContext,
+        limits: DebugLimits,
+    ) -> (Result<EvaluationResult>, DebugTrace) {
+        let recorder = Arc::new(DebugRecorder::new(expression, limits));
+        context.set_debug_recorder(recorder.clone());
+        let result = match self.compile_ast(expression) {
+            Ok(ast) => self.evaluate_ast(&ast, context).await,
+            Err(error) => Err(error),
+        };
+        let failure = result.as_ref().err().map(ToString::to_string);
+        (result, recorder.finish(failure))
     }
 
     /// Evaluate AST directly

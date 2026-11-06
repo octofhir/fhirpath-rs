@@ -94,7 +94,9 @@ pub use crate::typing::{
 
 // Re-export main engine types (minimal for stub)
 pub use crate::evaluator::{
-    EvaluationContext, EvaluationResult, EvaluationResultWithMetadata, FhirPathEngine,
+    DebugEvent, DebugLimits, DebugMessage, DebugPhase, DebugRange, DebugRecorder, DebugStatus,
+    DebugTrace, DebugVariable, EvaluationContext, EvaluationResult, EvaluationResultWithMetadata,
+    FhirPathEngine,
 };
 // Parser API exports - New unified API with clean naming
 pub use crate::evaluator::plan::CompiledPlan;
