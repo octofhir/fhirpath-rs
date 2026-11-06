@@ -1,3 +1,12 @@
+# [0.6.0](https://github.com/octofhir/fhirpath-rs/compare/v0.5.8...v0.6.0) (2026-11-06)
+
+
+### Features
+
+* debug trace of an evaluation ([bbb45de](https://github.com/octofhir/fhirpath-rs/commit/bbb45de60bd81e2b138f62e72a927591709709fb))
+
+
+
 ## [0.5.8](https://github.com/octofhir/fhirpath-rs/compare/v0.5.7...v0.5.8) (2026-11-06)
 
 
