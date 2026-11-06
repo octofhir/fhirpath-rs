@@ -1,3 +1,12 @@
+## [0.5.8](https://github.com/octofhir/fhirpath-rs/compare/v0.5.7...v0.5.8) (2026-11-06)
+
+
+### Bug Fixes
+
+* FHIRPath 3.0 singleton evaluation, unary operators and Time precision ([fce03e6](https://github.com/octofhir/fhirpath-rs/commit/fce03e6b69f07b87b62c7a30687005bfb65a9fac))
+
+
+
 ## [0.5.7](https://github.com/octofhir/fhirpath-rs/compare/v0.5.6...v0.5.7) (2026-11-05)
 
 

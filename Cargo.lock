@@ -1236,7 +1236,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-cli"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -1283,7 +1283,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-dev-tools"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2650,7 +2650,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "ariadne",
