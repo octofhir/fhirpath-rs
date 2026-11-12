@@ -18,6 +18,66 @@ use octofhir_fhir_model::{TerminologyProvider, ValidationProvider};
 use super::function_registry::FunctionRegistry;
 use super::operator_registry::OperatorRegistry;
 
+/// The type part of a choice property name (`Quantity` in `valueQuantity`): the FHIR
+/// datatypes an element `x[x]` can have, R4 to R5. Sorted, for a binary search.
+const CHOICE_TYPE_SUFFIXES: &[&str] = &[
+    "Address",
+    "Age",
+    "Annotation",
+    "Attachment",
+    "Availability",
+    "Base64Binary",
+    "Boolean",
+    "Canonical",
+    "Code",
+    "CodeableConcept",
+    "CodeableReference",
+    "Coding",
+    "ContactDetail",
+    "ContactPoint",
+    "Contributor",
+    "Count",
+    "DataRequirement",
+    "Date",
+    "DateTime",
+    "Decimal",
+    "Distance",
+    "Dosage",
+    "Duration",
+    "Expression",
+    "ExtendedContactDetail",
+    "HumanName",
+    "Id",
+    "Identifier",
+    "Instant",
+    "Integer",
+    "Integer64",
+    "Markdown",
+    "Meta",
+    "Money",
+    "Oid",
+    "ParameterDefinition",
+    "Period",
+    "PositiveInt",
+    "Quantity",
+    "Range",
+    "Ratio",
+    "RatioRange",
+    "Reference",
+    "RelatedArtifact",
+    "SampledData",
+    "Signature",
+    "String",
+    "Time",
+    "Timing",
+    "TriggerDefinition",
+    "UnsignedInt",
+    "Uri",
+    "Url",
+    "UsageContext",
+    "Uuid",
+];
+
 /// Main FHIRPath expression evaluator with registry-based architecture
 pub struct Evaluator {
     /// Registry for operators (=, +, -, etc.)
@@ -1041,7 +1101,7 @@ impl Evaluator {
                     }
 
                     // Use ModelProvider to get element type information
-                    let property_type_info = if let Some(element_type) = self
+                    let declared_element_type = self
                         .model_provider
                         .get_element_type(type_info, identifier)
                         .await
@@ -1050,7 +1110,12 @@ impl Evaluator {
                                 crate::core::error_code::FP0054,
                                 format!("Model provider error getting element type: {e}"),
                             )
-                        })? {
+                        })?;
+                    // An element the model declares under this exact name is not the base of
+                    // a choice (`Coverage.subscriber` beside `Coverage.subscriberId`): when it
+                    // is absent, it is empty.
+                    let is_declared_element = declared_element_type.is_some();
+                    let property_type_info = if let Some(element_type) = declared_element_type {
                         element_type
                     } else {
                         // Fallback type info
@@ -1094,7 +1159,11 @@ impl Evaluator {
                         ));
                     } else {
                         // Use atomic-ehr pattern: detect choice values first
-                        let choice_results = self.detect_choice_values(json, identifier).await?;
+                        let choice_results = if is_declared_element {
+                            Vec::new()
+                        } else {
+                            self.detect_choice_values(json, identifier).await?
+                        };
                         if !choice_results.is_empty() {
                             result_values.extend(choice_results);
                         }
@@ -1618,6 +1687,18 @@ impl Evaluator {
         Ok(FhirPathValue::wrap_value(base_value, type_info, None))
     }
 
+    /// Whether `suffix` can be the type part of a choice property name: `Quantity` in
+    /// `valueQuantity`. It has to name a FHIR datatype or a type the model provider knows.
+    async fn is_choice_type_suffix(&self, suffix: &str) -> bool {
+        if !suffix.chars().next().is_some_and(|c| c.is_uppercase()) {
+            return false;
+        }
+        if CHOICE_TYPE_SUFFIXES.binary_search(&suffix).is_ok() {
+            return true;
+        }
+        matches!(self.model_provider.get_type(suffix).await, Ok(Some(_)))
+    }
+
     /// Detect choice type values using atomic-ehr pattern
     /// This scans the JSON for properties starting with base name and validates them
     async fn detect_choice_values(
@@ -1633,21 +1714,18 @@ impl Evaluator {
             None => return Ok(results),
         };
 
-        // Find all properties that start with base_property and are longer than base_property
-        // AND the suffix starts with uppercase letter (valid FHIR choice type pattern)
-        let possible_choices: Vec<String> = json_obj
-            .iter()
-            .map(|(k, _)| k.as_ref().to_string())
-            .filter(|key| {
-                key.starts_with(base_property)
-                    && key.as_str() != base_property
-                    && key.len() > base_property.len()
-                    && key
-                        .chars()
-                        .nth(base_property.len())
-                        .is_some_and(|c| c.is_uppercase())
-            })
-            .collect();
+        // Find all properties that are base_property followed by a type name
+        // (`valueQuantity` for `value`). A sibling that only starts the same way
+        // (`boundaryType` for `boundary`) is another element, not a choice.
+        let mut possible_choices: Vec<String> = Vec::new();
+        for (key, _) in json_obj.iter() {
+            let key: &str = key.as_ref();
+            if let Some(suffix) = key.strip_prefix(base_property)
+                && self.is_choice_type_suffix(suffix).await
+            {
+                possible_choices.push(key.to_string());
+            }
+        }
 
         // A choice whose value is only extensions (`_valueDateTime` and no `valueDateTime`) is
         // there too: an element without a value, of the type its name says.
@@ -1659,8 +1737,7 @@ impl Evaluator {
             let Some(suffix) = name.strip_prefix(base_property) else {
                 continue;
             };
-            if !suffix.chars().next().is_some_and(|c| c.is_uppercase()) || json.get(name).is_some()
-            {
+            if !self.is_choice_type_suffix(suffix).await || json.get(name).is_some() {
                 continue;
             }
             let mut type_name = suffix.to_string();
