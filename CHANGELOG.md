@@ -1,9 +1,14 @@
-## [0.5.10](https://github.com/octofhir/fhirpath-rs/compare/v0.5.9...v0.5.10) (2026-11-12)
+## [0.5.11](https://github.com/octofhir/fhirpath-rs/compare/v0.5.10...v0.5.11) (2026-11-20)
 
 
 ### Bug Fixes
 
 * an absent element is not a sibling whose name starts the same way ([cb360fd](https://github.com/octofhir/fhirpath-rs/commit/cb360fd34c716bfb1a6b75b23525b03185416855)), closes [#195](https://github.com/octofhir/fhirpath-rs/issues/195)
+
+
+### Performance Improvements
+
+* speed up prepared FHIRPath evaluation ([1778a07](https://github.com/octofhir/fhirpath-rs/commit/1778a07a702ec596b3398a855c8d1d407a3f2a98))
 
 
 
