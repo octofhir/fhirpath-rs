@@ -92,13 +92,11 @@ impl LazyFunctionEvaluator for SelectFunctionEvaluator {
             &evaluator,
         )
         .await?;
-        let context = &context;
+        let context = Arc::new(context);
 
         // Process each item in the input collection
         for (index, item) in input.iter().enumerate() {
-            let child_context = context.create_child_context(Collection::single(item.clone()));
-            child_context.set_this(item.clone());
-            child_context.set_index(index);
+            let child_context = context.iteration_context(item, index, None);
 
             // Evaluate projection expression with child context
             let result = evaluator.evaluate(projection_expr, &child_context).await?;

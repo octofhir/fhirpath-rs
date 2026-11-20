@@ -15,87 +15,87 @@ use crate::evaluator::function_registry::{
 
 /// Allowed HTML tags per FHIR narrative rules
 const ALLOWED_TAGS: &[&str] = &[
-    "div",
-    "p",
-    "b",
-    "i",
-    "em",
-    "strong",
-    "small",
-    "big",
-    "tt",
-    "code",
-    "q",
-    "sub",
-    "sup",
-    "samp",
-    "kbd",
-    "var",
-    "cite",
-    "dfn",
+    "a",
     "abbr",
     "acronym",
-    "span",
+    "b",
+    "big",
+    "blockquote",
     "br",
-    "hr",
-    "a",
-    "img",
-    "table",
-    "thead",
-    "tbody",
-    "tfoot",
-    "tr",
-    "th",
-    "td",
+    "caption",
+    "cite",
+    "code",
     "col",
     "colgroup",
-    "caption",
-    "ul",
-    "ol",
-    "li",
+    "dd",
+    "dfn",
+    "div",
     "dl",
     "dt",
-    "dd",
-    "pre",
-    "blockquote",
+    "em",
     "h1",
     "h2",
     "h3",
     "h4",
     "h5",
     "h6",
+    "hr",
+    "i",
+    "img",
+    "kbd",
+    "li",
+    "ol",
+    "p",
+    "pre",
+    "q",
+    "samp",
+    "small",
+    "span",
+    "strong",
+    "sub",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "tt",
+    "ul",
+    "var",
 ];
 
 /// Allowed attributes per FHIR narrative rules
 const ALLOWED_ATTRS: &[&str] = &[
-    "id",
-    "class",
-    "style",
-    "lang",
-    "xml:lang",
-    "dir",
-    "title",
-    "xmlns",
-    "src",
-    "href",
-    "name",
+    "abbr",
+    "align",
     "alt",
-    "colspan",
-    "rowspan",
-    "headers",
-    "scope",
+    "axis",
+    "bgcolor",
     "border",
     "cellpadding",
     "cellspacing",
-    "width",
-    "height",
-    "align",
-    "valign",
     "char",
     "charoff",
-    "abbr",
-    "axis",
-    "bgcolor",
+    "class",
+    "colspan",
+    "dir",
+    "headers",
+    "height",
+    "href",
+    "id",
+    "lang",
+    "name",
+    "rowspan",
+    "scope",
+    "src",
+    "style",
+    "title",
+    "valign",
+    "width",
+    "xml:lang",
+    "xmlns",
 ];
 
 /// HtmlChecks function evaluator
@@ -131,6 +131,14 @@ impl HtmlChecksFunctionEvaluator {
     }
 }
 
+fn is_allowed(name: &str, allowed: &[&str]) -> bool {
+    allowed.binary_search(&name).is_ok()
+        || (name
+            .bytes()
+            .any(|b| !b.is_ascii() || b.is_ascii_uppercase())
+            && allowed.binary_search(&name.to_lowercase().as_str()).is_ok())
+}
+
 /// Basic XHTML validation against FHIR narrative rules.
 /// Checks for allowed tags and attributes using simple string scanning.
 fn validate_xhtml(xhtml: &str, require_root_div: bool) -> bool {
@@ -148,124 +156,118 @@ fn validate_xhtml(xhtml: &str, require_root_div: bool) -> bool {
     // Simple tag scanner: find all <tagname and </tagname> patterns
     let mut pos = 0;
     let bytes = input.as_bytes();
-    while pos < bytes.len() {
-        if bytes[pos] == b'<' {
-            // Skip comments
-            if input[pos..].starts_with("<!--") {
-                if let Some(end) = input[pos..].find("-->") {
-                    pos += end + 3;
-                    continue;
-                }
-                return false; // Unclosed comment
+    while let Some(offset) = input[pos..].find('<') {
+        pos += offset;
+        // Skip comments
+        if input[pos..].starts_with("<!--") {
+            if let Some(end) = input[pos..].find("-->") {
+                pos += end + 3;
+                continue;
             }
+            return false; // Unclosed comment
+        }
 
-            // Skip processing instructions
-            if input[pos..].starts_with("<?") {
-                if let Some(end) = input[pos..].find("?>") {
-                    pos += end + 2;
-                    continue;
-                }
+        // Skip processing instructions
+        if input[pos..].starts_with("<?") {
+            if let Some(end) = input[pos..].find("?>") {
+                pos += end + 2;
+                continue;
+            }
+            return false;
+        }
+
+        // Skip closing tags (we trust structure if tags are allowed)
+        let is_closing = pos + 1 < bytes.len() && bytes[pos + 1] == b'/';
+        let tag_start = if is_closing { pos + 2 } else { pos + 1 };
+
+        // Extract tag name
+        let mut tag_end = tag_start;
+        while tag_end < bytes.len()
+            && bytes[tag_end] != b' '
+            && bytes[tag_end] != b'>'
+            && bytes[tag_end] != b'/'
+        {
+            tag_end += 1;
+        }
+
+        if tag_end > tag_start {
+            let tag_name = &input[tag_start..tag_end];
+            if !is_allowed(tag_name, ALLOWED_TAGS) {
                 return false;
             }
 
-            // Skip closing tags (we trust structure if tags are allowed)
-            let is_closing = pos + 1 < bytes.len() && bytes[pos + 1] == b'/';
-            let tag_start = if is_closing { pos + 2 } else { pos + 1 };
+            // If not a closing tag, check attributes
+            if !is_closing {
+                let mut attr_pos = tag_end;
+                while attr_pos < bytes.len() && bytes[attr_pos] != b'>' {
+                    // Skip whitespace
+                    while attr_pos < bytes.len()
+                        && (bytes[attr_pos] == b' '
+                            || bytes[attr_pos] == b'\n'
+                            || bytes[attr_pos] == b'\r'
+                            || bytes[attr_pos] == b'\t')
+                    {
+                        attr_pos += 1;
+                    }
 
-            // Extract tag name
-            let mut tag_end = tag_start;
-            while tag_end < bytes.len()
-                && bytes[tag_end] != b' '
-                && bytes[tag_end] != b'>'
-                && bytes[tag_end] != b'/'
-            {
-                tag_end += 1;
-            }
+                    if attr_pos >= bytes.len() || bytes[attr_pos] == b'>' || bytes[attr_pos] == b'/'
+                    {
+                        break;
+                    }
 
-            if tag_end > tag_start {
-                let tag_name = &input[tag_start..tag_end];
-                let tag_lower = tag_name.to_lowercase();
-                if !ALLOWED_TAGS.contains(&tag_lower.as_str()) {
-                    return false;
-                }
+                    // Extract attribute name
+                    let attr_start = attr_pos;
+                    while attr_pos < bytes.len()
+                        && bytes[attr_pos] != b'='
+                        && bytes[attr_pos] != b' '
+                        && bytes[attr_pos] != b'>'
+                        && bytes[attr_pos] != b'/'
+                    {
+                        attr_pos += 1;
+                    }
 
-                // If not a closing tag, check attributes
-                if !is_closing {
-                    let mut attr_pos = tag_end;
-                    while attr_pos < bytes.len() && bytes[attr_pos] != b'>' {
+                    if attr_pos > attr_start {
+                        let attr_name = &input[attr_start..attr_pos];
+                        if !is_allowed(attr_name, ALLOWED_ATTRS) {
+                            return false;
+                        }
+                    }
+
+                    // Skip the attribute value
+                    if attr_pos < bytes.len() && bytes[attr_pos] == b'=' {
+                        attr_pos += 1;
                         // Skip whitespace
-                        while attr_pos < bytes.len()
-                            && (bytes[attr_pos] == b' '
-                                || bytes[attr_pos] == b'\n'
-                                || bytes[attr_pos] == b'\r'
-                                || bytes[attr_pos] == b'\t')
-                        {
+                        while attr_pos < bytes.len() && bytes[attr_pos] == b' ' {
                             attr_pos += 1;
                         }
-
-                        if attr_pos >= bytes.len()
-                            || bytes[attr_pos] == b'>'
-                            || bytes[attr_pos] == b'/'
-                        {
-                            break;
-                        }
-
-                        // Extract attribute name
-                        let attr_start = attr_pos;
-                        while attr_pos < bytes.len()
-                            && bytes[attr_pos] != b'='
-                            && bytes[attr_pos] != b' '
-                            && bytes[attr_pos] != b'>'
-                            && bytes[attr_pos] != b'/'
-                        {
-                            attr_pos += 1;
-                        }
-
-                        if attr_pos > attr_start {
-                            let attr_name = &input[attr_start..attr_pos];
-                            let attr_lower = attr_name.to_lowercase();
-                            if !ALLOWED_ATTRS.contains(&attr_lower.as_str()) {
-                                return false;
-                            }
-                        }
-
-                        // Skip the attribute value
-                        if attr_pos < bytes.len() && bytes[attr_pos] == b'=' {
-                            attr_pos += 1;
-                            // Skip whitespace
-                            while attr_pos < bytes.len() && bytes[attr_pos] == b' ' {
+                        if attr_pos < bytes.len() {
+                            if bytes[attr_pos] == b'"' {
                                 attr_pos += 1;
-                            }
-                            if attr_pos < bytes.len() {
-                                if bytes[attr_pos] == b'"' {
+                                while attr_pos < bytes.len() && bytes[attr_pos] != b'"' {
                                     attr_pos += 1;
-                                    while attr_pos < bytes.len() && bytes[attr_pos] != b'"' {
-                                        attr_pos += 1;
-                                    }
-                                    if attr_pos < bytes.len() {
-                                        attr_pos += 1;
-                                    }
-                                } else if bytes[attr_pos] == b'\'' {
+                                }
+                                if attr_pos < bytes.len() {
                                     attr_pos += 1;
-                                    while attr_pos < bytes.len() && bytes[attr_pos] != b'\'' {
-                                        attr_pos += 1;
-                                    }
-                                    if attr_pos < bytes.len() {
-                                        attr_pos += 1;
-                                    }
+                                }
+                            } else if bytes[attr_pos] == b'\'' {
+                                attr_pos += 1;
+                                while attr_pos < bytes.len() && bytes[attr_pos] != b'\'' {
+                                    attr_pos += 1;
+                                }
+                                if attr_pos < bytes.len() {
+                                    attr_pos += 1;
                                 }
                             }
                         }
                     }
                 }
             }
-
-            // Skip to end of tag
-            while pos < bytes.len() && bytes[pos] != b'>' {
-                pos += 1;
-            }
         }
-        pos += 1;
+
+        let Some(end) = input[pos..].find('>') else {
+            break;
+        };
+        pos += end + 1;
     }
 
     true
@@ -296,7 +298,6 @@ impl PureFunctionEvaluator for HtmlChecksFunctionEvaluator {
         }
 
         for item in &input {
-            let xhtml_owned;
             let (xhtml, is_narrative) = match item {
                 FhirPathValue::String(s, type_info, _) => (
                     s.as_str(),
@@ -306,8 +307,7 @@ impl PureFunctionEvaluator for HtmlChecksFunctionEvaluator {
                 // the value may be wrapped as Resource(JsonValue::String(...))
                 FhirPathValue::Resource(json, _, _) => {
                     if let Some(s) = json.as_str() {
-                        xhtml_owned = s.to_string();
-                        (xhtml_owned.as_str(), true)
+                        (s, true)
                     } else {
                         return Ok(EvaluationResult {
                             value: crate::core::Collection::single(FhirPathValue::boolean(false)),
@@ -336,5 +336,26 @@ impl PureFunctionEvaluator for HtmlChecksFunctionEvaluator {
 
     fn metadata(&self) -> &FunctionMetadata {
         &self.metadata
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scanner_preserves_allowed_names_and_skips_text() {
+        assert!(ALLOWED_TAGS.windows(2).all(|pair| pair[0] < pair[1]));
+        assert!(ALLOWED_ATTRS.windows(2).all(|pair| pair[0] < pair[1]));
+        assert!(validate_xhtml(
+            "<div>текст<!-- ok --><P CLASS='body'>value</P></div>",
+            true
+        ));
+        assert!(!validate_xhtml("<div><script></script></div>", true));
+        assert!(!validate_xhtml(
+            "<div><p unexpected='x'>value</p></div>",
+            true
+        ));
+        assert!(!validate_xhtml("<div>text<!-- unclosed", true));
     }
 }

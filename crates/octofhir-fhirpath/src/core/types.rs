@@ -145,6 +145,17 @@ impl Collection {
         }
     }
 
+    pub(crate) fn from_shared_values(values: Arc<Vec<FhirPathValue>>) -> Self {
+        if values.len() <= 1 {
+            return Self::from_values(Arc::unwrap_or_clone(values));
+        }
+        Self {
+            values: CollectionStorage::Many(values),
+            is_ordered: true,
+            mixed: false,
+        }
+    }
+
     /// Create a collection from JSON resource with ModelProvider-aware typing
     pub async fn from_json_resource(
         json: JsonValue,

@@ -25,14 +25,14 @@ impl Default for PreparedRoots {
 impl PreparedRoots {
     pub(super) fn value(&self, json: Arc<serde_json::Value>) -> FhirPathValue {
         let root = self.0.get_with(Arc::as_ptr(&json) as usize, || {
-            let value = FhirPathValue::resource_from_arc(json.clone());
-            let weight = match &value {
-                FhirPathValue::Resource(node, _, _) => node_weight(node),
-                _ => std::mem::size_of::<FhirPathValue>(),
-            }
-            .saturating_mul(2)
-            .saturating_add(256)
-            .min(u32::MAX as usize) as u32;
+            let (node, estimated_size) = FhirNode::from_json_with_weight(&json);
+            let value = FhirPathValue::resource_from_node(node);
+            // The cache also retains the original serde tree. Capacity is an
+            // accounting budget rather than an exact process RSS limit.
+            let weight = estimated_size
+                .saturating_mul(2)
+                .saturating_add(256)
+                .min(u32::MAX as usize) as u32;
             Arc::new(PreparedRoot {
                 source: json.clone(),
                 value,
@@ -44,29 +44,6 @@ impl PreparedRoots {
         assert!(Arc::ptr_eq(&root.source, &json));
         root.value.clone()
     }
-}
-
-// Estimate both container/Arc overhead and strings without serializing JSON.
-// The caller doubles this to account for retaining the original serde tree.
-// Capacity is an accounting budget, not an exact process RSS limit.
-fn node_weight(root: &FhirNode) -> usize {
-    let mut stack = vec![root];
-    let mut bytes = 0usize;
-    while let Some(node) = stack.pop() {
-        bytes = bytes.saturating_add(std::mem::size_of::<FhirNode>() + 16);
-        match node {
-            FhirNode::Str(value) => bytes = bytes.saturating_add(value.len()),
-            FhirNode::Array(values) => stack.extend(values.iter()),
-            FhirNode::Object(values) => {
-                for (key, value) in values.iter() {
-                    bytes = bytes.saturating_add(key.len() + 32);
-                    stack.push(value);
-                }
-            }
-            _ => {}
-        }
-    }
-    bytes
 }
 
 /// One resource for an entire validation run. Node contexts share the immutable

@@ -5,13 +5,42 @@ use octofhir_fhir_model::{
     ExecutableExpression, JsonVariables, ModelError, NodeId, PreparedResource, Result,
 };
 use serde_json::Value;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 struct State {
     owner: Arc<()>,
     context: EvaluationContext,
-    nodes: Vec<FhirNode>,
+    nodes: OnceLock<Vec<FhirNode>>,
     variables: JsonVariables,
+}
+
+impl State {
+    fn node(&self, index: usize) -> &FhirNode {
+        let Some(FhirPathValue::Resource(root, _, _)) = self.context.input_collection().first()
+        else {
+            unreachable!("prepared validation requires a JSON tree");
+        };
+        if index == 0 {
+            return root;
+        }
+        // FhirNode conversion and PreparedResource assign the same preorder.
+        // Root invariants can use the root directly before any element is visited.
+        &self.nodes.get_or_init(|| {
+            let mut nodes = Vec::new();
+            let mut stack = vec![root];
+            while let Some(node) = stack.pop() {
+                nodes.push(node.clone());
+                match node {
+                    FhirNode::Array(values) => stack.extend(values.iter().rev()),
+                    FhirNode::Object(values) => {
+                        stack.extend(values.iter().rev().map(|(_, child)| child))
+                    }
+                    _ => {}
+                }
+            }
+            nodes
+        })[index]
+    }
 }
 
 pub(super) async fn prepare(
@@ -22,35 +51,19 @@ pub(super) async fn prepare(
     let context = engine
         .prepare_context(source.clone(), None, variables)
         .await?;
-    let Some(FhirPathValue::Resource(root, _, _)) = context.input_collection().first() else {
+    context.cache_prepared_navigation_types();
+    if !matches!(
+        context.input_collection().first(),
+        Some(FhirPathValue::Resource(..))
+    ) {
         return Ok(None);
-    };
-    // Same preorder as PreparedResource, using the JSON order even if the
-    // consumer enabled serde_json/preserve_order. Never materialize subtrees.
-    let mut nodes = Vec::new();
-    let mut stack = vec![(source.as_ref(), root)];
-    while let Some((json, node)) = stack.pop() {
-        nodes.push(node.clone());
-        match json {
-            Value::Array(values) => {
-                for (index, value) in values.iter().enumerate().rev() {
-                    stack.push((value, &node.as_array().unwrap()[index]));
-                }
-            }
-            Value::Object(values) => {
-                for (key, value) in values.iter().rev() {
-                    stack.push((value, node.get(key).unwrap()));
-                }
-            }
-            _ => {}
-        }
     }
     Ok(Some(PreparedResource::new(
         source,
         Arc::new(State {
             owner: engine.plan_owner.clone(),
             context,
-            nodes,
+            nodes: OnceLock::new(),
             variables: variables.clone(),
         }),
     )))
@@ -74,7 +87,7 @@ pub(super) async fn evaluate(
             "Foreign prepared resource or node",
         ));
     }
-    let node = &state.nodes[id.index()];
+    let node = state.node(id.index());
     state
         .context
         .ensure_current_schema()
@@ -156,7 +169,34 @@ mod tests {
     use octofhir_fhir_model::FhirPathEvaluator;
 
     #[tokio::test]
-    async fn typed_root_matches_legacy_and_expression_scopes_are_independent() {
+    async fn prepared_node_indices_follow_the_source_order() {
+        let engine = crate::testing::test_engine().await;
+        let source = Arc::new(serde_json::json!({
+            "z": [{"child": true}, null],
+            "a": "string",
+            "m": {"n": 42},
+        }));
+        let prepared = engine
+            .prepare_resource(source.clone(), &JsonVariables::new())
+            .await
+            .unwrap()
+            .unwrap();
+        let state = prepared.payload::<State>().unwrap();
+        assert_eq!(state.node(0).to_json(), *source);
+        assert!(state.nodes.get().is_none());
+        for json in [
+            &source["z"][0],
+            &source["z"][1],
+            &source["a"],
+            &source["m"]["n"],
+        ] {
+            let id = prepared.node_id(json).unwrap();
+            assert_eq!(state.node(id.index()).to_json(), *json);
+        }
+    }
+
+    #[tokio::test]
+    async fn prepared_root_matches_typed_batch_with_independent_expression_scopes() {
         let engine = crate::testing::test_engine().await;
         let source = Arc::new(serde_json::json!("2000-01-02"));
         let vars = JsonVariables::new();
@@ -280,7 +320,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prepared_nodes_match_legacy_typing_root_aliases_and_reject_foreign_handles() {
+    async fn prepared_nodes_match_typed_batch_and_reject_foreign_handles() {
         let engine = crate::testing::test_engine().await;
         let source = Arc::new(serde_json::json!({"resourceType":"Patient","id":"root",
             "name":[{"family":"Smith"}],"birthDate":"2000-01-02"}));

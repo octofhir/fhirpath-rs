@@ -98,26 +98,11 @@ impl LazyFunctionEvaluator for AllFunctionEvaluator {
             &evaluator,
         )
         .await?;
-        let context = &context;
+        let context = Arc::new(context);
 
         // Evaluate the criteria for each element in the input collection
         for (index, item) in input.iter().enumerate() {
-            // Create child context for this iteration. `create_child_context`
-            // preserves the environment (shared root resource and the parent
-            // variable scope), so `%resource`, `%rootResource`, `%context` and
-            // user-defined variables remain resolvable inside the criteria.
-            // Using `EvaluationContext::new` here instead would drop them and
-            // make criteria such as `entry.all(... %resource.type ...)`
-            // (e.g. the Bundle `bdl-3`/`bdl-4` invariants) wrongly fail.
-            let iteration_context =
-                context.create_child_context(crate::core::Collection::single(item.clone()));
-
-            iteration_context.set_this(item.clone());
-            iteration_context.set_index(index);
-            iteration_context.set_variable(
-                "$total".to_string(),
-                FhirPathValue::integer(input.len() as i64),
-            );
+            let iteration_context = context.iteration_context(item, index, Some(input.len()));
 
             // Evaluate criteria expression in the iteration context
             let result = evaluator

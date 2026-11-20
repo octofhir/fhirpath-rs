@@ -38,6 +38,27 @@ pub enum FhirNode {
     Object(Arc<[(Arc<str>, FhirNode)]>),
 }
 
+/// Reuse property-name allocations within one prepared resource. The table
+/// starts only once a collection of objects offers repeated field names.
+#[derive(Default)]
+struct ObjectKeys<'a>(Option<std::collections::HashMap<&'a str, Arc<str>>>);
+
+impl<'a> ObjectKeys<'a> {
+    fn intern(&mut self, key: &'a str) -> Arc<str> {
+        let Some(keys) = self.0.as_mut() else {
+            return Arc::from(key);
+        };
+        if let Some(key) = keys.get(key) {
+            return key.clone();
+        }
+        let shared: Arc<str> = Arc::from(key);
+        if keys.len() < 512 {
+            keys.insert(key, shared.clone());
+        }
+        shared
+    }
+}
+
 impl FhirNode {
     /// Parse JSON without passing decimal tokens through a binary float.
     ///
@@ -132,15 +153,58 @@ impl FhirNode {
     /// Convert a `serde_json::Value` into a shared node tree. This is the only
     /// deep walk; it happens once per resource at evaluation entry.
     pub fn from_json(value: &JsonValue) -> Self {
+        Self::convert_json::<false>(value, &mut 0, &mut ObjectKeys::default())
+    }
+
+    pub(crate) fn from_json_with_weight(value: &JsonValue) -> (Self, usize) {
+        let mut weight = 0;
+        let node = Self::convert_json::<true>(value, &mut weight, &mut ObjectKeys::default());
+        (node, weight)
+    }
+
+    fn convert_json<'a, const WEIGH: bool>(
+        value: &'a JsonValue,
+        weight: &mut usize,
+        keys: &mut ObjectKeys<'a>,
+    ) -> Self {
+        if WEIGH {
+            *weight = weight.saturating_add(std::mem::size_of::<FhirNode>() + 16);
+        }
         match value {
             JsonValue::Null => FhirNode::Null,
             JsonValue::Bool(b) => FhirNode::Bool(*b),
             JsonValue::Number(n) => FhirNode::Number(n.clone()),
-            JsonValue::String(s) => FhirNode::Str(Arc::from(s.as_str())),
-            JsonValue::Array(arr) => FhirNode::Array(arr.iter().map(FhirNode::from_json).collect()),
+            JsonValue::String(s) => {
+                if WEIGH {
+                    *weight = weight.saturating_add(s.len());
+                }
+                FhirNode::Str(Arc::from(s.as_str()))
+            }
+            JsonValue::Array(arr) => {
+                if WEIGH && keys.0.is_none() && arr.len() >= 8 && arr[0].is_object() {
+                    keys.0 = Some(std::collections::HashMap::new());
+                }
+                FhirNode::Array(
+                    arr.iter()
+                        .map(|item| Self::convert_json::<WEIGH>(item, weight, keys))
+                        .collect(),
+                )
+            }
             JsonValue::Object(map) => FhirNode::Object(
                 map.iter()
-                    .map(|(k, v)| (Arc::from(k.as_str()), FhirNode::from_json(v)))
+                    .map(|(key, child)| {
+                        if WEIGH {
+                            *weight = weight.saturating_add(key.len().saturating_add(32));
+                        }
+                        (
+                            if WEIGH {
+                                keys.intern(key)
+                            } else {
+                                Arc::from(key.as_str())
+                            },
+                            Self::convert_json::<WEIGH>(child, weight, keys),
+                        )
+                    })
                     .collect(),
             ),
         }
@@ -196,6 +260,11 @@ impl FhirNode {
             FhirNode::Object(entries) => entries.iter().find(|(k, _)| &**k == key).map(|(_, v)| v),
             _ => None,
         }
+    }
+
+    pub(crate) fn primitive_sibling(&self, property: &str) -> Option<&FhirNode> {
+        self.entries()
+            .find_map(|(key, node)| (key.strip_prefix('_') == Some(property)).then_some(node))
     }
 
     #[inline]
@@ -433,5 +502,22 @@ mod tests {
         }
         // round-trip preserves structure + key order
         assert_eq!(node.to_json(), v);
+    }
+}
+
+#[cfg(test)]
+mod prepared_key_tests {
+    use super::*;
+
+    #[test]
+    fn repeated_object_fields_share_names_without_changing_the_json() {
+        let item = serde_json::json!({"identifier": "example", "status": "active"});
+        let source = JsonValue::Array(vec![item; 8]);
+        let (node, _) = FhirNode::from_json_with_weight(&source);
+        let entries = node.as_array().unwrap();
+        let first = &entries[0].as_object().unwrap()[0].0;
+        let last = &entries[7].as_object().unwrap()[0].0;
+        assert!(Arc::ptr_eq(first, last));
+        assert_eq!(node.to_json(), source);
     }
 }

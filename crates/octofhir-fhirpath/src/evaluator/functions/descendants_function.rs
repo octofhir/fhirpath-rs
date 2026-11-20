@@ -11,7 +11,7 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result, node::FhirNode};
 use crate::evaluator::function_registry::{
     ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
     FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
@@ -49,44 +49,30 @@ impl DescendantsFunctionEvaluator {
     }
 }
 
-/// Pre-order depth-first collection of every descendant of `item`. FHIR
-/// resources are trees, so this terminates without cycle tracking.
-fn collect_descendants<'a>(
-    item: &'a FhirPathValue,
-    context: &'a EvaluationContext,
-    out: &'a mut Vec<FhirPathValue>,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
-    Box::pin(async move {
-        for child in typed_children(item, context).await {
-            out.push(child.clone());
-            collect_descendants(&child, context, out).await;
-        }
-    })
-}
-
-/// Append every descendant of `item` to `out`, going through the context's
-/// memoization cache.
-///
-/// Expressions that walk the same subtree repeatedly — notably the `dom-3`
-/// invariant, which evaluates `%resource.descendants()` four times per contained
-/// resource — would otherwise re-traverse (and re-resolve the type of) every node
-/// on each pass, making the cost quadratic in resource size.
-async fn extend_with_descendants(
+/// Collect descendants in preorder, sharing cached output for repeated walks.
+async fn descendants_of(
     item: &FhirPathValue,
     context: &EvaluationContext,
-    out: &mut Vec<FhirPathValue>,
-) {
+) -> Arc<Vec<FhirPathValue>> {
     if let Some(cached) = context.cached_descendants(item) {
-        out.extend(cached.iter().cloned());
-        return;
+        return cached;
     }
 
     let mut collected = Vec::new();
-    collect_descendants(item, context, &mut collected).await;
-
+    let mut pending = typed_children(item, context).await;
+    pending.reverse();
+    while let Some(child) = pending.pop() {
+        if matches!(
+            child,
+            FhirPathValue::Resource(FhirNode::Object(_) | FhirNode::Array(_), _, _)
+        ) {
+            pending.extend(typed_children(&child, context).await.into_iter().rev());
+        }
+        collected.push(child);
+    }
     let collected = Arc::new(collected);
     context.cache_descendants(item, collected.clone());
-    out.extend(collected.iter().cloned());
+    collected
 }
 
 #[async_trait::async_trait]
@@ -116,14 +102,23 @@ impl LazyFunctionEvaluator for DescendantsFunctionEvaluator {
             ));
         }
 
+        if input.len() == 1
+            && let Some(item) = input.first()
+            && !matches!(item, FhirPathValue::Collection(_))
+        {
+            return Ok(EvaluationResult {
+                value: Collection::from_shared_values(descendants_of(item, context).await),
+            });
+        }
+
         let mut all_descendants = Vec::new();
         for item in input.iter() {
             if let FhirPathValue::Collection(inner) = item {
                 for it in inner.iter() {
-                    extend_with_descendants(it, context, &mut all_descendants).await;
+                    all_descendants.extend(descendants_of(it, context).await.iter().cloned());
                 }
             } else {
-                extend_with_descendants(item, context, &mut all_descendants).await;
+                all_descendants.extend(descendants_of(item, context).await.iter().cloned());
             }
         }
 

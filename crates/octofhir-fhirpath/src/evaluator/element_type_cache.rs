@@ -1,7 +1,8 @@
 //! Engine-wide element types, with invalidation ordered against miss publication.
 use crate::core::{ModelProvider, model_provider::TypeInfo};
-use papaya::HashMap;
+use papaya::{Equivalent, HashMap};
 use parking_lot::RwLock;
+use std::hash::{Hash, Hasher};
 use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
@@ -10,9 +11,49 @@ use std::sync::{
 type Value = Option<Arc<TypeInfo>>;
 type LegacyCache = Arc<HashMap<String, Value>>;
 
+#[derive(PartialEq)]
+struct ElementKey {
+    parent: TypeInfo,
+    property: String,
+}
+
+impl Eq for ElementKey {}
+
+struct ElementKeyRef<'a> {
+    parent: &'a TypeInfo,
+    property: &'a str,
+}
+
+impl Hash for ElementKeyRef<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.parent.type_name.hash(state);
+        self.parent.singleton.hash(state);
+        self.parent.is_empty.hash(state);
+        self.parent.namespace.hash(state);
+        self.parent.name.hash(state);
+        self.property.hash(state);
+    }
+}
+
+impl Hash for ElementKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        ElementKeyRef {
+            parent: &self.parent,
+            property: &self.property,
+        }
+        .hash(state);
+    }
+}
+
+impl Equivalent<ElementKey> for ElementKeyRef<'_> {
+    fn equivalent(&self, key: &ElementKey) -> bool {
+        self.parent == &key.parent && self.property == key.property
+    }
+}
+
 #[derive(Default)]
 pub(super) struct ElementTypeCache {
-    entries: HashMap<String, (u64, Value)>,
+    entries: HashMap<ElementKey, (u64, Value)>,
     generation: AtomicU64,
     // Only misses and invalidation take this lock. Never held across provider I/O.
     publication: RwLock<()>,
@@ -53,12 +94,9 @@ impl ElementTypeCache {
         if generation != self.generation() {
             return Err(invalidated());
         }
-        let parent_name = parent.name.as_deref().unwrap_or(&parent.type_name);
-        let mut key = String::with_capacity(parent_name.len() + 1 + property.len());
-        key.push_str(parent_name);
-        key.push('.');
-        key.push_str(property);
         if let Some(cache) = &self.legacy {
+            let parent_name = parent.name.as_deref().unwrap_or(&parent.type_name);
+            let key = format!("{parent_name}.{property}");
             if let Some(value) = cache.pin().get(&key) {
                 return Ok(value.clone());
             }
@@ -70,7 +108,8 @@ impl ElementTypeCache {
             cache.pin().insert(key, value.clone());
             return Ok(value);
         }
-        if let Some((entry_generation, value)) = self.entries.pin().get(&key)
+        let query = ElementKeyRef { parent, property };
+        if let Some((entry_generation, value)) = self.entries.pin().get(&query)
             && *entry_generation == generation
         {
             return Ok(value.clone());
@@ -83,6 +122,10 @@ impl ElementTypeCache {
             return Err(invalidated());
         }
         let value = resolved?.map(Arc::new);
+        let key = ElementKey {
+            parent: parent.clone(),
+            property: property.to_owned(),
+        };
         self.entries.pin().insert(key, (generation, value.clone()));
         Ok(value)
     }

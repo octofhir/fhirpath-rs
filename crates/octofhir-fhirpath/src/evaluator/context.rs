@@ -79,6 +79,7 @@ struct SharedContextState {
     element_type_cache: Arc<ElementTypeCache>,
     schema_generation: u64,
     schema_lookup_failed: AtomicBool,
+    cache_navigation_types: AtomicBool,
     server_registry: Arc<LockFreeHashMap<String, Arc<dyn ServerProvider>>>,
     base_env_variables: Arc<LockFreeHashMap<String, FhirPathValue>>,
     /// Record where navigated values sit (for `pathname()`); off until an expression
@@ -343,6 +344,7 @@ impl EvaluationContext {
             element_type_cache,
             schema_generation,
             schema_lookup_failed: AtomicBool::new(false),
+            cache_navigation_types: AtomicBool::new(false),
             server_registry,
             base_env_variables: BASE_ENV_VARIABLES.clone(),
             track_paths: AtomicBool::new(false),
@@ -521,6 +523,29 @@ impl EvaluationContext {
             variables: Arc::new(RwLock::new(ScopeVariables::default())),
             parent_context: Some(Arc::new(self.clone())), // Arc avoids recursive deep clone
             root_resource: self.root_resource.clone(),    // Share Arc reference
+            hoist_scope: self.hoist_scope.clone(),
+        }
+    }
+
+    /// Create an isolated lambda scope using one shared parent for the loop.
+    pub(crate) fn iteration_context(
+        self: &Arc<Self>,
+        item: &FhirPathValue,
+        index: usize,
+        total: Option<usize>,
+    ) -> Self {
+        let variables = ScopeVariables {
+            this: Some(item.clone()),
+            index: Some(FhirPathValue::integer(index as i64)),
+            total: total.map(|size| FhirPathValue::integer(size as i64)),
+            ..ScopeVariables::default()
+        };
+        Self {
+            input_collection: Collection::single(item.clone()),
+            shared: self.shared.clone(),
+            variables: Arc::new(RwLock::new(variables)),
+            parent_context: Some(self.clone()),
+            root_resource: self.root_resource.clone(),
             hoist_scope: self.hoist_scope.clone(),
         }
     }
@@ -713,6 +738,38 @@ impl EvaluationContext {
         self.hoist_scope.as_ref()?.lookup(key).cloned()
     }
 
+    pub(super) fn cache_prepared_navigation_types(&self) {
+        self.shared
+            .cache_navigation_types
+            .store(true, Ordering::Relaxed);
+    }
+
+    pub(super) async fn navigation_element_type(
+        &self,
+        provider: &Arc<dyn ModelProvider + Send + Sync>,
+        parent_type: &TypeInfo,
+        property: &str,
+    ) -> octofhir_fhir_model::Result<Option<Arc<TypeInfo>>> {
+        if self.shared.cache_navigation_types.load(Ordering::Relaxed)
+            && Arc::ptr_eq(&self.shared.model_provider, provider)
+        {
+            return self
+                .shared
+                .element_type_cache
+                .resolve_at(
+                    self.shared.schema_generation,
+                    provider.as_ref(),
+                    parent_type,
+                    property,
+                )
+                .await;
+        }
+        provider
+            .get_element_type(parent_type, property)
+            .await
+            .map(|value| value.map(Arc::new))
+    }
+
     /// Resolve the type of the `property` element of `parent_type`, memoized.
     ///
     /// Tree walks resolve the same handful of (type, property) pairs thousands of
@@ -849,6 +906,29 @@ mod scope_tests {
                 .get_variable("answer")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn iteration_scopes_bind_focus_and_keep_locals_separate() {
+        let parent = Arc::new(crate::testing::test_context());
+        parent.set_variable("parent".into(), FhirPathValue::integer(1));
+        let first = parent.iteration_context(&FhirPathValue::integer(7), 0, Some(2));
+        let second = parent.iteration_context(&FhirPathValue::integer(9), 1, Some(2));
+        first.set_variable("local".into(), FhirPathValue::boolean(true));
+        assert_eq!(first.get_variable("$this"), Some(FhirPathValue::integer(7)));
+        assert_eq!(
+            second.get_variable("$index"),
+            Some(FhirPathValue::integer(1))
+        );
+        assert_eq!(
+            second.get_variable("$total"),
+            Some(FhirPathValue::integer(2))
+        );
+        assert_eq!(
+            second.get_variable("parent"),
+            Some(FhirPathValue::integer(1))
+        );
+        assert_eq!(second.get_variable("local"), None);
     }
 
     #[test]

@@ -868,10 +868,12 @@ impl<'a> StackState<'a> {
                         self.value = Some(evaluator.evaluate_index_sync(object, index)?.value);
                     }
                     Frame::Property(node, context) => {
-                        let context = context.create_child_context(self.take());
+                        let input = self.take();
                         let name = path_name(node, program, borrowed_program);
                         self.frames.push(Frame::Future(Box::pin(async move {
-                            evaluator.evaluate_path(name.as_ref(), &context).await
+                            evaluator
+                                .evaluate_path_from(name.as_ref(), &input, &context)
+                                .await
                         })));
                     }
                     Frame::Call(node, context) => {

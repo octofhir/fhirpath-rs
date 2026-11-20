@@ -117,6 +117,54 @@ fn source() -> Arc<serde_json::Value> {
     Arc::new(serde_json::json!({"resourceType":"Patient", "value":"https://example.org"}))
 }
 
+#[tokio::test]
+async fn prepared_navigation_reuses_types_and_retries_provider_errors() {
+    let provider = Provider::new(3);
+    let engine = engine(provider.clone()).await;
+    let source = source();
+    let variables = JsonVariables::new();
+    let resource = engine
+        .prepare_resource(source.clone(), &variables)
+        .await
+        .unwrap()
+        .unwrap();
+    let node = resource.node_id(&source).unwrap();
+    let plans = [Arc::new(
+        engine.compile_handle("value.exists()").await.unwrap(),
+    )];
+    let evaluate = async || {
+        engine
+            .evaluate_prepared_constraints(&resource, node, &source, None, &variables, &plans)
+            .await
+    };
+    assert!(evaluate().await.unwrap()[0].is_err());
+    provider.mode.store(0, Ordering::SeqCst);
+    for _ in 0..2 {
+        assert!(evaluate().await.unwrap()[0].as_ref().unwrap());
+    }
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+    engine.clear_element_type_cache();
+    assert!(evaluate().await.is_err());
+    let resource = engine
+        .prepare_resource(source.clone(), &variables)
+        .await
+        .unwrap()
+        .unwrap();
+    let result = engine
+        .evaluate_prepared_constraints(
+            &resource,
+            resource.node_id(&source).unwrap(),
+            &source,
+            None,
+            &variables,
+            &plans,
+        )
+        .await
+        .unwrap();
+    assert!(result[0].as_ref().unwrap());
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 3);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalidation_discards_inflight_success_absence_and_error_without_overwriting_new_hits() {
     for (mode, warm_new_generation) in [

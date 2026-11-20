@@ -379,10 +379,7 @@ impl Evaluator {
                 let object_result = self
                     .evaluate_node_inner(&property_access.object, context)
                     .await?;
-                // Use create_child_context to preserve variables from defineVariable
-                let new_context = context.create_child_context(object_result.value);
-
-                self.evaluate_path(&property_access.property, &new_context)
+                self.evaluate_path_from(&property_access.property, &object_result.value, context)
                     .await
             }
             ExpressionNode::MethodCall(method_call) => {
@@ -700,12 +697,10 @@ impl Evaluator {
                         depth + 1,
                     )
                     .await?;
-                let new_context = context.create_child_context(object_result.value);
-
                 // Record property access timing
                 let prop_start = Instant::now();
                 let result = self
-                    .evaluate_path(&property_access.property, &new_context)
+                    .evaluate_path_from(&property_access.property, &object_result.value, context)
                     .await;
                 let prop_time = prop_start.elapsed();
                 collector.record_property_timing(
@@ -1025,6 +1020,16 @@ impl Evaluator {
         identifier: &str,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
+        self.evaluate_path_from(identifier, context.input_collection(), context)
+            .await
+    }
+
+    pub(super) async fn evaluate_path_from(
+        &self,
+        identifier: &str,
+        input: &Collection,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResult> {
         // Check if identifier starts with capital letter (potential resource type)
         let is_resource_type_check = identifier
             .chars()
@@ -1032,10 +1037,10 @@ impl Evaluator {
             .map(|c| c.is_uppercase())
             .unwrap_or(false);
 
-        let mut result_values = Vec::new();
+        let mut result_values = smallvec::SmallVec::<[FhirPathValue; 1]>::new();
 
         // Navigate each item in the input collection
-        for item in context.input_collection().iter() {
+        for item in input.iter() {
             let start = result_values.len();
             match item {
                 FhirPathValue::Resource(json, type_info, _) => {
@@ -1101,9 +1106,8 @@ impl Evaluator {
                     }
 
                     // Use ModelProvider to get element type information
-                    let declared_element_type = self
-                        .model_provider
-                        .get_element_type(type_info, identifier)
+                    let declared_element_type = context
+                        .navigation_element_type(&self.model_provider, type_info, identifier)
                         .await
                         .map_err(|e| {
                             FhirPathError::evaluation_error(
@@ -1119,13 +1123,13 @@ impl Evaluator {
                         element_type
                     } else {
                         // Fallback type info
-                        crate::core::model_provider::TypeInfo {
+                        Arc::new(crate::core::model_provider::TypeInfo {
                             type_name: "Unknown".to_string(),
                             singleton: Some(true),
                             namespace: Some("FHIR".to_string()),
                             name: Some(identifier.to_string()),
                             is_empty: Some(false),
-                        }
+                        })
                     };
 
                     // Extract the value directly from JSON
@@ -1150,7 +1154,7 @@ impl Evaluator {
                                 .await?;
                             result_values.extend(flattened_values);
                         }
-                    } else if let Some(primitive) = json.get(&format!("_{identifier}")) {
+                    } else if let Some(primitive) = json.primitive_sibling(identifier) {
                         // A primitive with only extensions (`_issued` and no `issued`) is
                         // there: an element without a value.
                         result_values.extend(Self::extension_only_primitives(
@@ -1211,9 +1215,12 @@ impl Evaluator {
                     for sub_item in collection.iter() {
                         if let FhirPathValue::Resource(json, type_info, _) = sub_item {
                             // Use ModelProvider to get element type for collection items
-                            let property_type_info = if let Some(element_type) = self
-                                .model_provider
-                                .get_element_type(type_info, identifier)
+                            let property_type_info = if let Some(element_type) = context
+                                .navigation_element_type(
+                                    &self.model_provider,
+                                    type_info,
+                                    identifier,
+                                )
                                 .await
                                 .map_err(|e| {
                                     FhirPathError::evaluation_error(
@@ -1224,13 +1231,13 @@ impl Evaluator {
                                 element_type
                             } else {
                                 // Fallback type info
-                                crate::core::model_provider::TypeInfo {
+                                Arc::new(crate::core::model_provider::TypeInfo {
                                     type_name: "Unknown".to_string(),
                                     singleton: Some(true),
                                     namespace: Some("FHIR".to_string()),
                                     name: Some(identifier.to_string()),
                                     is_empty: Some(false),
-                                }
+                                })
                             };
 
                             // Extract the value directly from JSON
@@ -1254,7 +1261,7 @@ impl Evaluator {
                                         .await?;
                                     result_values.extend(flattened_values);
                                 }
-                            } else if let Some(primitive) = json.get(&format!("_{identifier}")) {
+                            } else if let Some(primitive) = json.primitive_sibling(identifier) {
                                 result_values.extend(Self::extension_only_primitives(
                                     primitive,
                                     &property_type_info,
@@ -1292,9 +1299,12 @@ impl Evaluator {
                                     result_values.extend(flattened_values);
                                 } else {
                                     // Check if this property is valid for the current type
-                                    match self
-                                        .model_provider
-                                        .get_element_type(type_info, identifier)
+                                    match context
+                                        .navigation_element_type(
+                                            &self.model_provider,
+                                            type_info,
+                                            identifier,
+                                        )
                                         .await
                                     {
                                         Ok(Some(_)) => {
@@ -1438,9 +1448,12 @@ impl Evaluator {
             Self::attach_origins(item, identifier, context, &mut result_values[start..]);
         }
 
-        Ok(EvaluationResult {
-            value: Collection::from_values(result_values),
-        })
+        let value = match result_values.len() {
+            0 => Collection::empty(),
+            1 => Collection::single(result_values.pop().unwrap()),
+            _ => Collection::from_values(result_values.into_vec()),
+        };
+        Ok(EvaluationResult { value })
     }
 
     /// Navigate choice type properties (valueX patterns) with enhanced ModelProvider integration
@@ -1490,6 +1503,8 @@ impl Evaluator {
                             name: Some(choice.type_name.clone()),
                             is_empty: Some(false),
                         });
+
+                    let choice_type_info = Arc::new(choice_type_info);
 
                     // Handle array vs single values
                     match property_value {
@@ -1550,6 +1565,7 @@ impl Evaluator {
                     is_empty: Some(false),
                 };
 
+                let type_info = Arc::new(type_info);
                 let wrapped_value = self
                     .wrap_json_with_type(property_value, &type_info, property_name, json)
                     .await?;
@@ -2313,7 +2329,7 @@ impl Evaluator {
     async fn wrap_json_with_type(
         &self,
         value: &crate::core::node::FhirNode,
-        type_info: &crate::core::model_provider::TypeInfo,
+        type_info: &Arc<crate::core::model_provider::TypeInfo>,
         property_name: &str,
         parent_object: &crate::core::node::FhirNode,
     ) -> Result<FhirPathValue> {
@@ -2385,7 +2401,7 @@ impl Evaluator {
             if type_info.type_name == "Unknown" && type_info.namespace.as_deref() == Some("FHIR") {
                 if let Some(ref name) = type_info.name {
                     if crate::typing::is_primitive_type(name) {
-                        let mut ti = type_info.clone();
+                        let mut ti = (**type_info).clone();
                         ti.type_name = name.clone();
                         std::sync::Arc::new(ti)
                     } else {
@@ -2395,7 +2411,7 @@ impl Evaluator {
                     base_value.type_info().clone()
                 }
             } else {
-                std::sync::Arc::new(type_info.clone())
+                type_info.clone()
             };
 
         Ok(FhirPathValue::wrap_value(
@@ -2407,10 +2423,14 @@ impl Evaluator {
 
     /// Check if a type is temporal (date/datetime/time)
     fn is_temporal_type(&self, type_name: &str) -> bool {
-        matches!(
-            type_name.to_lowercase().as_str(),
-            "date" | "datetime" | "time" | "instant"
-        )
+        const TEMPORAL_TYPES: &[&str] = &["date", "datetime", "time", "instant"];
+        if type_name.is_ascii() {
+            TEMPORAL_TYPES
+                .iter()
+                .any(|name| type_name.eq_ignore_ascii_case(name))
+        } else {
+            TEMPORAL_TYPES.contains(&type_name.to_lowercase().as_str())
+        }
     }
 
     /// Convert a JSON value to the appropriate FhirPathValue for temporal types
@@ -2507,9 +2527,8 @@ impl Evaluator {
         property_name: &str,
     ) -> Option<std::sync::Arc<serde_json::Value>> {
         // Check for _propertyName pattern for primitive extensions
-        let primitive_element_name = format!("_{property_name}");
         parent_object
-            .get(&primitive_element_name)
+            .primitive_sibling(property_name)
             .map(|pe| std::sync::Arc::new(pe.to_json()))
     }
 
