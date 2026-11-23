@@ -61,7 +61,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 anyhow = { workspace = true }
 colored = { workspace = true }
-reedline = { version = "0.52", optional = true }
+reedline = { version = "0.53", optional = true }
 fuzzy-matcher = { version = "0.3", optional = true }
 human-panic = "2.0"
 
